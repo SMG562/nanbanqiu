@@ -48,12 +48,12 @@ for (const [k, h] of [['PWA', H.pwa], ['Web', H.web]]) {
   T(`${k}：不再使用废弃的事件名`, dep.length === 0, dep);
 }
 const eP = evNames(H.pwa), eW = evNames(H.web);
-// 场边类（sb_*）网页端 F3 才接入，之前只在手机端（F2 定；F3 起去掉这个例外）
-const SIDE_ONLY = new Set(rows.filter(r => r[1] === '场边').map(r => r[0]));
+// 场边类（sb_*）两端都发（F3 起网页端也接入，去掉了 F2 时「只在手机端」的例外）
+const SIDE = [...new Set(rows.filter(r => r[1] === '场边').map(r => r[0]))];
 const quoted = (h, x) => new RegExp(`['"]${x}['"]`).test(h);   // 另一端用别的写法发（如 ['report_open',{…}]）也算有
-const onlyP = [...eP].filter(x => !eW.has(x) && !quoted(H.web, x) && !SIDE_ONLY.has(x)), onlyW = [...eW].filter(x => !eP.has(x) && !quoted(H.pwa, x));
-T('两端代码里的事件名一致（允许 map_day 只在网页、场边类 F3 之前只在手机端）', onlyP.length === 0 && onlyW.every(x => x === 'map_day'), { onlyP, onlyW });
-T('场边类事件都在手机端代码里发出（字典有、代码没有 = 漏了）', [...SIDE_ONLY].every(x => eP.has(x)), [...SIDE_ONLY].filter(x => !eP.has(x)));
+const onlyP = [...eP].filter(x => !eW.has(x) && !quoted(H.web, x)), onlyW = [...eW].filter(x => !eP.has(x) && !quoted(H.pwa, x));
+T('两端代码里的事件名一致（只允许 map_day 只在网页）', onlyP.length === 0 && onlyW.every(x => x === 'map_day'), { onlyP, onlyW });
+T('场边类事件两端代码里都发出（字典有、代码没有 = 漏了）', SIDE.length === 12 && SIDE.every(x => eP.has(x) && eW.has(x)), SIDE.filter(x => !eP.has(x) || !eW.has(x)));
 const demos = h => [...h.matchAll(/data-demo="([a-z0-9_]+)"/g)].map(m => m[1]).join(',');
 T('两端演示菜单相同（内容与顺序）', demos(H.pwa) === demos(H.web), { pwa: demos(H.pwa), web: demos(H.web) });
 T('PWA 构建标记 = pwa', /AN_BUILD\s*=\s*['"]pwa['"]/.test(H.pwa)); T('Web 构建标记 = web', /AN_BUILD\s*=\s*['"]web['"]/.test(H.web));

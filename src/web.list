@@ -61,6 +61,7 @@ shared/style/0270-约_TA_打球.css
 web/style/0320-约_TA_打球.css
 shared/style/0280-约_TA_打球.css
 web/style/0330-约_TA_打球.css
+web/style/0340-场边.css
 shared/style/0290-约_TA_打球.css
 web/page/0020-页面.html
 shared/page/0010-页面.html
@@ -142,3 +143,14 @@ web/script/0270-事件.js
 web/script/0280-演示.js
 web/script/0290-路由.js
 web/page/0030-结尾.html
+shared/side/0010-开头.js
+shared/side/0020-场边_24h.js
+shared/side/0030-照片.js
+shared/side/0040-数据.js
+shared/side/0050-组件.js
+shared/side/0060-动画.js
+shared/side/0065-发布规则.js
+shared/side/0070-一个_App_实例.js
+web/side/0080-场边页.js
+shared/side/0090-场边通知.js
+web/page/0040-结尾.html

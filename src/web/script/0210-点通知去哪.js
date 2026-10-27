@@ -3,6 +3,8 @@ function render(){
   if(UI.landing){$('#appRoot').hidden=true;$('#landRoot').hidden=false;renderLanding();return}
   $('#appRoot').hidden=false;$('#landRoot').hidden=true;
   document.body.classList.toggle('is-mine',UI.tab==='mine');document.body.classList.toggle('is-disc',UI.tab==='disc');
+  const sd=UI.tab==='side';document.body.classList.toggle('is-side',sd);$('#layout').hidden=sd;$('#sbScr').hidden=!sd;
+  if(sd){sbBoot();renderNav();renderDemo();return}
   $('#layout').classList.toggle('has-detail',!!(UI.sel||UI.selVenue&&UI.mode==='map'&&UI.tab==='disc'));
   renderNav();renderLeft();renderCenter();renderRight();renderDemo();
 }

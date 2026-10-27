@@ -91,6 +91,7 @@ add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'front
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
+add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F3 网页端接入场边
 add('frontend', 'frontend/softdelete', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/softdelete.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/account', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/account.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/report', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/report.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });

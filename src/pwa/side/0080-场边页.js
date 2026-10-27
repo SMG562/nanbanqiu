@@ -18,4 +18,7 @@ DEV.addEventListener('click',e=>{const a=e.target.closest('[data-a="nBack"],[dat
   if(a.dataset.a==='nBack'){go(UI.back&&UI.back!=='notif'?UI.back:'disc');return}
   go('side');if(SBV){SBV.api.album();SBV.fromMe=true}},true);
 sbBadge();
+// 场边通知（shared/side/0090）用的两处：消息页开着就重画；点开 → 场边那条发布
+function sbNtfRedraw(){if(UI.tab==='notif')renderNotif()}
+function sbShow(id,rid){closeSheet();if(UI.detail)closeDetail();go('side');SBV.api.open(id,rid)}
 

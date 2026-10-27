@@ -5,7 +5,7 @@
  *   回复 sb_reply（给作者）/ sb_reply_to（给被回复的人）：同一条发布 10 分钟内、还没看的并进同一条（人数 = 不同的人，内容 = 最近一条），不再提醒。
  * 文字 = server/notify/rules.mjs pushText（测试逐字对照）；不紧急（NR_LOW：夜里顺延到 8 点）；不发邮件（不在 EM_KIND）；
  * 推送前：发布 / 回复已不在、屏蔽了对方 → 不提醒。点开 → 场边那条发布（回复滚到那条），已不在 → 「这条已经不在了」。
- * F3 网页端接入场边时整份挪进 shared。 */
+ * 两端共用（F3 起）；各端只差「重画消息列表 sbNtfRedraw」「切到场边打开那条 sbShow」，写在各自的 side/0080-场边页.js。 */
 const SB_NK=['sb_ball','sb_reply','sb_reply_to'];
 SB_NK.forEach(k=>NR_LOW.add(k));
 const SB_MERGE_MS=10*60e3;
@@ -19,7 +19,7 @@ function sbPost(id){return SBV&&SBV.api.get(id)}
 function sbGone(n){const p=sbPost(n.sb_post_id);if(!p)return '发布已不在';if(n.kind!=='sb_ball'&&!p.reply(n.sb_reply_id))return '回复已不在';
   if(SBV.bl&&SBV.bl.has(n.an))return '有屏蔽关系';return null}
 // 列表、横幅都要重画：合并只改数字和名字，不再提醒
-function sbRefresh(){nrBadge();if(typeof UI!=='undefined'&&UI.tab==='notif'&&typeof renderNotif==='function')renderNotif()}
+function sbRefresh(){nrBadge();sbNtfRedraw()}
 function sbNtf(o){if(!ME||!o||!o.post)return;const uid=ME.id,x=o.post,now=Date.now(),p=sbPost(x.id);if(!p)return;
   const base=()=>({id:++NID,user_id:uid,kind:o.kind,game_id:null,from:null,at:now,read:false,sb_post_id:x.id,sb_count:1,an:o.actor.n,ac:o.actor.c,pb:p.body,ph:p.photos});
   if(o.kind==='sb_ball'){
@@ -41,4 +41,4 @@ function sbNtf(o){if(!ME||!o||!o.post)return;const uid=ME.id,x=o.post,now=Date.n
 // 点开（横幅、列表、系统推送同一个入口）
 {const _o=nrOpen;nrOpen=function(n){if(!n||!SB_NK.includes(n.kind))return _o.apply(this,arguments);n.read=true;nrBadge();
   sbBoot();if(!sbPost(n.sb_post_id)){toast('这条已经不在了');return}
-  closeSheet();if(UI.detail&&typeof closeDetail==='function')closeDetail();go('side');SBV.api.open(n.sb_post_id,n.kind==='sb_ball'?null:n.sb_reply_id)};ntfOpen=nrOpen}
+  sbShow(n.sb_post_id,n.kind==='sb_ball'?null:n.sb_reply_id)};ntfOpen=nrOpen}
