@@ -57,7 +57,7 @@ jobs:
           path: |
             .nbq-cache
             ~/.cache/ms-playwright
-          key: nbq-${{ runner.os }}-pw1.63.0-${{ hashFiles('tests/pg/package.json', 'tests/schema/package.json') }}
+          key: nbq-${{ runner.os }}-pw1.63.0-${{ hashFiles('tests/pg/package.json', 'tests/schema/package.json', 'tests/lint/package.json') }}
 
       - name: Playwright
         run: |

@@ -83,9 +83,6 @@ document.addEventListener('click',e=>{
     case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
     case'logout':ME=null;UI.sel=null;$('#umenu').classList.remove('show');toast('已退出登录');render();break;
     case'create':if(UI.landing){UI.landing=null;history.replaceState(null,'','#/');render()}openCreate();break;
-    case'publish':{const o=+$('#ngD').value,mn=+$('#ngMin').value,mx=+$('#ngMax').value;
-      const id=api.create({venue_id:$('#ngV').value,starts_at:dayAt(o,$('#ngT').value).toISOString(),duration_min:NG.dur,game_type:NG.type,ntrp_min:Math.min(mn,mx),ntrp_max:Math.max(mn,mx),note:$('#ngNote').value.trim()});afterCreate(id);
-      closeModal();UI.tab='disc';UI.mode='agenda';select(id);setTimeout(()=>openShare(id),250);break}
   }
 });
 $('#dim').onclick=()=>{UI.sel=null;UI.selVenue=null;render()};

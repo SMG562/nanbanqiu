@@ -4912,9 +4912,6 @@ DEV.addEventListener('click',e=>{
     case'simA2hs':setEnv('pwa');closeSheet();toast('已从主屏幕打开');setTimeout(enablePush,500);break;
     case'logout':ME=null;toast('已退出登录');render();break;
     case'create':closeDetail();openCreate();break;
-    case'publish':{const o=+$('#ngD').value,mn=+$('#ngMin').value,mx=+$('#ngMax').value;
-      const id=api.create({venue_id:$('#ngV').value,starts_at:dayAt(o,$('#ngT').value).toISOString(),duration_min:NG.dur,game_type:NG.type,ntrp_min:Math.min(mn,mx),ntrp_max:Math.max(mn,mx),note:$('#ngNote').value.trim()});afterCreate(id);
-      UI.day=Math.min(o,6);closeSheet();go('disc');setTimeout(()=>{openDetail(id);setTimeout(()=>openShare(id),450)},200);break}
   }
 });
 function copy(t,m){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(m),()=>toast(m))}

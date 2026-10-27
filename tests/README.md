@@ -70,6 +70,8 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | admin | `admin/roles.js` | 后台三种身份（5c）：置灰与拦截、填理由、日志记人和理由、看手机号只有超级管理员、举报里看对话、只读只剩统计页且看不到任何昵称 | 0 失败 |
 | admin | `admin/cities.js` | 后台城市页（R4）：6 个城市和网址、检查清单、往前改状态要过清单（不够就说明缺什么）、要理由记日志、可退回；两个城市开放后顶部出现城市筛选；导出名单 / 标记已通知；运营置灰拦下；只读没有城市页；管理员页显示负责城市。故意改坏 5 处全部抓到 |
 | pg | `pg/sb_schema.mjs` · `pg/sb_api.mjs` · `pg/sb_race.mjs` · `pg/sb_jobs.mjs` · `pg/sb_config.mjs` | 场边 24h（第七批，schema ㉕）：表、读写权限、后台统计；发布 / 话题 / 编号 / 互动 / 互动通知；没登录一律不能写、被拒操作记风险信号、下载我的数据（S2c）；同时操作（编号、网球数、回复数、浏览，A 先 / B 先 / 并发 25 次） | 0 失败 |
+| static | `static/build.mjs` | 两个前台 HTML = `src/` 用 `tools/build.mjs` 拼出来的（逐字节）；list 完整、shared 两端都用；自检：改 src 不重拼 / 直接改 HTML / 漏登记都会失败（R0） |
+| static | `static/lint.mjs` | 前台两端脚本的代码检查（ESLint，版本固定在 `tests/lint/package.json`，run_all 自动装到缓存目录）：没定义的名字、重复声明、重复的键等；问题对回 `src/` 的文件和行；自检 4 项（R0） |
 | static | `static/api_err.mjs` | 前台两端各有一份 `API_ERR`（错误码 → 提示），必须与 `spec/api_spec.md` 的错误码表逐字相同，两端也必须相同 | 0 失败 |
 | pg | `pg/perf.mjs` | 真实 PostgreSQL 上造「上线一年」的数据（`seed_year.sql`：球友 1.2 万、球局 4.6 万、通知 115 万、事件 750 万，最近 30 天约是模拟外推的 1–3 倍），测前台接口和后台每张卡片的数据源用时（清单 `queries.mjs`）；数据量 ×0.05 时另外用 `reference.sql`（改写前的定义）核对改写前后结果逐行相同。报告写到工作目录的 perf.md | 前台 ≤ 50ms · 后台近 30 天 ≤ 2s · 一年 ≤ 5s · 名单 ≤ 3s；对照 0 差异 |
 | frontend | `verify.js` | 两端用真实界面走主流程（访客、登录、申请/撤回、直接加入、审核、取消、发起/修改、顺延、邀约全流程、赛后卡片、徽章、开打前提醒、个性化、分享、筛选、聊天、性别、退出、关闭使用数据、推送打开、分享链接、新路由）：每个动作的事件**只发一次**、props 齐全、两端完全一致、都在字典里；隐私：聊天内容、性别值不进事件，关闭后不再上报 | 429 项 0 失败 |
@@ -104,6 +106,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 
 ## 5. 改代码后怎么用
 
+0. **前台两端（南伴球_PWA.html、南伴球_Web.html）改 `src/` 里的源文件，改完 `node tools/build.mjs` 拼出 HTML，再 `node tools/lint.mjs` 检查**；不要直接改这两个 HTML（`static/build` 会报）。后台（南伴球_后台.html）还没拆，直接改。
 1. 每一小轮跑相关的（`--grep=…` 或 `--only=static,schema,pg --fast`，约 2 分钟）；改了前台再加 `--quick`。完整测试和故意改坏检查只在一批收尾、交付或上线前跑（10-26 定）。
 2. 回归快照不一致时，先看 `logs/<测试>.diff.txt`：
    - 是这次改动带来的预期变化 → `--update-snapshots` 更新，并在 `进度记录.md` 里写明原因；

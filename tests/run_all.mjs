@@ -51,6 +51,8 @@ add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.m
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
+// 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）
+add('static', 'static/lint', ['node', path.join(HERE, 'static/lint.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 180, env: { NBQ_CACHE: CACHE } });
 add('static', 'static/cities_front', ['node', path.join(HERE, 'static/cities_front.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('schema', 'schema/full', ['__schema__'], { pass: [/schema: \d+ statements, 0 errors/, /tests: \d+ blocks, 0 failed/, /dictionary: .* 0 differences/, /RESULT PASS/], timeout: 600 });
 // 真实 PostgreSQL（+ PostGIS）：同时操作（4c）
@@ -132,6 +134,15 @@ if (LIST.some(t => t.suite === 'schema')) {
     fs.mkdirSync(sd, { recursive: true }); fs.copyFileSync(path.join(HERE, 'schema', 'package.json'), path.join(sd, 'package.json'));
     console.log('首次运行：安装 PGlite 到 ' + sd + ' …');
     try { execSync('npm install --no-audit --no-fund', { cwd: sd, stdio: 'inherit' }) } catch (_) { need(false, 'PGlite 安装失败（需要能访问 npm）') }
+  }
+}
+if (LIST.some(t => t.id === 'static/lint')) {
+  const ld = path.join(CACHE, 'lint'), want = fs.readFileSync(path.join(HERE, 'lint', 'package.json'), 'utf8');
+  const cur = fs.existsSync(path.join(ld, 'package.json')) ? fs.readFileSync(path.join(ld, 'package.json'), 'utf8') : '';
+  if (!fs.existsSync(path.join(ld, 'node_modules', 'eslint')) || cur !== want) {
+    fs.mkdirSync(ld, { recursive: true }); fs.writeFileSync(path.join(ld, 'package.json'), want);
+    console.log('首次运行：安装 ESLint 到 ' + ld + ' …');
+    try { execSync('npm install --no-audit --no-fund', { cwd: ld, stdio: 'inherit' }) } catch (_) { need(false, 'ESLint 安装失败（需要能访问 npm）') }
   }
 }
 if (LIST.some(t => t.suite === 'pg')) {
