@@ -164,6 +164,13 @@
 | nickname_not_allowed | 422 | 昵称里不能有链接、联系方式或「官方」「客服」等字样 | 数据库 nbq_nickname_problem |
 | adult_required | 422 | 请先确认你已满 18 岁 | 数据库 api_consent_accept |
 | city_closed | 409 | 这个城市还没开放 | 数据库 nbq_check_slot / 常用城市 |
+| topic_too_generic | 422 | 这个词有点宽，换个具体点的说法吧 | 数据库 sb_topic_resolve（sb_generic_words）（场边 §14，F1b 并入） |
+| topic_name_not_allowed | 422 | 话题名里不能有链接、联系方式或「官方」等字样 | 数据库 nbq_nickname_problem（场边 §14，F1b 并入） |
+| topic_ended | 409 | 这个话题已经结束了 | 数据库 api_sb_post（场边 §14，F1b 并入） |
+| sb_post_hourly_limit | 429 | 发得有点多，过一会儿再发吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
+| sb_post_daily_limit | 429 | 今天已经发了 20 条，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
+| sb_topic_daily_limit | 429 | 今天已经发起了 3 个话题，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
+| replies_closed | 409 | 作者关闭了回复 | 数据库 api_sb_reply（场边 §14，F1b 并入） |
 
 ---
 
@@ -533,7 +540,7 @@
 
 ## 14. 场边 24h（schema ㉕，第七批 S2；设计稿 南伴球_场边设计稿_v35.html）
 
-本批只做到数据库和接口；前台两端接入时，下面的错误码并入 §1 和两端的 API_ERR（tests/static/api_err.mjs 只对照 §1）。
+本批只做到数据库和接口；场边错误码在第八批 F1b 并入了 §1 和两端的 API_ERR（tests/static/api_err.mjs 只对照 §1）。
 
 ### 14.1 读
 - 都是直接查表，行级权限决定能看到什么（schema ㉕ sb_post_public / sb_post_readable）：没登录也能看 24 小时内公开的；屏蔽双方互相看不到；点了不感兴趣的看不到；停用、封禁、注销的人发的看不到；自己的一直看得到（相册），删了就没了。
@@ -582,6 +589,8 @@
 - 文字：网球「Leo 给你点了网球 🎾」/「Nia 和另外 2 人给你点了网球 🎾」，正文引用发布前 24 字（只有照片时「你的照片」）；回复「Leo 回复了你」/「Mia 等 2 人回复了你」，正文是回复内容（前 40 字）。
 
 ### 14.9 错误码（场边新增）
+
+第八批 F1b 起已并入 §1 和两端的 API_ERR（下表留作出处）。
 
 | 错误码 | HTTP | 给用户看的话 | 谁判断 |
 |---|---|---|---|

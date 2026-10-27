@@ -21,7 +21,7 @@
 | a2hs_open | 安装 | C | 打开「添加到主屏幕」引导 | env |
 | analytics_off | 隐私 | C | 关闭使用数据（发完这一条后停止） | — |
 | analytics_on | 隐私 | C | 重新打开使用数据 | — |
-| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/...) |
+| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/...) |
 | login_send_code | 登录 | C | 发送验证码（号码格式通过才发） | cc |
 | login_verify | 登录 | C | 提交验证码 | ok |
 | login_success | 登录 | C | 登录成功 | is_new, trigger, entry |

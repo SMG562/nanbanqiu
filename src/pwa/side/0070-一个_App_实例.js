@@ -13,6 +13,9 @@ function App(el,init){
     <div class="cscrim"></div><div class="compose"></div><div class="share"></div><div class="viewer"></div><div class="acts"><div class="g"><button data-act="hide">不看这条</button><button class="warn" data-act="report">举报</button></div><div class="g g2"><button data-act="cancel">取消</button></div></div><div class="toast"></div>`;
   const $=s=>el.querySelector(s),inp=$('[data-in]'),sendB=$('[data-send]'),hint=$('[data-hint]'),list=$('[data-s="home"]'),sc=$('[data-sc="home"]');
   const toast=m=>{const t=$('.toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1600)};
+  // 写操作（F1b）：宿主页面的 gate 负责「没登录先登录、账号状态不允许的拦下」，通过后再做；登录后接着做（草稿还在）
+  const need=(k,fn)=>S.gate?S.gate(k,fn):fn(),again=t=>{S.gok=1;try{t.click()}finally{S.gok=0}};
+  const say=c=>toast(S.err?S.err(c):c);   // 错误码 → 给用户看的话（接口文档 §1）
   const find=id=>S.L.find(y=>String(y.id)===String(id))||S.A.find(y=>String(y.id)===String(id));
   const pass=x=>Date.now()-x.t<24*H&&!x.ed;
   // 113 条 · 每条只公开 24 小时
@@ -140,15 +143,15 @@ function App(el,init){
     if(k==='topic')return `<p class="csh-t">选个话题</p><label class="tq"><span>#</span><input data-tq maxlength="${CFG.settings.name_max}" placeholder="搜一个，没有就新建"></label><div class="tl">${tRows('')}</div>`;
     return `<p class="csh-t">发布设置</p><div class="op" data-tg="later"><div><b>2 小时后再公开</b><p>打完球再让大家看到</p></div><span class="tg${C.later?' on':''}"></span></div><div class="op" data-tg="replyOn"><div><b>允许回复</b></div><span class="tg${C.replyOn?' on':''}"></span></div>`};
   const GEN=CFG.generic;   // 太宽的词：后台配置
-  const SIM={'神仙':'spot','旅行':'trip','旅游':'trip','脑子':'brain','身体':'brain','学不会':'brain','宝藏':'spot','好场':'spot','穿搭':'ootd','衣服':'ootd','ootd':'ootd','宠物':'pet','狗':'pet','猫':'pet','装备':'gear','新拍':'gear','好物':'good','神器':'good','晚霞':'sunset','日落':'sunset','爽':'dopa','多巴胺':'dopa','夜场':'u2','反手':'u1','红土':'u3'};
+  const SIM=SB_ALIAS();   // 相似词：后台配置
   const tRows=q=>{const C=S.cmp,pic=C.pics[0],ids=Object.keys(S.T),lq=q.toLowerCase(),sim=Object.keys(SIM).filter(w=>lq.includes(w)).map(w=>SIM[w]),m=id=>!q||S.T[id].t.toLowerCase().includes(lq)||sim.includes(id),used=new Set(),G=[];
     const add=(l,a)=>{a=a.filter(id=>m(id)&&!used.has(id));a.forEach(id=>used.add(id));if(a.length)G.push([l,a])};
     add('今日推荐',[TODAY]);if(PSUG[pic])add('和你的照片很配',[PSUG[pic]]);add('常驻',ids.filter(id=>!S.T[id].user));add('大家发起的',ids.filter(id=>S.T[id].user).sort((a,b)=>S.T[b].n-S.T[a].n));
     const sub=id=>{const T=S.T[id];return id===TODAY?'今日推荐 · 已有 '+T.n+' 张':T.mine?'你刚发起的':T.user?`由 ${esc(T.by)} 发起 · ${T.n} 人发过`:T.n+' 条'};
     let h=G.map(([l,a])=>`<div class="pk-l">${l}</div>${a.map(id=>`<button class="pi${C.topic===id?' on':''}" data-tp="${id}"><span class="pin2">#</span><div><b>${esc(S.T[id].t)}</b><small>${S.T[id].ask?esc(S.T[id].ask)+' · ':''}${sub(id)}</small></div>${ic('check')}</button>`).join('')}`).join('');
-    const exact=ids.some(id=>S.T[id].t.toLowerCase()===lq);
-    if(q&&!exact){const nw=GEN.includes(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:q.length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
-      h=GEN.includes(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
+    const exact=ids.some(id=>S.T[id].t.toLowerCase()===lq)||!!(SIM[lq]&&S.T[SIM[lq]]);
+    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:q.length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
+      h=sbGeneric(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
     return h+(q?'':`<button class="pi${!C.topic?' on':''}" data-tp="" style="margin-top:8px"><span class="pin2">–</span><div><b>不加话题</b></div>${ic('check')}</button>`)};
   const openSh=k=>{S.cmp.sh=k;$('.csh-p').innerHTML=shHTML(k);requestAnimationFrame(()=>$('.csh').classList.add('on'))};
   const closeSh=()=>{const was=S.cmp.sh;S.cmp.sh=null;$('.csh').classList.remove('on');setTimeout(()=>{drawCompose();if(was==='topic')topicIn()},380)};
@@ -316,8 +319,8 @@ function App(el,init){
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
   el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-qtx],[data-qx],[data-near],[data-cam],[data-back],[data-close],[data-more],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
-    if(d.ball){e.stopPropagation();tapBall(d.ball);return}
-    if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;dbl(t.closest('.hero'),d.pic,e);return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state()},280)};return}
+    if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id)});return}
+    if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state()},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();return}
     if('close' in d){S.view=null;state();return}
         if(d.court){if(COURTS[d.court])setF(S.f&&S.f.k==='court'&&S.f.v===d.court?null:{k:'court',v:d.court});return}
@@ -328,10 +331,11 @@ function App(el,init){
       $('.acts .g').innerHTML=x.mine?`<p class="ah2">你发的</p>${x.pic?'<button data-act="share">分享图片</button>':''}<button data-act="mute">${x.closed?'允许回复':'关闭回复'}</button><button class="warn" data-act="del">删除</button>`
         :`<p class="ah2">${u.anon?'一位球友发的':esc(u.n)+' 发的'}</p><button data-act="less">不感兴趣<small>以后少给你看类似的</small></button>${u.anon||u.off?'':`<button data-act="block" data-un="${esc(u.n)}">屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button>`}<button class="warn" data-act="report">举报</button>`;
       el.classList.add('acting');return}
+    if(d.act&&['less','block','report','r'].includes(d.act)&&!S.gok){need(d.act==='less'?'less':d.act==='block'?'block':'report',()=>again(t));return}
     if(d.act){const A=d.act,drop=f=>{S.L=S.L.filter(y=>!f(y));if(S.open&&!find(S.open))shut();drawHome();if(S.court)drawCourt()};
       if(A==='report'){$('.acts .g').innerHTML=`<p class="ah2">举报的原因</p><button data-act="r">骚扰或冒犯</button><button data-act="r">不当照片</button><button data-act="r">虚假交易</button><button data-act="r">其他</button>`;return}
       el.classList.remove('acting');
-      if(A==='r')toast('已收到，我们会尽快处理');
+      if(A==='r'){const id=S.open,R=S.rep||(S.rep=new Set());if(R.has(String(id))){say('report_duplicate');return}const c=sbRate(S,'sb_report');if(c){say(c);return}R.add(String(id));toast('已收到，我们会尽快处理')}
       if(A==='less'){const x=find(S.open),c=catOf(x),n=U(x).n;S._lx={id:x.id,c,n};shut();drop(y=>String(y.id)===String(x.id));el.classList.add('acting');
         $('.acts .g').innerHTML=`<p class="ah2">这一条已隐藏。想告诉我们原因吗？</p><button data-act="lc">少看「${esc(c)}」<small>同类内容会排得更靠后</small></button><button data-act="lu">少看 ${esc(n)} 的<small>${esc(n)} 发的会排得更靠后</small></button><button data-act="lf">离我太远<small>远处的内容会排得更靠后</small></button><button data-act="l0">只是这一条</button>`;return}
       if(['lc','lu','lf','l0'].includes(A)){const L=S._lx;if(A==='lc')S.lc[L.c]=1;if(A==='lu')S.lu[L.n]=1;if(A==='lf')S.lf=true;shut();drop(y=>String(y.id)===String(L.id));
@@ -347,11 +351,12 @@ function App(el,init){
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
     if('more' in d){S.qn=0;$('[data-more]').classList.remove('show');sc.scrollTo({top:0,behavior:'smooth'});return}
-    if('send' in d){const v=inp.value.trim(),lk=S.loc;flyArrow(t);sc.scrollTop=0;
-      const tp=el.classList.contains('qing')?S.qtp:null;insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?KM[lk]:null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);
+    if('send' in d){if(!S.gok){need('post',()=>again(t));return}const v=inp.value.trim(),lk=S.loc,tp=el.classList.contains('qing')?S.qtp:null;
+      {const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);sc.scrollTop=0;
+      insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?KM[lk]:null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);
       S.photo=false;inp.value='';drawComposer();qClose();inp.blur();S.qtp=null;showUndo(tp?`已发布 · No.${S.T[tp].n}`:'已发布');return}
-    if('csend' in d){const ci=$('[data-cin]'),v=ci.value.trim();if(!v)return;flyArrow(t);insertPost({id:++UID,t:Date.now(),x:v,w:S.court,km:1.2,b:0,r:[]},true);ci.value='';ci.oninput();toast('已发布到 '+S.court);return}
-    if('rsend' in d){const ri=$('[data-rin]'),v=ri.value.trim();if(!v)return;flyArrow(t);addReply(S.open,v,{me:1,to:S.rto||undefined});ri.value='';ri.oninput();clearRto();return}
+    if('csend' in d){if(!S.gok){need('post',()=>again(t));return}const ci=$('[data-cin]'),v=ci.value.trim();if(!v)return;{const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);insertPost({id:++UID,t:Date.now(),x:v,w:S.court,km:1.2,b:0,r:[]},true);ci.value='';ci.oninput();toast('已发布到 '+S.court);return}
+    if('rsend' in d){if(!S.gok){need('reply',()=>again(t));return}const ri=$('[data-rin]'),v=ri.value.trim(),x=find(S.open);if(!v||!x)return;{const c=x.closed&&!x.mine?'replies_closed':SB_LINK.test(v)?'message_link':sbRate(S,'sb_reply');if(c){say(c);return}}flyArrow(t);addReply(S.open,v,{me:1,to:S.rto||undefined});ri.value='';ri.oninput();clearRto();return}
     if('share' in d){S.share='photo';drawShare();state();return}
     if(d.tpl){S.share=d.tpl;const c=$('.sc');c.className='sc t-'+d.tpl;c.innerHTML=card(find(S.open),d.tpl);c.animate([{transform:'scale(.96)',opacity:.6},{transform:'none',opacity:1}],{duration:420,easing:'cubic-bezier(.3,1.3,.5,1)'});el.querySelectorAll('[data-tpl]').forEach(b=>b.classList.toggle('on',b===t));return}
     if('sx' in d){S.share=null;S.shTopic=null;state();return}
@@ -366,6 +371,8 @@ function App(el,init){
     if(d.tg){const C=S.cmp;C[d.tg]=!C[d.tg];t.querySelector('.tg').classList.toggle('on',C[d.tg]);return}
     if(d.rp){S.cmp.reply=d.rp;el.querySelectorAll('[data-rp]').forEach(b=>b.classList.toggle('on',b===t));return}
     if('cgo' in d){const C=S.cmp;if(!C.text.trim()&&!C.pics.length){toast('写点什么，或者选一张照片');return}
+      if(!S.gok){need('post',()=>again(t));return}
+      {const nt=C.topic&&S.T[C.topic]&&S.T[C.topic].fresh,c=SB_LINK.test(C.text)?'message_link':(nt&&sbRate(S,'sb_topic',true))||sbRate(S,'sb_post',true);if(c){say(c);return}sbRate(S,'sb_post');if(nt){sbRate(S,'sb_topic');S.T[C.topic].fresh=0}}
       const lk=C.loc;S.cmp=null;state();
       if(C.later){toast('好的，2 小时后公开');return}
       sc.scrollTop=0;setTimeout(()=>insertPost(norm([{id:++UID,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?KM[lk]:null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep}])[0],true),420);
@@ -393,7 +400,8 @@ function App(el,init){
     if('wshare' in d){S.share='wall';drawShare();state();return}
     if('wgo' in d){openCompose({topic:S.wall});return}
     if(d.jie){openCompose({topic:d.jie});return}
-    if(d.tnew){const id='c'+(++UID);S.T[id]={t:d.tnew,k:'由 你 发起',q:'',ask:'',fills:[],n:0,user:1,by:'你',mine:1};S.cmp.topic=id;S.cmp.sc=null;setTimeout(closeSh,120);return}
+    if(d.tnew){const r=sbTopicResolve(d.tnew,S.T);if(r.err){say(r.err);return}if(r.id){S.cmp.topic=r.id;S.cmp.sc=null;setTimeout(closeSh,120);return}
+      const id='c'+(++UID);S.T[id]={fresh:1,t:r.title,k:'由 你 发起',q:'',ask:'',fills:[],n:0,user:1,by:'你',mine:1};S.cmp.topic=id;S.cmp.sc=null;setTimeout(closeSh,120);return}
     if(d.tp!==undefined){const C=S.cmp;C.topic=d.tp||null;C.sc=null;if(C.sh){el.querySelectorAll('[data-tp]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(closeSh,160)}else{drawCompose();topicIn()}return}
     if('ctp' in d){openSh('topic');return}
     if('cset' in d){openSh('set');return}
@@ -439,6 +447,6 @@ function App(el,init){
   return S;
 }
 
-return {App,CFG,today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow()};
+return {App,CFG,rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow()};
 })();
 

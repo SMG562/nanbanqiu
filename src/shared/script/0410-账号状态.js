@@ -8,7 +8,7 @@
  *   banned     不能登录；已报名的局自动退出、发起的未开打球局自动取消并通知
  *   deleted    本人注销：已报名的局退出、发起的未开打球局取消并通知；30 天内重新登录可恢复
  * ===================================================================== */
-const ACCT_WRITE=['apply','join','create','invite','accept','chat','counter'];
+const ACCT_WRITE=['apply','join','create','invite','accept','chat','counter','sb_post','sb_reply','sb_ball'];   // sb_* = 场边发布 / 回复 / 网球（数据库 nbq_sb_gate）
 const ACCT_DEL_KEEP=30*864e5;
 const acctSt=u=>{if(!u)return'active';if(u.status==='suspended'&&u.status_until&&u.status_until<=Date.now()){u.status='active';u.status_until=null;u.status_reason=null}return u.status||'active'};
 const acctDate=t=>{const d=new Date(t);return `${d.getMonth()+1}月${d.getDate()}日`};
@@ -21,7 +21,7 @@ function acctCan(action,o={}){if(!ME)return null;const s=acctSt(ME);
   if(s==='banned'||s==='deleted')return s;
   return null}
 function acctText(s){const u=ME,why=u&&u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'',mail='<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.com?subject='+encodeURIComponent('账号申诉')+'">safety@nanbanqiu.com</a></p>';
-  if(s==='suspended')return [`账号暂停中`,`${u.status_until?acctDate(u.status_until)+' 恢复。':''}这期间可以浏览球局，暂时不能发起、申请、约人和发消息。`,why+mail];
+  if(s==='suspended')return [`账号暂停中`,`${u.status_until?acctDate(u.status_until)+' 恢复。':''}这期间可以浏览，暂时不能发起、申请、约人、发消息，也不能在场边发布、回复和点网球。`,why+mail];
   if(s==='limited')return ['这个操作暂时不可用','你的账号目前受限：不能报名女生局，也不能私信或约没一起打过的球友。普通球局照常。',why+mail];
   if(s==='review')return ['账号核实中','核实期间暂时看不到女生局，其余功能正常，通常 24 小时内完成。',mail];
   if(s==='banned')return ['账号已封禁','这个账号已不能使用。',why+mail];
