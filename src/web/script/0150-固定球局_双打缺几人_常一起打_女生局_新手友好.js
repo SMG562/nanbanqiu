@@ -1,0 +1,1 @@
+    case'dlPoster':{const el=document.querySelector('.shr .shr-pv .ogW');if(el&&window.html2canvas){html2canvas(el,{scale:3,backgroundColor:null}).then(cv=>{const l=document.createElement('a');l.download='nanbanqiu-'+d.g+'.png';l.href=cv.toDataURL('image/png');l.click();toast('图片已保存')})}else toast('图片生成中，请稍候');break}

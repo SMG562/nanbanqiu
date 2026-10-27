@@ -1,0 +1,9 @@
+  login(p){const id='u'+(++NID);USERS[id]={id,no:1287+NID,color:'#F4EFE3',avatar_kind:'letter',animal:'tiger',blocked:new Set(),base:{},...p};ME=USERS[id];return ME},
+  setClubs(ids){ME.home_club_ids=ids},
+  apply(id,msg){partUpsert({game_id:id,user_id:ME.id,role:'player',status:'pending',message:msg,created_at:Date.now()});notify(GAMES.find(g=>g.id===id).host_id,'request',id,ME.id)},
+  decide(id,uid,ok){const p=PARTS.find(p=>p.game_id===id&&p.user_id===uid);if(!p)return;p.status=ok?'approved':'rejected';const g=GAMES.find(g=>g.id===id);notify(uid,ok?'approved':'rejected',id,g.host_id);
+    if(ok){const c=V(g);if(c.spots<=0){g.status='full';c.pend.forEach(q=>{q.status='rejected';q.reason='full_auto';notify(q.user_id,'full',id,g.host_id)})}}},
+  leave(id){const p=PARTS.find(p=>p.game_id===id&&p.user_id===ME.id&&['pending','approved'].includes(p.status)),g=GAMES.find(g=>g.id===id);if(!p)return;if(p.status==='approved'){notify(g.host_id,'player_left',id,ME.id);g.status='open';if(ugLate(p,g))ME.base.late=(ME.base.late||0)+1}p.status=p.status==='approved'?'left':'withdrawn';p.left_at=Date.now()},
+  cancelGame(id){const g=GAMES.find(g=>g.id===id);g.status='cancelled';g.cancelled_at=Date.now();PARTS.filter(p=>p.game_id===id&&p.user_id!==ME.id&&['approved','pending'].includes(p.status)).forEach(p=>notify(p.user_id,'game_cancelled',id,ME.id))},
+  create(d){const id='n'+(++NID);GAMES.push({id,share_code:Math.random().toString(36).slice(2,6),status:'open',host_id:ME.id,capacity:CAP[d.game_type],...d});PARTS.push({game_id:id,user_id:ME.id,role:'host',status:'approved',message:'',created_at:Date.now()});return id},
+  mine(){housekeep();if(!ME)return[];return GAMES.map(V).filter(c=>c.isHost||c.mine)},

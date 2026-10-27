@@ -1,0 +1,1 @@
+  const e={build:'pwa',device:matchMedia('(pointer:coarse)').matches?'mobile':'desktop',msg:String(msg||'').slice(0,200),src:String(src||'').split(/[?#]/)[0].split('/').pop()||'',line:+line||0};NBQ_ERRS.push(e);

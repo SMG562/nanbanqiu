@@ -1,0 +1,30 @@
+/* ============ 我的球局：时间轴 ============ */
+.tstat{display:flex;gap:16px;font-size:13px;color:var(--mut);margin:0 0 4px 4px}
+.tstat b{color:var(--ink);font-size:15px;margin-right:2px}
+.tsec{font-size:13px;font-weight:700;color:var(--mut);margin:14px 0 8px 64px}
+.tmon{position:sticky;top:calc(var(--sb) + var(--wx) + 62px);z-index:3;display:flex;justify-content:space-between;margin:14px 0 6px 64px;padding:6px 12px;border-radius:10px;background:rgba(242,244,242,.95);backdrop-filter:blur(8px);font-size:12.5px;font-weight:700;color:var(--ink2)}
+.tmon span{font-weight:500;color:var(--mut)}
+.ti{display:flex}
+.ti-date{width:50px;flex:none;text-align:right;padding-top:12px}
+.ti-date b{display:block;font-size:20px;font-weight:700;line-height:1.1}
+.ti-date span{font-size:11.5px;color:var(--mut);font-weight:600}
+.ti-date.today b,.ti-date.today span{color:var(--g)}
+.ti-rail{width:28px;flex:none;position:relative}
+.ti-rail::before{content:"";position:absolute;left:13px;top:0;bottom:0;width:2px;background:#DDE2DD}
+.ti-rail i{position:absolute;left:8px;top:20px;width:12px;height:12px;border-radius:50%;background:#fff;border:2.5px solid var(--g)}
+.ti.past .ti-rail i{border-color:#B5BCB5}
+.ti.pending .ti-rail i{border-color:#E0A100}
+.ti-card{flex:1;background:#fff;border-radius:18px;padding:12px 14px;margin:4px 0 8px;text-align:left;min-width:0}
+.ti.past .ti-card{background:#F8F9F8;padding:10px 14px}
+.ti-r1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ti-r1 b{font-size:17px;font-weight:700}
+.ti.past .ti-r1 b{color:var(--mut);font-size:15px}
+.ti-r2{font-size:14.5px;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti.past .ti-r2{font-size:14px;font-weight:500}
+.ti-r3{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:12.5px;color:var(--mut)}
+.ti.past .ti-r3{margin-top:4px}
+.nowmark{display:flex;align-items:center;gap:8px;margin:2px 0 2px 58px;font-size:11.5px;font-weight:700;color:#E5484D}
+.nowmark::before{content:"";width:10px;height:10px;border-radius:50%;background:#E5484D}
+.nowmark::after{content:"";flex:1;height:2px;background:#E5484D;opacity:.5}
+.sentinel{margin:12px 0 0 64px;padding:12px;text-align:center;font-size:12.5px;color:var(--mut);border-radius:12px;border:1px dashed var(--line)}
+

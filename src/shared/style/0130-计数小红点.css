@@ -1,0 +1,4 @@
+/* 计数小红点：统一规格，数字用系统数字字体并按行高居中 */
+.badge,.cx-r i,.seg2 i{box-sizing:border-box;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5484D;color:#fff;
+  font:700 11px/18px -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.2px;text-align:center;display:inline-block;font-style:normal}
+.badge{line-height:14px!important;border:2px solid #fff;display:block;place-items:unset}.badge[hidden]{display:none!important}

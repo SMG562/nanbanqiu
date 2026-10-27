@@ -49,6 +49,8 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+// 两个前台 HTML = src/ 拼出来的（R0）
+add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 add('static', 'static/cities_front', ['node', path.join(HERE, 'static/cities_front.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('schema', 'schema/full', ['__schema__'], { pass: [/schema: \d+ statements, 0 errors/, /tests: \d+ blocks, 0 failed/, /dictionary: .* 0 differences/, /RESULT PASS/], timeout: 600 });
 // 真实 PostgreSQL（+ PostGIS）：同时操作（4c）
