@@ -78,6 +78,22 @@ jobs:
           R=$(ls -td tests/reports/*/ 2>/dev/null | head -1)
           if [ -n "$R" ] && [ -f "$R/summary.md" ]; then cat "$R/summary.md" >> "$GITHUB_STEP_SUMMARY"; else echo "没有生成报告（环境准备阶段失败，看上面的日志）" >> "$GITHUB_STEP_SUMMARY"; fi
 
+      # 结果也写成注解：会话里的 Claude 用 gh api 读得到（日志和附件下载在会话里被拦）
+      - name: 结果注解
+        if: always()
+        run: |
+          R=$(ls -td tests/reports/*/ 2>/dev/null | head -1)
+          [ -n "$R" ] && [ -f "$R/results.json" ] || { echo "::error title=测试没跑起来::环境准备阶段失败"; exit 0; }
+          python3 - "$R/results.json" <<'PY'
+          import json, sys
+          rs = json.load(open(sys.argv[1]))['results']
+          bad = [r for r in rs if not r['ok']]
+          print(f"::notice title=测试结果::{len(rs)} 项，失败 {len(bad)} 项" + ("：" + "、".join(r['id'] for r in bad) if bad else ""))
+          for r in bad[:10]:
+              msg = '；'.join(r.get('why', []) + [x for x in r.get('summary', []) if 'FAIL' in x][:8]).replace('\n', ' ')[:3000]
+              print(f"::error title={r['id']}::{msg}")
+          PY
+
       - name: 上传报告
         if: always()
         uses: actions/upload-artifact@v4

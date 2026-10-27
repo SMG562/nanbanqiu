@@ -5,5 +5,5 @@
 用户说「继续上次的」时：读 `进度记录.md`，按「§0 中断后怎么接着做」执行。进度只以那份文件为准；查旧决定再打开 `进度记录_历史.md`。
 
 - 用中文回复，简洁；汇报只写结果、用户需要知道的和下一步。
-- 测试：`node tests/run_all.mjs --grep=<相关>`（每一小轮）/ `--quick`（改了前台）/ 不带参数（一批收尾）。说明见 `tests/README.md`。
+- 测试：本地只跑 `node tests/run_all.mjs --grep=<相关>`；推送后 GitHub 自动跑快速测试，一批收尾在 Actions 手动跑 full。看结果：`bash tests/lib/ci_status.sh`。说明见 `tests/README.md`。
 - 不删除文件、不 `push --force`；每轮一次提交并推送，再把改过的文件同步到用户电脑的「文稿/南伴球」文件夹。
