@@ -1,0 +1,12 @@
+PWA days 7
+PWA 19:00-21:00 per3
+PWA today disabled 0 0 19:00
+PWA {"id":103,"from":"jason","to":"han","o":0,"t":"19:00","e":"21:00","venue_id":"v2","game_type":"rally","note":"","status":"pending","at":<N>,"countered":false}
+PWA {"o":3,"t":"09:00","e":"10:00","venue_id":"v2"}
+PWA errors []
+Web days 7
+Web 19:00-21:00 per3
+Web today disabled 0 0 19:00
+Web {"id":103,"from":"jason","to":"han","o":0,"t":"19:00","e":"21:00","venue_id":"v2","game_type":"rally","note":"","status":"pending","at":<N>,"countered":false}
+Web {"o":3,"t":"09:00","e":"10:00","venue_id":"v2"}
+Web errors []

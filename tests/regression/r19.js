@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+ let p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+ await p.goto('file:///mnt/user-data/outputs/南伴球_PWA.html');await p.waitForTimeout(700);
+ const shot=async n=>{await p.waitForTimeout(500);await (await p.$('#dev')).screenshot({path:`r19_${n}.png`})};
+ await p.evaluate(()=>{try{closeSheet()}catch(e){};setWho('han',true);NOTIFS.forEach(n=>n.read=true);THREADS.length=0;go('disc')});await shot('1disc');
+ const badge=await p.evaluate(()=>{const b=document.getElementById('nBadge');return [b.hidden,getComputedStyle(b).display,b.textContent]});
+ await p.evaluate(()=>{document.querySelector('[data-demo="host"]').click()});await p.waitForTimeout(1500);
+ await p.evaluate(()=>{document.getElementById('banner').click()});await shot('2focus');
+ await p.evaluate(()=>{closeDetail();setWho('han',true);const i={id:777,from:'jason',to:'han',o:2,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'',status:'pending',at:Date.now(),countered:false};INVITES.push(i);openInvite(777)});await shot('3inv');
+ await p.evaluate(()=>{document.querySelector('[data-iv="decline"]').click()});await shot('4invno');
+ await p.evaluate(()=>{document.getElementById('ivNote').value='下周回来找你';document.querySelector('[data-iv="noGo"][data-v="week"]').click();setWho('jason',true);UI.msgTab='ntf';go('notif')});await shot('5jason');
+ await p.evaluate(()=>{go('disc');document.querySelector('[data-a="filter"]').click()});await shot('6filter');
+ console.log(errs,badge);await b.close()})();

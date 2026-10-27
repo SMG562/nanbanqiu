@@ -1,0 +1,3 @@
+PWA {"pushed":true,"merge":["sent/1 queued/2","sent/Jason 申请加入你后天 10:00 的球局 | sent/又有 2 位球友申请加入你后天 10:00 的球局"],"seen":"skipped/seen","handled":"skipped/stale","cap":"r:sent r:sent* r:skipped(daily_cap) c:sent c:sent c:sent"}
+Web {"pushed":true,"merge":["sent/1 queued/2","sent/Jason 申请加入你后天 10:00 的球局 | sent/又有 2 位球友申请加入你后天 10:00 的球局"],"seen":"skipped/seen","handled":"skipped/stale","cap":"r:sent r:sent* r:skipped(daily_cap) c:sent c:sent c:sent"}
+[]

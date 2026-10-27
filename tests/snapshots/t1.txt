@@ -1,0 +1,26 @@
+{ g: 's101', spots: 3, type: 'doubles', n: 11, banners: 0 }
+rows 11
+{
+ "spots": 0,
+ "st": [
+  "approved:",
+  "rejected:level",
+  "approved:",
+  "approved:",
+  "approved:",
+  "rejected:full_auto",
+  "rejected:full_auto",
+  "rejected:full_auto",
+  "rejected:full_auto",
+  "rejected:full_auto",
+  "rejected:full_auto",
+  "rejected:full_auto"
+ ],
+ "rej": [
+  "full 这局已经满员啦 / 今晚 19:00 · Glendearg All Saints TC ›",
+  "full 这局已经满员啦 / 今晚 19:00 · Glendearg All Saints TC ›",
+  "full 这局已经满员啦 / 今晚 19:00 · Glendearg All Saints TC ›",
+  "full 这局已经满员啦 / 今晚 19:00 · Glendearg All Saints TC ›"
+ ]
+}
+[]

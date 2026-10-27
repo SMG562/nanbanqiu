@@ -1,0 +1,29 @@
+PASS toggle shows within 2h {"a":true,"bb":false,"on":true,"left":80,"t":"16:30"}
+PASS toggle hidden far
+PASS toggle on
+PASS published instant {"id":"n103","mode":"instant","ca":true,"mn":3,"mx":4}
+PASS no unfilled reminder for fresh game 0
+PASS host card instant note & no ufc <div class="ugh">不用你确认 · 水平在 3.0–4.0 内的球友可以直接加入</div><div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>
+PASS button 直接加入 直接加入 | 不用等确认，加入后就定了
+PASS join modal
+PASS joined approved & host notified {"st":"approved","at":true,"n":true,"txt":"Jason 加入了你的球局 🎾 / UTR 3.5 · 今天 16:30 · South Camberwell TC","state":"approved"}
+PASS grace leave not late {"t":"刚加入 10 分钟内退出，不算临时退出。","late":0}
+PASS late leave after 10min counted 1
+PASS nonfit sees 申请加入 + reason 申请加入 | 你的水平不在 3.0–4.0 内，需要 Han 确认
+PASS apply notes ["Han 15:45 前没确认，申请会自动失效，你可以再找别的局","你的水平不在 3.0–4.0 内，需要 Han 确认"]
+PASS pending band deadline {"st":"pending","band":"等待 Han Liu 确认 · 15:45 前没确认会自动失效"}
+PASS request notif has deadline Alex M. 申请加入你的球局 / UTR 4.5 · 今天 16:30 · South Camberwell TC · 15:45 前处理
+PASS full closes & rejects pending {"gs":"full","ps":"rejected","full":true,"inst":false}
+PASS race: no overfill 2
+PASS expired after 15min, other stays {"id":"n111","u1":"jason","u2":"alex","p1":"rejected/timeout","p2":"pending","n":1,"card":"<div class=\"ugh warn\">Alex 的申请 15:20 前没处理会自动失效</div><div class=\"ugh\">1 个申请超过 15 分钟没处理，已自动失效</div><div class=\"ufc\"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf=\"open\" data-g=\"n111\">看看办法</button></div>","ok":false}
+PASS host card counts timeout & deadline <div class="ugh warn">Alex 的申请 15:20 前没处理会自动失效</div><div class="ugh">1 个申请超过 15 分钟没处理，已自动失效</div><div class="ufc"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf="open" data-g="n111">看看办法</button></div>
+PASS decide on expired refused
+PASS applicant band timeout text {"band":"Han 没来得及确认，申请已自动失效","ntf":"Han Liu 没来得及确认你的申请 / 今天 15:50 · Glendearg All Saints TC · 申请已自动失效 ›","pill":"rejected"}
+PASS deadline capped at start 0
+PASS deadline st-45 for early apply -45
+PASS email: result within 1h skipped {"m1":null,"m2":{"after":0,"urgent":true}}
+PASS email: change immediate
+PASS edit keeps instant & diff 加入方式 {"a":true,"lite":["加入方式"]}
+PASS edit applies approve approve
+PASS old game still reminded 1
+[]

@@ -1,0 +1,9 @@
+# 测试报告、缓存
+tests/reports/
+__pycache__/
+node_modules/
+# 旧的整份备份（改用 git 历史）
+备份/
+# 大文件和历史产出只留在电脑文件夹里
+*.zip
+*.png
