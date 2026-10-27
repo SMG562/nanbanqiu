@@ -2,7 +2,7 @@
 let SBV=null;
 function sbBoot(){if(SBV)return SBV;const host=$('#sbHost');if(!host)return null;const root=host.attachShadow({mode:'open'});
   root.innerHTML=`<style>${SB_CSS}</style>${SB_SVG}<div class="dev"></div>`;const el=root.querySelector('.dev');
-  SBV=SB.App(el,{embed:true,live:true,first:2200,every:5200,home:'',bell:()=>go('notif'),gate:sbGate,err:apiErrText});
+  SBV=SB.App(el,{embed:true,live:true,first:2200,every:5200,home:'',bell:()=>go('notif'),gate:sbGate,err:apiErrText,ntf:o=>sbNtf(o)});
   // 盖在上面的（发布、照片、球场页、相册……）要盖住 App 的底栏
   const top=()=>$('#scr-side').classList.toggle('top',/\b(composing|sheeting|viewing|sharing|acting|incourt|inwall|inalbum)\b/.test(el.className));
   // 从「我的」进相册：相册里点返回，回到「我的」

@@ -7,6 +7,7 @@
   - sid：30 分钟无活动后换新（localStorage 记最后活动时间）。
 - 隐私：不记录聊天内容、手机号、精确位置、性别值；用户关闭「使用数据」后不发任何事件（含未登录访客）。
 - source: C = 前端（两端都必须发，同名同 props），S = 服务端/API 层。
+- 场边（sb_*，第八批 F2）：网页端 F3 接入之前只在手机端发；post_id 是场边发布的 id，不记发布和回复的内容。
 
 | 事件 | 分类 | 来源 | 说明 | props |
 |---|---|---|---|---|
@@ -105,7 +106,7 @@
 | soon_open | 通知 | C | 打开开打前 30 分钟卡片 | game_id |
 | safety_open | 安全 | C | 打开安全须知 | — |
 | contact_open | 安全 | C | 打开联系我们 / 举报 | — |
-| report_open | 安全 | C | 打开站内举报（球员卡 / 聊天） | target_type(user/game), via(card/chat) |
+| report_open | 安全 | C | 打开站内举报（球员卡 / 聊天 / 场边） | target_type(user/game/sb_post/sb_reply), via(card/chat/sideline) |
 | report_submit | 安全 | C | 提交站内举报（不含说明内容） | target_type, reason, has_note, via |
 | user_block | 安全 | C | 屏蔽用户 | target_uid |
 | user_unblock | 安全 | C | 解除屏蔽 | target_uid |
@@ -118,6 +119,18 @@
 | community_open | 我的 | C | 打开微信约球群 | — |
 | series_end | 我的 | C | 停止每周发布 | game_id |
 | follow_open | 打完之后 | C | 打开「TA 发了新球局」 | game_id |
+| sb_post_view | 场边 | C | 打开一条发布的详情 | post_id, own, via(feed/court/topic/album/notif) |
+| sb_post_submit | 场边 | C | 发布成功（含「2 小时后再公开」） | post_id, photos, topic_kind(none/official/user/new), court, later, via(bar/compose/court) |
+| sb_reply_send | 场边 | C | 回复成功（不含内容） | post_id, own_post, to_someone |
+| sb_ball | 场边 | C | 点网球 / 取消 | post_id, on, via(tap/double) |
+| sb_photo_view | 场边 | C | 看大图 | post_id |
+| sb_topic_view | 场边 | C | 按话题看 | topic(话题代码；大家发起的记 user) |
+| sb_court_view | 场边 | C | 按球场看 / 打开球场页 | venue, via(filter/page) |
+| sb_hide | 场边 | C | 不感兴趣（之后选了原因再记一条） | post_id, reason(none/topic/user/far) |
+| sb_post_delete | 场边 | C | 删除自己的发布 | post_id |
+| sb_replies_toggle | 场边 | C | 开关自己发布的回复 | post_id, open |
+| sb_share | 场边 | C | 分享照片 / 话题 | post_id, topic, what(photo/topic), to(save/instagram/xhs) |
+| sb_album_open | 场边 | C | 打开场边相册（「我的」页） | — |
 | apply_expired | 球局 | S | 申请超时自动结束 | game_id |
 | game_start_check | 球局 | S | 开打时检查人数 | game_id, filled, need, applied_n, reason |
 | game_counted | 成长 | S | 一局计入场次 | game_id, players |
