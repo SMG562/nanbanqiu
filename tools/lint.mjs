@@ -12,7 +12,7 @@
  * 规则（只开会是真错的几条）：
  *   no-undef 用了没定义的名字（拼错的函数名、变量名）· no-redeclare / no-dupe-keys / no-dupe-class-members 重复声明
  *   no-const-assign · no-unreachable · no-self-assign · no-dupe-else-if · no-duplicate-case · use-isnan · valid-typeof
- * 不开：no-func-assign（本项目有意用后面的模块覆盖前面的函数，见 进度记录 §3「以最后一次定义为准」）。
+ * 不开：no-func-assign（本项目有意用后面的模块覆盖前面的函数，见 业务规则.md 开头「以最后一次定义为准」）。
  * 同一个 HTML 的几个 <script> 共用全局作用域，所以合在一起检查（其他行替换成空行，行号 = HTML 行号）。
  * window.X = … 定义的名字算这一端的全局；共用文件（src/shared/）里引用「另一端有定义」的名字不报——
  * 共用代码按平台分支调用（NR_PLAT、AN_BUILD、typeof …），这些调用由前台测试在两端真实跑过。
@@ -98,7 +98,7 @@ export function lint(root = ROOT, mods = lintModules()) {
       const undefName = m.ruleId === 'no-undef' && (m.message.match(/^'(.+)' is not defined/) || [])[1];
       if (shared && undefName && declared[other].has(undefName)) continue;
       if (undefName && p && CROSS_OK[p.rel]?.names.includes(undefName)) continue;
-      // 同名函数声明两次 = 本项目有意的「后面的模块覆盖前面的」（进度记录 §3），不算重复声明；let / const / var 照报
+      // 同名函数声明两次 = 本项目有意的「后面的模块覆盖前面的」（业务规则.md 开头），不算重复声明；let / const / var 照报
       const redecl = m.ruleId === 'no-redeclare' && (m.message.match(/^'(.+)' is already defined/) || [])[1];
       if (redecl && funcOnly[name].has(redecl)) continue;
       out.push({ file, line: m.line, src: p ? `src/${p.rel}` : '?', srcLine: p ? m.line - p.start + 1 : 0,

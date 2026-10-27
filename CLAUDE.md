@@ -2,7 +2,9 @@
 
 墨尔本（之后悉尼）华人网球约局：手机端 PWA、电脑网页端、管理后台、PostgreSQL 数据库。
 
-用户说「继续上次的」时：读 `进度记录.md`，按「§0 中断后怎么接着做」执行。进度只以那份文件为准；查旧决定再打开 `进度记录_历史.md`。
+用户说「继续上次的」时：读 `进度记录.md`，按「§0 中断后怎么接着做」执行。进度只以那份文件为准；做过什么看 `git log`，以后再做 / 要你定的看 GitHub Issues（`gh issue list -R SMG562/nanbanqiu`），业务规则看 `业务规则.md`，查旧决定再打开 `进度记录_历史.md`。
+
+clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼接核对 + 代码检查 + 静态检查，约 6 秒）。
 
 - 用中文回复，简洁；汇报只写结果、用户需要知道的和下一步。
 - **前台两端改 `src/`**（shared 两端共用 / pwa / web；page、style、script、side=场边），改完 `node tools/build.mjs` 拼出两个 HTML、`node tools/lint.mjs` 检查；不要直接改 南伴球_PWA.html / 南伴球_Web.html。后台还是单个 HTML，直接改。
