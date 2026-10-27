@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git -c user.name=Claude -c user.email=noreply@anthropic.com commit:*)",
+      "Bash(git push:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "mcp__claude-code-remote__add_repo",
+      "mcp__claude-code-remote__register_repo_root",
+      "mcp__remote-devices__device_commit_files",
+      "mcp__remote-devices__device_list_dir"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
+  }
+}
