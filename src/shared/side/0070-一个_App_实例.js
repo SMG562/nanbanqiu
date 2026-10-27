@@ -150,7 +150,7 @@ function App(el,init){
     const sub=id=>{const T=S.T[id];return id===TODAY?'今日推荐 · 已有 '+T.n+' 张':T.mine?'你刚发起的':T.user?`由 ${esc(T.by)} 发起 · ${T.n} 人发过`:T.n+' 条'};
     let h=G.map(([l,a])=>`<div class="pk-l">${l}</div>${a.map(id=>`<button class="pi${C.topic===id?' on':''}" data-tp="${id}"><span class="pin2">#</span><div><b>${esc(S.T[id].t)}</b><small>${S.T[id].ask?esc(S.T[id].ask)+' · ':''}${sub(id)}</small></div>${ic('check')}</button>`).join('')}`).join('');
     const exact=ids.some(id=>S.T[id].t.toLowerCase()===lq)||!!(SIM[lq]&&S.T[SIM[lq]]);
-    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:q.length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
+    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:[...q].length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
       h=sbGeneric(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
     return h+(q?'':`<button class="pi${!C.topic?' on':''}" data-tp="" style="margin-top:8px"><span class="pin2">–</span><div><b>不加话题</b></div>${ic('check')}</button>`)};
   const openSh=k=>{S.cmp.sh=k;$('.csh-p').innerHTML=shHTML(k);requestAnimationFrame(()=>$('.csh').classList.add('on'))};

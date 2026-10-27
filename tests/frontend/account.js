@@ -9,9 +9,9 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
   for (const f of ['PWA', 'Web']) {
     const ctx = await b.newContext({ viewport: f === 'PWA' ? { width: 390, height: 844 } : { width: 1360, height: 860 } });
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', x => errs.push(x.message));
-    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(900);
+    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(900);
     const r = await p.evaluate(async () => {
-      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const wait = ms => window.__nbqSettle ? __nbqSettle(ms) : new Promise(r => setTimeout(r, ms));
       const close = () => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } };
       const ev = []; const _t = track; track = function (n, pr) { ev.push([n, pr || {}]); return _t.apply(this, arguments) };
       const sheetText = () => { const s = [...document.querySelectorAll('.acsh')].pop(); return s ? s.innerText : '' };
@@ -129,11 +129,11 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
     T(f + ' 受限：约陌生人被拦、约打过球的人放行', r.limInvS === true && r.limInvP === false, [r.limInvS, r.limInvP]);
     // 演示按钮
     const p2 = await ctx.newPage(); const errs2 = []; p2.on('pageerror', x => errs2.push(x.message));
-    await p2.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p2.waitForTimeout(800);
-    await p2.evaluate(() => document.querySelector('[data-demo="acct"]').click()); await p2.waitForTimeout(800);
+    await p2.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p2.settle(800);
+    await p2.evaluate(() => document.querySelector('[data-demo="acct"]').click()); await p2.settle(800);
     const d = await p2.evaluate(() => ({ st: USERS.jason.status, me: ME && ME.id, note: (document.querySelector('.acnote') || {}).innerText || '', sheet: ([...document.querySelectorAll('.acsh')].pop() || {}).innerText || '' }));
     T(f + ' 演示「账号暂停中」', d.st === 'suspended' && d.me === 'jason' && /账号暂停中/.test(d.note) && /账号暂停中/.test(d.sheet), d);
-    await p2.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } document.querySelector('[data-demo="card"]').click() }); await p2.waitForTimeout(600);
+    await p2.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } document.querySelector('[data-demo="card"]').click() }); await p2.settle(600);
     T(f + ' 换其他演示后 Jason 恢复正常', await p2.evaluate(() => USERS.jason.status || 'active') === 'active');
     T(f + ' 没有页面错误', errs.length === 0 && errs2.length === 0, errs.concat(errs2));
   }

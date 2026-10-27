@@ -8,8 +8,8 @@ const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 for(const plat of ['PWA','Web']){const W=plat==='Web';
   const ctx=await b.newContext({viewport:W?{width:1360,height:860}:{width:390,height:844}});
   await ctx.addInitScript(ts=>{const off=ts-Date.now(),D=Date;class FD extends D{constructor(...a){a.length?super(...a):super(D.now()+off)}static now(){return D.now()+off}};window.Date=FD;window.AN_LOG=[]},FAKE);
-  const pg=await ctx.newPage(),errs=[];pg.on('pageerror',x=>errs.push(x.message));await pg.goto('file:///mnt/user-data/outputs/南伴球_'+plat+'.html');await pg.waitForTimeout(900);
-  const js=(f,a)=>pg.evaluate(f,a),wait=ms=>pg.waitForTimeout(ms),ev=()=>js(()=>AN_LOG.splice(0));
+  const pg=await ctx.newPage(),errs=[];pg.on('pageerror',x=>errs.push(x.message));await pg.goto('file:///mnt/user-data/outputs/南伴球_'+plat+'.html');await pg.settle(900);
+  const js=(f,a)=>pg.evaluate(f,a),wait=ms=>pg.settle(ms),ev=()=>js(()=>AN_LOG.splice(0));
   const click=s=>pg.locator(s).first().click({timeout:6000});const close=()=>js(W=>W?closeModal():closeSheet(),W);
   const all=[];OUT[plat]={};
   async function S(name,want,fn){await ev();try{await fn()}catch(e){T(plat+' '+name+' run',false,e.message.split('\n')[0])}await wait(400);const L=await ev();all.push(...L);
@@ -35,7 +35,7 @@ for(const plat of ['PWA','Web']){const W=plat==='Web';
   const L=W?'#colL':'#meBody';
   await S('nr_settings',[['notif_settings_open',{}]],()=>click(`${L} [data-a="nrSet"]`));
   if(!W){await S('a2hs',[['a2hs_open',{env:x=>!!x}]],()=>click('[data-a="enablePush"]'));await close();await js(()=>{setEnv('pwa');go('me')});await click(`${L} [data-a="nrSet"]`);await wait(300)}
-  await S('push',[['push_enable',{env:x=>!!x,result:x=>['granted','denied','unsupported'].includes(x)}]],async()=>{await click('[data-a="enablePush"]');await wait(2500)});
+  await S('push',[['push_enable',{env:x=>!!x,result:x=>['granted','denied','unsupported'].includes(x)}]],async()=>{await click('[data-a="enablePush"]');await pg.waitForFunction(()=>AN_LOG.some(e=>e.ev==='push_enable'),null,{timeout:5000,polling:50}).catch(()=>{})});   // 等权限回应（E2：原来固定等 2.5 秒）
   OUT[plat].pushProps=all.filter(e=>e.ev==='push_enable').map(e=>e.props);await close();
   await S('email_bad',[],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','not-an-email');await click('[data-em="setSave"]')});await close();
   await S('email_ok',[['email_settings_save',{on:true}]],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','j@x.com');await click('[data-em="setSave"]')});

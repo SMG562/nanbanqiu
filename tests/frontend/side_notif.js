@@ -13,13 +13,13 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript(ts => { const off = ts - Date.now(), D = Date; class FD extends D { constructor(...a) { a.length ? super(...a) : super(D.now() + off) } static now() { return D.now() + off } } window.Date = FD; window.AN_LOG = [] }, FAKE);
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.waitForTimeout(800);
-  const W = ms => pg.waitForTimeout(ms), E = (f, a) => pg.evaluate(f, a);
+  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.settle(800);
+  const W = ms => pg.settle(ms), E = (f, a) => pg.evaluate(f, a);   // E2：W = 页面安静了就继续，最多等原来那么久
   const sr = s => pg.locator('#sbHost').locator(s);
   await E(() => { LOC.asked = true; closeSheet(); setWho('jason', true);
     window._bn = []; const o = pushBanner; pushBanner = function (t) { _bn.push(t); return o.apply(this, arguments) };
     window._tt = []; const ot = toast; toast = function (m) { _tt.push(m); return ot.apply(this, arguments) } });
-  await pg.click('#tabbar [data-tab="side"]'); await W(300); await E(() => { SBV.every = 1e9 }); await W(2500);
+  await pg.click('#tabbar [data-tab="side"]'); await W(300); await E(() => { SBV.every = 1e9 }); await pg.waitForFunction(() => SBV.qi >= 1, null, { timeout: 4000, polling: 50 }).catch(() => {}); await W(300);   // 等第一条自动新动态冒出来（原来固定等 2.5 秒）
   const SB = () => E(() => NOTIFS.filter(n => n.kind.startsWith('sb_')).map(n => ({ id: n.id, kind: n.kind, post: n.sb_post_id, count: n.sb_count, an: n.an, read: n.read, rid: n.sb_reply_id, t: ntfText(n) })));
   const clear = () => E(() => { for (let i = NOTIFS.length - 1; i >= 0; i--) if (NOTIFS[i].kind.startsWith('sb_')) NOTIFS.splice(i, 1); _bn.length = 0; _tt.length = 0 });
   const others = (k, ...a) => E(([k, a]) => SBV.api.others[k](...a), [k, a]);
@@ -48,6 +48,7 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
   // ---- 回复 ----
   await others('reply', 21, '这张构图我喜欢'); L = await SB(); const a1 = L[0] && L[0].an;
   T('回复我的发布 → sb_reply，正文是回复内容', L.length === 1 && L[0].kind === 'sb_reply' && L[0].t[0] === `${a1} 回复了你` && L[0].t[1] === '这张构图我喜欢', L);
+  T('回复提醒的时间 = 那条回复的时间（数据库同一事务；E2 修：差 1 毫秒时合并漏算第一个人）', await E(() => { const n = NOTIFS.find(n => n.kind === 'sb_reply'), x = SBV.L.find(x => x.id === 21); return n.at === x.r.find(r => r.id === n.sb_reply_id).t }));
   await others('reply', 21, '明天还去吗'); L = await SB(); const a2 = L[0].an;
   T('10 分钟内的并进同一条（不再提醒）', L.length === 1 && (a2 === a1 ? L[0].count === 1 : L[0].count === 2) && L[0].t[1] === '明天还去吗' && (await E(() => _bn)).filter(t => /回复了你/.test(t)).length === 1, { L, bn: await E(() => _bn) });
   T('合并后的文字「X 等 2 人回复了你」', a2 === a1 || L[0].t[0] === `${a2} 等 2 人回复了你`, L[0].t);

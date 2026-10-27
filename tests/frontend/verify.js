@@ -17,7 +17,7 @@ const URL0=p=>'file:///mnt/user-data/outputs/南伴球_'+p+'.html';
 async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=await ctx.newPage(),errs=[];pg.on('pageerror',x=>errs.push(x.message));
   const ev=async()=>pg.evaluate(()=>AN_LOG.splice(0));
   const js=(f,a)=>pg.evaluate(f,a);
-  const wait=ms=>pg.waitForTimeout(ms);
+  const wait=ms=>pg.settle(ms);
   const clean=()=>js(()=>{['banner','dn'].forEach(i=>{const x=document.getElementById(i);if(x)x.classList.remove('show')});const w=document.getElementById('wxg');if(w)w.hidden=true});
   const noFx=()=>js(()=>{const f=document.getElementById('bdgFx');if(f)f.remove()});
   const click=async(sel,o={})=>{await pg.locator(sel).first().click({timeout:6000,...o})};
@@ -224,7 +224,7 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
 
 // ===== 站外入口：推送 · 分享链接 · 路由 =====
 async function entries(b,plat){const W=plat==='Web',out={};
-  const one=async(q,f)=>{const ctx=await ctxFor(b,plat),pg=await ctx.newPage(),errs=[];pg.on('pageerror',x=>errs.push(x.message));await pg.goto(URL0(plat)+q);await pg.waitForTimeout(1000);
+  const one=async(q,f)=>{const ctx=await ctxFor(b,plat),pg=await ctx.newPage(),errs=[];pg.on('pageerror',x=>errs.push(x.message));await pg.goto(URL0(plat)+q);await pg.settle(1000);
     const r=await f(pg);const L=await pg.evaluate(()=>AN_LOG.splice(0));T(plat+' '+q+' no errors',!errs.length,errs);await ctx.close();return [L,r]};
   {const [L,r]=await one('?n=5&k=approved',pg=>pg.evaluate(()=>location.search));const s=L.find(e=>e.ev==='session_start'),n=L.filter(e=>e.ev==='notif_open');
    T(plat+' push: entry=push',s&&s.props.entry==='push');T(plat+' push: notif_open once',n.length===1&&eq(n[0].props,{kind:'approved',from:'push',notif_id:5}),n.map(e=>e.props));T(plat+' push: n/k removed',r==='',r);out.push=L.filter(e=>!NOISE.has(e.ev))}
@@ -236,9 +236,9 @@ async function entries(b,plat){const W=plat==='Web',out={};
   {const [L]=await one('#/new',pg=>0);const lo=L.filter(e=>e.ev==='login_open');T(plat+' #/new → login (create)',lo.length===1&&lo[0].props.trigger==='create',lo.map(e=>e.props))}
   {const [L,r]=await one('#/p/0062',async pg=>{const a=await pg.evaluate(()=>AN_LOG.splice(0));
       // 未登录在球员卡点「约 TA 打球」：打开登录，登录后回到邀约表单
-      await pg.locator('[data-iv="new"][data-u="jason"]').first().click();await pg.waitForTimeout(400);await pg.fill('#ph','0412 345 678');await pg.locator('[data-a="sendCode"]').first().click();await pg.waitForTimeout(500);
-      await pg.fill('#otp','654321');await pg.waitForTimeout(400);await pg.fill('#npName','Ivy');await pg.check('#npAdult');await pg.locator('[data-a="npDone"]').first().click();await pg.waitForTimeout(900);
-      await pg.locator('[data-pact="ok"]').first().click();await pg.waitForTimeout(800);const form=await pg.evaluate(()=>!!document.querySelector('[data-iv="send"]')&&IVF&&IVF.to);return {a,form}});
+      await pg.locator('[data-iv="new"][data-u="jason"]').first().click();await pg.settle(400);await pg.fill('#ph','0412 345 678');await pg.locator('[data-a="sendCode"]').first().click();await pg.settle(500);
+      await pg.fill('#otp','654321');await pg.settle(400);await pg.fill('#npName','Ivy');await pg.check('#npAdult');await pg.locator('[data-a="npDone"]').first().click();await pg.settle(900);
+      await pg.locator('[data-pact="ok"]').first().click();await pg.settle(800);const form=await pg.evaluate(()=>!!document.querySelector('[data-iv="send"]')&&IVF&&IVF.to);return {a,form}});
    const cv=r.a.filter(e=>e.ev==='card_view');T(plat+' #/p/0062 → card_view link',cv.length===1&&cv[0].props.target_uid==='jason'&&cv[0].props.via==='link'&&cv[0].props.own===false,cv.map(e=>e.props));
    const lo=L.filter(e=>e.ev==='login_open'),ls=L.filter(e=>e.ev==='login_success'),pa=L.filter(e=>e.ev==='pact_accept'),io=L.filter(e=>e.ev==='invite_open');
    T(plat+' guest invite → login trigger invite',lo.length===1&&lo[0].props.trigger==='invite'&&ls.length===1&&ls[0].props.trigger==='invite',[lo.map(e=>e.props),ls.map(e=>e.props)]);

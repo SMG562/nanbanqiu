@@ -16,13 +16,13 @@ const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort());          // 测试环境不出网：第三方库加载失败页面也要能用
     await pg.route('https://*.basemap.cartocdn.com/**', r => r.abort());
     const url = 'https://nanbanqiu.test/' + encodeURIComponent(f);
-    await pg.goto(url); await pg.waitForTimeout(800);
+    await pg.goto(url); await pg.settle(800);
     // 5d：页面报错上报（同一条只记一次，只有信息和位置）
     const er = await pg.evaluate(() => { for (let i = 0; i < 3; i++) dispatchEvent(new ErrorEvent('error', { message: 'nbq-test', filename: 'https://x/app.js?v=1', lineno: 7 })); return NBQ_ERRS.filter(e => e.msg === 'nbq-test') });
     if (!(er.length === 1 && er[0].src === 'app.js' && er[0].line === 7 && ['pwa', 'web', 'admin'].includes(er[0].build))) { console.log('FAIL 页面报错上报', f, er); bad++ }
     if (f.includes('后台')) await pg.evaluate(async () => { doLogin({ preventDefault() { } }); clearInterval(window._tk); for (const p of PAGES.filter(p => p[0] !== 'h').map(p => p[0])) { S.page = p; render(); await new Promise(r => setTimeout(r, 30)) } });
     else { const demos = await pg.evaluate(() => [...document.querySelectorAll('[data-demo]')].map(x => x.dataset.demo));
-      for (const d of demos) { await pg.goto(url); await pg.waitForTimeout(300); await pg.evaluate(d => { try { typeof closeSheet === 'function' ? closeSheet() : closeModal() } catch (e) { } document.querySelector(`[data-demo="${d}"]`).click() }, d); await pg.waitForTimeout(700) } }
+      for (const d of demos) { await pg.goto(url); await pg.settle(300); await pg.evaluate(d => { try { typeof closeSheet === 'function' ? closeSheet() : closeModal() } catch (e) { } document.querySelector(`[data-demo="${d}"]`).click() }, d); await pg.settle(700) } }
     const v = [...new Set(viol)], e = [...new Set(errs)];
     console.log((v.length || e.length ? 'FAIL ' : 'PASS ') + f + ' 违反策略 ' + v.length + ' 报错 ' + e.length, v.slice(0, 5), e.slice(0, 3));
     if (v.length || e.length) bad++;

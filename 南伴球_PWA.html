@@ -5245,20 +5245,24 @@ const SB_LINK=/(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|au|cn|io|me|co)(\b|\/
 // 频率：数据库 rate_rules 里场边的几条（窗口毫秒、次数、错误码）
 const SB_RATE={sb_post:[[36e5,5,'sb_post_hourly_limit'],[864e5,20,'sb_post_daily_limit']],sb_topic:[[864e5,3,'sb_topic_daily_limit']],
   sb_reply:[[6e4,6,'message_too_fast']],sb_ball:[[6e4,30,'rate_limited']],sb_report:[[864e5,5,'report_daily_limit']]};
+// 纯函数：L = 这一类之前的时间戳 → 超了的错误码 | null（不改 L）
+const sbRateHit=(L,k,now)=>{for(const[w,n,c]of SB_RATE[k])if(L.filter(t=>now-t<w).length>=n)return c;return null};
 // 超了返回错误码；dry = 只看不记
-const sbRate=(S,k,dry)=>{const now=Date.now(),R=S.rl||(S.rl={}),L=R[k]=(R[k]||[]).filter(t=>now-t<864e5);
-  for(const[w,n,c]of SB_RATE[k])if(L.filter(t=>now-t<w).length>=n)return c;if(!dry)L.push(now);return null};
+const sbRate=(S,k,dry)=>{const now=Date.now(),R=S.rl||(S.rl={}),L=R[k]=(R[k]||[]).filter(t=>now-t<864e5),c=sbRateHit(L,k,now);
+  if(!c&&!dry)L.push(now);return c};
 // 相似词（配置 alias）：词 → 话题
 const SB_ALIAS=()=>Object.fromEntries(CFG.alias.map(([w,id])=>[w.toLowerCase(),id]));
 const sbGeneric=lt=>CFG.generic.some(w=>w.toLowerCase()===lt);
 // 话题名 → {id}（并入已有的）| {err} | {title}（新建）。和数据库 sb_topic_resolve 同一个顺序
-const sbTopicResolve=(raw,T)=>{const t=String(raw||'').replace(/^\s*[#＃]+/,'').trim(),lt=t.toLowerCase(),st=CFG.settings;
-  if(t.length<st.name_min||t.length>st.name_max)return{err:'invalid'};
-  if(sbGeneric(lt))return{err:'topic_too_generic'};
-  const al=SB_ALIAS()[lt];if(al&&T[al])return{id:al};
-  const same=Object.keys(T).find(id=>T[id].t.toLowerCase()===lt);if(same)return{id:same};
-  if(typeof NICK_BAD==='function'&&NICK_BAD(t))return{err:'topic_name_not_allowed'};
+//   纯函数：cfg = 场边配置（alias、generic、settings），bad = 昵称规则 NICK_BAD；字数按字符算（= 数据库 char_length，表情算 1 个）
+const sbTopicPick=(raw,T,cfg,bad)=>{const t=String(raw||'').replace(/^\s*[#＃]+/,'').trim(),lt=t.toLowerCase(),st=cfg.settings,n=[...t].length;
+  if(n<st.name_min||n>st.name_max)return{err:'invalid'};
+  if(cfg.generic.some(w=>w.toLowerCase()===lt))return{err:'topic_too_generic'};
+  const al=(cfg.alias.find(([w])=>w.toLowerCase()===lt)||[])[1];if(al&&T[al])return{id:al};
+  const same=Object.keys(T).find(id=>T[id].t.trim().toLowerCase()===lt);if(same)return{id:same};
+  if(bad&&bad(t))return{err:'topic_name_not_allowed'};
   return{title:t}};
+const sbTopicResolve=(raw,T)=>sbTopicPick(raw,T,CFG,typeof NICK_BAD==='function'?NICK_BAD:null);
 /* ===== 一个 App 实例：手机或电脑 ===== */
 function App(el,init){
   const S=Object.assign({near:true,place:0,qi:0,photo:false,court:null,view:null,open:null,k:1},init||{});
@@ -5411,7 +5415,7 @@ function App(el,init){
     const sub=id=>{const T=S.T[id];return id===TODAY?'今日推荐 · 已有 '+T.n+' 张':T.mine?'你刚发起的':T.user?`由 ${esc(T.by)} 发起 · ${T.n} 人发过`:T.n+' 条'};
     let h=G.map(([l,a])=>`<div class="pk-l">${l}</div>${a.map(id=>`<button class="pi${C.topic===id?' on':''}" data-tp="${id}"><span class="pin2">#</span><div><b>${esc(S.T[id].t)}</b><small>${S.T[id].ask?esc(S.T[id].ask)+' · ':''}${sub(id)}</small></div>${ic('check')}</button>`).join('')}`).join('');
     const exact=ids.some(id=>S.T[id].t.toLowerCase()===lq)||!!(SIM[lq]&&S.T[SIM[lq]]);
-    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:q.length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
+    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:[...q].length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
       h=sbGeneric(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
     return h+(q?'':`<button class="pi${!C.topic?' on':''}" data-tp="" style="margin-top:8px"><span class="pin2">–</span><div><b>不加话题</b></div>${ic('check')}</button>`)};
   const openSh=k=>{S.cmp.sh=k;$('.csh-p').innerHTML=shHTML(k);requestAnimationFrame(()=>$('.csh').classList.add('on'))};
@@ -5761,6 +5765,22 @@ sbBadge();
 function sbNtfRedraw(){if(UI.tab==='notif')renderNotif()}
 function sbShow(id,rid){closeSheet();if(UI.detail)closeDetail();go('side');SBV.api.open(id,rid)}
 
+/* ===== 场边通知的规则（E2 抽出）：纯函数，不碰页面里的任何东西 —— tests/unit/side_rules.mjs 在 Node 里直接测 =====
+ * 合并 = 数据库 sb_notify_ball / sb_notify_reply（接口文档 §14.8b）；文字 = server/notify/rules.mjs pushText。 */
+const SB_MERGE_MS=10*60e3;
+const sbCut=(t,k=24)=>{const a=[...String(t||'').trim()];return a.length>k?a.slice(0,k).join('')+'…':a.join('')};
+function sbNtfText(n){const a=n.an||'球友',k=n.sb_count||1;
+  if(n.kind==='sb_ball')return [k>1?`${a} 和另外 ${k-1} 人给你点了网球 🎾`:`${a} 给你点了网球 🎾`,n.pb?`「${sbCut(n.pb)}」`:n.ph?'你的照片':''];
+  if(n.kind==='sb_reply')return [k>1?`${a} 等 ${k} 人回复了你`:`${a} 回复了你`,sbCut(n.rb,40)];
+  return [`${a} 回复了你`,sbCut(n.rb,40)]}
+// 网球：balls = 这条发布现在还点着的 [{n 名字, c 头像色, t 时间}]（不含作者自己），since = 这条没看的提醒从哪一下算起
+//   → null（都取消了：没看的那条拿掉）| {count 人数, an 最近点的人, ac}
+const sbBallTally=(balls,since)=>{const L=balls.filter(b=>b.t>=since);if(!L.length)return null;
+  const last=L.reduce((a,b)=>b.t>=a.t?b:a);return{count:L.length,an:last.n,ac:last.c}};
+// 回复：还没看、10 分钟内的那条才并（正好 10 分钟 = 新的一条，和数据库 created_at > now() - 10 分钟 一样）
+const sbReplyMergeable=(n,now)=>!n.read&&now-n.at<SB_MERGE_MS;
+// 并进去后的人数 = 那条之后回复的不同的人（不算自己；sb_reply_to 只算回复我的），至少 1
+const sbReplyCount=(replies,since,me)=>Math.max(1,new Set(replies.filter(y=>!y.me&&y.t>=since&&(!me||y.to===me)).map(y=>y.n)).size);
 /* ===== 场边通知（第八批 F2）：别人给我的发布点网球、回复我的发布、回复我 → 同一份消息列表 =====
  * 合并 = 数据库 sb_notify_ball / sb_notify_reply（接口文档 §14.8b）：
  *   网球 sb_ball（给作者）：第一下新建一条并提醒；还没看时，后面的并进这一条（人数 = 这一条之后点的、现在还点着的人，名字 = 最近点的人），不再提醒；
@@ -5771,12 +5791,8 @@ function sbShow(id,rid){closeSheet();if(UI.detail)closeDetail();go('side');SBV.a
  * 两端共用（F3 起）；各端只差「重画消息列表 sbNtfRedraw」「切到场边打开那条 sbShow」，写在各自的 side/0080-场边页.js。 */
 const SB_NK=['sb_ball','sb_reply','sb_reply_to'];
 SB_NK.forEach(k=>NR_LOW.add(k));
-const SB_MERGE_MS=10*60e3;
-const sbCut=(t,k=24)=>{const a=[...String(t||'').trim()];return a.length>k?a.slice(0,k).join('')+'…':a.join('')};
-function sbNtfText(n){const a=n.an||'球友',k=n.sb_count||1;
-  if(n.kind==='sb_ball')return [k>1?`${a} 和另外 ${k-1} 人给你点了网球 🎾`:`${a} 给你点了网球 🎾`,n.pb?`「${sbCut(n.pb)}」`:n.ph?'你的照片':''];
-  if(n.kind==='sb_reply')return [k>1?`${a} 等 ${k} 人回复了你`:`${a} 回复了你`,sbCut(n.rb,40)];
-  return [`${a} 回复了你`,sbCut(n.rb,40)]}
+// 规则（合并、文字）在 0085-场边通知规则.js（纯函数，Node 直接测）
+// 回复提醒的时间 = 那条回复的时间（数据库里两者同一个事务）：不然差一毫秒，合并时第一个回复的人就不算了
 function sbPost(id){return SBV&&SBV.api.get(id)}
 // 过时：发布不在了（删除 / 隐藏）、回复不在了、屏蔽了对方
 function sbGone(n){const p=sbPost(n.sb_post_id);if(!p)return '发布已不在';if(n.kind!=='sb_ball'&&!p.reply(n.sb_reply_id))return '回复已不在';
@@ -5788,15 +5804,14 @@ function sbNtf(o){if(!ME||!o||!o.post)return;const uid=ME.id,x=o.post,now=Date.n
   if(o.kind==='sb_ball'){
     const cur=NOTIFS.find(n=>n.user_id===uid&&n.kind==='sb_ball'&&n.sb_post_id===x.id&&!n.read);
     if(!cur){if(!o.on)return;const b=p.balls.find(b=>b.n===o.actor.n),n=Object.assign(base(),{since:b?b.t:now});NOTIFS.unshift(n);nrDeliver(n);return}
-    const L=p.balls.filter(b=>b.t>=cur.since);
-    if(!L.length)NOTIFS.splice(NOTIFS.indexOf(cur),1);
-    else{const last=L.reduce((a,b)=>b.t>=a.t?b:a);cur.sb_count=L.length;cur.an=last.n;cur.ac=last.c}
+    const k=sbBallTally(p.balls,cur.since);
+    if(!k)NOTIFS.splice(NOTIFS.indexOf(cur),1);
+    else Object.assign(cur,{sb_count:k.count,an:k.an,ac:k.ac})
     sbRefresh();return}
   const r=o.reply,me=o.kind==='sb_reply_to'?SBV.api.me:null;
-  const cur=NOTIFS.find(n=>n.user_id===uid&&n.kind===o.kind&&n.sb_post_id===x.id&&!n.read&&now-n.at<SB_MERGE_MS);
-  if(!cur){const n=Object.assign(base(),{sb_reply_id:r.id,rb:r.x});NOTIFS.unshift(n);nrDeliver(n);return}
-  const who=new Set(p.replies.filter(y=>!y.me&&y.t>=cur.at&&(!me||y.to===me)).map(y=>y.n));
-  Object.assign(cur,{sb_count:Math.max(1,who.size),an:o.actor.n,ac:o.actor.c,sb_reply_id:r.id,rb:r.x});sbRefresh()}
+  const cur=NOTIFS.find(n=>n.user_id===uid&&n.kind===o.kind&&n.sb_post_id===x.id&&sbReplyMergeable(n,now));
+  if(!cur){const n=Object.assign(base(),{at:r.t||now,sb_reply_id:r.id,rb:r.x});NOTIFS.unshift(n);nrDeliver(n);return}
+  Object.assign(cur,{sb_count:sbReplyCount(p.replies,cur.at,me),an:o.actor.n,ac:o.actor.c,sb_reply_id:r.id,rb:r.x});sbRefresh()}
 // 文字、头像（场边的人不是球局的用户：用场边的字母头像）
 {const _t=ntfText;ntfText=function(n){return n&&SB_NK.includes(n.kind)?sbNtfText(n):_t.apply(this,arguments)}}
 {const _a=nrAv;nrAv=function(n,f){if(n&&SB_NK.includes(n.kind))return `<span class="av sbav" style="background:${n.ac||'#E6E3DC'}">${esc([...(n.an||'?')][0])}</span>`;return _a.apply(this,arguments)}}

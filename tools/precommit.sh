@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 提交前检查（E1，2026-10-27）：拼接核对 + 代码检查 + 静态检查，十几秒。
+# 提交前检查（E1，2026-10-27；E2 加规则单元测试）：拼接核对 + 代码检查 + 静态检查 + 规则单元测试，十几秒。
 #   由 .githooks/pre-commit 自动调用；clone 后跑一次 `git config core.hooksPath .githooks` 启用。
 #   也可以手动跑：bash tools/precommit.sh
 #   只改了文档（.md 等）的提交跳过前三项，只查进度记录大小。
@@ -15,9 +15,9 @@ fi
 
 # 2. 只有涉及代码的提交才跑检查
 staged=$(git -c core.quotePath=false diff --cached --name-only)
-if echo "$staged" | grep -qE '^(src/|tools/|tests/(static|spec|lint)/|南伴球_|schema\.sql|server/|sw\.js|manifest)'; then
+if echo "$staged" | grep -qE '^(src/|tools/|tests/(static|spec|lint|unit)/|南伴球_|schema\.sql|server/|sw\.js|manifest)'; then
   node tools/build.mjs --check || { echo "提交前检查：HTML 和 src 拼出来的不一样 → 跑 node tools/build.mjs 再 add"; fail=1; }
-  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint 2>&1)
+  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,unit/ 2>&1)
   echo "$out" | grep -qE '全部通过' || { echo "$out" | grep -vE '^\s*$' | tail -15; echo "提交前检查：静态检查没过（报告见上）"; fail=1; }
 fi
 

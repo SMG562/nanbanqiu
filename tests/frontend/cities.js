@@ -12,7 +12,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://*.basemap.cartocdn.com/**', r => r.abort());
-    const open = async p => { await pg.goto('https://nanbanqiu.test' + p); await pg.waitForTimeout(500) };
+    const open = async p => { await pg.goto('https://nanbanqiu.test' + p); await pg.settle(500) };
     const info = () => pg.evaluate(() => ({ key: CITY.key, title: document.title, loc: LOC && LOC.label, lat: LOC && LOC.lat,
       xhs: (() => { try { return xhsText(api.get(GAMES.find(g => g.share_code).id)) } catch (e) { return 'ERR ' + e.message } })(),
       ...(() => { track('share_click', { to: 'probe' }); const all = AN.pre.concat(AN_LOG); return { ev: (all.find(e => e.ev === 'session_start') || {}).city, ev2: all.length > 1 && all.every(e => e.city === CITY.key) } })(),
@@ -41,17 +41,17 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     // ---------- R3-2：即将开放 ----------
     T(`${f} 墨尔本没有「即将开放」`, !(await pg.$('#citySoon')));
     const posts = []; await pg.route('https://nanbanqiu.test/api/city-waitlist', r => { posts.push(r.request().postDataJSON()); r.fulfill({ status: 200, body: '{}' }) });
-    await open('/sydney/'); await pg.waitForTimeout(200);
+    await open('/sydney/'); await pg.settle(200);
     const soon = await pg.evaluate(() => { const d = document.getElementById('citySoon'); if (!d) return null; const r = d.getBoundingClientRect();
       return { h1: d.querySelector('h1').textContent, go: [...d.querySelectorAll('.cs-go')].map(a => a.getAttribute('href') + ' ' + a.textContent), cover: r.width > 300 && r.height > 500, title: document.title } });
     T(`${f} /sydney/：「悉尼即将开放」盖满页面，下面给墨尔本入口`, soon && soon.h1 === '悉尼即将开放' && soon.cover && soon.go.join() === '/melbourne/ 先去看看墨尔本 ›' && soon.title === '南伴球 · 悉尼网球约局', soon);
     await pg.fill('#csE', 'abc'); await pg.click('#csF button');
     T(`${f} /sydney/：邮箱不对 → 标红、不提交`, (await pg.$eval('#csE', e => e.style.borderColor)) !== '' && !posts.length && (await pg.$eval('#csOk', e => e.hidden)));
-    await pg.fill('#csE', ' Amy@Example.com '); await pg.click('#csF button'); await pg.waitForTimeout(300);
+    await pg.fill('#csE', ' Amy@Example.com '); await pg.click('#csF button'); await pg.settle(300);
     T(`${f} /sydney/：提交 → POST /api/city-waitlist {city:syd, email}，显示已登记`, posts.length === 1 && posts[0].city === 'syd' && posts[0].email === 'Amy@Example.com' && !(await pg.$eval('#csOk', e => e.hidden)), posts);
     // ---------- R3-2：手机号按国家 ----------
     await open('/melbourne/');
-    const ph = async v => { await pg.evaluate(() => openAuth(null)); await pg.waitForTimeout(200); await pg.fill('#ph', v); const cc = await pg.evaluate(() => [...document.querySelectorAll('#cc option')].map(o => o.textContent).join()); await pg.click('[data-a="sendCode"]'); await pg.waitForTimeout(200);
+    const ph = async v => { await pg.evaluate(() => openAuth(null)); await pg.settle(200); await pg.fill('#ph', v); const cc = await pg.evaluate(() => [...document.querySelectorAll('#cc option')].map(o => o.textContent).join()); await pg.click('[data-a="sendCode"]'); await pg.settle(200);
       return { cc, ...(await pg.evaluate(() => ({ e: AUTH.e164 || null, otp: !!document.getElementById('otp') }))) } };
     let r = await ph('0412 345 678'); T(`${f} 0412 345 678 → +61412345678，进入验证码`, r.e === '+61412345678' && r.otp && r.cc === '+61', r);
     await pg.evaluate(() => { AUTH.e164 = null }); r = await ph('+61 498 765 432'); T(`${f} +61 498 765 432 也认`, r.e === '+61498765432' && r.otp, r);
@@ -64,7 +64,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
       const c2 = await b.newContext({ timezoneId: tz, viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } }), p2 = await c2.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message));
       await p2.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
       await p2.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p2.route('https://*.basemap.cartocdn.com/**', r => r.abort());
-      await p2.goto('https://nanbanqiu.test/melbourne/'); await p2.waitForTimeout(600);
+      await p2.goto('https://nanbanqiu.test/melbourne/'); await p2.settle(600);
       const y = await p2.evaluate(() => { const g = GAMES.find(x => x.share_code), c = api.get(g.id), mel = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(c.start);
         return { lt: lt(c.start), mel, list: [...document.querySelectorAll('.lt')].length } });
       T(`${f} 手机时区 ${tz}：${want ? '标「当地 墨尔本时间」' : '不标'}`, want ? y.lt === `<span class="lt">当地 ${y.mel}</span>` && y.list > 0 : y.lt === '' && y.list === 0, y);

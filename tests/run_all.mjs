@@ -3,7 +3,7 @@
  * 南伴球 · 测试总入口
  *   node tests/run_all.mjs                 完整测试（约 25–40 分钟）
  *   node tests/run_all.mjs --quick         快速测试（约 6–10 分钟）：静态 + 数据库 + 核心流程 + 后台一致性 + 一个时间点的演示
- *   node tests/run_all.mjs --only=static,schema     只跑指定的套件（static / schema / pg / frontend / admin / regression）
+ *   node tests/run_all.mjs --only=static,schema     只跑指定的套件（static / unit / schema / pg / frontend / admin / regression）
  *   node tests/run_all.mjs --update-snapshots       确认改动无误后，用这次的输出更新回归快照
  *   node tests/run_all.mjs --list          只列出会跑哪些测试
  *   --grep=sb_,rate,api   只跑名字里含这些字的测试（每一小轮只跑相关的，10-26 定）
@@ -54,6 +54,9 @@ add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR]
 // 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）
 add('static', 'static/lint', ['node', path.join(HERE, 'static/lint.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 180, env: { NBQ_CACHE: CACHE } });
 add('static', 'static/cities_front', ['node', path.join(HERE, 'static/cities_front.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+// 规则单元测试（E2）：页面里的纯规则直接在 Node 里测，不开浏览器，1 秒内
+for (const f of fs.readdirSync(path.join(HERE, 'unit')).filter(f => f.endsWith('.mjs')).sort())
+  add('unit', 'unit/' + f.replace(/\.mjs$/, ''), ['node', path.join(HERE, 'unit', f), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('schema', 'schema/full', ['__schema__'], { pass: [/schema: \d+ statements, 0 errors/, /tests: \d+ blocks, 0 failed/, /dictionary: .* 0 differences/, /RESULT PASS/], timeout: 600 });
 // 真实 PostgreSQL（+ PostGIS）：同时操作（4c）
 add('pg', 'pg/race', ['node', path.join(HERE, 'pg/race.mjs')], { pass: [/\d+ passed, 0 failed/], timeout: 600 });
@@ -130,7 +133,7 @@ let NODE_PATH = [process.env.NODE_PATH, path.join(CACHE, 'node_modules')];
 try { NODE_PATH.push(execSync('npm root -g').toString().trim()) } catch (_) { }
 NODE_PATH = NODE_PATH.filter(Boolean).join(path.delimiter);
 const pwOk = (() => { try { execSync(`node -e "require('playwright')"`, { env: { ...process.env, NODE_PATH }, stdio: 'pipe' }); return true } catch (_) { return false } })();
-if (LIST.some(t => t.suite !== 'static' && t.suite !== 'schema')) need(pwOk, '找不到 playwright。安装：npm i -g playwright && npx playwright install chromium');
+if (LIST.some(t => !['static', 'schema', 'unit'].includes(t.suite))) need(pwOk, '找不到 playwright。安装：npm i -g playwright && npx playwright install chromium');
 if (LIST.some(t => t.suite === 'schema')) {
   try { execSync('python3 -c "import pglast"', { stdio: 'pipe' }) } catch (_) { need(false, '数据库测试需要 python3 和 pglast。安装：pip install pglast') }
   const sd = path.join(CACHE, 'schema');

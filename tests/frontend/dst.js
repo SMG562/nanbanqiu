@@ -9,7 +9,7 @@ const at = s => +new Date(s);
   const b = await chromium.launch({ args: ['--no-sandbox'] });
   for (const F of ['南伴球_PWA.html', '南伴球_Web.html']) {
     const p = await b.newPage({ viewport: { width: F.includes('PWA') ? 390 : 1360, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
-    await p.goto('file://' + path.join(DIR, F)); await p.waitForTimeout(500);
+    await p.goto('file://' + path.join(DIR, F)); await p.settle(500);
     const cases = [
       ['夏令时开始前一晚 22:30 → 次日 8:00（+11）', at('2026-10-03T22:30:00+10:00'), at('2026-10-04T08:00:00+11:00')],
       ['夏令时开始当天凌晨 1:30 → 8:00（+11）', at('2026-10-04T01:30:00+10:00'), at('2026-10-04T08:00:00+11:00')],

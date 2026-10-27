@@ -48,20 +48,20 @@ const ONLY = process.env.XSS_ONLY;   // 调试用：只跑一端
       return out;
     }, [label, full]);
     // 1) 基本数据
-    await pg.goto(url); await pg.waitForTimeout(700); await install(); await pg.evaluate(() => { seed(); if (typeof seedChat === 'function') seedChat(); render() });
+    await pg.goto(url); await pg.settle(700); await install(); await pg.evaluate(() => { seed(); if (typeof seedChat === 'function') seedChat(); render() });
     for (const r of await tour('基本', true)) { leaks.set(p + ' · ' + r.step, r) } checks++;
     // 1b) 地址栏参数：推送打开（n / k）、分享来源（s / f）、球局 / 球员卡路径
     { const PQ = encodeURIComponent(`"><i class="xssp"></i><img src="x:" class="xssp" onerror="window.__X++">' data-xss='1`);
       for (const tail of [`?n=${PQ}&k=${PQ}&s=${PQ}&f=${PQ}`, `#/g/${PQ}`, `#/p/${PQ}`, `#/?n=${PQ}&k=request`, `?s=xhs&f=${PQ}#/g/7Kq2`]) {
-        await pg.goto(url + tail); await pg.waitForTimeout(700);
+        await pg.goto(url + tail); await pg.settle(700);
         const c = await pg.evaluate(t => { const els = [...document.querySelectorAll('.xssp,[data-xss]')]; return { step: '地址栏 ' + t.slice(0, 40), n: els.length, x: window.__X } }, tail);
         if (c.n || c.x) leaks.set(p + ' · ' + c.step, c); checks++ } }
     // 2) 每个演示：重新加载 → 投毒 → 点演示 → 当前画面检查 → 再走一遍
     const demos = await pg.evaluate(() => [...document.querySelectorAll('[data-demo]')].map(x => x.dataset.demo));
     for (const d of demos) {
-      await pg.goto(url); await pg.waitForTimeout(400); await install();
+      await pg.goto(url); await pg.settle(400); await install();
       await pg.evaluate(p => { p === 'PWA' ? closeSheet() : closeModal() }, p);
-      await pg.evaluate(d => { document.querySelector(`[data-demo="${d}"]`).click() }, d); await pg.waitForTimeout(1200);
+      await pg.evaluate(d => { document.querySelector(`[data-demo="${d}"]`).click() }, d); await pg.settle(1200);
       await pg.evaluate(() => { __poison(); try { render() } catch (e) { } });
       const c = await pg.evaluate(d => __check('演示 ' + d + ' 当前画面'), d); if (c.n || c.x) leaks.set(p + ' · ' + c.step, c);
       for (const r of await tour('演示 ' + d, false)) leaks.set(p + ' · ' + r.step, r); checks++;

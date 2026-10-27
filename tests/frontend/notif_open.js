@@ -19,9 +19,9 @@ const CASES = [
     const errs = []; p.on('pageerror', x => errs.push(x.message));
     out[f] = {};
     for (const [kind, who, want] of CASES) {
-      await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(700);
+      await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(700);
       const r = await p.evaluate(async ([kind, who]) => {
-        const wait = ms => new Promise(r => setTimeout(r, ms));
+        const wait = ms => window.__nbqSettle ? __nbqSettle(ms) : new Promise(r => setTimeout(r, ms));
         const close = () => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } };
         const toasts = []; const _to = toast; toast = function (m) { toasts.push(m); return _to.apply(this, arguments) };
         const now = Date.now(), g = GAMES.find(x => x.host_id === 'han' && x.status !== 'cancelled' && new Date(x.starts_at) > now && !isW(V(x)));
@@ -67,9 +67,9 @@ const CASES = [
     for (const k of ['rejected', 'expired', 'full']) T(`${f} ${k} 文案里有时间和球场`, /\d{1,2}:\d{2} · /.test(out[f][k].text) && !/附近还有别的局/.test(out[f][k].text), out[f][k].text);
     T(`${f} rejected 文案不重复「没排上」`, (out[f].rejected.text.match(/没排上/g) || []).length === 1, out[f].rejected.text);
     // 详情里的「看看附近其他球局」→ 这局那天的发现页
-    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(700);
+    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(700);
     const ex = await p.evaluate(async () => {
-      const wait = ms => new Promise(r => setTimeout(r, ms)); const now = Date.now();
+      const wait = ms => window.__nbqSettle ? __nbqSettle(ms) : new Promise(r => setTimeout(r, ms)); const now = Date.now();
       const g = GAMES.filter(x => x.host_id === 'han' && x.status !== 'cancelled' && !isW(V(x)) && dOff(new Date(x.starts_at)) >= 1 && dOff(new Date(x.starts_at)) <= 4)[0];
       let pp = PARTS.find(x => x.game_id === g.id && x.user_id === 'jason'); if (!pp) { pp = { game_id: g.id, user_id: 'jason', role: 'player' }; PARTS.push(pp) } pp.status = 'rejected'; pp.reason = 'level';
       setWho('jason', true); await wait(100); try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { }
@@ -80,9 +80,9 @@ const CASES = [
     });
     T(`${f} 没排上的详情 →「看看附近其他球局」→ 那天的发现页`, ex.btn && ex.tab === 'disc' && !ex.detail && (f === 'PWA' ? ex.day === ex.off : ex.page === (ex.off <= 4 ? 0 : 2)), ex);
     // 演示：账号暂停后换其他演示，Jason 恢复正常，旧的状态通知不再显示
-    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(700);
-    await p.evaluate(() => document.querySelector('[data-demo="acct"]').click()); await p.waitForTimeout(900);
-    await p.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } document.querySelector('[data-demo="card"]').click() }); await p.waitForTimeout(700);
+    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(700);
+    await p.evaluate(() => document.querySelector('[data-demo="acct"]').click()); await p.settle(900);
+    await p.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } document.querySelector('[data-demo="card"]').click() }); await p.settle(700);
     const dm = await p.evaluate(() => ({ st: USERS.jason.status || 'active', shown: NOTIFS.filter(n => n.user_id === 'jason' && n.kind === 'account_status' && !n.hide).length }));
     T(`${f} 换演示后 Jason 恢复正常、旧的账号通知隐藏`, dm.st === 'active' && dm.shown === 0, dm);
     T(`${f} 没有页面错误`, errs.length === 0, errs);

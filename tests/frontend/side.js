@@ -7,9 +7,10 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.addInitScript(() => { window.AN_LOG = [] });
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.waitForTimeout(800);
-  await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho('jason', true) }); await pg.waitForTimeout(300);
+  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.waitForFunction(() => document.querySelector('#sheet.show'), null, { polling: 50 });   // 启动 300 毫秒后弹出位置询问，等它出来再关
+  await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho('jason', true) }); await pg.waitForFunction(() => !document.querySelector('#sheet.show'), null, { polling: 50 });
   const W = ms => pg.waitForTimeout(ms), E = f => pg.evaluate(f), S = f => pg.evaluate(f);   // S：在场边的 Shadow DOM 里取值
+  const U = (f, a, timeout = 15000) => pg.waitForFunction(f, a, { timeout, polling: 50 });   // 等条件成立（E2：代替固定等待）
   const SR = 'document.querySelector("#sbHost").shadowRoot';
 
   // ---- 底栏与右上角消息 ----
@@ -30,7 +31,9 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('消息页返回 → 回到刚才的页面（球局）', await E(() => UI.tab === 'mine'));
 
   // ---- 场边页 ----
-  await pg.click('#tabbar [data-tab="side"]'); await W(1500);
+  await pg.click('#tabbar [data-tab="side"]');
+  await U(() => { const r = document.querySelector('#sbHost')?.shadowRoot; return r && r.querySelectorAll('[data-s="home"] .ln').length > 5 && r.querySelector('[data-hint]')?.textContent });
+  await E(() => { SBV.every = 300 });   // 新动态的节奏调快（原来 5.2 秒一条）：下面「看不见时不冒」「回来继续冒」不用干等
   const s1 = await E(new Function(`const r=${SR};return {root:!!r,rows:r?r.querySelectorAll('[data-s="home"] .ln').length:0,on:document.querySelector('#tabbar [data-tab="side"]').classList.contains('on'),
     tabs:r?r.querySelectorAll('.tabs').length:-1,sbar:r?r.querySelectorAll('.sbar,.island').length:-1,bell:r?r.querySelector('[data-bell] [data-bn]').textContent:'',n:document.querySelector('#nBadge').textContent}`));
   T('场边页：用 Shadow DOM，信息流有内容，底栏「场边」亮', s1.root && s1.rows > 5 && s1.on, s1);
@@ -65,17 +68,24 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('场边右上角消息 → 消息页；返回回到场边', await E(() => UI.tab === 'notif') && (await pg.click('#scr-notif [data-a="nBack"]'), await W(250), await E(() => UI.tab === 'side')));
 
   // 看不见时不冒新消息
-  const n0 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`));
-  await pg.click('#tabbar [data-tab="disc"]'); await W(8000);
-  const n1 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`));
-  T('不在场边页时，不自动冒新消息', n1 === n0, [n0, n1]);
-  await pg.click('#tabbar [data-tab="side"]'); await W(7500);
-  const n2 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`));
+  // 看不见时：节拍照走（qi 是下一条新动态的序号），但一条都不冒；先等节拍换成 300 毫秒
+  await pg.hover('#tabbar [data-tab="side"]');   // 鼠标停在场边上时不冒（:hover），先移到底栏
+  { const q = await E(() => SBV.qi); await U(q => SBV.qi > q, q, 8000) }
+  await pg.click('#tabbar [data-tab="disc"]'); await W(100);   // 先切走再记数（300 毫秒一拍，记数前那一拍可能刚冒出来）
+  const n0 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`)), q0 = await E(() => SBV.qi);
+  await W(1500);   // 约 5 拍
+  const n1 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`)), q1 = await E(() => SBV.qi);
+  T('不在场边页时，不自动冒新消息（期间约 5 拍都没冒）', n1 === n0 && q1 === q0, [n0, n1, q0, q1]);
+  await pg.click('#tabbar [data-tab="side"]');
+  const n2 = await U(n1 => document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln').length > n1, n1, 10000).then(() => E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`))).catch(() => n1);
   T('回到场边页，新消息继续冒出来', n2 > n1, [n1, n2]);
+  await E(() => { SBV.every = 1200 });   // 气泡那段：一条接一条但不叠在一起
   // 新动态的气泡：底是单独一层（.bb），褪去后连同 bub 一起移除；动画结束后不留 fill（WAAPI 动画全部释放）
   const lk = await E(() => new Promise(res => { const root = document.querySelector('#sbHost').shadowRoot, born = new Map(); let max = 0, n = 0, pcN = 0; const t0 = performance.now();
     const iv = setInterval(() => { const now = performance.now(); root.querySelectorAll('.bb').forEach(e => { if (!born.has(e)) { born.set(e, now); n++; if (e.closest('.pc')) pcN++ } max = Math.max(max, now - born.get(e)) });
-      if (now - t0 > 16000) { clearInterval(iv); const idle = root.getAnimations().filter(a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition) && a.playState === 'finished');
+      const live = root.querySelectorAll('.bb').length;
+      // E2：看到 2 个以上（含带照片的）且都已移除就结束，最多 16 秒
+      if (now - t0 > 16000 || (n >= 2 && pcN >= 1 && !live && now - t0 > 500)) { clearInterval(iv); const idle = root.getAnimations().filter(a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition) && a.playState === 'finished');
         res({ n, pcN, max: Math.round(max), idle: idle.length, bub: [...root.querySelectorAll('.tx.bub')].filter(t => !t.querySelector(':scope>.bb')).length,
           blurOnText: [...root.querySelectorAll('.tx')].filter(t => getComputedStyle(t).backdropFilter !== 'none').length }) } }, 100) }));
   T('新动态气泡：每个气泡底 4 秒内移除，没有留下的 bub', lk.n >= 2 && lk.max < 4000 && lk.bub === 0, lk);

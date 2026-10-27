@@ -8,9 +8,9 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
   for (const f of ['PWA', 'Web']) {
     const ctx = await b.newContext({ viewport: f === 'PWA' ? { width: 390, height: 844 } : { width: 1360, height: 860 } });
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', x => errs.push(x.message));
-    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(900);
+    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(900);
     const r = await p.evaluate(async () => {
-      const wait = ms => new Promise(r => setTimeout(r, ms));
+      const wait = ms => window.__nbqSettle ? __nbqSettle(ms) : new Promise(r => setTimeout(r, ms));
       const close = () => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } };
       const ev = []; const _t = track; track = function (n, pr) { ev.push([n, JSON.parse(JSON.stringify(pr || {}))]); return _t.apply(this, arguments) };
       const toasts = []; const _to = toast; toast = function (m) { toasts.push(m); return _to.apply(this, arguments) };

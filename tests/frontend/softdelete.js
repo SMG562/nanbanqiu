@@ -8,7 +8,7 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
   for (const f of ['PWA', 'Web']) {
     const ctx = await b.newContext({ viewport: f === 'PWA' ? { width: 390, height: 844 } : { width: 1360, height: 860 } });
     const p = await ctx.newPage(); const errs = []; p.on('pageerror', x => errs.push(x.message));
-    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.waitForTimeout(900);
+    await p.goto('file:///mnt/user-data/outputs/南伴球_' + f + '.html'); await p.settle(900);
     const r = await p.evaluate(() => {
       try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { }
       const g = GAMES.find(g => g.host_id === 'han' && g.status === 'open' && new Date(g.starts_at) > NOW && V(g).spots >= 2 && !isW(V(g)));

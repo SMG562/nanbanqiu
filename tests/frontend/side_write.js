@@ -7,9 +7,9 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.addInitScript(() => { window.AN_LOG = [] });
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.waitForTimeout(800);
-  await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho(null, true) }); await pg.waitForTimeout(300);
-  const W = ms => pg.waitForTimeout(ms), E = (f, a) => pg.evaluate(f, a);
+  await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.settle(800);
+  await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho(null, true) }); await pg.settle(300);
+  const W = ms => pg.settle(ms), E = (f, a) => pg.evaluate(f, a);   // E2：W = 页面安静了就继续，最多等原来那么久
   const sr = s => pg.locator('#sbHost').locator(s);   // playwright 的 locator 能穿过 Shadow DOM
   const sheet = () => E(() => { const s = document.querySelector('#sheet'); return s && s.classList.contains('show') ? s.textContent : '' });
   const toast = () => E(() => { const t = document.querySelector('#sbHost').shadowRoot.querySelector('.toast'); return t.classList.contains('show') ? t.textContent : '' });
@@ -17,7 +17,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const login = async (ph, name) => { await pg.fill('#ph', ph); await pg.locator('[data-a="sendCode"]').first().click(); await W(500); await pg.fill('#otp', '123456'); await W(400);
     await pg.fill('#npName', name); await pg.check('#npAdult'); await pg.locator('[data-a="npDone"]').first().click(); await W(1000) };
   await pg.click('#tabbar [data-tab="side"]'); await W(300);
-  await E(() => { SBV.every = 1e9 }); await W(2500);   // 演示的自动新动态只冒第一条，之后不再冒，免得干扰数数
+  await E(() => { SBV.every = 1e9 }); await pg.waitForFunction(() => SBV.qi >= 1, null, { timeout: 4000, polling: 50 }).catch(() => {}); await W(300);   // 等第一条自动新动态冒出来（原来固定等 2.5 秒）   // 演示的自动新动态只冒第一条，之后不再冒，免得干扰数数
 
   // ---- 没登录：第一次互动时登录，登录后接着做 ----
   const ball = sr('[data-s="home"] [data-ball]').first(), bid = await ball.getAttribute('data-ball');

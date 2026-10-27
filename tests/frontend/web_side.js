@@ -10,8 +10,8 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
   await ctx.addInitScript(ts => { const off = ts - Date.now(), D = Date; class FD extends D { constructor(...a) { a.length ? super(...a) : super(D.now() + off) } static now() { return D.now() + off } } window.Date = FD; window.AN_LOG = [] }, FAKE);
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-  await pg.goto('file:///mnt/user-data/outputs/南伴球_Web.html'); await pg.waitForTimeout(800);
-  const W = ms => pg.waitForTimeout(ms), E = (f, a) => pg.evaluate(f, a);
+  await pg.goto('file:///mnt/user-data/outputs/南伴球_Web.html'); await pg.settle(800);
+  const W = ms => pg.settle(ms), E = (f, a) => pg.evaluate(f, a);   // E2：W = 页面安静了就继续，最多等原来那么久
   const sr = s => pg.locator('#sbHost').locator(s), sh = s => E(s => document.querySelector('#sbHost').shadowRoot.querySelector(s)?.click(), s);
   const ev = n => E(n => AN_LOG.filter(e => e.ev === n).map(e => e.props), n);
   const modal = () => E(() => document.querySelector('#mbg').classList.contains('show') ? document.querySelector('#modal').textContent : '');
@@ -26,7 +26,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
     return s.textContent === '24h' && r.bottom < t.top + t.height / 2 && r.left > t.left + 20 }));
   T('三个导航按钮高度、上边一样', await E(() => new Set([...document.querySelectorAll('#tabs [data-tab]')].map(b => { const r = b.getBoundingClientRect(); return r.top + ',' + r.height })).size === 1));
   T('没打开过场边时不建 Shadow DOM', await E(() => !document.querySelector('#sbHost').shadowRoot && typeof SBV !== 'undefined' && SBV === null));
-  await pg.click('#tabs [data-tab="side"]'); await W(300); await E(() => { SBV.every = 1e9 }); await W(2500);
+  await pg.click('#tabs [data-tab="side"]'); await W(300); await E(() => { SBV.every = 1e9 }); await pg.waitForFunction(() => SBV.qi >= 1, null, { timeout: 4000, polling: 50 }).catch(() => {}); await W(300);   // 等第一条自动新动态冒出来（原来固定等 2.5 秒）
   const s1 = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, el = r.querySelector('.wb>div');
     return { tab: UI.tab, on: document.querySelector('#tabs [data-tab="side"]').classList.contains('on'), layout: document.querySelector('#layout').hidden, scr: document.querySelector('#sbScr').hidden,
       foot: getComputedStyle(document.querySelector('.foot')).display, pill: getComputedStyle(document.querySelector('#commPill')).display, desk: el.classList.contains('desk'),
@@ -54,6 +54,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   // ---- 打开详情：右边滑出；关掉不留动画 ----
   const first = await E(() => String(SBV.L.find(x => !x.mine && Date.now() - x.t < 864e5).id));
   await sh(`[data-s="home"] [data-ln="${first}"]`); await W(800);
+  await pg.waitForFunction(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet'); return SBV.open && !s.getAnimations().some(a => a.playState === 'running') }, null, { timeout: 3000, polling: 50 }).catch(() => {});   // 量位置前等滑出动画走完
   const sd = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet').getBoundingClientRect(); return { open: String(SBV.open), cls: r.querySelector('.wb>div').className, l: Math.round(s.left), w: Math.round(s.width) } });
   T('点一条 → 详情从右边出来（宽 420，靠右）', sd.open === first && /sheeting/.test(sd.cls) && sd.w === 420 && sd.l === 100 + 1240 - 420, sd);
   await sh('[data-shut]'); await W(900);
