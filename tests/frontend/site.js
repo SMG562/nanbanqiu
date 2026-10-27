@@ -18,6 +18,10 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   T('入口页：手机端 / 网页端 / 后台，链接都指向 site/ 里的文件', JSON.stringify(links) === '["pwa.html","web.html","admin.html"]' && links.every(l => files.includes(l)), links);
   T('入口页写着这次部署的提交（Cloudflare 给的提交号前 7 位）', /提交 0123abc /.test(idx) && /name="robots" content="noindex"/.test(idx));
 
+  // Cloudflare 部署配置：只发布 site/
+  const wr = JSON.parse(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+  T('wrangler.jsonc：只把 site/ 作为静态资源发布、没有 main 脚本', wr.assets && wr.assets.directory === './site' && !wr.main && Object.keys(wr.assets).length === 1, wr);
+
   // 像线上一样用 http 打开
   const types = { html: 'text/html; charset=utf-8', webmanifest: 'application/manifest+json' }, miss = [];
   const srv = http.createServer((q, r) => { const p = decodeURIComponent(new URL(q.url, 'http://x').pathname), f = path.join(out, p === '/' ? 'index.html' : p.slice(1));

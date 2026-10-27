@@ -1,0 +1,9 @@
+// 预览网站（Cloudflare Workers 静态资源）：构建命令 `node tools/site.mjs` 生成 site/，部署命令 `npx wrangler deploy` 把 site/ 发上去。
+// 只发布 site/ 里的文件（白名单见 tools/site.mjs）；_headers 在 site/ 里（禁止收录、不缓存）。
+{
+  "name": "nanbanqiu",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./site"
+  }
+}
