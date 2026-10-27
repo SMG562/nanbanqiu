@@ -106,8 +106,8 @@ add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'fronten
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
 for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
-add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
-if (!QUICK) for (const t of ['2026-10-15T07:05:00+11:00', '2026-10-18T05:30:00+11:00']) add('admin', 'admin/data@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { env: { NBQ_TS: t }, pass: [/\d+ passed, 0 failed/], timeout: 300 });
+add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
+if (!QUICK) for (const t of ['2026-10-15T07:05:00+11:00', '2026-10-18T05:30:00+11:00']) add('admin', 'admin/data@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { env: { NBQ_TS: t }, pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });
 add('admin', 'admin/consist', ['node', '-r', PRELOAD, path.join(HERE, 'admin/consist.js')], { pass: [/ALL PASS/], timeout: 900 });
 add('admin', 'admin/cardsrc', ['node', '-r', PRELOAD, path.join(HERE, 'admin/cardsrc.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/notif', ['node', '-r', PRELOAD, path.join(HERE, 'admin/notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });

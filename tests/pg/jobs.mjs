@@ -102,7 +102,7 @@ try {
   // ---------- 注销满 30 天匿名化 + 每晚 ----------
   await q(`update users set status='deleted', status_since=now()-interval '31 days', status_reason='self_delete' where id=$1`, [U.D1]);
   await q(`update users set status='deleted', status_since=now()-interval '10 days', status_reason='self_delete' where id=$1`, [U.D2]);
-  await q(`insert into events(occurred_at,user_id,anon_id,session_id,build,event) values (now()-interval '1 day',$1,'a','s','pwa','page_view')`, [U.A]);
+  await q(`insert into events(occurred_at,user_id,anon_id,session_id,build,event) values (now()-interval '2 days',$1,'a','s','pwa','page_view')`, [U.A]);   // 2 天前：汇总从各城市里最早的当地日期往前 3 天，1 天前在墨尔本午夜到珀斯午夜之间会落在窗口外（E2 修）
   n = await job('job_nightly'); T('每晚任务：汇总最近 3 天', typeof n === 'number' && n >= 1, n);
   const d1 = await one(`select phone_e164, nickname, wechat_id, email, anonymized_at is not null a from users where id=$1`, [U.D1]);
   T('注销满 30 天：手机号、昵称、微信、邮箱都去掉', d1.a && d1.phone_e164.startsWith('deleted:') && d1.nickname === '已注销' && d1.wechat_id === null && d1.email === null, d1);
