@@ -7,7 +7,7 @@
 clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼接核对 + 代码检查 + 静态检查，约 6 秒）。
 
 - 用中文回复，简洁；汇报只写结果、用户需要知道的和下一步。
-- **前台两端改 `src/`**（shared 两端共用 / pwa / web；page、style、script、side=场边），改完 `node tools/build.mjs` 拼出两个 HTML、`node tools/lint.mjs` 检查；不要直接改 南伴球_PWA.html / 南伴球_Web.html。后台还是单个 HTML，直接改。
+- **三个页面都改 `src/`**（前台：shared 两端共用 / pwa / web；page、style、script、side=场边；后台：admin/），改完 `node tools/build.mjs` 拼出三个 HTML、`node tools/lint.mjs` 检查；不要直接改 南伴球_PWA.html / 南伴球_Web.html / 南伴球_后台.html。
 - 测试：本地只跑 `node tests/run_all.mjs --grep=<相关>`；推送后 GitHub 自动跑快速测试，一批收尾在 Actions 手动跑 full。看结果：`bash tests/lib/ci_status.sh`。说明见 `tests/README.md`。
 - **接上 GitHub 仓库（add_repo、clone）、提交、`git push` 到 main：用户 10-27 说默认全部同意，不用问，直接做**（.claude/settings.json 里也放行了这些操作；强推仍禁止）。
 - 预览网站 https://nanbanqiu-preview.pages.dev ：推送到 main 后 Cloudflare Pages 自动部署（`node tools/site.mjs` → site/），不用再手动发布预览页；要公开的新文件写进 site.mjs 的白名单。

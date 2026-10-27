@@ -2,7 +2,7 @@
 """一次性迁移脚本（R0，2026-10-27）：把 南伴球_PWA.html / 南伴球_Web.html 拆成 src/ 下的小源文件。
 
 已经拆过了，以后改代码直接改 src/，再 `node tools/build.mjs`。
-留着这份脚本，是为了以后拆后台（南伴球_后台.html）时照同一个办法做。
+后台（南伴球_后台.html）用同一个办法拆过，见 tools/split_admin.py（E3）。
 
 做法：
 1. 两个文件逐行比对（difflib，保持顺序），连续相同 ≥ MIN_SHARED 行的段 → src/shared/（只放一份）；

@@ -2802,7 +2802,7 @@ const CARDSRC={
 // 卡片标题（去掉 ? 和标签）
 const cardKey=el=>{const t=el.cloneNode(true);t.querySelectorAll('.hp,.pill,.live,small').forEach(x=>x.remove());return t.textContent.trim()};
 function cardSrcOf(page,card){const M=CARDSRC[page]||{},kl=card.classList.contains('kpi')?card.querySelector('.l'):card.querySelector(':scope > .ch > b')||card.querySelector('.ch b');
-  let k=kl?cardKey(kl):null;if(k&&page==='overview'&&card.querySelector('#trend'))k=k;if(!k||!M[k]){const tab=page==='venues'?S.vtab||'venues':S.tab2||(page==='events'?'events':'venues');if(!k||!M[k])k='#'+tab}
+  let k=kl?cardKey(kl):null;if(!k||!M[k]){const tab=page==='venues'?S.vtab||'venues':S.tab2||(page==='events'?'events':'venues');if(!k||!M[k])k='#'+tab}
   return M[k]?{k,src:M[k][0],def:M[k][1]}:null}
 function cardSrcDecorate(root){root.querySelectorAll('.card').forEach(c=>{if(c.querySelector(':scope .srci'))return;const x=cardSrcOf(S.page,c);if(!x)return;
   const host=c.classList.contains('kpi')?c.querySelector('.l'):c.querySelector('.ch b')||c.querySelector('.ch')||c.querySelector('.tabs');if(!host)return;

@@ -1,4 +1,4 @@
-// R0（10-27）：两个前台 HTML 的脚本过代码检查（tools/lint.mjs，ESLint 版本固定在 tests/lint/package.json）。
+// R0（10-27）：两个前台 HTML（E3 起加上后台）的脚本过代码检查（tools/lint.mjs，ESLint 版本固定在 tests/lint/package.json）。
 //   ① 现在没有问题（用了没定义的名字、重复声明、重复的键……）
 //   ② 登记的例外（CROSS_OK）都还对得上：文件存在、名字确实在里面
 //   ③ 自检：临时副本里拼错一个函数名 / 重复声明一个变量 / 在共用文件里调用不存在的函数，都要被报出来，并且对回正确的源文件
@@ -33,6 +33,11 @@ try {
   T('自检：拼错的函数名被报出，对回正确的源文件', has(a, 'no-undef', 'toastt'), got.slice(0, 5));
   T('自检：重复声明的变量被报出', has(b, 'no-redeclare', '__nbqDup'), got.slice(0, 5));
   T('自检：共用文件里调用不存在的函数被报出', has(c, 'no-undef', 'nbqNoSuchFn'), got.slice(0, 5));
+  // E3：后台（顶格 name=… 算有意的全局；但拼错的名字照报）
+  const adm = B.readList('admin', tmp).find(r => r.startsWith('admin/script/') && /\bpageUsers\(/.test(fs.readFileSync(path.join(tmp, 'src', r), 'utf8')));
+  edit(adm, s => s.replace(/\bpageUsers\(/, 'pageUserss('));
+  const got2 = L.lint(tmp, mods);
+  T('自检：后台拼错的函数名被报出，对回 src/admin', got2.some(r => r.src === 'src/' + adm && r.rule === 'no-undef' && r.message.includes('pageUserss')), got2.slice(0, 5));
   T('自检：共用文件的问题只报一次（不因两端重复）', got.filter(r => r.message.includes('nbqNoSuchFn')).length === 1, got.filter(r => r.message.includes('nbqNoSuchFn')));
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 

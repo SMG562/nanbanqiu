@@ -1,4 +1,4 @@
-// R0（10-27）：两个前台 HTML 由 src/ 拼出来（tools/build.mjs）。
+// R0（10-27）：两个前台 HTML 由 src/ 拼出来（tools/build.mjs）；E3（10-28）：后台 HTML 也是。
 //   ① 现在仓库里的 HTML = 重新拼出来的，逐字节相同（只改了 src 没重新拼、或直接改了 HTML，都会报出来）
 //   ② src 里每个文件都写进了 list；list 里的文件都存在；每个文件以换行结尾
 //   ③ 两端共用的代码只有一份：shared/ 下的文件两份 list 都用到；pwa/ 只在 PWA、web/ 只在网页端
@@ -44,6 +44,13 @@ try {
   const d2 = copy(); const h = path.join(d2, B.TARGETS.web);
   fs.writeFileSync(h, fs.readFileSync(h, 'utf8').replace('</body>', '<!-- x --></body>')); T('自检：直接改 HTML → 失败', check(d2) === 1);
   const d3 = copy(); fs.writeFileSync(path.join(d3, 'src', 'shared', 'script', '9999-新文件.js'), '//\n'); T('自检：新文件没写进 list → 失败', check(d3) === 1);
+  // E3：后台同样受保护
+  T('后台由 src/admin 拼出（list 里有文件）', (lists.admin || []).length >= 10 && lists.admin.every(r => r.startsWith('admin/')), lists.admin && lists.admin.slice(0, 3));
+  const d4 = copy(); const ha = path.join(d4, B.TARGETS.admin);
+  fs.writeFileSync(ha, fs.readFileSync(ha, 'utf8').replace('<title>', '<title> ')); T('自检：直接改后台 HTML → 失败', check(d4) === 1);
+  const d5 = copy(); const ra = path.join(d5, 'src', lists.admin.find(r => r.startsWith('admin/script/')));
+  fs.writeFileSync(ra, fs.readFileSync(ra, 'utf8').replace(/\n/, ' \n')); T('自检：改了后台 src 没重新拼 → 失败', check(d5) === 1);
+  const d6 = copy(); fs.writeFileSync(path.join(d6, 'src', 'admin', 'script', '9999-新文件.js'), '//\n'); T('自检：后台新文件没写进 list → 失败', check(d6) === 1);
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 
 console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

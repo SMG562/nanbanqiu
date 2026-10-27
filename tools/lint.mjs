@@ -61,7 +61,7 @@ export function scriptText(html) {
   for (const ln of lines) {
     const t = ln.trim();
     if (!inside && t === '<script>') { inside = true; out.push(''); continue; }
-    if (inside && t === '</script>') { inside = false; out.push(''); continue; }
+    if (inside && t.startsWith('</script>')) { inside = false; out.push(''); continue; }
     out.push(inside ? ln : '');
   }
   return out.join('\n');
@@ -82,6 +82,8 @@ export function lint(root = ROOT, mods = lintModules()) {
     const js = scriptText(text);
     // window.X = … 定义的名字也算这一端的全局
     const winG = Object.fromEntries([...js.matchAll(/\bwindow\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)].map(m => [m[1], 'writable']));
+    // 后台（E3）：顶格写的 name = … （没有 let / const / function）是有意的全局定义（后面的期数覆盖前面的页面函数），也算这一端的全局
+    if (name === 'admin') for (const m of js.matchAll(/^([A-Za-z_$][\w$]*)\s*=(?![=>])/gm)) winG[m[1]] = 'writable';
     const cfg = [{ ...config[0], languageOptions: { ...config[0].languageOptions, globals: { ...config[0].languageOptions.globals, ...winG } } }];
     const msgs = linter.verify(js, cfg, { filename: file + '.js' });
     const g = linter.getSourceCode().scopeManager.globalScope;
@@ -90,13 +92,14 @@ export function lint(root = ROOT, mods = lintModules()) {
     code[name] = { msgs, parts, file };
   }
   for (const [name, { msgs, parts, file }] of Object.entries(code)) {
-    const other = Object.keys(TARGETS).find(k => k !== name);
+    // 后台（admin）单独一份，不和前台比对
+    const other = name === 'admin' ? null : Object.keys(TARGETS).find(k => k !== name && k !== 'admin');
     for (const m of msgs) {
       const p = parts.find(p => m.line >= p.start && m.line < p.start + p.lines);
       const shared = !!p && p.rel.startsWith('shared/');
       // 共用代码里引用另一端才有的名字：运行时按平台分支（NR_PLAT、AN_BUILD、typeof …），不算错
       const undefName = m.ruleId === 'no-undef' && (m.message.match(/^'(.+)' is not defined/) || [])[1];
-      if (shared && undefName && declared[other].has(undefName)) continue;
+      if (shared && undefName && other && declared[other].has(undefName)) continue;
       if (undefName && p && CROSS_OK[p.rel]?.names.includes(undefName)) continue;
       // 同名函数声明两次 = 本项目有意的「后面的模块覆盖前面的」（业务规则.md 开头），不算重复声明；let / const / var 照报
       const redecl = m.ruleId === 'no-redeclare' && (m.message.match(/^'(.+)' is already defined/) || [])[1];

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * 从 src/ 拼出 南伴球_PWA.html、南伴球_Web.html（R0，2026-10-27）。
+ * 从 src/ 拼出 南伴球_PWA.html、南伴球_Web.html（R0，2026-10-27）和 南伴球_后台.html（E3，2026-10-28）。
  *
  *   node tools/build.mjs           拼出来写回仓库根目录（内容没变的不写）
  *   node tools/build.mjs --check   只核对：仓库里的 HTML 和重新拼出来的完全一样，否则退出码 1
  *
- * 改代码只改 src/，改完跑一次本脚本；不要直接改这两个 HTML（测试 static/build 会抓到）。
- * src/pwa.list、src/web.list 是拼接顺序：一行一个文件（相对 src/），# 开头是注释。
- *   src/shared/  两端共用（只有一份）· src/pwa/、src/web/  各自独有
+ * 改代码只改 src/，改完跑一次本脚本；不要直接改这三个 HTML（测试 static/build 会抓到）。
+ * src/pwa.list、src/web.list、src/admin.list 是拼接顺序：一行一个文件（相对 src/），# 开头是注释。
+ *   src/shared/  手机端、网页端共用（只有一份）· src/pwa/、src/web/  各自独有 · src/admin/  后台（单独一份，不和前台共用）
  *   page/ 页面（head、骨架、结尾）· style/ 样式 · script/ 主脚本 · side/ 场边（PWA 第二个脚本）
  * 新加一个小文件：放进对应目录，在 list 里写到该在的位置。
  */
@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const TARGETS = { pwa: '南伴球_PWA.html', web: '南伴球_Web.html' };
+export const TARGETS = { pwa: '南伴球_PWA.html', web: '南伴球_Web.html', admin: '南伴球_后台.html' };
 
 export function readList(name, root = ROOT) {
   const listFile = path.join(root, 'src', name + '.list');
@@ -27,11 +27,13 @@ export function readList(name, root = ROOT) {
 export function assemble(name, root = ROOT) {
   const parts = [];
   let text = '', line = 1;
-  for (const rel of readList(name, root)) {
+  const rels = readList(name, root);
+  for (const [i, rel] of rels.entries()) {
     const f = path.join(root, 'src', rel);
     if (!fs.existsSync(f)) throw new Error(`src/${name}.list 里的 ${rel} 不存在`);
     const s = fs.readFileSync(f, 'utf8');
-    if (s && !s.endsWith('\n')) throw new Error(`src/${rel} 最后一行要有换行`);
+    // 只有整个文件的最后一段可以不带换行（后台 HTML 原本就没有结尾换行）
+    if (s && !s.endsWith('\n') && i < rels.length - 1) throw new Error(`src/${rel} 最后一行要有换行`);
     const n = (s.match(/\n/g) || []).length;
     parts.push({ rel, start: line, lines: n });
     text += s; line += n;
