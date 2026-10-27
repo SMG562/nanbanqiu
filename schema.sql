@@ -721,7 +721,7 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('a2hs_open','安装','打开「添加到主屏幕」引导','env','client','active',null),
  ('analytics_off','隐私','关闭使用数据（发完这一条后停止）','','client','active',null),
  ('analytics_on','隐私','重新打开使用数据','','client','active',null),
- ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/...)','client','active',null),
+ ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/...)','client','active',null),
  ('login_send_code','登录','发送验证码（号码格式通过才发）','cc','client','active',null),
  ('login_verify','登录','提交验证码','ok','client','active',null),
  ('login_success','登录','登录成功','is_new, trigger, entry','client','active',null),
