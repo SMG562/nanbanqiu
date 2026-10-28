@@ -22,4 +22,13 @@ function scRender(){const b=document.getElementById('scBox');if(b)b.outerHTML=sh
 function scBlob(uid){return new Promise(res=>{if(!window.html2canvas)return res(null);
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:3}).then(cv=>cv.toBlob(b=>{tmp.remove();res(b)},'image/png')).catch(()=>{tmp.remove();res(null)})})}
-function scDownload(blob,uid){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`nanbanqiu-${fmtNo(U(uid).no)}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+// 保存图片：能用系统分享就用（iOS 分享面板里选「存储图像」进相册）；不行（或点开太慢分享被拒）就弹出大图，长按保存。不用 <a download>：iOS 里它进的是「文件」不是相册，主屏幕版还会把页面带走
+function imgSave(blob,name){
+  const file=blob&&new File([blob],name,{type:'image/png'});
+  const big=()=>{const old=document.getElementById('imgSaveBox');if(old)old.remove();const u=URL.createObjectURL(blob),d=document.createElement('div');d.id='imgSaveBox';
+    d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px';
+    d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px">长按图片，选「存储到相册」</p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
+    d.querySelector('img').src=u;const close=()=>{d.remove();URL.revokeObjectURL(u)};d.querySelector('button').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});document.body.appendChild(d)};
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).catch(e=>{if(!e||e.name!=='AbortError')big()});return}
+  big()}
+function scDownload(blob,uid){imgSave(blob,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}
