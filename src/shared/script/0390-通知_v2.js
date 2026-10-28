@@ -115,7 +115,7 @@ function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML())}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
-  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.com/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
+  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
 
 // ---------- 演示：另一台设备 · 提醒去向 ----------
 function nrDevSet(v){if(!ME)return;const d=nrDev(ME)[NR_OTHER];d.push=v!=='off';d.active=v==='active';nrDemoDraw()}

@@ -302,7 +302,7 @@ table.clk tbody tr{cursor:pointer}
 <!-- ===================== 登录 ===================== -->
 <div id="login"><form class="lg" onsubmit="return doLogin(event)">
   <div class="brand"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><div><b>南伴球 · 后台</b><span>Nanbanqiu Admin</span></div></div>
-  <label>邮箱</label><input type="email" value="han@nanbanqiu.com" autocomplete="username">
+  <label>邮箱</label><input type="email" value="han@nanbanqiu.app" autocomplete="username">
   <label>密码</label><input type="password" value="••••••••••" autocomplete="current-password">
   <label>两步验证码</label><div class="otp"><input maxlength="1" value="4"><input maxlength="1" value="8"><input maxlength="1" value="2"><input maxlength="1" value="9"><input maxlength="1" value="1"><input maxlength="1" value="6"></div>
   <label>演示身份</label><select id="demoRole" class="role-sel"><option value="owner">超级管理员（Han）</option><option value="operator">运营（Amy）</option><option value="viewer">只读（Leo）</option></select>
@@ -809,7 +809,7 @@ function monCard(){const rows=MON_CHECKS.map(([c,a,l,w,cr])=>{const v=MON_DEMO[c
   return `<div class="card"><div class="ch"><b>系统状态</b><small>每 5 分钟检查 16 项 · 有警告 / 严重时发邮件给超级管理员 · 处理办法见《出事处理手册》</small></div>
   <p class="cap" style="margin:0 0 8px">${bad.length?`<b style="color:var(--crit)">${bad.length} 项需要处理</b>`:'全部正常'} · 演示数据</p>
   <table><thead><tr><th>状态</th><th>项目</th><th class="r">现在</th><th class="r">警告 / 严重</th></tr></thead><tbody>${['系统','业务'].map(a=>`<tr><td colspan="4" style="color:var(--mut);font-size:12px;padding-top:12px">${a}</td></tr>`+rows.filter(r=>r.a===a).map(r=>`<tr><td>${dot(r.lv)}</td><td>${esc(r.l)}</td><td class="r num">${monFmt(r.c,r.v)}</td><td class="r" style="color:var(--mut)">${monFmt(r.c,r.w)}${r.cr!=null?' / '+monFmt(r.c,r.cr):''}</td></tr>`).join('')).join('')}</tbody></table></div>`}
-function pageAdmin(){const AD=[['Han','han@nanbanqiu.com','owner',''],['备用 owner','[待定]','owner','你不在时处理紧急情况、能恢复你的账号'],['Amy','amy@nanbanqiu.com','operator','示例 · 以后按需添加'],['Leo','leo@nanbanqiu.com','viewer','示例 · 以后按需添加']];   // 第 5 项：负责的城市（空 = 全部）
+function pageAdmin(){const AD=[['Han','han@nanbanqiu.app','owner',''],['备用 owner','[待定]','owner','你不在时处理紧急情况、能恢复你的账号'],['Amy','amy@nanbanqiu.app','operator','示例 · 以后按需添加'],['Leo','leo@nanbanqiu.app','viewer','示例 · 以后按需添加']];   // 第 5 项：负责的城市（空 = 全部）
   const owners=AD.filter(a=>a[2]==='owner').length,ck=ok=>ok?'<span style="color:var(--g)">✓</span>':'<span style="color:var(--line)">—</span>';
   return `<div class="grid g12"><div class="card"><div class="ch"><b>管理员</b><div class="r"><button class="btn sm" data-adm="invite">邀请管理员</button></div></div><table><tbody>
   ${AD.map(a=>`<tr><td><div class="who"><span class="a" style="background:var(--g)">${esc(a[0][0])}</span><div><b>${esc(a[0])}</b><small>${esc(a[1])}</small></div></div></td><td><span class="pill nodot">${ROLE_NAME[a[2]]}</span>${a[3]?`<br><small style="color:var(--mut)">${esc(a[3])}</small>`:''}</td><td class="r"><small style="color:var(--mut)">${a[4]?a[4].map(k=>esc((CITY_ADM.find(c=>c.key===k)||{zh:k}).zh)).join('、'):'全部城市'}</small></td></tr>`).join('')}</tbody></table>
@@ -1713,7 +1713,7 @@ function pageReview(){const pend=VENUES.filter(v=>v[6]==='pending'),f=S.tab2==='
     <td>${dup(v)?'<span class="pill w">150 m 内有相似球场</span>':'<span class="pill g">地址可定位</span>'}</td><td><div class="rowacts"><button class="btn sm p" data-act="vok" data-id="${v[0]}">通过</button><button class="btn sm" data-act="vmerge" data-id="${v[0]}">合并</button><button class="btn sm" data-act="vno" data-id="${v[0]}">驳回</button></div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">都处理完了 ✓</div>')
   :`<table><thead><tr><th>举报人</th><th>对象</th><th>类型</th><th>来源</th><th>原因</th><th>时间</th><th>状态</th><th></th></tr></thead><tbody>${S.reports.map(r=>`<tr><td>${esc(r.who)}</td><td><b style="font-weight:600">${esc(r.target)}</b></td><td>${r.type}</td><td>${REP_SRC(r)}</td><td>${REP_RC[r.rc]||'其他'}${r.note?`<br><small style="color:var(--mut)">${esc(r.note)}</small>`:''}</td><td>${r.at}</td><td>${r.status==='open'?'<span class="pill w">待处理</span>':r.status==='actioned'?'<span class="pill g">已处理</span>':'<span class="pill">已忽略</span>'}</td>
     <td>${r.status==='open'?`<div class="rowacts"><button class="btn sm" data-adm="msgs" data-id="${r.id}">查看对话</button><button class="btn sm p" data-act="rok" data-id="${r.id}">处理</button><button class="btn sm" data-act="rno" data-id="${r.id}">忽略</button></div>`:''}</td></tr>`).join('')}</tbody></table>`}</div>
-  <p class="cap">${f==='reports'?'举报来源：用户在球员卡和聊天里站内举报（reports.source = in_app，原因 5 选 1，「其他」必须写说明）；也可以写邮件到 safety@nanbanqiu.com，由管理员录入（source = email）。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的。':''}用户添加球场时只填全称、简称、所在区和场地类型；150 m 内已有收录的球场会直接合并。通过后对所有人可见，合并会把已有球局移到目标球场；所有操作写入审计日志。</p>`}
+  <p class="cap">${f==='reports'?'举报来源：用户在球员卡和聊天里站内举报（reports.source = in_app，原因 5 选 1，「其他」必须写说明）；也可以写邮件到 safety@nanbanqiu.app，由管理员录入（source = email）。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的。':''}用户添加球场时只填全称、简称、所在区和场地类型；150 m 内已有收录的球场会直接合并。通过后对所有人可见，合并会把已有球局移到目标球场；所有操作写入审计日志。</p>`}
 
 /* ---------- 球员卡 ---------- */
 
@@ -2496,7 +2496,7 @@ pageSafety=function(){const M=MM(),D=DB,{a,b,cut,dk}=M.range,t0=D.dms(a),t1=Math
   <div class="grid g2 sec"><div class="card"><div class="ch"><b>风险规则</b><small>可调权重和阈值（risk_rules 表）</small></div><table><thead><tr><th>规则</th><th class="r">权重</th><th class="r">阈值</th><th class="r">时间窗</th><th class="r">现在满足的人</th></tr></thead><tbody>
     ${RISK_RULES.map((r,i)=>`<tr><td>${r[1]}</td><td class="r num">${r[2]}</td><td class="r">${r[3]} ${RISK_UNIT[r[0]]||'次'}</td><td class="r">${r[4]} 天</td><td class="r num">${hit[i]}</td></tr>`).join('')}</tbody></table>
     <p class="cap">确认爽约 = 发起人反馈，或两人局里另一位反馈，或 2 人以上反馈；申诉期间不计入。<b>近 30 天确认爽约 2 次 → 建议暂停 7 天</b>；等级上限另按近 90 天算（≥2 次最高 Lv3，≥4 次最高 Lv2）。参加者 24 小时内退出 = 临时退出，确认（或直接加入）后 10 分钟内退出、球局大改后选「来不了」都不算。风险分 = 满足的规则权重之和，30 以上列入风险用户。</p></div>
-    <div class="card"><div class="ch"><b>举报</b><span class="pill nodot">站内 + 邮件</span><small>${rangeTxt()}</small></div><p class="cap" style="margin:0">用户在球员卡和聊天里站内举报（私信里举报对方，球局聊天里举报这局的聊天）；也可以写邮件到 <span class="mono">safety@nanbanqiu.com</span>，由管理员录入。都在「待审核 → 举报」处理，24 小时内。</p>
+    <div class="card"><div class="ch"><b>举报</b><span class="pill nodot">站内 + 邮件</span><small>${rangeTxt()}</small></div><p class="cap" style="margin:0">用户在球员卡和聊天里站内举报（私信里举报对方，球局聊天里举报这局的聊天）；也可以写邮件到 <span class="mono">safety@nanbanqiu.app</span>，由管理员录入。都在「待审核 → 举报」处理，24 小时内。</p>
       ${tbl11(['原因','条数'],Object.keys(REP_RC).map(k=>[REP_RC[k],rep.filter(r=>r.reason===k).length]).filter(x=>x[1]))}
       ${tbl11(['来源','条数'],[['站内 · 球员卡',rep.filter(r=>r.source==='in_app'&&r.via==='card').length],['站内 · 聊天',rep.filter(r=>r.source==='in_app'&&r.via==='chat').length],['邮件录入',rep.filter(r=>r.source==='email').length]])}
       <div class="ch" style="margin-top:18px"><b>球友约定门槛 · 查看 / 同意</b><small>第一次申请 / 发起 / 约人 / 接受邀约前必须同意 · ${rangeTxt()}</small></div>${pv?stepFunnel([['看到约定（pact_view · gate）',1],['同意（pact_accept）',acc/pv]],pv):'<p class="cap">这段时间没有</p>'}
@@ -3055,7 +3055,7 @@ const _admLogin=doLogin;doLogin=function(e){const sel=document.getElementById('d
  * 真实环境：城市页读 admin_city_overview()、city_checklist()；改状态 admin_city_status()；导出名单 admin_city_waitlist()；标记已通知 admin_city_waitlist_done()。
  * 顶部城市筛选：两个以上城市试运行 / 正式后才出现；真实环境各页面的接口带 ?city=（统计函数的 p_city）。演示数据只有墨尔本。 */
 var CITY_ADM=[
- {key:'melb',zh:'墨尔本',slug:'melbourne',status:'on',beta:'2026-09-01',community:'https://nanbanqiu.com/community',wl:0,wlp:0},
+ {key:'melb',zh:'墨尔本',slug:'melbourne',status:'on',beta:'2026-09-01',community:'https://nanbanqiu.app/community',wl:0,wlp:0},
  {key:'syd',zh:'悉尼',slug:'sydney',status:'off',wl:37,wlp:37},
  {key:'bne',zh:'布里斯班',slug:'brisbane',status:'off',wl:12,wlp:12},
  {key:'per',zh:'珀斯',slug:'perth',status:'off',wl:9,wlp:9},
@@ -3077,11 +3077,11 @@ function pageCities(){const pick=CITY_ADM.find(c=>c.key===S.cityPick)||CITY_ADM[
       <td><div class="rowacts">${nx?`<button class="btn sm" data-adm="cyst" data-city="${c.key}" data-to="${nx}" data-label="${esc(c.zh)}：改为${CITY_ST[nx]}">改为${CITY_ST[nx]}</button>`:''}${pv?`<button class="btn sm" data-adm="cyst" data-city="${c.key}" data-to="${pv}" data-label="${esc(c.zh)}：退回${CITY_ST[pv]}">退回</button>`:''}
       ${c.wlp&&['beta','on'].includes(c.status)?`<button class="btn sm" data-adm="cywl" data-city="${c.key}" data-label="导出${esc(c.zh)}「开放时通知我」名单">导出名单</button><button class="btn sm" data-adm="cywd" data-city="${c.key}" data-label="${esc(c.zh)}：标记已通知">标记已通知</button>`:''}</div></td></tr>`}).join('');
   const ck=cityChecklist(pick);
-  return `${S.city!=='all'&&S.city!=='melb'?`<div class="card" style="margin-bottom:14px"><small style="color:var(--mut)">演示数据只有墨尔本；真实环境各页面按所选城市读取。</small></div>`:''}<div class="grid g12"><div class="card" style="grid-column:1/-1"><div class="ch"><b>城市</b><small>每个城市一个网址 nanbanqiu.com/城市；没开放的城市打开显示「即将开放」，可以留邮箱</small></div>
+  return `${S.city!=='all'&&S.city!=='melb'?`<div class="card" style="margin-bottom:14px"><small style="color:var(--mut)">演示数据只有墨尔本；真实环境各页面按所选城市读取。</small></div>`:''}<div class="grid g12"><div class="card" style="grid-column:1/-1"><div class="ch"><b>城市</b><small>每个城市一个网址 nanbanqiu.app/城市；没开放的城市打开显示「即将开放」，可以留邮箱</small></div>
   <table><thead><tr><th>城市</th><th>状态</th><th class="r">区</th><th class="r">球场</th><th class="r">球友</th><th class="r">近 30 天球局</th><th class="r">开放时通知我<br><small>待通知 / 登记</small></th><th class="r">上线检查</th><th></th></tr></thead><tbody>${rows}</tbody></table>
   <p style="font-size:12px;color:var(--mut);margin-top:10px">未开放 → 筹备（只有管理员能看，导入区和球场）→ 试运行（能注册能用，首页标「试运行」）→ 正式。往前每一步要过检查清单，往回随时可以退。改状态、导出名单只有超级管理员，要写理由；名单在试运行或正式之后才能导出，发完通知点「标记已通知」，30 天后自动删除。</p></div>
   <div class="card" style="grid-column:1/-1"><div class="ch"><b>上线检查清单</b><small>${esc(pick.zh)} · ${cityPill(pick.status)}</small></div><table><tbody>${ck.map(x=>`<tr><td>${x[2]?'<span style="color:var(--g)">✓</span>':'<span style="color:var(--line)">—</span>'} ${esc(x[1])}${x[4]!==undefined&&x[4]!==''?` <small style="color:var(--mut)">现在 ${esc(String(x[4]))}</small>`:''}</td><td class="r"><small style="color:var(--mut)">${need[x[3]]}</small></td></tr>`).join('')}</tbody></table>
-  <p style="font-size:12px;color:var(--mut);margin-top:10px">网址：<span class="mono">nanbanqiu.com/${esc(pick.slug)}</span> · 社群链接：${pick.community?`<span class="mono">${esc(pick.community)}</span>`:'未填'}</p></div></div>`}
+  <p style="font-size:12px;color:var(--mut);margin-top:10px">网址：<span class="mono">nanbanqiu.app/${esc(pick.slug)}</span> · 社群链接：${pick.community?`<span class="mono">${esc(pick.community)}</span>`:'未填'}</p></div></div>`}
 // 城市操作（理由已填）：演示里按同一份检查清单拦下，记操作日志
 function cityAct(el,reason){const c=CITY_ADM.find(x=>x.key===el.dataset.city);if(!c)return;const k=el.dataset.adm;
   if(k==='cyst'){const to=el.dataset.to,up=CITY_ORDER.indexOf(to)>CITY_ORDER.indexOf(c.status);

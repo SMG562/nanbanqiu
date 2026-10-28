@@ -1,5 +1,5 @@
 // 南伴球 · 页面路由（地区扩展 R3-2）。5g 部署时接到托管平台 / 反向代理上（纯函数 + 一个数据库查询接口，Node / Workers 都能用）。
-//   每个城市一个网址 nanbanqiu.com/<slug>（/melbourne、/sydney……）：
+//   每个城市一个网址 nanbanqiu.app/<slug>（/melbourne、/sydney……）：
 //     /                     → 302 /melbourne/（查询参数保留）
 //     /g/码、/p/编号         → 302 /<球局 / 球员的城市>/g/码（短链接不变；找不到的按墨尔本，页面里显示「已不存在」）
 //     /<slug>               → 301 /<slug>/
@@ -39,7 +39,7 @@ export async function resolve(pathname, search, ua, db) {
 
 // 页面里按城市替换：标题、分享预览、PWA 安装配置地址（页面里的城市名由 CITIES 决定，这里只管搜索引擎和微信 / 小红书预览看到的）
 const attr = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-export function cityPage(html, city, origin = 'https://nanbanqiu.com') {
+export function cityPage(html, city, origin = 'https://nanbanqiu.app') {
   const t = `南伴球 · ${city.name_zh}网球约局`, soon = !['on', 'beta'].includes(city.status);
   const desc = soon ? `南伴球 · ${city.name_zh}即将开放，留下邮箱，开放时第一时间通知你` : `找到同水平的网球搭子，申请加入${city.name_zh}附近的球局｜南伴球 · ${city.name_zh}网球约局`;
   return html

@@ -83,7 +83,7 @@ const legalLinks=()=>`<a href="terms.html" target="_blank" rel="noopener">《用
 const pvExportHTML=cls=>`<button class="${cls}" data-pvx="export"><span class="ico" style="background:#475467"><svg><use href="#i-dl"/></svg></span><span class="v">下载我的数据<small>资料、球局、消息等，一个 JSON 文件</small></span></button>`;
 const pvLegalHTML=()=>`<p class="fine" style="margin:18px 0 6px">南伴球 Southern Companion · <a href="terms.html" target="_blank" rel="noopener">用户协议</a> · <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></p>`;
 function myDataJSON(){const id=ME.id,gm=gid=>GAMES.find(g=>g.id===gid)||{},vn=v=>VEN[v]?VEN[v].name:null;
-  return {exported_at:new Date().toISOString(),about:'这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.com。',
+  return {exported_at:new Date().toISOString(),about:'这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.app。',
     profile:{nickname:ME.name,last_initial:ME.last||null,member_no:ME.no,utr:ME.ntrp,gender:ME.gender||null,email:ME.email||null,wechat_id:ME.wechat||null,home_clubs:(ME.home_club_ids||[]).map(vn),
       analytics_opt_out:!!ME.analytics_opt_out,adult_confirmed_at:ME.adult_confirmed_at||null,terms_version:ME.terms_version||null,privacy_version:ME.privacy_version||null},
     games_hosted:GAMES.filter(g=>g.host_id===id).map(g=>({share_code:g.share_code,starts_at:g.starts_at,venue:vn(g.venue_id),status:g.status,note:g.note||''})),

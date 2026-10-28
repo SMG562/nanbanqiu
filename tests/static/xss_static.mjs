@@ -23,7 +23,7 @@ for (const f of FILES) {
 for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
   const h = src(f), navs = [...h.matchAll(/nav=`([^`]*)`/g)].map(m => m[1]), rm = (h.match(/(?:function reportMail\([^)]*\)\{|reportMail=[^=]*=>)[^\n]*/) || [''])[0];
   T(`${f}：导航链接只拼 Google 地图 + encodeURIComponent`, navs.length > 0 && navs.every(n => /^https:\/\/(www\.google\.com\/maps\/|maps\.google\.com\/\?)/.test(n) && [...n.matchAll(/\$\{([^}]*)\}/g)].every(m => /^encodeURIComponent\(/.test(m[1]))), navs);
-  T(`${f}：举报邮件链接是 mailto + encodeURIComponent`, /`mailto:safety@nanbanqiu\.com\?subject=\$\{encodeURIComponent\(/.test(rm) && /&body=\$\{encodeURIComponent\(/.test(rm) && (rm.match(/\$\{/g) || []).length === 4, rm.slice(0, 300));
+  T(`${f}：举报邮件链接是 mailto + encodeURIComponent`, /`mailto:safety@nanbanqiu\.app\?subject=\$\{encodeURIComponent\(/.test(rm) && /&body=\$\{encodeURIComponent\(/.test(rm) && (rm.match(/\$\{/g) || []).length === 4, rm.slice(0, 300));
 }
 // ② CSV
 const csvCell = grab(src('南伴球_后台.html'), 'csvCell');
@@ -32,9 +32,9 @@ T('后台 CSV：数字、负数、百分比、普通文字照常', csvCell(-5) =
 T('后台导出用 csvCell', /rows\.map\(r=>r\.map\(csvCell\)/.test(src('南伴球_后台.html')));
 // ③ sw.js
 const sw = src('sw.js'); const fn = sw.match(/function pushTarget\(data\) \{[\s\S]*?\n\}/)[0];
-const pushTarget = vm.runInNewContext(`(()=>{const self={location:{origin:'https://nanbanqiu.com'}};${fn};return pushTarget})()`, { URL });
-T('点通知：本站路径带 n / k', pushTarget({ url: '/g/7Kq2', notif_id: 5, kind: 'request' }) === 'https://nanbanqiu.com/g/7Kq2?n=5&k=request');
-T('点通知：站外链接、javascript:、坏地址都回到首页', ['https://evil.com/x', 'javascript:alert(1)', '//evil.com', 'http://[bad'].every(u => pushTarget({ url: u, notif_id: 1, kind: 'x' }).startsWith('https://nanbanqiu.com/?')), ['https://evil.com/x', 'javascript:alert(1)', '//evil.com'].map(u => pushTarget({ url: u })));
+const pushTarget = vm.runInNewContext(`(()=>{const self={location:{origin:'https://nanbanqiu.app'}};${fn};return pushTarget})()`, { URL });
+T('点通知：本站路径带 n / k', pushTarget({ url: '/g/7Kq2', notif_id: 5, kind: 'request' }) === 'https://nanbanqiu.app/g/7Kq2?n=5&k=request');
+T('点通知：站外链接、javascript:、坏地址都回到首页', ['https://evil.com/x', 'javascript:alert(1)', '//evil.com', 'http://[bad'].every(u => pushTarget({ url: u, notif_id: 1, kind: 'x' }).startsWith('https://nanbanqiu.app/?')), ['https://evil.com/x', 'javascript:alert(1)', '//evil.com'].map(u => pushTarget({ url: u })));
 // ④ 推送内容
 const R = await import(pathToFileURL(path.join(DIR, 'server/notify/rules.mjs')));
 const pt = R.pushText({ id: 9, kind: 'request', game_id: 'g', invite_id: null }, { actorName: '<b>x</b>', game: null });

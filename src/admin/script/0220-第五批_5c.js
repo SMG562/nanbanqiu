@@ -74,7 +74,7 @@ const _admLogin=doLogin;doLogin=function(e){const sel=document.getElementById('d
  * 真实环境：城市页读 admin_city_overview()、city_checklist()；改状态 admin_city_status()；导出名单 admin_city_waitlist()；标记已通知 admin_city_waitlist_done()。
  * 顶部城市筛选：两个以上城市试运行 / 正式后才出现；真实环境各页面的接口带 ?city=（统计函数的 p_city）。演示数据只有墨尔本。 */
 var CITY_ADM=[
- {key:'melb',zh:'墨尔本',slug:'melbourne',status:'on',beta:'2026-09-01',community:'https://nanbanqiu.com/community',wl:0,wlp:0},
+ {key:'melb',zh:'墨尔本',slug:'melbourne',status:'on',beta:'2026-09-01',community:'https://nanbanqiu.app/community',wl:0,wlp:0},
  {key:'syd',zh:'悉尼',slug:'sydney',status:'off',wl:37,wlp:37},
  {key:'bne',zh:'布里斯班',slug:'brisbane',status:'off',wl:12,wlp:12},
  {key:'per',zh:'珀斯',slug:'perth',status:'off',wl:9,wlp:9},
@@ -96,11 +96,11 @@ function pageCities(){const pick=CITY_ADM.find(c=>c.key===S.cityPick)||CITY_ADM[
       <td><div class="rowacts">${nx?`<button class="btn sm" data-adm="cyst" data-city="${c.key}" data-to="${nx}" data-label="${esc(c.zh)}：改为${CITY_ST[nx]}">改为${CITY_ST[nx]}</button>`:''}${pv?`<button class="btn sm" data-adm="cyst" data-city="${c.key}" data-to="${pv}" data-label="${esc(c.zh)}：退回${CITY_ST[pv]}">退回</button>`:''}
       ${c.wlp&&['beta','on'].includes(c.status)?`<button class="btn sm" data-adm="cywl" data-city="${c.key}" data-label="导出${esc(c.zh)}「开放时通知我」名单">导出名单</button><button class="btn sm" data-adm="cywd" data-city="${c.key}" data-label="${esc(c.zh)}：标记已通知">标记已通知</button>`:''}</div></td></tr>`}).join('');
   const ck=cityChecklist(pick);
-  return `${S.city!=='all'&&S.city!=='melb'?`<div class="card" style="margin-bottom:14px"><small style="color:var(--mut)">演示数据只有墨尔本；真实环境各页面按所选城市读取。</small></div>`:''}<div class="grid g12"><div class="card" style="grid-column:1/-1"><div class="ch"><b>城市</b><small>每个城市一个网址 nanbanqiu.com/城市；没开放的城市打开显示「即将开放」，可以留邮箱</small></div>
+  return `${S.city!=='all'&&S.city!=='melb'?`<div class="card" style="margin-bottom:14px"><small style="color:var(--mut)">演示数据只有墨尔本；真实环境各页面按所选城市读取。</small></div>`:''}<div class="grid g12"><div class="card" style="grid-column:1/-1"><div class="ch"><b>城市</b><small>每个城市一个网址 nanbanqiu.app/城市；没开放的城市打开显示「即将开放」，可以留邮箱</small></div>
   <table><thead><tr><th>城市</th><th>状态</th><th class="r">区</th><th class="r">球场</th><th class="r">球友</th><th class="r">近 30 天球局</th><th class="r">开放时通知我<br><small>待通知 / 登记</small></th><th class="r">上线检查</th><th></th></tr></thead><tbody>${rows}</tbody></table>
   <p style="font-size:12px;color:var(--mut);margin-top:10px">未开放 → 筹备（只有管理员能看，导入区和球场）→ 试运行（能注册能用，首页标「试运行」）→ 正式。往前每一步要过检查清单，往回随时可以退。改状态、导出名单只有超级管理员，要写理由；名单在试运行或正式之后才能导出，发完通知点「标记已通知」，30 天后自动删除。</p></div>
   <div class="card" style="grid-column:1/-1"><div class="ch"><b>上线检查清单</b><small>${esc(pick.zh)} · ${cityPill(pick.status)}</small></div><table><tbody>${ck.map(x=>`<tr><td>${x[2]?'<span style="color:var(--g)">✓</span>':'<span style="color:var(--line)">—</span>'} ${esc(x[1])}${x[4]!==undefined&&x[4]!==''?` <small style="color:var(--mut)">现在 ${esc(String(x[4]))}</small>`:''}</td><td class="r"><small style="color:var(--mut)">${need[x[3]]}</small></td></tr>`).join('')}</tbody></table>
-  <p style="font-size:12px;color:var(--mut);margin-top:10px">网址：<span class="mono">nanbanqiu.com/${esc(pick.slug)}</span> · 社群链接：${pick.community?`<span class="mono">${esc(pick.community)}</span>`:'未填'}</p></div></div>`}
+  <p style="font-size:12px;color:var(--mut);margin-top:10px">网址：<span class="mono">nanbanqiu.app/${esc(pick.slug)}</span> · 社群链接：${pick.community?`<span class="mono">${esc(pick.community)}</span>`:'未填'}</p></div></div>`}
 // 城市操作（理由已填）：演示里按同一份检查清单拦下，记操作日志
 function cityAct(el,reason){const c=CITY_ADM.find(x=>x.key===el.dataset.city);if(!c)return;const k=el.dataset.adm;
   if(k==='cyst'){const to=el.dataset.to,up=CITY_ORDER.indexOf(to)>CITY_ORDER.indexOf(c.status);

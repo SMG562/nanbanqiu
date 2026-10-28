@@ -54,7 +54,7 @@ document.addEventListener('click',e=>{
     case'doBlock':api.block(a.dataset.u);closeModal();toast(`已屏蔽 ${U(a.dataset.u).name}`);UI.sel=null;render();break;
     case'unblock':api.unblock(a.dataset.u);toast('已解除屏蔽');closeModal();render();break;
     case'blocklist':$('#umenu').classList.remove('show');openBlocklist();break;
-    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.com');break;
+    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.app');break;
     case'kudos':api.kudos(g);toast('👍 已为同场球友点赞');render();break;
     case'filterModal':openModal(`<div class="m-b" style="padding:12px 0 0">${filtersHTML()}</div>`,'sm');$('#modal .card').style.cssText='border:0;box-shadow:none';bindSub($('#modal'));break;
     case'fReset':F.levels.clear();F.types.clear();F.utr=null;F.tags&&F.tags.clear();F.radius=10;refreshFilters();break;
@@ -75,7 +75,7 @@ document.addEventListener('click',e=>{
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
-    case'copyLink':copy(shareURL('https://nanbanqiu.com/g/'+api.get(g).share_code,'link'),'链接已复制');break;
+    case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'openLanding':UI.landing=api.get(g).share_code;history.replaceState(null,'','#/g/'+UI.landing);render();scrollTo(0,0);break;
     case'enablePush':enablePush();break;
     case'editClubs':openClubs();break;

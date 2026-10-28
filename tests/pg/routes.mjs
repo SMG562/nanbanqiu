@@ -57,7 +57,7 @@ try {
   let r = await go('/melbourne/', '', IPHONE);
   T('手机 → PWA，电脑 → 网页端', r.status === 200 && r.body.includes("build:'pwa'") && (await go('/melbourne/')).body.includes("build:'web'") && r.headers.Vary === 'User-Agent');
   T('页面带安全响应头', /default-src 'self'/.test(r.headers['Content-Security-Policy']) && r.headers['X-Frame-Options'] === 'DENY');
-  T('墨尔本：标题、分享预览、安装配置地址、canonical', /<title>南伴球 · 墨尔本网球约局<\/title>/.test(r.body) && /og:description" content="找到同水平的网球搭子，申请加入墨尔本附近的球局/.test(r.body) && r.body.includes('<link rel="manifest" href="/melbourne/manifest.webmanifest">') && r.body.includes('<link rel="canonical" href="https://nanbanqiu.com/melbourne/">'));
+  T('墨尔本：标题、分享预览、安装配置地址、canonical', /<title>南伴球 · 墨尔本网球约局<\/title>/.test(r.body) && /og:description" content="找到同水平的网球搭子，申请加入墨尔本附近的球局/.test(r.body) && r.body.includes('<link rel="manifest" href="/melbourne/manifest.webmanifest">') && r.body.includes('<link rel="canonical" href="https://nanbanqiu.app/melbourne/">'));
   r = await go('/sydney/g/ABC');
   T('未开放的悉尼：照常返回页面（页面自己显示即将开放），预览写「即将开放」', r.status === 200 && /<title>南伴球 · 悉尼网球约局<\/title>/.test(r.body) && /og:description" content="南伴球 · 悉尼即将开放/.test(r.body));
   T('页面里别的内容不变（只换了头部）', r.body.replace(/<head>[\s\S]*<\/head>/, '') === files.web.replace(/<head>[\s\S]*<\/head>/, ''));

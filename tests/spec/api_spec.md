@@ -73,7 +73,7 @@
 ### 0.8 城市（schema ⑲，地区扩展 R1；设计见 地区扩展设计.md）
 - 城市配置 `cities`：时区、中心、上线状态（off / prep / beta / on）、发局时段（默认 6:00–21:30）、夜间不打扰（默认 22:00–08:00）、顺延截止（默认 23:00）、分享话题。前台只读得到 beta / on 的城市。
 - GET /api/cities → 已开放的城市列表（含 slug、center_label）。
-- **每个城市一个网址**（R3，schema ㉒，10-22 定）：`nanbanqiu.com/<slug>`（melbourne / sydney / brisbane / perth / adelaide / canberra）；打开的网址决定页面上的城市，**不做城市切换**；不带城市（`nanbanqiu.com`）→ 墨尔本。前台两端的 `CITIES` 与 cities 表逐条相同（tests/static/cities_front.mjs）。
+- **每个城市一个网址**（R3，schema ㉒，10-22 定）：`nanbanqiu.app/<slug>`（melbourne / sydney / brisbane / perth / adelaide / canberra）；打开的网址决定页面上的城市，**不做城市切换**；不带城市（`nanbanqiu.app`）→ 墨尔本。前台两端的 `CITIES` 与 cities 表逐条相同（tests/static/cities_front.mjs）。
 - **分享链接保持短链接** `/g/码`、`/p/编号`：后端按球局 / 球员所在城市跳到 `/<slug>/g/码`（R3-2 server/routes.mjs）。
 - 打开还没开放的城市（如 `/sydney`）→ 页面盖一层「悉尼即将开放」+ 留邮箱「开放时通知我」+ 已开放城市的入口（R3-2）。
   - POST /api/city-waitlist `{city, email}` → 后端以 nbq_service 调 `api_city_waitlist(city, email, ip)`：只收未开放 / 筹备中的城市（否则 422 `invalid` detail=city）；邮箱格式不对 → 422 `invalid` detail=email；同一城市同一邮箱只记一次（返回 false，页面照样显示「已登记」）；同一 IP 每小时 5 次 → 429 `rate_limited`。存在 area_demand（kind=city_waitlist）。

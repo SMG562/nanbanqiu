@@ -12,7 +12,7 @@ function renderLanding(){
       <div class="card lcard center"><div class="kick">在手机上打开</div><div class="qr" id="lqr"></div><div class="pm">微信扫码转发到群，或添加到主屏幕接收通知</div></div></aside></div>
   ${near.length?`<div style="max-width:1040px;margin:0 auto;padding:0 24px 20px"><div class="sec-t" style="font-size:13.5px">附近其他球局</div><div class="lgrid">${near.map(gcHTML).join('')}</div></div>`:''}
   <div class="foot" style="max-width:1040px;padding:10px 24px 90px"><button data-a="safety">安全须知</button><button data-a="contact">联系我们 / 举报</button><button data-a="community">微信约球群</button><span>© 2026 南伴球</span></div></div>`;
-  qr($('#lqr'),shareURL('https://nanbanqiu.com/g/'+c.share_code,'webqr'));
+  qr($('#lqr'),shareURL('https://nanbanqiu.app/g/'+c.share_code,'webqr'));
 }
 function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
 

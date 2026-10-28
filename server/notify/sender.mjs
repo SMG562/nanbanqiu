@@ -113,7 +113,7 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200 } = {
 }
 
 // 发出到期的邮件（重要的先发：change > result > request；每人每天最多 5 封）
-export async function flushEmail(pool, { mail, now = Date.now(), baseUrl = 'https://nanbanqiu.com' } = {}) {
+export async function flushEmail(pool, { mail, now = Date.now(), baseUrl = 'https://nanbanqiu.app' } = {}) {
   const db = await pool.connect(); const stats = { sent: 0, skipped: 0, failed: 0 };
   try {
     await db.query('begin'); await db.query('set local role nbq_service');

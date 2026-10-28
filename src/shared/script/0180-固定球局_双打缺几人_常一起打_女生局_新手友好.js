@@ -260,12 +260,12 @@ const utrChip=()=>F.utr?`UTR ${urTxt(F.utr.lo,F.utr.hi)}`:'全部水平';
 
 /* ---------- 小红书球票：日期写具体（发布可能不在当天），副券上一个小二维码，扫码直达这局 ---------- */
 const xhsDate=d=>`${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}`;
-function ticketHTML(c){const url=shareURL('https://nanbanqiu.com/g/'+(c.share_code||''),'qr');
+function ticketHTML(c){const url=shareURL('https://nanbanqiu.app/g/'+(c.share_code||''),'qr');
   return `<div class="ogT"><div class="t-main"><div class="t-top"><svg><use href="#logo-mark"/></svg><b>南伴球</b><span>${esc(CITY.zh)}网球约球</span></div>
     <div class="t-body"><div class="t-date">${xhsDate(c.start)}</div><div class="t-time">${hm(c.start)}</div><div class="t-place">${esc(c.v.short)}</div>
     <div class="t-meta">${TYPE[c.game_type]}<i></i>UTR ${lvl(c)}</div><div class="t-line"></div><div class="t-need"><em></em>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>
     <div class="t-stub"><div class="t-qr">${qrSVG(url)}</div><b>扫码加入</b></div></div>`}
-const xhsText=c=>`🎾 ${CITY.zh}约球 · ${xhsDate(c.start)} ${hm(c.start)}\n📍 ${c.v.name}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n\n扫图里的二维码就能加入，或打开 ${shareURL('nanbanqiu.com/g/'+c.share_code,'xhs')}\n\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`;
+const xhsText=c=>`🎾 ${CITY.zh}约球 · ${xhsDate(c.start)} ${hm(c.start)}\n📍 ${c.v.name}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n\n扫图里的二维码就能加入，或打开 ${shareURL('nanbanqiu.app/g/'+c.share_code,'xhs')}\n\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`;
 
 /* ---------- 地图：同一个球场有多局 → 点击后列出这个球场的所有球局 ---------- */
 function venueGamesHTML(vid,games){const v=VEN[vid],sameDay=new Set(games.map(c=>dOff(c.start))).size===1;

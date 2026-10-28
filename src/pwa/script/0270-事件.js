@@ -46,7 +46,7 @@ DEV.addEventListener('click',e=>{
     case'doBlock':api.block(a.dataset.u);closeSheet();toast(`已屏蔽 ${U(a.dataset.u).name}`);render();break;
     case'unblock':api.unblock(a.dataset.u);closeSheet();toast('已解除屏蔽');render();break;
     case'blocklist':openBlocklist();break;
-    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.com');break;
+    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.app');break;
     case'kudos':api.kudos(g);toast('👍 已为同场球友点赞');render();break;
     case'login':openAuth(null);break;
     case'sendCode':{const p=$('#ph');if(p){const e=phoneE164($('#cc').value,p.value);if(!e){const k=phoneCountry($('#cc').value);p.focus();p.style.borderColor='var(--red)';toast('请输入'+k.zh+'手机号，如 '+k.hint);return}AUTH.phone=p.value;AUTH.cc=$('#cc').value;AUTH.e164=e}openOtp();break}
@@ -64,8 +64,8 @@ DEV.addEventListener('click',e=>{
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
     case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
-    case'copyLink':copy(shareURL('https://nanbanqiu.com/g/'+api.get(g).share_code,'link'),'链接已复制');break;
-    case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.com/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
+    case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
+    case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
     case'saveClubs':api.setClubs(CL);closeSheet();toast('已更新我的 Club');render();break;
     case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
@@ -80,6 +80,6 @@ DEV.addEventListener('click',e=>{
 });
 function copy(t,m){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(m),()=>toast(m))}
 function downloadICS(id){const c=api.get(id),f=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nanbanqiu//CN','BEGIN:VEVENT',`UID:${c.id}@nanbanqiu.com`,`DTSTAMP:${f(new Date())}`,`DTSTART:${f(c.start)}`,`DTEND:${f(c.end)}`,`SUMMARY:🎾 ${TYPE[c.game_type]} · ${c.v.short}`,`LOCATION:${c.v.name}\\, ${c.v.suburb} VIC`,`URL:https://nanbanqiu.com/g/${c.share_code}`,'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:2 小时后打球','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nanbanqiu//CN','BEGIN:VEVENT',`UID:${c.id}@nanbanqiu.app`,`DTSTAMP:${f(new Date())}`,`DTSTART:${f(c.start)}`,`DTEND:${f(c.end)}`,`SUMMARY:🎾 ${TYPE[c.game_type]} · ${c.v.short}`,`LOCATION:${c.v.name}\\, ${c.v.suburb} VIC`,`URL:https://nanbanqiu.app/g/${c.share_code}`,'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:2 小时后打球','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download=`nanbanqiu-${c.share_code}.ics`;a.click();toast('已加入日历（提前 2 小时提醒）')}
 

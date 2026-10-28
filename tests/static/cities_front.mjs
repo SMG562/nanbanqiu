@@ -35,7 +35,7 @@ for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
   });
   for (const [k, v] of Object.entries(bad)) T(`${f}：代码里没有写死的${k}`, !v.length, v.slice(0, 10));
   T(`${f}：埋点公共字段带城市`, (h.match(/os:AENV\.os,city:CITY\.key,/g) || []).length === 2);
-  T(`${f}：分享链接保持短链接 /g/、/p/（不带城市）`, /nanbanqiu\.com\/g\//.test(h) && /nanbanqiu\.com\/p\//.test(h) && !/nanbanqiu\.com\/\$\{CITY\.slug\}\/(g|p)\//.test(h));
+  T(`${f}：分享链接保持短链接 /g/、/p/（不带城市）`, /nanbanqiu\.app\/g\//.test(h) && /nanbanqiu\.app\/p\//.test(h) && !/nanbanqiu\.app\/\$\{CITY\.slug\}\/(g|p)\//.test(h));
   T(`${f}：夜间顺延和早上合并读城市的夜间时段`, /cityHM\(CITY\.quiet\[0\]\)/.test(h) && /cityHM\(CITY\.quiet\[1\]\)/.test(h));
 }
 // 号码按国家：前台 COUNTRIES = 数据库 countries 里已开放的国家（代码、名称、国家代码、格式、提示）

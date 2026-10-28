@@ -20,7 +20,7 @@ function acctCan(action,o={}){if(!ME)return null;const s=acctSt(ME);
   if(s==='limited'&&(action==='invite'||action==='chat'||action==='accept')&&o.to&&!playedTogether(ME.id,o.to))return'limited';
   if(s==='banned'||s==='deleted')return s;
   return null}
-function acctText(s){const u=ME,why=u&&u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'',mail='<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.com?subject='+encodeURIComponent('账号申诉')+'">safety@nanbanqiu.com</a></p>';
+function acctText(s){const u=ME,why=u&&u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'',mail='<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.app?subject='+encodeURIComponent('账号申诉')+'">safety@nanbanqiu.app</a></p>';
   if(s==='suspended')return [`账号暂停中`,`${u.status_until?acctDate(u.status_until)+' 恢复。':''}这期间可以浏览，暂时不能发起、申请、约人、发消息，也不能在场边发布、回复和点网球。`,why+mail];
   if(s==='limited')return ['这个操作暂时不可用','你的账号目前受限：不能报名女生局，也不能私信或约没一起打过的球友。普通球局照常。',why+mail];
   if(s==='review')return ['账号核实中','核实期间暂时看不到女生局，其余功能正常，通常 24 小时内完成。',mail];
@@ -87,7 +87,7 @@ function acctRestore(){if(!ME)return;ME.status='active';ME.status_reason=null;ME
   else if(s==='banned'){ME=null;render();acctBlockBanned(u)}
   return r}}
 function acctBlockBanned(u){const why=u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'';track('account_blocked',{action:'login',status:'banned'});
-  UF_OPEN(`<div class="acsh"><div class="ac-h">账号已封禁</div><p class="ac-b">这个账号已不能使用。</p>${why}<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.com?subject=${encodeURIComponent('账号申诉')}">safety@nanbanqiu.com</a></p><button class="btn btn-s w100" data-ac="close" style="margin-top:14px">知道了</button></div>`)}
+  UF_OPEN(`<div class="acsh"><div class="ac-h">账号已封禁</div><p class="ac-b">这个账号已不能使用。</p>${why}<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.app?subject=${encodeURIComponent('账号申诉')}">safety@nanbanqiu.app</a></p><button class="btn btn-s w100" data-ac="close" style="margin-top:14px">知道了</button></div>`)}
 
 // ---------- 我的页：状态提示 + 注销入口 ----------
 function acctNoteHTML(){if(!ME)return'';const s=acctSt(ME);if(s==='active')return'';const[t]=acctText(s);

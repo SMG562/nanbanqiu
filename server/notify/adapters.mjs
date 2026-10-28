@@ -52,7 +52,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const { default: pg } = await import('pg'); const env = process.env;
   const pool = new pg.Pool({ connectionString: env.DATABASE_URL, max: 4 });
   const push = await webPush({ publicKey: env.VAPID_PUBLIC, privateKey: env.VAPID_PRIVATE, subject: env.VAPID_SUBJECT });
-  const mail = resend({ apiKey: env.RESEND_KEY, from: env.MAIL_FROM || '南伴球 <notify@nanbanqiu.com>' });
+  const mail = resend({ apiKey: env.RESEND_KEY, from: env.MAIL_FROM || '南伴球 <notify@nanbanqiu.app>' });
   const stop = startWorker(pool, { push, mail, baseUrl: env.BASE_URL });
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { stop(); await pool.end(); process.exit(0) });
 }

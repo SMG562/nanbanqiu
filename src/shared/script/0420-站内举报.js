@@ -2,7 +2,7 @@
  * 站内举报（第二批第 2 轮）：球员卡 → 举报这个人；聊天 → 私信举报对方、球局聊天举报这局的聊天
  * 原因（与 schema reports.reason 一致）：pact_violation 违反球友约定 · harass 骚扰或不当言行 · no_show 爽约 · fake_profile 冒用身份 · other 其他
  * 点原因即提交；补充说明选填（≤200 字）；不告诉对方是谁举报的；同一个人对同一对象未处理时不重复记录。
- * 邮件 safety@nanbanqiu.com 保留（安全须知、联系我们），后台录入的邮件举报 source=email，站内 source=in_app。
+ * 邮件 safety@nanbanqiu.app 保留（安全须知、联系我们），后台录入的邮件举报 source=email，站内 source=in_app。
  * ===================================================================== */
 const REP_REASONS=[['pact_violation','违反球友约定','不尊重人、越界、费用没说清'],['harass','骚扰或不当言行','让人不舒服的消息或举动'],
   ['no_show','爽约','说好来却没来，也没提前说'],['fake_profile','冒用身份','资料不实，或冒用别人'],['other','其他','写在上面的补充说明里']];

@@ -2,7 +2,7 @@
  * 注册仍然只要手机号。只在「收不到推送」的人刚申请 / 刚发起之后，顺手问一次邮箱（选填，不填 30 天内不再问）；
  * 只有推送不到才发邮件；同一局同一类 1 小时内最多一封；每人每天最多 5 封。
  * 「我的 → 邮件提醒」随时添加、修改或关闭。只发三类：有人申请、申请结果、球局改动 / 取消。不发广告，每封邮件都能一键退订。
- * 发送：后端用 Resend（免费每月 3,000 封、每天 100 封），发件人 noreply@nanbanqiu.com，域名配好 SPF / DKIM。 */
+ * 发送：后端用 Resend（免费每月 3,000 封、每天 100 封），发件人 noreply@nanbanqiu.app，域名配好 SPF / DKIM。 */
 const EM_KIND={request:'request',approved:'result',rejected:'result',full:'result',changed:'change',game_cancelled:'change',postponed:'change'};
 const EM_LAB=[['request','有人申请加入我的球局'],['result','我的申请有结果'],['change','我参加的球局改了时间、地点或被取消']];
 var EMAIL_OUTBOX=[];

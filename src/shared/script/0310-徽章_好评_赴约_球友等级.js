@@ -241,8 +241,8 @@ async function bdgPoster2(uid,code){const s=stats(uid),b=s.badges.find(x=>x.code
   if(bdgRarity(code)<=50){x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(`只有 ${bdgRarity(code)}% 的球友有这枚徽章`,W/2,1160)}
   // 底部：一句话 + 二维码
   x.textAlign='left';x.fillStyle='rgba(255,255,255,.92)';x.font=`700 34px ${F}`;x.fillText('在'+CITY.zh+'，一起打网球',110,1290);
-  x.fillStyle='rgba(255,255,255,.55)';x.font=`500 26px ${F}`;x.fillText('扫码看看附近的球局 · nanbanqiu.com',110,1338);
-  const qi=await qrImage(shareURL('https://nanbanqiu.com/p/'+fmtNo(u.no),BSH.to==='xhs'?'xhs':'moments'));const qx=W-110-150,qy=1210;x.fillStyle='#fff';x.beginPath();x.roundRect?x.roundRect(qx,qy,150,150,20):x.rect(qx,qy,150,150);x.fill();if(qi)x.drawImage(qi,qx+13,qy+13,124,124);
+  x.fillStyle='rgba(255,255,255,.55)';x.font=`500 26px ${F}`;x.fillText('扫码看看附近的球局 · nanbanqiu.app',110,1338);
+  const qi=await qrImage(shareURL('https://nanbanqiu.app/p/'+fmtNo(u.no),BSH.to==='xhs'?'xhs':'moments'));const qx=W-110-150,qy=1210;x.fillStyle='#fff';x.beginPath();x.roundRect?x.roundRect(qx,qy,150,150,20):x.rect(qx,qy,150,150);x.fill();if(qi)x.drawImage(qi,qx+13,qy+13,124,124);
   return cv}
 async function bdgShare(uid,code){BSH={uid,code,to:BSH.to||'moments',url:null,cv:null};bdgClose(true);UF_OPEN(`<div class="sc bsh" id="bshBox"><div class="sc-h"><b>分享徽章</b></div><div class="bsh-load">正在生成分享图…</div></div>`);
   const cv=await bdgPoster2(uid,code);BSH.cv=cv;BSH.url=cv.toDataURL('image/png');bshDraw()}

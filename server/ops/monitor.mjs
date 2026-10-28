@@ -2,7 +2,7 @@
 //   新出现 / 警告升到严重 / 6 小时还没恢复 → 发；恢复了 → 发一封「已恢复」。阈值在 monitor_thresholds 表，处理办法见 出事处理手册.md
 const LV = { crit: '严重', warn: '警告', ok: '已恢复' };
 const fmt = (code, v) => v == null ? '—' : /rate|bounce|connections|drop/.test(code) && v < 5 ? (v * 100).toFixed(1) + '%' : String(v);
-export function alertMail(alerts, baseUrl = 'https://nanbanqiu.com') {
+export function alertMail(alerts, baseUrl = 'https://nanbanqiu.app') {
   const worst = alerts.some(a => a.level === 'crit') ? 'crit' : alerts.some(a => a.level === 'warn') ? 'warn' : 'ok';
   const subject = `[南伴球] ${LV[worst]}：${alerts.map(a => a.label).join('、')}`;
   const text = alerts.map(a => `${LV[a.level]} · ${a.label} · 现在 ${fmt(a.code, a.value)}${a.kind === 'remind' ? ' · 6 小时了还没恢复' : a.kind === 'escalate' ? ' · 从警告升为严重' : ''}`).join('\n')

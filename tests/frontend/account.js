@@ -112,7 +112,7 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
     T(f + ' 暂停到期自动恢复', r.expired === 'active' && r.expiredUntil === null, [r.expired, r.expiredUntil]);
     T(f + ' 暂停后待确认申请自动撤回', r.pendBefore === 'pending' && r.pendAfter === 'withdrawn' && r.reqHidden, [r.pendBefore, r.pendAfter, r.reqHidden]);
     T(f + ' 暂停通知文案', r.ntfSt === 'suspended' && r.ntf && /暂停到/.test(r.ntf[0]) && /多次爽约/.test(r.ntf[1]), r.ntf);
-    T(f + ' 暂停后申请被拦、出提示', !r.applyRan && /账号暂停中/.test(r.sheetApply) && /恢复/.test(r.sheetApply) && /safety@nanbanqiu\.com/.test(r.sheetApply), r.sheetApply);
+    T(f + ' 暂停后申请被拦、出提示', !r.applyRan && /账号暂停中/.test(r.sheetApply) && /恢复/.test(r.sheetApply) && /safety@nanbanqiu\.app/.test(r.sheetApply), r.sheetApply);
     T(f + ' 拦截事件 account_blocked 只发一次、props 正确', r.evApply.length === 1 && r.evApply[0].action === 'apply' && r.evApply[0].status === 'suspended', r.evApply);
     T(f + ' 暂停后发起被拦', /账号暂停中/.test(r.sheetCreate) && r.evCreate.length === 1 && r.evCreate[0].action === 'create', [r.sheetCreate, r.evCreate]);
     T(f + ' 我的页有状态提示和注销入口', /账号暂停中/.test(r.note) && /恢复/.test(r.note) && r.delLink, [r.note, r.delLink]);

@@ -70,7 +70,7 @@ create table user_clubs (
 -- ---------- 球局 ----------
 create table games (
   id            uuid primary key default gen_random_uuid(),
-  share_code    text not null unique,               -- nanbanqiu.com/g/7Kq2
+  share_code    text not null unique,               -- nanbanqiu.app/g/7Kq2
   host_id       uuid not null references users(id),
   venue_id      uuid not null references venues(id),
   starts_at     timestamptz not null,
@@ -241,7 +241,7 @@ $$;
 -- RLS（games select）：using ( not is_blocked(auth_user_id(), host_id) )
 -- 申请前校验：insert into game_participants 时 not is_blocked(user_id, games.host_id)
 
--- 举报：站内（球员卡 / 聊天，reports.source = in_app）+ 邮件 safety@nanbanqiu.com 由管理员录入（source = email），见文末 ⑥
+-- 举报：站内（球员卡 / 聊天，reports.source = in_app）+ 邮件 safety@nanbanqiu.app 由管理员录入（source = email），见文末 ⑥
 
 -- =====================================================================
 --  v4 新增：游戏化（全部由系统自动记分，用户无需签到 / 打卡）
@@ -4183,7 +4183,7 @@ begin
   perform nbq_rate(u::text, 'export');
   select jsonb_build_object(
     'exported_at', now(),
-    'about', '这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.com。',
+    'about', '这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.app。',
     'profile', (select to_jsonb(x) - 'auth_id' - 'email_unsub_token' from users x where x.id = u),
     'clubs', (select coalesce(jsonb_agg(jsonb_build_object('venue', v.name, 'since', c.created_at)), '[]') from user_clubs c join venues v on v.id = c.venue_id where c.user_id = u),
     'suburb_picks', (select coalesce(jsonb_agg(to_jsonb(s) - 'user_id'), '[]') from user_suburb_picks s where s.user_id = u),
@@ -5474,7 +5474,7 @@ grant execute on function job_monitor(timestamptz) to nbq_service;
 grant execute on function monitor_checks(timestamptz) to nbq_service, nbq_admin;
 
 -- =====================================================================
--- ㉒ 城市网址（地区扩展 R3，2026-10）：每个城市一个网址 nanbanqiu.com/<slug>（/melbourne、/sydney……）
+-- ㉒ 城市网址（地区扩展 R3，2026-10）：每个城市一个网址 nanbanqiu.app/<slug>（/melbourne、/sydney……）
 --   · slug 决定页面上的城市；不带城市 → 墨尔本。分享链接保持短链接 /g/码、/p/编号，后端按球局 / 球员的城市跳到 /<slug>/…
 --   · center_label：默认位置的名称（没有定位时「以 Melbourne CBD 为中心」）
 --   · 前台两端的 CITIES 与这里逐条相同（tests/static/cities_front.mjs）

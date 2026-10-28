@@ -72,7 +72,7 @@ function bdgPoster(uid,code){const s=stats(uid),b=s.badges.find(x=>x.code===code
   x.fillStyle='rgba(255,255,255,.82)';x.font=`500 44px ${F}`;x.fillText(b.desc,W/2,1035);
   x.fillStyle='#C6EA3D';x.font=`600 38px ${F}`;x.fillText(`${cardName(u)} · ${b.at?bdgDate(b.at):'已获得'}`,W/2,1150);
   x.fillStyle='rgba(255,255,255,.6)';x.font=`500 32px ${F}`;if(bdgRarity(code)<=50)x.fillText(`只有 ${bdgRarity(code)}% 的球友有这枚徽章`,W/2,1205);
-  x.fillStyle='rgba(255,255,255,.9)';x.font=`800 44px ${F}`;x.fillText('南伴球',W/2,1330);x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(CITY.zh+'网球约局 · nanbanqiu.com',W/2,1380);
+  x.fillStyle='rgba(255,255,255,.9)';x.font=`800 44px ${F}`;x.fillText('南伴球',W/2,1330);x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(CITY.zh+'网球约局 · nanbanqiu.app',W/2,1380);
   return cv}
 const bdgText=(uid,code)=>{const b=stats(uid).badges.find(x=>x.code===code);return `在${CITY.zh}解锁了「${b.name}」徽章：${b.desc} 🎾\n#${CITY.tag} #网球搭子 #南伴球`};
 function bdgShare(uid,code){const cv=bdgPoster(uid,code),url=cv.toDataURL('image/png'),c=document.querySelector('#bdgFx .bfx-c');if(!c)return;

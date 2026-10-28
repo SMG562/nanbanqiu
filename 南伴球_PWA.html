@@ -13,8 +13,8 @@
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta property="og:title" content="今晚 18:00 · Glen Iris · 缺1位 3.5 球友">
 <meta property="og:description" content="单打 · 发起人 Han Liu UTR 3.5｜南伴球 · 墨尔本网球约局">
-<meta property="og:image" content="https://nanbanqiu.com/og/7Kq2.png">
-<meta property="og:url" content="https://nanbanqiu.com/g/7Kq2">
+<meta property="og:image" content="https://nanbanqiu.app/og/7Kq2.png">
+<meta property="og:url" content="https://nanbanqiu.app/g/7Kq2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
@@ -1285,7 +1285,7 @@ window.NBQ_ERRS=[];(()=>{const seen=new Set(),rep=(msg,src,line)=>{const k=msg+'
   try{if(location.protocol==='https:'&&navigator.sendBeacon)navigator.sendBeacon('/api/client-errors',JSON.stringify(e))}catch(_){}};
   addEventListener('error',ev=>{if(ev.message)rep(ev.message,ev.filename,ev.lineno)});addEventListener('unhandledrejection',ev=>rep('unhandled: '+((ev.reason&&ev.reason.message)||ev.reason),'',0))})();
 /* ============================== 城市（地区扩展 R3） ==============================
- * 每个城市一个网址：nanbanqiu.com/melbourne、/sydney……打开的网址决定城市；不带城市或认不出 → 墨尔本（现在只有墨尔本开放，不做切换）。
+ * 每个城市一个网址：nanbanqiu.app/melbourne、/sydney……打开的网址决定城市；不带城市或认不出 → 墨尔本（现在只有墨尔本开放，不做切换）。
  * 分享链接保持短链接 /g/码、/p/编号（后端按球局 / 球员所在城市跳到对应城市的网址）。
  * 与数据库 cities 表逐条相同（tests/static/cities_front.mjs 对照）；页面里的城市名、话题、默认中心、时区、夜间时段都从这里读，不写死。 */
 const CITIES=[
@@ -2518,12 +2518,12 @@ const utrChip=()=>F.utr?`UTR ${urTxt(F.utr.lo,F.utr.hi)}`:'全部水平';
 
 /* ---------- 小红书球票：日期写具体（发布可能不在当天），副券上一个小二维码，扫码直达这局 ---------- */
 const xhsDate=d=>`${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}`;
-function ticketHTML(c){const url=shareURL('https://nanbanqiu.com/g/'+(c.share_code||''),'qr');
+function ticketHTML(c){const url=shareURL('https://nanbanqiu.app/g/'+(c.share_code||''),'qr');
   return `<div class="ogT"><div class="t-main"><div class="t-top"><svg><use href="#logo-mark"/></svg><b>南伴球</b><span>${esc(CITY.zh)}网球约球</span></div>
     <div class="t-body"><div class="t-date">${xhsDate(c.start)}</div><div class="t-time">${hm(c.start)}</div><div class="t-place">${esc(c.v.short)}</div>
     <div class="t-meta">${TYPE[c.game_type]}<i></i>UTR ${lvl(c)}</div><div class="t-line"></div><div class="t-need"><em></em>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>
     <div class="t-stub"><div class="t-qr">${qrSVG(url)}</div><b>扫码加入</b></div></div>`}
-const xhsText=c=>`🎾 ${CITY.zh}约球 · ${xhsDate(c.start)} ${hm(c.start)}\n📍 ${c.v.name}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n\n扫图里的二维码就能加入，或打开 ${shareURL('nanbanqiu.com/g/'+c.share_code,'xhs')}\n\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`;
+const xhsText=c=>`🎾 ${CITY.zh}约球 · ${xhsDate(c.start)} ${hm(c.start)}\n📍 ${c.v.name}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n\n扫图里的二维码就能加入，或打开 ${shareURL('nanbanqiu.app/g/'+c.share_code,'xhs')}\n\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`;
 
 /* ---------- 地图：同一个球场有多局 → 点击后列出这个球场的所有球局 ---------- */
 function venueGamesHTML(vid,games){const v=VEN[vid],sameDay=new Set(games.map(c=>dOff(c.start))).size===1;
@@ -2697,7 +2697,7 @@ const legalLinks=()=>`<a href="terms.html" target="_blank" rel="noopener">《用
 const pvExportHTML=cls=>`<button class="${cls}" data-pvx="export"><span class="ico" style="background:#475467"><svg><use href="#i-dl"/></svg></span><span class="v">下载我的数据<small>资料、球局、消息等，一个 JSON 文件</small></span></button>`;
 const pvLegalHTML=()=>`<p class="fine" style="margin:18px 0 6px">南伴球 Southern Companion · <a href="terms.html" target="_blank" rel="noopener">用户协议</a> · <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a></p>`;
 function myDataJSON(){const id=ME.id,gm=gid=>GAMES.find(g=>g.id===gid)||{},vn=v=>VEN[v]?VEN[v].name:null;
-  return {exported_at:new Date().toISOString(),about:'这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.com。',
+  return {exported_at:new Date().toISOString(),about:'这是南伴球保存的你的个人信息（隐私政策第 6 条）。不含别人对你的私下评价和举报人身份；有疑问请写信给 privacy@nanbanqiu.app。',
     profile:{nickname:ME.name,last_initial:ME.last||null,member_no:ME.no,utr:ME.ntrp,gender:ME.gender||null,email:ME.email||null,wechat_id:ME.wechat||null,home_clubs:(ME.home_club_ids||[]).map(vn),
       analytics_opt_out:!!ME.analytics_opt_out,adult_confirmed_at:ME.adult_confirmed_at||null,terms_version:ME.terms_version||null,privacy_version:ME.privacy_version||null},
     games_hosted:GAMES.filter(g=>g.host_id===id).map(g=>({share_code:g.share_code,starts_at:g.starts_at,venue:vn(g.venue_id),status:g.status,note:g.note||''})),
@@ -2852,7 +2852,7 @@ function calScrollNow(){if(UI.day!==0||UI.mode!=='cal')return;const cv=$('#calVi
  * 注册仍然只要手机号。只在「收不到推送」的人刚申请 / 刚发起之后，顺手问一次邮箱（选填，不填 30 天内不再问）；
  * 只有推送不到才发邮件；同一局同一类 1 小时内最多一封；每人每天最多 5 封。
  * 「我的 → 邮件提醒」随时添加、修改或关闭。只发三类：有人申请、申请结果、球局改动 / 取消。不发广告，每封邮件都能一键退订。
- * 发送：后端用 Resend（免费每月 3,000 封、每天 100 封），发件人 noreply@nanbanqiu.com，域名配好 SPF / DKIM。 */
+ * 发送：后端用 Resend（免费每月 3,000 封、每天 100 封），发件人 noreply@nanbanqiu.app，域名配好 SPF / DKIM。 */
 const EM_KIND={request:'request',approved:'result',rejected:'result',full:'result',changed:'change',game_cancelled:'change',postponed:'change'};
 const EM_LAB=[['request','有人申请加入我的球局'],['result','我的申请有结果'],['change','我参加的球局改了时间、地点或被取消']];
 var EMAIL_OUTBOX=[];
@@ -3278,7 +3278,7 @@ function bdgPoster(uid,code){const s=stats(uid),b=s.badges.find(x=>x.code===code
   x.fillStyle='rgba(255,255,255,.82)';x.font=`500 44px ${F}`;x.fillText(b.desc,W/2,1035);
   x.fillStyle='#C6EA3D';x.font=`600 38px ${F}`;x.fillText(`${cardName(u)} · ${b.at?bdgDate(b.at):'已获得'}`,W/2,1150);
   x.fillStyle='rgba(255,255,255,.6)';x.font=`500 32px ${F}`;if(bdgRarity(code)<=50)x.fillText(`只有 ${bdgRarity(code)}% 的球友有这枚徽章`,W/2,1205);
-  x.fillStyle='rgba(255,255,255,.9)';x.font=`800 44px ${F}`;x.fillText('南伴球',W/2,1330);x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(CITY.zh+'网球约局 · nanbanqiu.com',W/2,1380);
+  x.fillStyle='rgba(255,255,255,.9)';x.font=`800 44px ${F}`;x.fillText('南伴球',W/2,1330);x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(CITY.zh+'网球约局 · nanbanqiu.app',W/2,1380);
   return cv}
 const bdgText=(uid,code)=>{const b=stats(uid).badges.find(x=>x.code===code);return `在${CITY.zh}解锁了「${b.name}」徽章：${b.desc} 🎾\n#${CITY.tag} #网球搭子 #南伴球`};
 function bdgShare(uid,code){const cv=bdgPoster(uid,code),url=cv.toDataURL('image/png'),c=document.querySelector('#bdgFx .bfx-c');if(!c)return;
@@ -3565,8 +3565,8 @@ async function bdgPoster2(uid,code){const s=stats(uid),b=s.badges.find(x=>x.code
   if(bdgRarity(code)<=50){x.fillStyle='rgba(255,255,255,.55)';x.font=`500 28px ${F}`;x.fillText(`只有 ${bdgRarity(code)}% 的球友有这枚徽章`,W/2,1160)}
   // 底部：一句话 + 二维码
   x.textAlign='left';x.fillStyle='rgba(255,255,255,.92)';x.font=`700 34px ${F}`;x.fillText('在'+CITY.zh+'，一起打网球',110,1290);
-  x.fillStyle='rgba(255,255,255,.55)';x.font=`500 26px ${F}`;x.fillText('扫码看看附近的球局 · nanbanqiu.com',110,1338);
-  const qi=await qrImage(shareURL('https://nanbanqiu.com/p/'+fmtNo(u.no),BSH.to==='xhs'?'xhs':'moments'));const qx=W-110-150,qy=1210;x.fillStyle='#fff';x.beginPath();x.roundRect?x.roundRect(qx,qy,150,150,20):x.rect(qx,qy,150,150);x.fill();if(qi)x.drawImage(qi,qx+13,qy+13,124,124);
+  x.fillStyle='rgba(255,255,255,.55)';x.font=`500 26px ${F}`;x.fillText('扫码看看附近的球局 · nanbanqiu.app',110,1338);
+  const qi=await qrImage(shareURL('https://nanbanqiu.app/p/'+fmtNo(u.no),BSH.to==='xhs'?'xhs':'moments'));const qx=W-110-150,qy=1210;x.fillStyle='#fff';x.beginPath();x.roundRect?x.roundRect(qx,qy,150,150,20):x.rect(qx,qy,150,150);x.fill();if(qi)x.drawImage(qi,qx+13,qy+13,124,124);
   return cv}
 async function bdgShare(uid,code){BSH={uid,code,to:BSH.to||'moments',url:null,cv:null};bdgClose(true);UF_OPEN(`<div class="sc bsh" id="bshBox"><div class="sc-h"><b>分享徽章</b></div><div class="bsh-load">正在生成分享图…</div></div>`);
   const cv=await bdgPoster2(uid,code);BSH.cv=cv;BSH.url=cv.toDataURL('image/png');bshDraw()}
@@ -3936,7 +3936,7 @@ function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML())}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
-  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.com/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
+  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
 
 // ---------- 演示：另一台设备 · 提醒去向 ----------
 function nrDevSet(v){if(!ME)return;const d=nrDev(ME)[NR_OTHER];d.push=v!=='off';d.active=v==='active';nrDemoDraw()}
@@ -4269,7 +4269,7 @@ function acctCan(action,o={}){if(!ME)return null;const s=acctSt(ME);
   if(s==='limited'&&(action==='invite'||action==='chat'||action==='accept')&&o.to&&!playedTogether(ME.id,o.to))return'limited';
   if(s==='banned'||s==='deleted')return s;
   return null}
-function acctText(s){const u=ME,why=u&&u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'',mail='<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.com?subject='+encodeURIComponent('账号申诉')+'">safety@nanbanqiu.com</a></p>';
+function acctText(s){const u=ME,why=u&&u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'',mail='<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.app?subject='+encodeURIComponent('账号申诉')+'">safety@nanbanqiu.app</a></p>';
   if(s==='suspended')return [`账号暂停中`,`${u.status_until?acctDate(u.status_until)+' 恢复。':''}这期间可以浏览，暂时不能发起、申请、约人、发消息，也不能在场边发布、回复和点网球。`,why+mail];
   if(s==='limited')return ['这个操作暂时不可用','你的账号目前受限：不能报名女生局，也不能私信或约没一起打过的球友。普通球局照常。',why+mail];
   if(s==='review')return ['账号核实中','核实期间暂时看不到女生局，其余功能正常，通常 24 小时内完成。',mail];
@@ -4336,7 +4336,7 @@ function acctRestore(){if(!ME)return;ME.status='active';ME.status_reason=null;ME
   else if(s==='banned'){ME=null;render();acctBlockBanned(u)}
   return r}}
 function acctBlockBanned(u){const why=u.status_reason?`<p class="ac-why">原因：${esc(u.status_reason)}</p>`:'';track('account_blocked',{action:'login',status:'banned'});
-  UF_OPEN(`<div class="acsh"><div class="ac-h">账号已封禁</div><p class="ac-b">这个账号已不能使用。</p>${why}<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.com?subject=${encodeURIComponent('账号申诉')}">safety@nanbanqiu.com</a></p><button class="btn btn-s w100" data-ac="close" style="margin-top:14px">知道了</button></div>`)}
+  UF_OPEN(`<div class="acsh"><div class="ac-h">账号已封禁</div><p class="ac-b">这个账号已不能使用。</p>${why}<p class="ac-mail">有疑问可以写信到 <a href="mailto:safety@nanbanqiu.app?subject=${encodeURIComponent('账号申诉')}">safety@nanbanqiu.app</a></p><button class="btn btn-s w100" data-ac="close" style="margin-top:14px">知道了</button></div>`)}
 
 // ---------- 我的页：状态提示 + 注销入口 ----------
 function acctNoteHTML(){if(!ME)return'';const s=acctSt(ME);if(s==='active')return'';const[t]=acctText(s);
@@ -4360,7 +4360,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
  * 站内举报（第二批第 2 轮）：球员卡 → 举报这个人；聊天 → 私信举报对方、球局聊天举报这局的聊天
  * 原因（与 schema reports.reason 一致）：pact_violation 违反球友约定 · harass 骚扰或不当言行 · no_show 爽约 · fake_profile 冒用身份 · other 其他
  * 点原因即提交；补充说明选填（≤200 字）；不告诉对方是谁举报的；同一个人对同一对象未处理时不重复记录。
- * 邮件 safety@nanbanqiu.com 保留（安全须知、联系我们），后台录入的邮件举报 source=email，站内 source=in_app。
+ * 邮件 safety@nanbanqiu.app 保留（安全须知、联系我们），后台录入的邮件举报 source=email，站内 source=in_app。
  * ===================================================================== */
 const REP_REASONS=[['pact_violation','违反球友约定','不尊重人、越界、费用没说清'],['harass','骚扰或不当言行','让人不舒服的消息或举动'],
   ['no_show','爽约','说好来却没来，也没提前说'],['fake_profile','冒用身份','资料不实，或冒用别人'],['other','其他','写在上面的补充说明里']];
@@ -4564,7 +4564,7 @@ const persHTML=()=>'';
 // ===== 球员身份：昵称 + 姓氏首字母（选填）+ 终身编号 =====
 const fmtNo=n=>{n=n||0;return n<10000?String(n).padStart(4,'0'):String(n)};   // 后台 9 位；展示至少 4 位，不补多余的 0
 const cardName=u=>{const [f,...r]=String(u.name||'').split(' ');const li=(u.last||(r[0]||'')[0]||'').toUpperCase();return f+(li?' '+li+'.':'')};
-const profileUrl=(u,ch)=>shareURL(`https://nanbanqiu.com/p/${fmtNo(u.no)}`,ch);
+const profileUrl=(u,ch)=>shareURL(`https://nanbanqiu.app/p/${fmtNo(u.no)}`,ch);
 function qrMatrix(text){try{if(window.QRCode){const d=document.createElement('div');const q=new QRCode(d,{text,width:64,height:64,correctLevel:QRCode.CorrectLevel.M});const m=q._oQRCode;if(m){const n=m.getModuleCount(),a=[];for(let y=0;y<n;y++){a.push([]);for(let x=0;x<n;x++)a[y].push(m.isDark(y,x))}return a}}}catch(e){}
   // 离线兜底：装饰性图案（带三个定位角）
   let h=7;for(const c of String(text))h=(h*31+c.charCodeAt(0))>>>0;const n=25,r=()=>(h=(h*1103515245+12345)>>>0)/4294967296,a=[];
@@ -4717,7 +4717,7 @@ function openBlock(uid){const u=U(uid);openSheet(`<div class="sh-t">屏蔽 ${esc
   <button class="btn btn-d" data-a="doBlock" data-u="${uid}">屏蔽</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">取消</button><p class="fine">可以在「我的 → 屏蔽名单」中随时解除</p>`)}
 function openBlocklist(){const l=[...ME.blocked].map(U);openSheet(`<div class="sh-t">屏蔽名单</div><p class="sh-s">被屏蔽的人看不到你的球局，也无法申请</p>
   ${l.length?l.map(u=>`<div class="cp">${av(u)}<span class="v"><b>${esc(u.name)}</b><small>UTR ${f1(u.ntrp)}</small></span><button class="sbtn" style="flex:none" data-a="unblock" data-u="${u.id}">解除</button></div>`).join(''):'<div class="empty" style="padding:24px">名单是空的</div>'}`)}
-const reportMail=uid=>{const u=uid?U(uid):null;return `mailto:safety@nanbanqiu.com?subject=${encodeURIComponent(u?`举报用户：${u.name}（${u.id}）`:'举报 / 安全问题')}&body=${encodeURIComponent('请描述发生了什么（时间、球局、经过），可附截图：\n\n')}`};
+const reportMail=uid=>{const u=uid?U(uid):null;return `mailto:safety@nanbanqiu.app?subject=${encodeURIComponent(u?`举报用户：${u.name}（${u.id}）`:'举报 / 安全问题')}&body=${encodeURIComponent('请描述发生了什么（时间、球局、经过），可附截图：\n\n')}`};
 function openSafety(){openSheet(`<div class="center"><div class="bigic" style="background:var(--gss);color:var(--g)"><svg><use href="#i-shield"/></svg></div><div class="sh-t">安全约球</div><p class="sh-s">南伴球的球友都来自社区，我们也希望每一次见面都安心</p></div>
   ${pactHTML(false)}<div class="pact-t2">见面安全</div><ul class="tips"><li><i>🏟</i><div>在公开球场见面<small>第一次约球选白天或灯光充足的时段，不去私人住所</small></div></li>
     <li><i>📍</i><div>把球局链接发给朋友或家人<small>让他们知道你在哪、和谁打球</small></div></li>
@@ -4725,13 +4725,13 @@ function openSafety(){openSheet(`<div class="center"><div class="bigic" style="b
     <li><i>🚪</i><div>感觉不对，随时离开<small>取消参加不需要理由，也不会被记录</small></div></li>
     <li><i>🚫</i><div>遇到骚扰或不当行为<small>点对方头像 → 屏蔽或举报，我们会在 24 小时内处理</small></div></li>
     <li><i>🆘</i><div>紧急情况请拨打 000<small>澳大利亚报警 / 救护 / 消防</small></div></li></ul>
-  <a class="btn btn-s" href="${reportMail()}"><svg><use href="#i-mail"/></svg>举报邮箱 safety@nanbanqiu.com</a>`,true)}
+  <a class="btn btn-s" href="${reportMail()}"><svg><use href="#i-mail"/></svg>举报邮箱 safety@nanbanqiu.app</a>`,true)}
 function openContact(){openSheet(`<div class="sh-t">联系我们</div><p class="sh-s">我们会认真看每一封邮件</p>
-  <div class="contact"><a href="${reportMail()}"><span style="font-size:22px">🛡</span><span><b>举报与安全</b><small>违反球友约定、骚扰、虚假信息 · safety@nanbanqiu.com</small></span></a>
-  <a href="mailto:hello@nanbanqiu.com?subject=${encodeURIComponent('南伴球反馈')}"><span style="font-size:22px">💬</span><span><b>建议与反馈</b><small>功能建议、Bug、球场信息更正 · hello@nanbanqiu.com</small></span></a>
-  <a href="mailto:club@nanbanqiu.com?subject=${encodeURIComponent('Club 合作')}"><span style="font-size:22px">🏟</span><span><b>Club / 球场合作</b><small>场地优惠、活动合作 · club@nanbanqiu.com</small></span></a></div>
+  <div class="contact"><a href="${reportMail()}"><span style="font-size:22px">🛡</span><span><b>举报与安全</b><small>违反球友约定、骚扰、虚假信息 · safety@nanbanqiu.app</small></span></a>
+  <a href="mailto:hello@nanbanqiu.app?subject=${encodeURIComponent('南伴球反馈')}"><span style="font-size:22px">💬</span><span><b>建议与反馈</b><small>功能建议、Bug、球场信息更正 · hello@nanbanqiu.app</small></span></a>
+  <a href="mailto:club@nanbanqiu.app?subject=${encodeURIComponent('Club 合作')}"><span style="font-size:22px">🏟</span><span><b>Club / 球场合作</b><small>场地优惠、活动合作 · club@nanbanqiu.app</small></span></a></div>
   <p class="fine">举报时请写上对方昵称、球局时间和经过，可附截图</p>`)}
-function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">${esc(CITY.zh)}的华人球友都在这里约球、聊球、组队<br>长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div><p class="fine">有想法也欢迎在群里告诉我们 🙌</p></div>`);qr($('#cqr'),'https://nanbanqiu.com/'+CITY.slug+'/community')}
+function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">${esc(CITY.zh)}的华人球友都在这里约球、聊球、组队<br>长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div><p class="fine">有想法也欢迎在群里告诉我们 🙌</p></div>`);qr($('#cqr'),'https://nanbanqiu.app/'+CITY.slug+'/community')}
 function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
@@ -4811,7 +4811,7 @@ function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Clu
   <div style="height:12px"></div><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button>`,true)}
 
 /* 分享 */
-const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.com/g/'+c.share_code,'text')}`;
+const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
 const thumbHTML=c=>`<div class="thumb"><div class="t1"><svg viewBox="0 0 100 100"><use href="#ball"/></svg></div><div class="t2"><span style="font-size:11px">${hm(c.start)}</span><span style="font-size:8px;color:#666;margin-top:2px">${esc(c.v.short)}</span></div></div>`;
 const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${TYPE[c.game_type]}｜发起人 ${esc(h.name)} UTR ${f1(h.ntrp)}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
@@ -4891,7 +4891,7 @@ DEV.addEventListener('click',e=>{
     case'doBlock':api.block(a.dataset.u);closeSheet();toast(`已屏蔽 ${U(a.dataset.u).name}`);render();break;
     case'unblock':api.unblock(a.dataset.u);closeSheet();toast('已解除屏蔽');render();break;
     case'blocklist':openBlocklist();break;
-    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.com');break;
+    case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.app');break;
     case'kudos':api.kudos(g);toast('👍 已为同场球友点赞');render();break;
     case'login':openAuth(null);break;
     case'sendCode':{const p=$('#ph');if(p){const e=phoneE164($('#cc').value,p.value);if(!e){const k=phoneCountry($('#cc').value);p.focus();p.style.borderColor='var(--red)';toast('请输入'+k.zh+'手机号，如 '+k.hint);return}AUTH.phone=p.value;AUTH.cc=$('#cc').value;AUTH.e164=e}openOtp();break}
@@ -4909,8 +4909,8 @@ DEV.addEventListener('click',e=>{
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
     case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
-    case'copyLink':copy(shareURL('https://nanbanqiu.com/g/'+api.get(g).share_code,'link'),'链接已复制');break;
-    case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.com/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
+    case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
+    case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
     case'saveClubs':api.setClubs(CL);closeSheet();toast('已更新我的 Club');render();break;
     case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
@@ -4925,7 +4925,7 @@ DEV.addEventListener('click',e=>{
 });
 function copy(t,m){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(m),()=>toast(m))}
 function downloadICS(id){const c=api.get(id),f=d=>d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nanbanqiu//CN','BEGIN:VEVENT',`UID:${c.id}@nanbanqiu.com`,`DTSTAMP:${f(new Date())}`,`DTSTART:${f(c.start)}`,`DTEND:${f(c.end)}`,`SUMMARY:🎾 ${TYPE[c.game_type]} · ${c.v.short}`,`LOCATION:${c.v.name}\\, ${c.v.suburb} VIC`,`URL:https://nanbanqiu.com/g/${c.share_code}`,'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:2 小时后打球','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nanbanqiu//CN','BEGIN:VEVENT',`UID:${c.id}@nanbanqiu.app`,`DTSTAMP:${f(new Date())}`,`DTSTART:${f(c.start)}`,`DTEND:${f(c.end)}`,`SUMMARY:🎾 ${TYPE[c.game_type]} · ${c.v.short}`,`LOCATION:${c.v.name}\\, ${c.v.suburb} VIC`,`URL:https://nanbanqiu.app/g/${c.share_code}`,'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:2 小时后打球','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download=`nanbanqiu-${c.share_code}.ics`;a.click();toast('已加入日历（提前 2 小时提醒）')}
 
 /* ============================== 环境 & 演示 ============================== */
@@ -5456,11 +5456,11 @@ function App(el,init){
   const MK=`<svg viewBox="0 0 100 100"><use href="#ballR"/></svg>场边<sup class="h24">24h</sup>`;
   const card0=(x,T)=>T==='photo'
     ?`<div class="fill">${PIC(x.pic,'full',x.tone)}</div><div class="scg"></div><div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="scb"><div class="s1">${esc(x.x)}</div><div class="s2">${x.w?esc(x.w)+'  ·  ':''}${dt(x.t)}</div>${U(x).anon?'':`<div class="s3">${esc(U(x).n)}</div>`}</div>`
-    :`<div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="ph2">${PIC(x.pic,'full',x.tone)}</div><div class="s1">${esc(x.x)}</div><div class="s2">${x.w?esc(x.w)+'  ·  ':''}${dt(x.t)}</div><div class="ft"><span>${U(x).anon?'':esc(U(x).n)}</span><span>nanbanqiu.com</span></div>`;
+    :`<div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="ph2">${PIC(x.pic,'full',x.tone)}</div><div class="s1">${esc(x.x)}</div><div class="s2">${x.w?esc(x.w)+'  ·  ':''}${dt(x.t)}</div><div class="ft"><span>${U(x).anon?'':esc(U(x).n)}</span><span>nanbanqiu.app</span></div>`;
   const floorCard=x=>{const T=S.T[x.topic];return `<div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="flh"><b>#${esc(T.t)}</b><span>NO.<em>${x.floor}</em></span></div><div class="ph2">${PIC(x.pic,'hero',x.tone)}</div><div class="s1">${esc(x.x)}</div><div class="ft2"><span>${x.w?esc(x.w).toUpperCase()+' · ':''}${dt(x.t).split('  ')[0]}</span><span>你也来一张 →</span></div>`};
   const card=(x,T)=>T==='floor'?floorCard(x):card0(x,T);
   const wallCard=id=>{const T=S.T[id],P=S.L.filter(x=>x.topic===id&&x.pic).sort((a,b)=>b.floor-a.floor).slice(0,9);
-    return `<div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="wtt"><b>#${esc(T.t)}</b><small>${T.daily?CITY.zh+'的'+WD[melNow().dow]:CITY.zh} · ${T.n} 张</small></div><div class="wgr">${P.map(x=>`<i>${PIC(x.pic,'hero',x.tone)}<em>${x.floor}</em></i>`).join('')}</div><div class="ft"><span>nanbanqiu.com</span><span>你也来一张 →</span></div>`};
+    return `<div class="mk">${MK}<span>${esc(CITY.en.toUpperCase())}</span></div><div class="wtt"><b>#${esc(T.t)}</b><small>${T.daily?CITY.zh+'的'+WD[melNow().dow]:CITY.zh} · ${T.n} 张</small></div><div class="wgr">${P.map(x=>`<i>${PIC(x.pic,'hero',x.tone)}<em>${x.floor}</em></i>`).join('')}</div><div class="ft"><span>nanbanqiu.app</span><span>你也来一张 →</span></div>`};
   const drawShare=()=>{const T=S.share,isW=T==='wall',x=isW?null:find(S.open);if(!isW&&!x)return;
     const tpls=isW?[]:x.topic?[['floor','编号'],['photo','照片'],['paper','留白'],['night','夜']]:[['photo','照片'],['paper','留白'],['night','夜']];
     $('.share').innerHTML=`<div class="sh2-top"><button class="ib3" data-sx>${ic('x')}</button><b>${isW?'分享这个话题':'分享图片'}</b><span style="width:34px"></span></div>
