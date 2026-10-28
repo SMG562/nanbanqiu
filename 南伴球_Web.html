@@ -4642,7 +4642,7 @@ function renderMap(all){
       box.insertAdjacentHTML('beforeend',`<div class="mapempty">${dayName(UI.page+UI.mapDay)}附近还没有球局${nx!=null?`<br><button class="btn btn-o btn-sm" data-mapday="${nx}">看看${dayName(UI.page+nx)}</button>`:''}</div>`)}}
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:true}).setView([LOC.lat,LOC.lng],12);MAP.lf.zoomControl.setPosition('bottomright');
-      L.tileLayer('https://{s}.basemap.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
+      L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);
     L.circle([LOC.lat,LOC.lng],{radius:F.radius*1000,color:'#176B4D',weight:1,opacity:.4,fillOpacity:.03,dashArray:'4 4'}).addTo(MAP.layer);
     Object.values(byV).forEach(l=>L.marker([l[0].v.lat,l[0].v.lng],{icon:L.divIcon({className:'pinwrap',html:pinHTML(l),iconSize:[0,0]})}).addTo(MAP.layer));

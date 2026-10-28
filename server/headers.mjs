@@ -8,7 +8,7 @@ export const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",            // leaflet / html2canvas / qrcodejs（5g：改为本站托管 + integrity）
   "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
-  "img-src 'self' data: blob: https://*.basemap.cartocdn.com",                  // 地图瓦片；分享图 / 二维码是 data: / blob:
+  "img-src 'self' data: blob: https://basemaps.cartocdn.com",                  // 地图瓦片；分享图 / 二维码是 data: / blob:
   `connect-src 'self' ${SUPABASE} ${SUPABASE.replace(/^https/, 'wss')}`,        // 接口 + Realtime（页面里提醒）
   "font-src 'self' data:",
   "worker-src 'self'", "manifest-src 'self'",

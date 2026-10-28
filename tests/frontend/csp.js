@@ -14,7 +14,7 @@ const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     const H = f.includes('后台') ? ADMIN_HEADERS : SECURITY_HEADERS;
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', headers: H, body: fs.readFileSync(path.join(DIR, f)) }));
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort());          // 测试环境不出网：第三方库加载失败页面也要能用
-    await pg.route('https://*.basemap.cartocdn.com/**', r => r.abort());
+    await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const url = 'https://nanbanqiu.test/' + encodeURIComponent(f);
     await pg.goto(url); await pg.settle(800);
     // 5d：页面报错上报（同一条只记一次，只有信息和位置）
