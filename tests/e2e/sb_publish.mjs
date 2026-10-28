@@ -54,8 +54,11 @@ try {
     return { ver: SB_CONFIG.version, today: id, name: T.ootd && T.ootd.t, ask: T.ootd && T.ootd.ask, serve: T.serve && T.serve.t, card: ((sr.querySelector('.itc') || sr.querySelector('.rail .rs1 .tpc') || {}).textContent) || '', slots: SB.CFG.slots.length } });
   for (const [file, w, h] of [['南伴球_PWA.html', 390, 844], ['南伴球_Web.html', 1440, 900]]) {
     const tag = file.replace(/南伴球_|\.html/g, '');
-    const open = async p => { const x = await pageWith(file, p, w, h); await x.page.evaluate(() => { try { if (typeof LOC !== 'undefined') LOC.asked = true; if (typeof closeSheet === 'function') closeSheet(); if (typeof setWho === 'function') setWho('jason', true) } catch (e) { } });
-      const tab = await x.page.$('#tabbar [data-tab="side"], [data-nav="side"], [data-tab="side"]'); if (tab) await tab.click(); await x.page.waitForTimeout(1200); return x };
+    const open = async p => { const x = await pageWith(file, p, w, h), pg = x.page;
+      if (w < 800) { await pg.waitForFunction(() => document.querySelector('#sheet.show'), null, { timeout: 15000, polling: 50 }).catch(() => { });   // 启动后弹出位置询问，等它出来再关
+        await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho('jason', true) }); await pg.waitForFunction(() => !document.querySelector('#sheet.show'), null, { timeout: 15000, polling: 50 }) }
+      await pg.evaluate(() => (document.querySelector('#tabbar [data-tab="side"]') || document.querySelector('#tabs [data-tab="side"]')).click());
+      await pg.waitForFunction(() => { const r = document.querySelector('#sbHost').shadowRoot; return r && r.querySelector('.itc, .rail .rs1 .tpc') }, null, { timeout: 15000, polling: 50 }); return x };
     const a = await open(null), ra = await read(a.page);
     T(tag + ' 对照：内置第 1 版 → 话题叫「网球人的OOTD」、没有发球日记', ra.name === '网球人的OOTD' && !ra.serve && ra.today !== 'serve', ra);
     const b2 = await open(v2), rb = await read(b2.page);
