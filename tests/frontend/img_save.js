@@ -25,6 +25,17 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await pg.click('#imgSaveBox button'); T(`${f} 关闭后大图消失`, await pg.$('#imgSaveBox') === null);
     const x = await pg.evaluate(() => xhsText(api.get(GAMES.find(g => g.share_code).id)));
     T(`${f} 小红书文案：链接带 https://`, /打开 https:\/\/nanbanqiu\.app\/g\/\w+\?s=xhs/.test(x), x);
+    if (!W) {   // 手机端小红书一键：点一下 = 复制文案 + 系统分享带图；面板里只有这一个按钮
+      const y = await pg.evaluate(async () => {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 8; window.html2canvas = () => Promise.resolve(cv);
+        window.__clip = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__clip = t; return Promise.resolve() } }, configurable: true });
+        window.__shared = null; Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true }); Object.defineProperty(navigator, 'share', { value: d => { window.__shared = d; return Promise.resolve() }, configurable: true });
+        openPoster(GAMES.find(g => g.share_code).id); await new Promise(r => setTimeout(r, 900));
+        const btns = [...document.querySelectorAll('[data-sx="xhsCopy"]')], n = document.querySelectorAll('.xhs-steps').length; btns[0].click(); await new Promise(r => setTimeout(r, 300));
+        return { btns: btns.length, steps: n, clip: window.__clip, file: window.__shared && window.__shared.files && window.__shared.files[0].type, text: window.__shared && window.__shared.text } });
+      T(`${f} 小红书一键：只有一个按钮，没有三步`, y.btns === 1 && y.steps === 0, y);
+      T(`${f} 小红书一键：文案已复制（带 https:// 链接）、系统分享带图片`, /https:\/\/nanbanqiu\.app\/g\//.test(y.clip || '') && y.file === 'image/png', y);
+    }
     T(`${f} 无脚本错误`, errs.length === 0, errs); await ctx.close();
   }
   await b.close(); console.log(`img_save: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

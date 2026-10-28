@@ -114,8 +114,23 @@ function openShare(id){const c=api.get(id);
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>`)}
+// 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
+// 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
+const XHSP={};
+function xhsPre(id){const el=document.querySelector('.xhs-pv .ogW');if(!el||!window.html2canvas||XHSP[id])return;
+  html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl},'image/png')).catch(()=>{})}
+function xhsGo(id){const text=xhsText(api.get(id));
+  try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
+  const nm='nanbanqiu-'+id+'.png',go=bl=>{
+    if(!bl){toast('文案已复制，截图保存海报后发布即可');return}
+    const f=new File([bl],nm,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
+    else{imgSave(bl,nm);toast('文案已复制 · 保存图片后打开小红书发布')}};
+  if(XHSP[id])go(XHSP[id]);
+  else{const el=document.querySelector('.xhs-pv .ogW');
+    if(el&&window.html2canvas)html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl;go(bl)},'image/png')).catch(()=>go(null));else go(null)}}
 function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" data-a="share" data-g="${id}" style="height:auto;margin-bottom:8px">‹ 返回</button><div class="sh-t">发到小红书</div><p class="sh-s">图片上带二维码，小红书上的球友扫码就能加入</p><div class="xhs-pv">${ogAHTML(c)}</div>
-  <div class="xhs-steps"><div><i>1</i><span>${ENV==='wechat'?'长按图片保存':'保存图片'}</span>${ENV==='wechat'?'':`<button data-sx="dlPoster" data-g="${id}">保存</button>`}</div><div><i>2</i><span>复制文案（带话题标签）</span><button data-sx="xhsCopy" data-g="${id}">复制</button></div><div><i>3</i><span>打开小红书，发布笔记</span><a href="xhsdiscover://">打开</a></div></div>`)}
+  <button class="btn btn-p xhs-go" data-sx="xhsCopy" data-g="${id}">分享到小红书</button><p class="xhs-tip">文案会自动复制；在弹出的面板里选「小红书」，图片已带上，粘贴文案发布即可</p>`);setTimeout(()=>xhsPre(id),350)}
 
 /* 微信 / 主屏幕 / 推送 */
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>

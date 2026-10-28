@@ -93,4 +93,4 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-sx]');if(
   const G=()=>GAMES.find(x=>x.id===d.g);
   switch(a){
     case'again':if(!ME)return;newInvite(d.u);break;
-    case'xhsCopy':copy(xhsText(api.get(d.g)),'已复制文案，发布时粘贴');break;
+    case'xhsCopy':if(typeof xhsGo==='function')xhsGo(d.g);else copy(xhsText(api.get(d.g)),'已复制文案，发布时粘贴');break;   // 手机端一键（复制 + 系统分享带图），网页端只复制文案
