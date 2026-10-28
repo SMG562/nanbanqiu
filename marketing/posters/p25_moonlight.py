@@ -3,22 +3,20 @@ from lib import *
 META = dict(
     id=25, slug='moonlight', title='月色正好', lines=['月色正好，', '来打一场。'],
     style=['写实光影', '意境'], tone='深色', demo=False,
-    concept='满月上浅浅的两道弧线像球缝，月亮与网球互为倒影；月光洒在安静的球场上，一颗球等着人来',
+    concept='干净的满月，浅浅两道弧线像球缝，月亮与网球互为倒影；月光洒在安静的球场上，一颗球等着人来',
     use='夜场 / 晚间约球的氛围图；品牌情绪：安静、期待',
 )
 
 
 def svg():
     random.seed(25)
-    mx, my, mr = 760, 640, 230
+    mx, my, mr = 790, 450, 240
     stars = ''
-    for _ in range(70):
+    for _ in range(140):
         x, y = random.uniform(30, 1050), random.uniform(40, 900)
-        if (x - mx) ** 2 + (y - my) ** 2 < (mr + 60) ** 2 or (x < 640 and 90 < y < 560):
+        if (x - mx) ** 2 + (y - my) ** 2 < (mr + 60) ** 2 or (x < 600 and 90 < y < 560):
             continue
         stars += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{random.uniform(.8, 2.2):.1f}" fill="#F7EBD6" opacity="{random.uniform(.25, .8):.2f}"/>'
-    maria = ''.join(f'<ellipse cx="{mx+dx}" cy="{my+dy}" rx="{rx}" ry="{ry}" transform="rotate({r} {mx+dx} {my+dy})" fill="#B49A55" opacity=".16"/>'
-                    for dx, dy, rx, ry, r in [(-70, -60, 62, 40, -20), (60, -90, 40, 28, 15), (20, 50, 78, 46, 8), (-110, 70, 34, 24, 0), (110, 30, 30, 22, 0)])
     # 球场（透视）
     near, far = 1190, 960
     P = lambda t: persp(t, 40, 1040, near, far, 330, 770)
@@ -38,29 +36,31 @@ def svg():
     body = f'''
 <defs>
  <linearGradient id="sky25" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#03120C"/><stop offset=".55" stop-color="#0A3326"/><stop offset="1" stop-color="#0E5139"/></linearGradient>
- <radialGradient id="moon25" cx="38%" cy="34%" r="75%"><stop offset="0" stop-color="#FFFBEA"/><stop offset=".6" stop-color="#F6E7B8"/><stop offset="1" stop-color="#DCC57F"/></radialGradient>
+ <radialGradient id="moon25" cx="36%" cy="30%" r="80%"><stop offset="0" stop-color="#FFFEF4"/><stop offset=".55" stop-color="#F8EBC2"/><stop offset="1" stop-color="#E2CB86"/></radialGradient>
+ <radialGradient id="shade25" cx="34%" cy="28%" r="95%"><stop offset=".55" stop-color="#6B5A22" stop-opacity="0"/><stop offset="1" stop-color="#4E4016" stop-opacity=".32"/></radialGradient>
  <linearGradient id="ground25" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0E5139"/><stop offset="1" stop-color="#04180F"/></linearGradient>
  <linearGradient id="fade25" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#04180F" stop-opacity="0"/><stop offset="1" stop-color="#04180F" stop-opacity=".95"/></linearGradient>
  <pattern id="mesh25" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M0 0 H12 M0 0 V12" stroke="#F7EBD6" stroke-width="1.2" fill="none"/></pattern>
 </defs>
 <rect width="{W}" height="{H}" fill="url(#sky25)"/>
 {stars}
-<circle cx="{mx}" cy="{my}" r="{mr+170}" fill="#F6E7B8" opacity=".16" filter="url(#bl60)"/>
-<circle cx="{mx}" cy="{my}" r="{mr+60}" fill="#F6E7B8" opacity=".14" filter="url(#bl28)"/>
+<circle cx="{mx}" cy="{my}" r="{mr+190}" fill="#F6E7B8" opacity=".14" filter="url(#bl60)"/>
+<circle cx="{mx}" cy="{my}" r="{mr+60}" fill="#F6E7B8" opacity=".16" filter="url(#bl28)"/>
 <circle cx="{mx}" cy="{my}" r="{mr}" fill="url(#moon25)"/>
 <clipPath id="mc25"><circle cx="{mx}" cy="{my}" r="{mr}"/></clipPath>
 <g clip-path="url(#mc25)">
-  {maria}
-  <g transform="translate({mx} {my}) rotate(-22) scale({mr/100})" fill="none" stroke="#B89B4E" stroke-width="3.2" stroke-linecap="round" opacity=".55">
-    <path d="M-67 -74 C-30 -34 -30 34 -67 74"/><path d="M67 -74 C30 -34 30 34 67 74"/>
+  <g transform="translate({mx} {my}) rotate(-22) scale({mr/100})" fill="none" stroke-linecap="round">
+    <g stroke="#B79A4A" stroke-width="4.2" opacity=".45" filter="url(#bl6)"><path d="M-67 -74 C-30 -34 -30 34 -67 74"/><path d="M67 -74 C30 -34 30 34 67 74"/></g>
+    <g stroke="#C9AE62" stroke-width="2.6" opacity=".8"><path d="M-67 -74 C-30 -34 -30 34 -67 74"/><path d="M67 -74 C30 -34 30 34 67 74"/></g>
+    <g stroke="#FFFDF0" stroke-width="1.2" opacity=".7" transform="translate(-1.6 -1.6)"><path d="M-67 -74 C-30 -34 -30 34 -67 74"/><path d="M67 -74 C30 -34 30 34 67 74"/></g>
   </g>
-  <circle cx="{mx}" cy="{my}" r="{mr}" fill="#000" filter="url(#fuzz)" opacity=".1"/>
+  <circle cx="{mx}" cy="{my}" r="{mr}" fill="#7A6A33" filter="url(#fuzz)" opacity=".16" style="mix-blend-mode:multiply"/>
+  <circle cx="{mx}" cy="{my}" r="{mr}" fill="url(#shade25)"/>
 </g>
-<ellipse cx="{mx-30}" cy="{my+150}" rx="360" ry="20" fill="#0C3A2B" opacity=".55" filter="url(#bl28)"/>
-<ellipse cx="{mx+60}" cy="{my+205}" rx="300" ry="12" fill="#0C3A2B" opacity=".6" filter="url(#bl14)"/>
-<ellipse cx="520" cy="905" rx="700" ry="22" fill="#F6E7B8" opacity=".18" filter="url(#bl28)"/>
+<circle cx="{mx}" cy="{my}" r="{mr-1}" fill="none" stroke="#FFFBE6" stroke-width="2" opacity=".35"/>
+<ellipse cx="{mx-60}" cy="1010" rx="320" ry="26" fill="#F6E7B8" opacity=".2" filter="url(#bl28)"/>
+<ellipse cx="520" cy="905" rx="700" ry="22" fill="#F6E7B8" opacity=".16" filter="url(#bl28)"/>
 <path d="M0 930 H1080 V1350 H0 Z" fill="url(#ground25)"/>
-<ellipse cx="{mx-40}" cy="1020" rx="300" ry="60" fill="#F6E7B8" opacity=".14" filter="url(#bl28)"/>
 <g stroke="#F7EBD6" stroke-width="3" fill="none" opacity=".5" stroke-linecap="round">{lines}</g>
 {net}
 <ellipse cx="428" cy="1163" rx="58" ry="11" fill="#000" opacity=".5" filter="url(#bl6)"/>
