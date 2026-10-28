@@ -95,6 +95,7 @@ add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'fronte
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
 add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F3 网页端接入场边
+add('pg', 'e2e/sb_publish', ['node', '-r', PRELOAD, path.join(HERE, 'e2e/sb_publish.mjs')], { pass: [/sb_publish: \d+ 通过, 0 失败/], timeout: 300 });   // 第八批 T1 后台发布 → 前台读到
 add('frontend', 'frontend/site', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/site.js')], { pass: [/\d+ passed, 0 failed/], timeout: 200 });   // 预览网站 site/（Cloudflare Pages）
 add('frontend', 'frontend/softdelete', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/softdelete.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/account', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/account.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
