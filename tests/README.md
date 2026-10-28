@@ -41,7 +41,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 - **文件位置**：脚本里写死的 `/mnt/user-data/outputs/` 自动改到 `NBQ_DIR`。
 - **等页面安静**（E2）：`page.settle(最多毫秒)` 代替「点完固定等 N 毫秒」——在这段时间内会到期的短定时器（≤ 2 秒）、rAF、会结束的动画（含 Shadow DOM）都完了，连续两次检查都安静就继续；最多等原来那么久，所以只会更快。页面里等用 `__nbqSettle(毫秒)`。要看哪一步等满了：`NBQ_SETTLE_DEBUG=1`。量位置、等弹窗回应、等真实时间流逝（场边 2.2 / 5.2 秒一条的新动态）这类，写明确的条件（`waitForFunction`），不用 settle。
 
-**截图基准怎么更新**：界面改动是预期的 → 本地 `NBQ_VISUAL_UPDATE=1 node tests/run_all.mjs --only=visual` 重拍并提交 PNG；字体差异导致本地和 CI 对不上时，在 Actions 手动运行选 `visual-baseline`，由 CI 用自己的字体重拍并提交回 main。基准以 CI 环境为准。
+**截图基准怎么更新**：基准用 CI 的字体拍的，本地渲染不同，本地跑 visual 会不一致（只用来看差异图）。界面改动是预期的 → 推送后在 Actions 手动运行选 `visual-baseline`（不要同时再触发别的手动运行，会互相取消），由 CI 重拍并提交回 main，再 `git pull`。
 
 ## 3. 测什么（6 类）
 
