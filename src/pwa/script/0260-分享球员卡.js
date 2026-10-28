@@ -128,6 +128,7 @@ function openShare(id){const c=api.get(id);
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
   <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>
+  <p class="sh-tip sh-note">对方首次点开，微信可能提示「未备案」，点「继续」即可</p>
   <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
@@ -149,7 +150,7 @@ function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" 
 
 /* 微信 / 主屏幕 / 推送 */
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
-  <h3>添加到主屏幕</h3><p class="lead">有人申请加入你的球局，<em>第一时间</em>通知你</p>
+  <h3>用 Safari 打开</h3><p class="lead">微信里会弹「未备案」提示，也收不到通知。换到 Safari，<em>不再有提示</em>，有人申请时<em>第一时间</em>通知你</p>
   <div class="ntf"><svg class="ic"><use href="#logo"/></svg><div><b>南伴球<small>现在</small></b><span>Grace 申请加入你周六 9:00 的球局</span></div></div>
   <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li><li><i>3</i><div>点底部的分享 <span class="kbd">⬆︎</span>（看不到就点地址栏的菜单），选「添加到主屏幕」</div></li></ol>
   <button class="btn" data-a="wxclose">知道了</button>`}

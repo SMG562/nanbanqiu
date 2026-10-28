@@ -50,7 +50,10 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     await pg.goto('https://nanbanqiu.test/'); await pg.settle(600); if (!ua) { await pg.evaluate(() => setEnv('wechat')); await pg.settle(300) }
     const x = await pg.evaluate(() => { const bar = document.querySelector('.wxbar'), top = document.querySelector('.topbar'); return { env: ENV, bar: getComputedStyle(bar).display, wx: getComputedStyle(document.getElementById('dev')).getPropertyValue('--wx').trim(), tip: !!document.querySelector('.wxtip') && getComputedStyle(document.querySelector('.wxtip')).display !== 'none' } });
     T(`${name}：${wantBar ? '演示里的模拟微信顶栏照常显示' : '没有第二层 ✕ / ··· 顶栏，也没给它留位置'}`, wantBar ? (x.env === 'wechat' && x.bar !== 'none' && x.wx === '44px') : (x.env === 'wechat' && x.bar === 'none' && x.wx === '0px'), x);
-    if (!wantBar) T('微信手机：顶部「添加到主屏幕」提示条仍在（引导去浏览器）', x.tip, x);
+    if (!wantBar) { T('微信手机：顶部提示条仍在，引导去 Safari', x.tip, x);
+      const tx = await pg.evaluate(() => { openShare('g1'); const n = document.querySelector('.sh-note'); const t = document.querySelector('.wxtip').textContent; return { note: n && n.textContent, tip: t, cardDesc: document.querySelector('.wxcard p').textContent } });
+      T('分享面板有「未备案点继续」提醒（给发送人看，不放进卡片）', /未备案/.test(tx.note || '') && /继续/.test(tx.note) && !/未备案/.test(tx.cardDesc), tx);
+      T('提示条文案：用 Safari 打开 / 不再弹提示', /Safari/.test(tx.tip) && /不再弹提示/.test(tx.tip), tx) }
     await ctx.close();
   }
   await b.close(); console.log(`wx_share: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
