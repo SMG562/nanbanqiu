@@ -179,3 +179,21 @@ def space(seed=7, top='#02070A', bot='#06241A', avoid=(), n=150, milkyway=True, 
               f'<ellipse rx="640" ry="48" fill="#F7EBD6" opacity=".06" filter="url(#bl28)"/>{dust}</g>')
     return f'''<defs><linearGradient id="sp{seed}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient></defs>
 <rect width="{W}" height="{H}" fill="url(#sp{seed})"/>{mw}{stars}'''
+
+
+def face(cx, cy, s=1.0, mood='smile', look=0, ink='#0B3B2A'):
+    """网球小脸（画在球上）。mood: smile 睁眼微笑 / happy 弯弯笑眼 / sleep 闭眼；look -1..1 眼睛朝向；s 按球半径 / 118 缩放。"""
+    e = 42 * s
+    if mood == 'sleep':
+        eyes = f'<path d="M{-e-20*s:.1f} 0 Q{-e:.1f} {20*s:.1f} {-e+20*s:.1f} 0"/><path d="M{e-20*s:.1f} 0 Q{e:.1f} {20*s:.1f} {e+20*s:.1f} 0"/>'
+        eyes = f'<g fill="none" stroke="{ink}" stroke-width="{6*s:.1f}" stroke-linecap="round">{eyes}</g>'
+    elif mood == 'happy':
+        eyes = f'<g fill="none" stroke="{ink}" stroke-width="{6*s:.1f}" stroke-linecap="round"><path d="M{-e-18*s:.1f} {6*s:.1f} Q{-e:.1f} {-14*s:.1f} {-e+18*s:.1f} {6*s:.1f}"/><path d="M{e-18*s:.1f} {6*s:.1f} Q{e:.1f} {-14*s:.1f} {e+18*s:.1f} {6*s:.1f}"/></g>'
+    else:
+        lx = look * 5 * s
+        one = lambda x: (f'<ellipse cx="{x:.1f}" cy="0" rx="{10*s:.1f}" ry="{14*s:.1f}" fill="{ink}"/>'
+                         f'<circle cx="{x+lx-3*s:.1f}" cy="{-5*s:.1f}" r="{3.6*s:.1f}" fill="#fff"/>')
+        eyes = one(-e) + one(e)
+    mouth = f'<path d="M{-11*s:.1f} {32*s:.1f} Q0 {45*s:.1f} {11*s:.1f} {32*s:.1f}" fill="none" stroke="{ink}" stroke-width="{5*s:.1f}" stroke-linecap="round"/>'
+    blush = ''.join(f'<ellipse cx="{x:.1f}" cy="{24*s:.1f}" rx="{15*s:.1f}" ry="{9*s:.1f}" fill="#E8643C" opacity=".35"/>' for x in (-e - 30 * s, e + 30 * s))
+    return f'<g transform="translate({cx} {cy})">{blush}{eyes}{mouth}</g>'
