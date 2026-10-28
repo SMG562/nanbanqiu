@@ -27,7 +27,7 @@ for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
   const bad = { 墨尔本: [], 时区: [], 中心坐标: [], 话题: [] };
   h.split('\n').forEach((l, i) => {
     const code = l.replace(/\/\*.*?\*\//g, '').replace(/\/\/ .*$/, '');
-    if (/^\s*(\/\*|\*)/.test(l) || /^\s*\{key:'[a-z]+',slug:/.test(l) || /<title>|og:description|data-city-slogan>/.test(l) || /^const SB_CONFIG=/.test(l)) return;   // 第八批：内置的服务器配置 sb_config()（太宽的词里有城市名，是数据不是代码）
+    if (/^\s*(\/\*|\*)/.test(l) || /^\s*\{key:'[a-z]+',slug:/.test(l) || /<title>|og:title|og:description|data-city-slogan>/.test(l) || /^const SB_CONFIG=/.test(l)) return;   // 第八批：内置的服务器配置 sb_config()（太宽的词里有城市名，是数据不是代码）
     if (/墨尔本/.test(code)) bad.墨尔本.push(i + 1);
     if (/Australia\/Melbourne/.test(code)) bad.时区.push(i + 1);
     if (/-37\.8136,\s*(lng:)?144\.9631/.test(code) && !/^const SUBURBS=/.test(l)) bad.中心坐标.push(i + 1);

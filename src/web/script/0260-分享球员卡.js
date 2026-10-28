@@ -63,12 +63,13 @@ function openClubs(){CL=[...myClubIds()];openModal(`<div class="m-b"><div class=
   <div style="height:12px"></div><button class="btn btn-p w100" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,'md')}
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 function openShare(id){const c=api.get(id),h=c.host,url=shareURL('https://nanbanqiu.app/g/'+c.share_code,'webqr');
   openModal(`<div class="m-b"><div class="m-t">分享球局</div><p class="m-s">发到微信群或小红书，更快找到球友</p>
   <div class="shr">
     <section><div class="shr-h"><span class="si wx"><svg><use href="#i-wx"/></svg></span><b>微信群</b></div>
-      <div class="shr-pv"><div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${TYPE[c.game_type]}｜发起人 ${esc(h.name)} UTR ${f1(h.ntrp)}</p><div class="th"><div class="thumb"><div class="t1"><svg viewBox="0 0 100 100"><use href="#ball"/></svg></div><div class="t2"><span style="font-size:11px">${hm(c.start)}</span><span style="font-size:7.5px;color:#666">${esc(c.v.short)}</span></div></div></div></div><div class="src">南伴球</div></div></div></div></div>
+      <div class="shr-pv"><div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${esc(ogDesc(c))}</p><div class="th"><div class="thumb"><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div></div></div><div class="src">南伴球</div></div></div></div></div>
             <div class="shr-qr"><div class="qr" id="sqr1"></div><p><b>微信扫一扫</b>打开这局，点右上角「…」转发到群</p></div>
             <div class="shr-a"><button class="btn btn-o btn-sm" data-a="copyText" data-g="${id}">复制文案</button><button class="btn btn-o btn-sm" data-a="copyLink" data-g="${id}">复制链接</button></div></section>
     <section><div class="shr-h"><span class="si xhs">书</span><b>小红书</b></div>

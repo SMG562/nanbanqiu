@@ -1,0 +1,1100 @@
+{
+ "games": [
+  {
+   "code": "7Kq2",
+   "o": 0,
+   "t": "18:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "B5g1",
+   "o": 6,
+   "t": "10:00",
+   "v": "Camberwell Junction TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "C7k2",
+   "o": 3,
+   "t": "07:30",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 1,
+   "lvl": "4.5–6.0",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "D9m3",
+   "o": 6,
+   "t": "18:30",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 2,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "E3r8",
+   "o": 4,
+   "t": "18:00",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "F3h8",
+   "o": 4,
+   "t": "15:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "G21",
+   "o": 3,
+   "t": "08:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "G22",
+   "o": 3,
+   "t": "17:30",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H0",
+   "o": -2,
+   "t": "09:00",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H1",
+   "o": -8,
+   "t": "18:30",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H10",
+   "o": -48,
+   "t": "09:00",
+   "v": "Hawthorn TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H11",
+   "o": -55,
+   "t": "16:00",
+   "v": "Hawthorn TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H12",
+   "o": -58,
+   "t": "18:00",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H13",
+   "o": -62,
+   "t": "19:30",
+   "v": "Fawkner Park TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H14",
+   "o": -66,
+   "t": "09:00",
+   "v": "Kooyong LTC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H15",
+   "o": -71,
+   "t": "07:00",
+   "v": "Hawthorn TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H16",
+   "o": -76,
+   "t": "07:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H17",
+   "o": -82,
+   "t": "16:00",
+   "v": "Fawkner Park TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H18",
+   "o": -85,
+   "t": "10:30",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H19",
+   "o": -89,
+   "t": "19:30",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H2",
+   "o": -13,
+   "t": "10:30",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H20",
+   "o": -96,
+   "t": "16:00",
+   "v": "Kooyong LTC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H21",
+   "o": -100,
+   "t": "09:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H22",
+   "o": -103,
+   "t": "18:00",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H23",
+   "o": -107,
+   "t": "07:00",
+   "v": "Kooyong LTC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H24",
+   "o": -115,
+   "t": "19:30",
+   "v": "Kooyong LTC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H25",
+   "o": -119,
+   "t": "09:00",
+   "v": "Chadstone TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H26",
+   "o": -123,
+   "t": "09:00",
+   "v": "Chadstone TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H27",
+   "o": -128,
+   "t": "18:00",
+   "v": "Chadstone TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H28",
+   "o": -132,
+   "t": "10:30",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H29",
+   "o": -138,
+   "t": "07:00",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H3",
+   "o": -17,
+   "t": "16:00",
+   "v": "Fawkner Park TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H30",
+   "o": -141,
+   "t": "16:00",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H31",
+   "o": -145,
+   "t": "18:00",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H32",
+   "o": -151,
+   "t": "16:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H33",
+   "o": -155,
+   "t": "18:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H34",
+   "o": -158,
+   "t": "19:30",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H35",
+   "o": -165,
+   "t": "18:30",
+   "v": "South Camberwell TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H36",
+   "o": -169,
+   "t": "07:00",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H37",
+   "o": -172,
+   "t": "07:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H38",
+   "o": -179,
+   "t": "09:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H39",
+   "o": -182,
+   "t": "10:30",
+   "v": "Kooyong LTC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H4",
+   "o": -22,
+   "t": "19:30",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H40",
+   "o": -187,
+   "t": "09:00",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H41",
+   "o": -191,
+   "t": "07:00",
+   "v": "Hawthorn TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H42",
+   "o": -197,
+   "t": "09:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H43",
+   "o": -201,
+   "t": "07:00",
+   "v": "Kooyong LTC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H44",
+   "o": -204,
+   "t": "09:00",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H45",
+   "o": -211,
+   "t": "18:00",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H46",
+   "o": -215,
+   "t": "16:00",
+   "v": "Chadstone TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Chris T.",
+   "hu": "6.0"
+  },
+  {
+   "code": "H47",
+   "o": -220,
+   "t": "19:30",
+   "v": "Fawkner Park TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H48",
+   "o": -224,
+   "t": "10:30",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H49",
+   "o": -228,
+   "t": "18:30",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H5",
+   "o": -26,
+   "t": "19:30",
+   "v": "Kooyong LTC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H50",
+   "o": -234,
+   "t": "18:30",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H51",
+   "o": -236,
+   "t": "18:00",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H52",
+   "o": -242,
+   "t": "16:00",
+   "v": "Kooyong LTC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H53",
+   "o": -247,
+   "t": "18:00",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H54",
+   "o": -251,
+   "t": "07:00",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H55",
+   "o": -257,
+   "t": "10:30",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H56",
+   "o": -259,
+   "t": "09:00",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H57",
+   "o": -267,
+   "t": "07:00",
+   "v": "Glendearg All Saints TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H58",
+   "o": -268,
+   "t": "18:30",
+   "v": "Hawthorn TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H59",
+   "o": -274,
+   "t": "16:00",
+   "v": "Kooyong LTC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H6",
+   "o": -30,
+   "t": "10:30",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H60",
+   "o": -280,
+   "t": "18:00",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "H61",
+   "o": -282,
+   "t": "09:00",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "H7",
+   "o": -37,
+   "t": "19:30",
+   "v": "Fawkner Park TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H8",
+   "o": -40,
+   "t": "19:30",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H8j4",
+   "o": 1,
+   "t": "09:00",
+   "v": "Camberwell Junction TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "H9",
+   "o": -46,
+   "t": "10:30",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 0,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "K0",
+   "o": -5,
+   "t": "19:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K1",
+   "o": -14,
+   "t": "19:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K2",
+   "o": -23,
+   "t": "19:00",
+   "v": "Chadstone TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K2w7",
+   "o": 0,
+   "t": "20:00",
+   "v": "Kooyong LTC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "6.0–7.5",
+   "host": "Daniel R.",
+   "hu": "6.0"
+  },
+  {
+   "code": "K3",
+   "o": -32,
+   "t": "19:00",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K4",
+   "o": -41,
+   "t": "19:00",
+   "v": "Fawkner Park TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K5",
+   "o": -50,
+   "t": "19:00",
+   "v": "South Camberwell TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K6",
+   "o": -59,
+   "t": "19:00",
+   "v": "Glendearg All Saints TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K7",
+   "o": -68,
+   "t": "19:00",
+   "v": "Chadstone TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K8",
+   "o": -77,
+   "t": "19:00",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "K9",
+   "o": -86,
+   "t": "19:00",
+   "v": "Fawkner Park TC",
+   "type": "singles",
+   "spots": 0,
+   "lvl": "4.5",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "L8p2",
+   "o": 0,
+   "t": "18:00",
+   "v": "Camberwell Junction TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Tom H.",
+   "hu": "4.5"
+  },
+  {
+   "code": "M1n6",
+   "o": 1,
+   "t": "10:30",
+   "v": "Chadstone TC",
+   "type": "rally",
+   "spots": 1,
+   "lvl": "2.5–3.5",
+   "host": "Leo S.",
+   "hu": "3.5"
+  },
+  {
+   "code": "P3m8",
+   "o": 0,
+   "t": "19:30",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Alex M.",
+   "hu": "4.5"
+  },
+  {
+   "code": "Q4v9",
+   "o": 1,
+   "t": "16:00",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "4.5–6.0",
+   "host": "Han Liu",
+   "hu": "4.5"
+  },
+  {
+   "code": "R5t3",
+   "o": 0,
+   "t": "07:00",
+   "v": "Fawkner Park TC",
+   "type": "rally",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "S2d4",
+   "o": 5,
+   "t": "09:30",
+   "v": "Kooyong LTC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "6.0–7.5",
+   "host": "Ryan L.",
+   "hu": "7.5"
+  },
+  {
+   "code": "T6y2",
+   "o": 2,
+   "t": "18:30",
+   "v": "NTC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "4.5–6.0",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "U4c6",
+   "o": 0,
+   "t": "19:00",
+   "v": "Fawkner Park TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Mia C.",
+   "hu": "4.5"
+  },
+  {
+   "code": "W2m5",
+   "o": 1,
+   "t": "10:00",
+   "v": "South Camberwell TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Grace Y.",
+   "hu": "3.5"
+  },
+  {
+   "code": "W7u5",
+   "o": 3,
+   "t": "19:00",
+   "v": "Glendearg All Saints TC",
+   "type": "doubles",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "David K.",
+   "hu": "3.5"
+  },
+  {
+   "code": "Y1n9",
+   "o": 0,
+   "t": "19:00",
+   "v": "NTC",
+   "type": "rally",
+   "spots": 1,
+   "lvl": "3.5–4.5",
+   "host": "Sarah L.",
+   "hu": "3.5"
+  },
+  {
+   "code": "Z9x1",
+   "o": 0,
+   "t": "18:30",
+   "v": "Hawthorn TC",
+   "type": "singles",
+   "spots": 1,
+   "lvl": "6.0",
+   "host": "Chris T.",
+   "hu": "6.0"
+  }
+ ],
+ "users": [
+  {
+   "no": 1,
+   "name": "Han Liu",
+   "ntrp": "4.5"
+  },
+  {
+   "no": 7,
+   "name": "Alex M.",
+   "ntrp": "4.5"
+  },
+  {
+   "no": 12,
+   "name": "Sarah L.",
+   "ntrp": "3.5"
+  },
+  {
+   "no": 23,
+   "name": "David K.",
+   "ntrp": "3.5"
+  },
+  {
+   "no": 31,
+   "name": "Chris T.",
+   "ntrp": "6.0"
+  },
+  {
+   "no": 40,
+   "name": "Daniel R.",
+   "ntrp": "6.0"
+  },
+  {
+   "no": 44,
+   "name": "Ryan L.",
+   "ntrp": "7.5"
+  },
+  {
+   "no": 58,
+   "name": "Mia C.",
+   "ntrp": "4.5"
+  },
+  {
+   "no": 62,
+   "name": "Jason",
+   "ntrp": "3.5"
+  },
+  {
+   "no": 71,
+   "name": "Leo S.",
+   "ntrp": "3.5"
+  },
+  {
+   "no": 85,
+   "name": "Grace Y.",
+   "ntrp": "3.5"
+  },
+  {
+   "no": 90,
+   "name": "Tom H.",
+   "ntrp": "4.5"
+  }
+ ]
+}

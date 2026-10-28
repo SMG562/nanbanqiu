@@ -63,6 +63,7 @@ DEV.addEventListener('click',e=>{
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
+    case'wxShare':wxShare(g);break;
     case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
     case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}

@@ -103,17 +103,32 @@ function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Clu
 
 /* 分享 */
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
+// 链接卡片的标题 / 描述：和服务端 server/og/card.mjs 同一套文案（tests/frontend/og_parity 逐个核对）
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
-const thumbHTML=c=>`<div class="thumb"><div class="t1"><svg viewBox="0 0 100 100"><use href="#ball"/></svg></div><div class="t2"><span style="font-size:11px">${hm(c.start)}</span><span style="font-size:8px;color:#666;margin-top:2px">${esc(c.v.short)}</span></div></div>`;
-const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${TYPE[c.game_type]}｜发起人 ${esc(h.name)} UTR ${f1(h.ntrp)}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
+// 缩略图 = 链接卡片上真实显示的那张（服务端 og:image = /icons/icon-512.png），预览和真实卡片一致
+const thumbHTML=c=>`<div class="thumb"><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div>`;
+const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${esc(ogDesc(c))}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 const ogLHTML=c=>`<div class="ogL"><div class="l"><svg viewBox="0 0 100 100"><use href="#ball"/></svg><b>南伴球<small>${esc(CITY.zh)}网球约球</small></b></div><div class="r"><div class="t">${WD[c.start.getDay()]} · ${hm(c.start)} · ${relDay(c.start)}</div><div class="p">${esc(c.v.short)}</div><div class="v">${esc(c.v.name)} · ${TYPE[c.game_type]} · UTR ${lvl(c)}</div><div class="n"><i></i>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>`;
+// 分享球局：「发到微信群」= 系统分享面板 → 选「微信」→「发送给朋友」，对方收到的是链接卡片（标题 / 描述 / 缩略图来自服务端 og 标签，预览图就是它的样子）；
+// 微信里打开时没有系统面板，改成提示点右上角 ···；没有系统分享（电脑等）才退回复制文案
+function setOg(c){const m=(p,v)=>{let e=document.querySelector(`meta[property="${p}"]`);if(!e){e=document.createElement('meta');e.setAttribute('property',p);document.head.appendChild(e)}e.setAttribute('content',v)};
+  m('og:title',ogTitle(c));m('og:description',ogDesc(c));m('og:url','https://nanbanqiu.app/g/'+c.share_code)}
+function wxShare(id){const c=api.get(id);setOg(c);
+  if(ENV==='wechat'){closeSheet();openWxShareGuide();return}
+  const fb=()=>copy(shareText(c),'已复制，去微信群粘贴');
+  if(navigator.share)navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()});else fb()}
+function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
+  <h3>发给微信好友或群</h3><p class="lead">点右上角 <em>···</em>，选「发送给朋友」或「分享到群聊」</p><button class="btn" data-a="wxclose">知道了</button>`}
 function openShare(id){const c=api.get(id);
   openSheet(`<div class="sh-t">分享球局</div><p class="sh-s">发到微信群，更快找到球友</p>${wxPreviewHTML(c)}
-  <div class="sgrid"><button data-a="copyText" data-g="${id}"><span class="si" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></span>发到微信群</button>
+  <div class="sgrid"><button data-a="wxShare" data-g="${id}"><span class="si" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></span>发到微信群</button>
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
-  <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>`)}
+  <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
+  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>
+  <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
 const XHSP={};

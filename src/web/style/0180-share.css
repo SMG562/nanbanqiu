@@ -9,9 +9,7 @@
 .wxcard p{font-size:12px;color:#999;flex:1;line-height:1.4}
 .wxcard .th{width:46px;height:46px;flex:none;border-radius:3px;overflow:hidden}
 .wxcard .src{font-size:11px;color:#aaa;border-top:1px solid #eee;margin-top:8px;padding-top:5px}
-.thumb{width:100%;height:100%;background:#fff;display:flex;flex-direction:column}
-.thumb .t1{background:var(--g);height:30%;display:flex;align-items:center;justify-content:center}.thumb .t1 svg{width:60%;height:60%}
-.thumb .t2{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;line-height:1.05}
+.thumb{width:100%;height:100%;background:linear-gradient(135deg,#1E7E59,#0E5139);display:grid;place-items:center}.thumb svg{width:100%;height:100%;display:block}
 .copybox{white-space:pre-wrap;font-size:13px;line-height:1.55;background:var(--bg);border-radius:12px;padding:12px;color:var(--ink2);margin-top:12px}
 .qr{width:180px;height:180px;margin:6px auto 10px;background:#fff;border-radius:14px;padding:12px;display:grid;place-items:center;box-shadow:var(--sh)}
 .qr img,.qr canvas{width:156px!important;height:156px!important}

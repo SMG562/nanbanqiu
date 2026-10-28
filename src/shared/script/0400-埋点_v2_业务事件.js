@@ -252,7 +252,7 @@ addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-i
 const G=d=>({game_id:gid(d)});
 const AN_MAP={
   a:{filter:d=>(anOverlay('filter'),['filter_open']),filterModal:d=>(anOverlay('filter'),['filter_open']),fReset:'filter_reset',
-     copyLink:d=>['share_copy_link',G(d)],copyText:d=>['share_copy_text',G(d)],sysShare:d=>['share_system',G(d)],ics:d=>['calendar_add',G(d)],
+     copyLink:d=>['share_copy_link',G(d)],copyText:d=>['share_copy_text',G(d)],sysShare:d=>['share_system',G(d)],wxShare:d=>['share_system',G(d)],ics:d=>['calendar_add',G(d)],
      editClubs:'club_add_open',report:d=>ME?['report_open',{target_type:'user',via:'card'}]:null,
      apply:null,doApply:null,approve:null,reject:null,leave:null,doLeave:null,cancelGame:null,doCancelGame:null,share:null,poster:null,saveCard:null,doSaveCard:null,myCard:null,custom:null,
      login:null,sendCode:null,npDone:null,logout:null,enablePush:null,create:null,publish:null,safety:null,contact:null,community:null,commOpen:null,doBlock:null,unblock:null,
