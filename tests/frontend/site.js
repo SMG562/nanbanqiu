@@ -20,7 +20,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 
   // Cloudflare 部署配置：只发布 site/
   const wr = JSON.parse(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
-  T('wrangler.jsonc：只把 site/ 作为静态资源发布、没有 main 脚本', wr.assets && wr.assets.directory === './site' && !wr.main && Object.keys(wr.assets).length === 1, wr);
+  T('wrangler.jsonc：只把 site/ 作为静态资源发布、没有 main 脚本', wr.assets && wr.assets.directory === './site' && !wr.main && wr.assets.not_found_handling === 'single-page-application' && Object.keys(wr.assets).length === 2, wr);   // 没有对应文件的路径（/g/码、/p/编号）落到入口页再转走
 
   // 像线上一样用 http 打开
   const types = { html: 'text/html; charset=utf-8', webmanifest: 'application/manifest+json' }, miss = [];
@@ -40,6 +40,17 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     const ok = await pg.evaluate(check).catch(e => String(e));
     T(`${name}：http 打开能跑${name === 'web.html' ? '（含场边）' : ''}`, ok === true, ok);
     T(`${name}：没有脚本错误`, errs.filter(e => !/\bL is not defined|QRCode|html2canvas/.test(e)).length === 0, errs);
+    await ctx.close();
+  }
+  // 分享短链接：线上落到入口页（SPA 回退），按屏幕宽度转到手机端 / 网页端并打开对应球局 / 球员卡
+  for (const [vp, page, tag] of [[{ width: 390, height: 844 }, 'pwa.html', '手机'], [{ width: 1440, height: 900 }, 'web.html', '电脑']]) {
+    const ctx = await b.newContext({ viewport: vp }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
+    await ctx.route(/\/(g|p)\/\w+/, r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: idx }));
+    await ctx.route(/\/(pwa|web)\.html/, r => r.continue());
+    const pg = await ctx.newPage(); await pg.goto(`${base}/g/W2m5?ref=wx`); await pg.waitForTimeout(1500);
+    T(`${tag}打开 /g/码：转到 ${page}，带上 ?ref 和 #/g/码`, pg.url() === `${base}/${page}?ref=wx#/g/W2m5`, pg.url());
+    await pg.goto(`${base}/p/0001`); await pg.waitForTimeout(800);
+    T(`${tag}打开 /p/编号：转到 ${page}#/p/编号`, pg.url() === `${base}/${page}#/p/0001` || pg.url() === `${base}/${page}#/`, pg.url());   // 球员卡打开后页面把 #/p/ 改写成 #/
     await ctx.close();
   }
   // 页面里引用的本地文件：线上由后端提供的（/icons/、/<城市>/、/api/、/sw.js）以外都要在 site/ 里

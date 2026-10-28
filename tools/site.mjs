@@ -37,6 +37,8 @@ export function indexHTML(sha, when) {
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>南伴球 预览</title>
+<script>/* 分享短链接 /g/码、/p/编号：预览站没有后端，落到入口页后按屏幕宽度转到手机端 / 网页端，用 #/g/码 的写法交给页面 */
+(function(){var m=location.pathname.match(/^[/]([gp])[/]([A-Za-z0-9]+)/);if(m)location.replace((innerWidth<=820?'/pwa.html':'/web.html')+location.search+'#/'+m[1]+'/'+m[2])})()</script>
 <style>
 :root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--line:#E5E8E5}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}

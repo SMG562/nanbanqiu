@@ -4,6 +4,7 @@
   "name": "nanbanqiu",
   "compatibility_date": "2026-10-01",
   "assets": {
-    "directory": "./site"
+    "directory": "./site",
+    "not_found_handling": "single-page-application"
   }
 }
