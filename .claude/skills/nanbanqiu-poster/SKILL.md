@@ -1,6 +1,6 @@
 ---
 name: nanbanqiu-poster
-description: 做南伴球的宣传海报、朋友圈 / 小红书配图、品牌视觉、宣传物料时使用。已有 25 张海报和一套出图流程（marketing/），新设计不用重新摸索品牌、不用通读旧代码。
+description: 做南伴球的宣传海报、朋友圈 / 小红书配图、品牌视觉、宣传物料时使用。已有 28 张海报和一套出图流程（marketing/），新设计不用重新摸索品牌、不用通读旧代码。
 ---
 
 # 南伴球宣传物料（海报）
@@ -53,6 +53,7 @@ def svg():
 - `headline(lines,x=80,y=330,size=112,colors=(奶油,黄绿),ls=4,lh=None,anchor='start')` 多行标题；`sub(text,x,y,size,color,op,ls,anchor)` 副标题；`tag(text,x,y,color,rule)` 小标签。
 - `wordmark(cy,color,sub=True)` 品牌标；`grain(op,light)` 颗粒；`persp(t,…)` 球场透视；`page(body)` 包成网页。
 - **手作质感**：滤镜 `url(#rough)`（大块形状的手绘抖动）、`url(#rough2)`（细线条 / 文字的轻微抖动），套在 `<g>` 上即可；配 `grain(light=True)` 做纸感。21–24 号是例子。
+- **月亮和深空**：`moon(id,cx,cy,r,seed,glow)` 写实满月（暗海、环形坑、亮纹、光晕，26–28 号用）；`space(seed,avoid=[(cx,cy,r)],ymax)` 深空渐变 + 银河 + 星点，放最底层。月亮别画成脏灰：月面要亮，光晕要冷白，天空保持深色。
 - 滤镜 id 直接用：`url(#bl6)` `#bl14` `#bl28` `#bl60`（高斯模糊，区域已放大，**别自己写滤镜**，否则会出方块边）、`#fuzz`、`#grain`。
 - 常量 `W H SERIF SANS C`，以及 `math` `random` 已导入。
 

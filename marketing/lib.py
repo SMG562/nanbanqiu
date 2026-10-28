@@ -112,3 +112,70 @@ def page(body, bg="#000"):
     """把 SVG 内容包成可渲染的网页（带 COMMON 滤镜）。"""
     return f'''<!doctype html><meta charset="utf-8"><style>html,body{{margin:0;background:{bg}}}svg{{display:block}}</style>
 <svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}"><defs>{COMMON}</defs>{body}</svg>'''
+
+
+def moon(id, cx, cy, r, seed=1, glow=1.0, light=(-.45, -.55)):
+    """写实满月：暗海（噪声生成的不规则斑块）+ 带亮边的环形坑 + 放射亮纹 + 边缘变暗 + 受光面渐变。
+    id 同一张里唯一；glow 控制外圈光晕强度（0 关闭）；light 是受光方向（默认左上）。"""
+    rnd = random.Random(seed)
+    cr = ''
+    for _ in range(34):
+        a, d = rnd.uniform(0, 2 * math.pi), r * math.sqrt(rnd.random()) * .93
+        x, y = cx + d * math.cos(a), cy + d * math.sin(a)
+        s = r * (.011 + .06 * rnd.random() ** 2.8)
+        edge = 1 - (d / r) ** 2  # 靠近边缘的坑压扁一点
+        cr += (f'<g transform="translate({x:.1f} {y:.1f}) scale({max(.35, edge ** .5):.2f} 1) rotate({math.degrees(a):.0f})">'
+               f'<circle r="{s:.1f}" fill="#4A463A" opacity=".07"/>'
+               f'<circle cx="{-s*.13:.1f}" cy="{-s*.13:.1f}" r="{s:.1f}" fill="none" stroke="#FFFFFA" stroke-width="{max(.8, s*.16):.1f}" opacity=".5"/>'
+               f'<circle cx="{s*.22:.1f}" cy="{s*.22:.1f}" r="{s*.6:.1f}" fill="#6B654F" opacity=".1"/></g>')
+    ox, oy = cx - .12 * r, cy + .52 * r
+    rays = ''.join(
+        f'<line x1="{ox:.0f}" y1="{oy:.0f}" x2="{ox + math.cos(t) * r * rnd.uniform(.35, .85):.0f}" y2="{oy + math.sin(t) * r * rnd.uniform(.35, .85):.0f}" stroke="#FFFFF4" stroke-width="{rnd.uniform(1.5, 4):.1f}" opacity=".22"/>'
+        for t in [i / 22 * 2 * math.pi + rnd.uniform(-.1, .1) for i in range(22)])
+    lx, ly = 50 + light[0] * 45, 50 + light[1] * 45
+    f = 2.2 / r
+    return f'''
+<defs>
+ <radialGradient id="mb{id}" cx="{lx:.0f}%" cy="{ly:.0f}%" r="78%"><stop offset="0" stop-color="#FFFFF7"/><stop offset=".55" stop-color="#F6F1DF"/><stop offset="1" stop-color="#D3CCB4"/></radialGradient>
+ <radialGradient id="ml{id}" cx="50%" cy="50%" r="50%"><stop offset=".74" stop-color="#14120C" stop-opacity="0"/><stop offset=".95" stop-color="#14120C" stop-opacity=".2"/><stop offset="1" stop-color="#0A0906" stop-opacity=".4"/></radialGradient>
+ <radialGradient id="ms{id}" cx="{lx:.0f}%" cy="{ly:.0f}%" r="105%"><stop offset=".4" stop-color="#05090C" stop-opacity="0"/><stop offset="1" stop-color="#05090C" stop-opacity=".34"/></radialGradient>
+ <radialGradient id="mg{id}" cx="50%" cy="50%" r="50%"><stop offset=".48" stop-color="#E4EEF8" stop-opacity=".42"/><stop offset="1" stop-color="#E4EEF8" stop-opacity="0"/></radialGradient>
+ <filter id="mm{id}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="{f:.5f}" numOctaves="5" seed="{seed*7+3}"/><feColorMatrix values="0 0 0 0 .52  0 0 0 0 .50  0 0 0 0 .44  13 0 0 0 -6.0"/><feGaussianBlur stdDeviation="{r/150:.1f}"/></filter>
+ <filter id="mt{id}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="{.9/ r * 40:.4f}" numOctaves="4" seed="{seed+11}"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".0" intercept="1"/></feComponentTransfer></filter>
+ <clipPath id="mc{id}"><circle cx="{cx}" cy="{cy}" r="{r}"/></clipPath>
+</defs>
+{f'<circle cx="{cx}" cy="{cy}" r="{r*2.0:.0f}" fill="url(#mg{id})" opacity="{.55*glow:.2f}"/><circle cx="{cx}" cy="{cy}" r="{r*1.12:.0f}" fill="#F4F1DF" opacity="{.3*glow:.2f}" filter="url(#bl60)"/>' if glow else ''}
+<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#mb{id})"/>
+<g clip-path="url(#mc{id})">
+  <rect x="{cx-r}" y="{cy-r}" width="{2*r}" height="{2*r}" filter="url(#mm{id})" opacity=".62"/>
+  <rect x="{cx-r}" y="{cy-r}" width="{2*r}" height="{2*r}" filter="url(#mt{id})" opacity=".0"/>
+  <g filter="url(#bl6)">{rays}</g>
+  {cr}
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="#000" filter="url(#fuzz)" opacity=".12"/>
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#ms{id})"/>
+  <circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#ml{id})"/>
+</g>'''
+
+
+def space(seed=7, top='#02070A', bot='#06241A', avoid=(), n=150, milkyway=True, ymax=None):
+    """深空背景：竖向渐变 + 银河带 + 星点（avoid=[(cx,cy,r)] 的区域不放星）。放在最底层。"""
+    rnd = random.Random(seed)
+    ymax = ymax or H
+    stars = ''
+    for _ in range(n):
+        x, y = rnd.uniform(10, W - 10), rnd.uniform(10, ymax)
+        if any((x - a) ** 2 + (y - b) ** 2 < (c * 1.12) ** 2 for a, b, c in avoid):
+            continue
+        r = rnd.choice([.7, .9, 1.1, 1.4, 1.8, 2.4]) * (1 if rnd.random() > .08 else 1.5)
+        col = rnd.choice(['#F7EBD6', '#F7EBD6', '#DDEBFF', '#FFE9B8'])
+        stars += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}" fill="{col}" opacity="{rnd.uniform(.3, .95):.2f}"/>'
+    mw = ''
+    if milkyway:
+        dust = ''
+        for _ in range(260):
+            u, v = rnd.gauss(0, 330), rnd.gauss(0, 60)
+            dust += f'<circle cx="{u:.0f}" cy="{v:.0f}" r="{rnd.uniform(.5, 1.3):.1f}" fill="#F7EBD6" opacity="{rnd.uniform(.15, .6):.2f}"/>'
+        mw = (f'<g transform="translate(560 {int(H*.55)}) rotate(-28)"><ellipse rx="760" ry="130" fill="#7FC6A4" opacity=".07" filter="url(#bl60)"/>'
+              f'<ellipse rx="640" ry="48" fill="#F7EBD6" opacity=".06" filter="url(#bl28)"/>{dust}</g>')
+    return f'''<defs><linearGradient id="sp{seed}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient></defs>
+<rect width="{W}" height="{H}" fill="url(#sp{seed})"/>{mw}{stars}'''
