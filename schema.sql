@@ -5606,8 +5606,8 @@ begin
     uid := case when p_target ~ '^[0-9a-f-]{36}$' then p_target::uuid end;
     c := case
       when p_action in ('user.status','user.ban','user.reset','user.gender','user.notify','phone.reveal') then (select home_city from users where id = uid)
-      when p_action in ('report.handle','message.hide') and p_target ~ '^sb(post|photo):' then (select p.city from sb_posts p where p.id::text = split_part(p_target, ':', 2))   -- 场边：按发布所在城市
-      when p_action = 'message.hide' and p_target ~ '^sbreply:' then (select p.city from sb_replies r join sb_posts p on p.id = r.post_id where r.id::text = split_part(p_target, ':', 2))
+      when p_action in ('report.handle','message.hide') and p_target ~ '^sb(post|photo):' then (select sp.city from sb_posts sp where sp.id::text = split_part(p_target, ':', 2))   -- 场边：按发布所在城市
+      when p_action = 'message.hide' and p_target ~ '^sbreply:' then (select sp.city from sb_replies sr join sb_posts sp on sp.id = sr.post_id where sr.id::text = split_part(p_target, ':', 2))
       when p_action in ('report.handle','message.read') then (select u.home_city from reports r join users u on u.id = r.reporter_id where r.id = uid)
       when p_action = 'message.hide' and p_target ~ '^[0-9]{1,18}$' then (select u.home_city from messages m join users u on u.id = m.sender_id where m.id = p_target::bigint)
       when p_action = 'venue.review' then (select v.city from venues v where v.id = uid)
