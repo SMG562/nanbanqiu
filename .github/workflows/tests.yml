@@ -24,8 +24,11 @@ on:
       mode:
         description: '测试档位'
         type: choice
-        options: [quick, full]
+        options: [quick, full, visual-baseline]
         default: full
+
+permissions:
+  contents: write
 
 concurrency:                    # 同一分支连续推送时，只跑最新的那次
   group: tests-${{ github.ref }}-${{ github.event_name }}
@@ -69,7 +72,17 @@ jobs:
           npm i -g playwright@1.63.0
           npx -y playwright@1.63.0 install --with-deps chromium
 
+      - name: 重拍截图基准（只在手动选 visual-baseline 时：用 CI 的字体重拍，提交回 main）
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline'
+        run: |
+          NBQ_VISUAL_UPDATE=1 node tests/run_all.mjs --only=visual
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add tests/visual/baseline
+          git commit -m "截图基准：用 CI 环境重拍" || echo "基准没有变化"
+          git push
+
       - name: 跑测试
+        if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
         run: |
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.mode }}" = "quick" ]; then
             node tests/run_all.mjs --quick --fast --jobs=2

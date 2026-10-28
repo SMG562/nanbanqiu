@@ -3,7 +3,7 @@
  * 南伴球 · 测试总入口
  *   node tests/run_all.mjs                 完整测试（约 25–40 分钟）
  *   node tests/run_all.mjs --quick         快速测试（约 6–10 分钟）：静态 + 数据库 + 核心流程 + 后台一致性 + 一个时间点的演示
- *   node tests/run_all.mjs --only=static,schema     只跑指定的套件（static / unit / schema / pg / frontend / admin / regression）
+ *   node tests/run_all.mjs --only=static,schema     只跑指定的套件（static / unit / schema / pg / frontend / visual / admin / regression）
  *   node tests/run_all.mjs --update-snapshots       确认改动无误后，用这次的输出更新回归快照
  *   node tests/run_all.mjs --list          只列出会跑哪些测试
  *   --grep=sb_,rate,api   只跑名字里含这些字的测试（每一小轮只跑相关的，10-26 定）
@@ -110,6 +110,8 @@ add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'fronten
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
 for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
+// 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
+add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
 if (!QUICK) for (const t of ['2026-10-15T07:05:00+11:00', '2026-10-18T05:30:00+11:00']) add('admin', 'admin/data@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { env: { NBQ_TS: t }, pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });
 add('admin', 'admin/consist', ['node', '-r', PRELOAD, path.join(HERE, 'admin/consist.js')], { pass: [/ALL PASS/], timeout: 900 });

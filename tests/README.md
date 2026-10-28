@@ -41,6 +41,8 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 - **文件位置**：脚本里写死的 `/mnt/user-data/outputs/` 自动改到 `NBQ_DIR`。
 - **等页面安静**（E2）：`page.settle(最多毫秒)` 代替「点完固定等 N 毫秒」——在这段时间内会到期的短定时器（≤ 2 秒）、rAF、会结束的动画（含 Shadow DOM）都完了，连续两次检查都安静就继续；最多等原来那么久，所以只会更快。页面里等用 `__nbqSettle(毫秒)`。要看哪一步等满了：`NBQ_SETTLE_DEBUG=1`。量位置、等弹窗回应、等真实时间流逝（场边 2.2 / 5.2 秒一条的新动态）这类，写明确的条件（`waitForFunction`），不用 settle。
 
+**截图基准怎么更新**：界面改动是预期的 → 本地 `NBQ_VISUAL_UPDATE=1 node tests/run_all.mjs --only=visual` 重拍并提交 PNG；字体差异导致本地和 CI 对不上时，在 Actions 手动运行选 `visual-baseline`，由 CI 用自己的字体重拍并提交回 main。基准以 CI 环境为准。
+
 ## 3. 测什么（6 类）
 
 **分层（E2）**：页面里的纯规则（场边的频率、链接、话题名、通知合并、通知文字）放在单独的规则文件里，`unit/` 在 Node 里直接测，不开浏览器（1 秒内，提交前检查也跑）；浏览器测试只管「接上了没有」和界面。改规则先看 `unit/` 有没有覆盖到。
@@ -49,6 +51,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | 类 | 测试 | 检查内容 | 判定 |
 |---|---|---|---|
 | unit | `unit/side_rules.mjs` | 场边规则（`src/shared/side/0065-发布规则.js`、`0085-场边通知规则.js`）放进空沙盒载入（证明不依赖页面）：频率 = schema.sql rate_rules（窗口、次数、错误码、边界）、链接正则 = api_sb_post、话题名（字数按字符 = char_length、#、太宽的词、相似词、同名、昵称规则的先后）、网球 / 回复合并（起点、正好 10 分钟、不算自己、回复我）、通知文字 = server/notify/rules.mjs pushText（1200 种组合）。故意改坏 13 处全部抓到 | 0 失败 |
+| visual | `visual/shots.js` | 截图对比（T4）：手机端 7 张（发现 / 球局 / 我的 / 场边 / 消息 / 发起球局 / 球员卡）、网页端 3 张（发现 / 球局 / 场边）、后台 7 张（登录 / 概览 / 球友 / 球局 / 待审核 / 城市 / 场边数据）在固定时钟、固定账号、关动画下截图，逐像素对 `visual/baseline/*.png`。每个点三通道差 ≤ 16 算同色，不同的点超过总数 0.05% 算不一致；差异图（红点 = 不同）和新图写到 `tests/reports/visual/`（CI 的报告附件里）。比对在 Chromium 里用 canvas 做，不装图片库。故意改坏（标签颜色、导航边距、后台主色）全部抓到 | 0 失败 |
 | static | `static/check.mjs` | 6 个文件齐全并记录指纹；三个页面的脚本和 sw.js 语法；事件字典本身（不重复、5 列、来源 C/S）；两端代码里的事件名都在字典里、不用废弃名、两端一致；两端演示菜单相同；婉拒原因、参加状态、暂停时长在前台/后台/数据库三方一致；manifest 快捷方式在两端都有路由；推送打开参数 n/k 两端都能解析 | 42 项全过 |
 | schema | `schema/run.mjs` | schema.sql 在 PostgreSQL 里**从头到尾真实执行**（PostGIS 用桩代替，其余是真扩展）；37 组样例数据：站内举报约束、账号状态权限 can_act、新婉拒原因、撤回/退出保留记录、线下补位自动满员、取消时间、12 月以后的事件分区、同名不同区球场、UTR 上下限、暂停时长……其中带 `!` 的必须被数据库拒绝；`event_definitions` 与字典逐字段相同 | 0 错误、0 失败、0 差异 |
 | pg | `pg/race.mjs` | 在临时目录起一个**真实的 PostgreSQL + PostGIS**（需本机安装：`apt install postgresql postgresql-16-postgis-3`），先完整执行 schema.sql，再开多个连接让操作真的同时发生：抢最后一个位置、同时通过两个申请、通过 vs 撤回 / 失效 / 取消、接受邀约 vs 过期、双击接受 / 申请、线下补位 vs 直接加入；每个场景 A 先、B 先各一次 + 自由并发 25 次，最后查全库不超员、状态不矛盾 | 0 失败、0 死锁 |
