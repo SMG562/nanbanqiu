@@ -92,7 +92,7 @@ jobs:
           slow = sorted(rs, key=lambda r: -r.get('ms', 0))[:8]   # E2：用时最长的几项（会话里量前后用时靠它）
           print("::notice title=用时最长::" + "、".join(f"{r['id']} {r.get('ms', 0) // 1000}s" for r in slow) + f"；合计 {sum(r.get('ms', 0) for r in rs) // 1000}s")
           for r in bad[:10]:
-              msg = '；'.join(r.get('why', []) + [x for x in r.get('summary', []) if 'FAIL' in x][:8]).replace('\n', ' ')[:3000]
+              msg = '；'.join(r.get('why', []) + r.get('fails', [])).replace('\n', ' ')[:3000]   # fails = 具体的 FAIL / 报错行（run_all 记的）
               print(f"::error title={r['id']}::{msg}")
           PY
 

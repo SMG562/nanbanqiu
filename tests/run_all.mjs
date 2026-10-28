@@ -155,7 +155,8 @@ if (LIST.some(t => t.id === 'static/lint')) {
 }
 if (LIST.some(t => t.suite === 'pg')) {
   const base = '/usr/lib/postgresql', hasPg = !!process.env.NBQ_PGBIN || (fs.existsSync(base) && fs.readdirSync(base).some(v => fs.existsSync(path.join(base, v, 'bin', 'initdb'))));
-  need(hasPg, '真实数据库测试需要 PostgreSQL 15/16 和 PostGIS。安装：apt install postgresql postgresql-16-postgis-3（或设置 NBQ_PGBIN）；暂时跳过：--only=static,schema,frontend,admin,regression');
+  const hasGis = !!process.env.NBQ_PGBIN || (fs.existsSync('/usr/share/postgresql') && fs.readdirSync('/usr/share/postgresql').some(v => fs.existsSync(path.join('/usr/share/postgresql', v, 'extension', 'postgis.control'))));
+  need(hasPg && hasGis, '真实数据库测试需要 PostgreSQL 15/16 和 PostGIS（' + (hasPg ? '缺 PostGIS' : '缺 PostgreSQL') + '）。一条命令装好：bash tools/setup_env.sh（或 apt install postgresql postgresql-16-postgis-3，或设置 NBQ_PGBIN）；暂时跳过：--only=static,schema,frontend,admin,regression');
   const pd = path.join(CACHE, 'pg');
   if (!fs.existsSync(path.join(pd, 'node_modules', 'pg'))) {
     fs.mkdirSync(pd, { recursive: true }); fs.copyFileSync(path.join(HERE, 'pg', 'package.json'), path.join(pd, 'package.json'));
@@ -214,7 +215,10 @@ async function check(t) {
   }
   const ok = !why.length;
   fs.writeFileSync(path.join(LOGS, t.id.replace(/\//g, '__') + '.log'), body + '\n');
-  results.push({ suite: t.suite, id: t.id, ok, ms: r.ms, exit: r.code, why, note: snap, summary: (body.match(/^.*(passed|PASS|issues=|RESULT|runs \d+).*$/gm) || []).slice(-3) });
+  // 失败时：具体哪几条 FAIL / 报错（CI 注解和 summary.md 用，不用再下日志或本地复现）；没有 FAIL 行（崩溃、超时）就取输出最后几行
+  const fl = ok ? [] : (body.match(/^.*(FAIL|Error|[1-9]\d* failed).*$/gm) || []).map(l => l.trim().slice(0, 400));
+  const fails = ok ? [] : fl.length ? fl.slice(0, 8) : body.split('\n').filter(l => l.trim()).slice(-6).map(l => l.trim().slice(0, 300));
+  results.push({ suite: t.suite, id: t.id, ok, ms: r.ms, exit: r.code, why, fails, note: snap, summary: (body.match(/^.*(passed|PASS|issues=|RESULT|runs \d+).*$/gm) || []).slice(-3) });
   console.log(`${t.id.padEnd(40)} ${ok ? '通过' : '失败'}  ${(r.ms / 1000).toFixed(0)}s${snap ? '  · ' + snap : ''}${ok ? '' : '\n    ' + why.join('\n    ')}`);
 }
 {
@@ -231,7 +235,7 @@ const nFail = results.filter(r => !r.ok).length;
 const md = [`# 南伴球测试报告 · ${STAMP}`, '', `模式：${QUICK ? '快速' : '完整'}　结果：**${nFail ? nFail + ' 项失败' : '全部通过'}**（${results.length} 项）`, '',
   '## 被测文件', '', '| 文件 | sha256（前 16 位） |', '|---|---|', ...files.map(f => `| ${f} | \`${sha(f)}\` |`), '',
   '## 结果', '', '| 套件 | 测试 | 结果 | 用时 | 说明 |', '|---|---|---|---|---|',
-  ...results.map(r => `| ${r.suite} | ${r.id} | ${r.ok ? '通过' : '**失败**'} | ${(r.ms / 1000).toFixed(0)}s | ${r.ok ? (r.note || r.summary.join(' · ').replace(/\|/g, '/')) : r.why.join('；').replace(/\|/g, '/')} |`),
+  ...results.map(r => `| ${r.suite} | ${r.id} | ${r.ok ? '通过' : '**失败**'} | ${(r.ms / 1000).toFixed(0)}s | ${r.ok ? (r.note || r.summary.join(' · ').replace(/\|/g, '/')) : r.why.concat(r.fails.slice(0, 3)).join('；').replace(/\|/g, '/')} |`),
   '', `日志：logs/ 目录；快照差异：logs/*.diff.txt`].join('\n');
 fs.writeFileSync(path.join(OUT, 'summary.md'), md + '\n');
 fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ stamp: STAMP, quick: QUICK, dir: DIR, files: Object.fromEntries(files.map(f => [f, sha(f)])), results }, null, 2));

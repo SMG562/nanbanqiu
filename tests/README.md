@@ -20,6 +20,8 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 
 ## 1. 环境
 
+**一条命令装齐**：`bash tools/setup_env.sh`（ESLint、pglast、PostgreSQL 16 + PostGIS、提交前检查；已装的跳过，`--check` 只检查）。下表是各项单独怎么装。
+
 | 需要 | 用途 | 安装 |
 |---|---|---|
 | Node.js ≥ 18 | 全部 | — |
