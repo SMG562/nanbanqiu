@@ -100,7 +100,7 @@ const CARDSRC={
   '添加到主屏幕':[['pwa_install_funnel()'],'在手机浏览器里用过的球友'],'微信 / 小红书里的球友去哪了':[['inapp_handoff_funnel()'],'按登录后的用户 ID 串起不同环境'],
   '系统':[['env_usage()'],'按会话'],'主屏幕用户 vs 手机浏览器用户':[['env_usage()','v_counted_games'],''],'电脑':[['env_usage()'],'浏览器，按会话'],
  },
- review:{'#venues':[['venue_suggestions'],'用户提交的球场；已被使用 = 提交人发局时用过几次'],'#reports':[['reports'],'站内 + 邮件录入'] },
+ review:{'#venues':[['venue_suggestions'],'用户提交的球场；已被使用 = 提交人发局时用过几次'],'#reports':[['reports'],'站内 + 邮件录入'],'#sideline':[['sb_photos','reports','sb_posts','sb_replies'],'场边：被打码送审的照片（自动识别可疑 / 被举报）+ 场边举报（reports.via = sideline）'] },
  safety:{
   '看到球友约定':[['events'],'pact_view(via=gate)'],'同意约定':[['events'],'pact_accept'],'举报':[['reports'],''],'屏蔽':[['blocks'],''],'高风险用户':[['user_risk','risk_alerts'],'风险分 ≥ 60'],'需要看一下':[['risk_alerts'],'待处理'],
   '潜在风险用户':[['user_risk','risk_rules','risk_alerts'],'风险分 = 满足的规则权重之和，≥30 列出'],'处理阶梯':[['user_status_log'],''],'风险规则':[['risk_rules','user_risk'],'现在满足的人'],

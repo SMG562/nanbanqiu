@@ -644,6 +644,11 @@
   - POST /admin/api/sideline/config/rollback `{version, base, note?}` → `admin_sb_config_rollback` → 新版本号（记 from_version，说明默认「退回到 vN」）；没发布的草稿一起清掉。
   - GET /admin/api/sideline/versions → `admin_sb_config_versions(limit)` → 每版 `{version, note, published_by, published_at, from_version, changed[]}`
   - POST /admin/api/sideline/topics/:id/release → `admin_sb_topic_release(id)`（提前放出，不走版本；只负责部分城市的只能放自己城市的）
+- 后台审核（待审核页「场边」；A1）：后台对场边表只读，写操作一律走函数。
+  - POST /admin/api/sideline/posts/:id/hide `{hide, reason}` → `admin_sb_post_hide(post, hide, reason)`（`message.hide`，要理由；只负责部分城市的只能管自己城市）：hide = true → 别人看不到、作者仍在相册看到，`hidden_reason` 作者能看到；hide = false → 恢复。不存在或作者已删 404 `not_found`。
+  - POST /admin/api/sideline/replies/:id/hide `{hide, reason}` → `admin_sb_reply_hide`（同上；回复数自动重算）。
+  - POST /admin/api/sideline/photos/:post/:idx/review `{action: keep|remove}` → `admin_sb_photo_review`（`report.handle`）：只处理 `review = blurred`（自动识别可疑 / 被举报「不当照片」）的；keep → ok，remove → removed（别人看不到、作者看得到）；记审核人和时间，之后不再被自动改；不是待审核状态 409 `state_changed`。
+  - 举报本身的状态仍用 `admin_report_handle`；操作日志 target = `sbpost:<id>` / `sbreply:<id>` / `sbphoto:<id>:<idx>`。
 - 话题规则：配置里没列出的常驻 / 限时 → 下线（话题不删，旧帖子还挂着）；大家发起的列进来写成常驻 = 转为常驻（不能改成限时）；下线的话题还被时段 / 周历用着 → `config:slots:topic` / `config:week:topic`。
 - 每次成功的操作记 admin_audit_log（action = sideline.config，target = draft:<块> / discard / publish / rollback:<版本> / 话题 id；发布记说明和改了哪几块）。
 - 「雨停了」暂不做（10-27）：话题和特别安排都在，不上线。

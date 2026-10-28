@@ -114,6 +114,7 @@ add('admin', 'admin/notif', ['node', '-r', PRELOAD, path.join(HERE, 'admin/notif
 add('admin', 'admin/xss', ['node', '-r', PRELOAD, path.join(HERE, 'admin/xss.js')], { pass: [/ALL PASS admin-xss/], timeout: 600 });
 add('admin', 'admin/roles', ['node', '-r', PRELOAD, path.join(HERE, 'admin/roles.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/cities', ['node', '-r', PRELOAD, path.join(HERE, 'admin/cities.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
+add('admin', 'admin/sideline', ['node', '-r', PRELOAD, path.join(HERE, 'admin/sideline.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 // 4b 夏令时：开始当天（10-04，23 小时）与结束当天（04-04，25 小时）
 for (const t of ['2026-10-04T21:30:00+11:00', '2027-04-04T09:00:00+10:00']) add('admin', 'admin/dst@' + t.slice(5, 10), ['node', '-r', PRELOAD, path.join(HERE, 'admin/dst.js')], { env: { NBQ_TS: t }, pass: [/\d+ passed, 0 failed/], timeout: 300 });
 if (!QUICK) for (const t of ['2026-10-04T21:30:00+11:00', '2027-04-04T09:00:00+10:00']) add('admin', 'admin/consist@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/consist.js')], { env: { NBQ_TS: t }, pass: [/ALL PASS/], timeout: 900 });

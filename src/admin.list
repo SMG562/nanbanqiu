@@ -12,6 +12,7 @@ admin/style/0090-实时动态.css
 admin/style/0100-留存.css
 admin/style/0110-提示.css
 admin/style/0120-B1.css
+admin/style/0130-场边.css
 admin/page/0020-页面.html
 admin/script/0010-开头.js
 admin/script/0020-南伴球_运营后台.js
@@ -35,4 +36,10 @@ admin/script/0190-第三批_3d_2.js
 admin/script/0200-第三批_3e.js
 admin/script/0210-第三批之后_提醒去了哪里.js
 admin/script/0220-第五批_5c.js
+admin/script/0230-场边_配置与演示数据.js
+admin/script/0240-场边_数据页.js
+admin/script/0250-场边_配置页.js
+admin/script/0260-场边_编辑话题.js
+admin/script/0270-场边_并入与交互.js
+admin/script/0280-场边_待审核.js
 admin/page/0030-结尾.html

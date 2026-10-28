@@ -1,5 +1,5 @@
 // 第七批 S4：场边配置下发（schema ㉕ 末尾）。后台改草稿 → 发布成版本 → 前台读 sb_config(版本号)；退回；操作留痕；权限；
-//   以及两份设计稿（南伴球_场边设计稿_v35.html、南伴球_后台_场边.html）和数据库第 1 版配置是同一份（话题、问题、开头、时段、周历、设置……）
+//   以及前台设计稿（南伴球_场边设计稿_v35.html）、正式后台（南伴球_后台.html 里场边四页的配置，A1 并入）和数据库第 1 版配置是同一份（话题、问题、开头、时段、周历、设置……）
 import fs from 'fs'; import vm from 'vm'; import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
 import { startCluster, loadSchema } from './cluster.mjs';
 const require = createRequire(import.meta.url); const pg = require('pg');
@@ -28,29 +28,29 @@ try {
   const v1 = (await one(`select * from sb_config_versions where version = 1`));
   T('建库时存了第 1 版（设计稿 v35）', !!v1 && v1.note === '初始配置（设计稿 v35）' && +(await one(`select count(*) n from sb_config_versions`)).n === 1);
   T('第 1 版 = 正式配置表导出', J(v1.config) === J(await cfg()));
-  const A = fs.readFileSync(path.join(DIR, '南伴球_后台_场边.html'), 'utf8'), F = fs.readFileSync(path.join(DIR, '南伴球_场边设计稿_v35.html'), 'utf8');
+  const A = fs.readFileSync(path.join(DIR, '南伴球_后台.html'), 'utf8'), F = fs.readFileSync(path.join(DIR, '南伴球_场边设计稿_v35.html'), 'utf8');
   const grab = (h, name, end) => { const i = h.indexOf(`const ${name}=`); if (i < 0) return null; const j = h.indexOf(end, i); return vm.runInNewContext('(' + h.slice(i + name.length + 7, j + end.length - 1) + ')') };
-  const AT = grab(A, 'TOPICS', '];'), FT = grab(F, 'TOPICS', '}};'), C = v1.config;
-  const ed = C.topics.filter(t => t.id !== 'rain');   // 雨停了 暂不做（10-27），后台设计稿里也没有这个话题
+  const AT = grab(A, 'SB_TOPICS', '];'), FT = grab(F, 'TOPICS', '}};'), C = v1.config;
+  const ed = C.topics.filter(t => t.id !== 'rain');   // 雨停了 暂不做（10-27），后台页面里也没有这个话题
   const at = AT.filter(t => t.kind !== '大家发起');
-  T('后台设计稿的话题（常驻 + 限时）= 数据库：名字、说明、问题、开头、照片标签、上线、推荐、顺序',
+  T('后台页面的话题（常驻 + 限时）= 数据库：名字、说明、问题、开头、照片标签、上线、推荐、顺序',
     J(at.map(t => [t.id, t.t, t.q, t.ask, t.fills, t.photo, t.on, t.sug])) === J([...ed].sort((a, b) => at.findIndex(x => x.id === a.id) - at.findIndex(x => x.id === b.id)).map(t => [t.id, t.title, t.intro, t.ask, t.starters, t.photo_tags, t.active, t.suggest])),
     { 设计稿: at.map(t => t.id), 数据库: ed.map(t => t.id) });
-  T('后台设计稿的限时话题起止 = 数据库（设计稿写最后一天）', (() => { const a = at.find(t => t.id === 'ao'), d = ed.find(t => t.id === 'ao'); return a.from === '2027-01-12' && +new Date(d.starts_at) === +new Date('2027-01-12T00:00:00+11:00') && +new Date(d.ends_at) === +new Date(a.to + 'T00:00:00+11:00') + 86400000 })());
+  T('后台页面的限时话题起止 = 数据库（设计稿写最后一天）', (() => { const a = at.find(t => t.id === 'ao'), d = ed.find(t => t.id === 'ao'); return a.from === '2027-01-12' && +new Date(d.starts_at) === +new Date('2027-01-12T00:00:00+11:00') && +new Date(d.ends_at) === +new Date(a.to + 'T00:00:00+11:00') + 86400000 })());
   const fe = Object.entries(FT).filter(([, t]) => !t.user);
   T('前台设计稿 v35 的常驻话题 = 数据库（名字、说明、问题、开头）', fe.length === 10 && fe.every(([id, t]) => { const d = ed.find(x => x.id === id); return d && d.kind === 'evergreen' && d.title === t.t && d.intro === t.q && d.ask === t.ask && J(d.starters) === J(t.fills) }),
     fe.filter(([id, t]) => { const d = ed.find(x => x.id === id); return !(d && d.title === t.t && d.intro === t.q && d.ask === t.ask && J(d.starters) === J(t.fills)) }).map(x => x[0]));
-  T('相似词、太宽的词 = 后台设计稿', J([...grab(A, 'ALIAS', '];')].sort()) === J(C.alias) && J([...grab(A, 'GENERIC', '];')].sort()) === J(C.generic));
-  const R = grab(A, 'RULES', '};'), S = grab(A, 'SET', '};'), st = C.settings;
-  T('设置 = 后台设计稿（名字长短、门槛、沉下去、轮播间隔、停留、推荐几个、问题字数）', R.min === st.name_min && R.max === st.name_max && R.people === st.release_people && R.days === st.release_days && R.sink === st.sink_days
+  T('相似词、太宽的词 = 后台页面', J([...grab(A, 'SB_ALIAS', '];')].sort()) === J(C.alias) && J([...grab(A, 'SB_GENERIC', '];')].sort()) === J(C.generic));
+  const R = grab(A, 'SB_RULES', '};'), S = grab(A, 'SB_SET', '};'), st = C.settings;
+  T('设置 = 后台页面（名字长短、门槛、沉下去、轮播间隔、停留、推荐几个、问题字数）', R.min === st.name_min && R.max === st.name_max && R.people === st.release_people && R.days === st.release_days && R.sink === st.sink_days
     && S.every === st.hint_every && S.hold === st.hint_hold && S.sugN === st.suggest_n && S.hlen === st.hint_max_len, { R, S, st });
-  T('周历 = 后台设计稿（话题 / 本周最热、说明）', J(grab(A, 'WEEK', '];').map(w => [w[1], w[2]])) === J(C.week.map(w => [w.auto_hot ? '@hot' : w.topic_id, w.note])));
+  T('周历 = 后台页面（话题 / 本周最热、说明）', J(grab(A, 'SB_WEEK', '];').map(w => [w[1], w[2]])) === J(C.week.map(w => [w.auto_hot ? '@hot' : w.topic_id, w.note])));
   T('周日隔周轮换的是 #实用网球好物（设计稿写在说明里）', C.week[6].alt_topic_id === 'good' && /实用网球好物/.test(C.week[6].note));
-  T('时段 = 后台设计稿 = 前台设计稿', J(grab(A, 'SLOTS', '];').map(s => [s.n, s.f, s.to, s.tp])) === J(C.slots.map(s => [s.name, s.from, s.to, s.topics])) && J(grab(F, 'SLOTT', '];')) === J(C.slots.map(s => s.topics)));
-  T('底栏问题 = 后台设计稿（通用、失物、球场 3 句含白天 / 晚上）', J([...grab(A, 'GENQ', '];').map(g => ['', g.t]), ...grab(A, 'COURTQ', '];').map(q => [q.day ? 'day' : q.night ? 'night' : 'any', q.t])])
+  T('时段 = 后台页面 = 前台设计稿', J(grab(A, 'SB_SLOTS', '];').map(s => [s.n, s.f, s.to, s.tp])) === J(C.slots.map(s => [s.name, s.from, s.to, s.topics])) && J(grab(F, 'SLOTT', '];')) === J(C.slots.map(s => s.topics)));
+  T('底栏问题 = 后台页面（通用、失物、球场 3 句含白天 / 晚上）', J([...grab(A, 'SB_GENQ', '];').map(g => ['', g.t]), ...grab(A, 'SB_COURTQ', '];').map(q => [q.day ? 'day' : q.night ? 'night' : 'any', q.t])])
     === J([...C.hints.filter(h => h.kind !== 'court').map(h => ['', h.text]), ...C.hints.filter(h => h.kind === 'court').map(h => [h.daypart, h.text])]));
-  T('球场 / 失物开头 = 后台设计稿', J(grab(A, 'COURTF', '];')) === J(C.starters.court) && J(grab(A, 'LOSTF', '];')) === J(C.starters.lost));
-  T('特别安排：澳网 = 设计稿；雨停了 暂不做（不上线）', (() => { const e = grab(A, 'EVENTS', '];')[0], s = C.specials.find(x => x.topic_id === 'ao'), r = C.specials.find(x => x.trigger === 'rain');
+  T('球场 / 失物开头 = 后台页面', J(grab(A, 'SB_COURTF', '];')) === J(C.starters.court) && J(grab(A, 'SB_LOSTF', '];')) === J(C.starters.lost));
+  T('特别安排：澳网 = 设计稿；雨停了 暂不做（不上线）', (() => { const e = grab(A, 'SB_EVENTS', '];')[0], s = C.specials.find(x => x.topic_id === 'ao'), r = C.specials.find(x => x.trigger === 'rain');
     return e.id === 'ao' && s.active && +new Date(s.starts_at) === +new Date(e.from + 'T00:00:00+11:00') && +new Date(s.ends_at) === +new Date(e.to + 'T00:00:00+11:00') + 86400000 && r && !r.active })());
 
   // ---------- 前台读 ----------

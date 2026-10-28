@@ -4,6 +4,7 @@ import { startCluster, loadSchema } from './cluster.mjs';
 const require = createRequire(import.meta.url); const pg = require('pg');
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
+const J0 = JSON.stringify;
 const c = startCluster(); let pool;
 try {
   c.createdb('nbq');
@@ -100,9 +101,47 @@ try {
   T('话题：自己发起、还没上线的自己看得到，别人看不到', (await ids(U.A, `select id from sb_topics`)).includes('u_a1') && !(await ids(U.B, `select id from sb_topics`)).includes('u_a1'));
   // 后台
   T('后台只读看不到发帖明细', denied(await as('nbq_viewer', null, `select * from sb_posts`)));
-  T('后台运营能看、能隐藏，不能改正文', (await as('nbq_admin', null, `select count(*) from sb_posts`)).ok && (await as('nbq_admin', null, `update sb_posts set status='hidden', hidden_reason='广告' where id='${P.blk}'`)).ok
-    && denied(await as('nbq_admin', null, `update sb_posts set body='改' where id='${P.pub}'`)));
-  T('后台运营能给照片打码 / 拿掉', (await as('nbq_admin', null, `update sb_photos set review='blurred', flagged_by='admin' where post_id='${P.pub}' and idx=0`)).ok);
+  // A1：场边表后台一律只读，隐藏发布 / 回复、照片审核走 admin_sb_ 函数（和球友 / 举报一致）
+  T('后台运营能看，不能直接改（隐藏、改正文、照片审核、隐藏回复都要走函数）', (await as('nbq_admin', null, `select count(*) from sb_posts`)).ok
+    && denied(await as('nbq_admin', null, `update sb_posts set status='hidden', hidden_reason='广告' where id='${P.blk}'`))
+    && denied(await as('nbq_admin', null, `update sb_posts set body='改' where id='${P.pub}'`))
+    && denied(await as('nbq_admin', null, `update sb_photos set review='blurred', flagged_by='admin' where post_id='${P.pub}' and idx=0`))
+    && denied(await as('nbq_admin', null, `update sb_replies set status='hidden'`)));
+  const mkAdm = async (email, role, cities = null) => (await one(`insert into admin_users(email,name,role,password_hash,totp_secret,cities) values ($1,$2,$3,'x','x',$4) returning id`, [email, email.split('@')[0], role, cities])).id;
+  const AO = await mkAdm('sb-o@x.com', 'owner'), AM = await mkAdm('sb-m@x.com', 'operator', ['melb']), AY = await mkAdm('sb-y@x.com', 'operator', ['syd']), AV = await mkAdm('sb-v@x.com', 'viewer');
+  const asA = async (adm, sql, params) => { const cl = await pool.connect();
+    try { await cl.query('begin'); await cl.query(`set local role nbq_admin`); await cl.query(`select set_config('nbq.admin', $1, true)`, [adm]);
+      const r = await cl.query(sql, params); await cl.query('commit'); return { ok: true, rows: r.rows } }
+    catch (e) { await cl.query('rollback').catch(() => { }); return { ok: false, err: e.message, detail: e.detail } } finally { cl.release() } };
+  const isErr = (r, code) => !r.ok && r.err === code;
+  const hide = (adm, id, h, why) => asA(adm, `select admin_sb_post_hide($1, $2, $3)`, [id, h, why]);
+  T('隐藏发布：要理由（至少 4 个字）', isErr(await hide(AO, P.pub, true, ''), 'admin_reason_required') && isErr(await hide(AO, P.pub, true, '广'), 'admin_reason_required') && (await one(`select status from sb_posts where id=$1`, [P.pub])).status === 'visible');
+  T('隐藏发布：只读不行', isErr(await hide(AV, P.pub, true, '广告内容'), 'admin_forbidden'));
+  T('隐藏发布：只负责悉尼的不能管墨尔本的', isErr(await hide(AY, P.pub, true, '广告内容'), 'admin_forbidden') && (await hide(AM, P.pub, true, '广告内容')).ok);
+  T('隐藏发布：状态 + 理由 + 操作日志（message.hide，对象 sbpost:）', (await one(`select status, hidden_reason from sb_posts where id=$1`, [P.pub])).status === 'hidden'
+    && (await one(`select hidden_reason from sb_posts where id=$1`, [P.pub])).hidden_reason === '广告内容'
+    && +(await one(`select count(*) n from admin_audit_log where action='message.hide' and target=$1`, [`sbpost:${P.pub}`])).n === 1);
+  T('隐藏发布：恢复（不用理由也要 4 个字，记日志），理由清掉', (await hide(AO, P.pub, false, '误判，已恢复')).ok && (await one(`select status, hidden_reason from sb_posts where id=$1`, [P.pub])).status === 'visible' && (await one(`select hidden_reason from sb_posts where id=$1`, [P.pub])).hidden_reason === null);
+  T('隐藏发布：不存在 / 自己删掉的 → not_found', isErr(await hide(AO, '00000000-0000-0000-0000-000000000000', true, '广告内容'), 'not_found') && isErr(await hide(AO, P.del, true, '广告内容'), 'not_found'));
+  await hide(AO, P.blk, true, '广告内容');   // 和原来的状态一致：P.blk 被后台隐藏
+  const RP = (await one(`select id from sb_replies where body='B 的回复'`)).id;
+  T('隐藏回复：要理由；隐藏后别人看不到、回复数少一条；恢复', isErr(await asA(AO, `select admin_sb_reply_hide($1, true, '')`, [RP]), 'admin_reason_required')
+    && (await asA(AO, `select admin_sb_reply_hide($1, true, '人身攻击')`, [RP])).ok && !(await ids(null, `select body from sb_replies`)).includes('B 的回复')
+    && (await asA(AO, `select admin_sb_reply_hide($1, false, '误判，恢复')`, [RP])).ok && (await ids(null, `select body from sb_replies`)).includes('B 的回复'));
+  T('隐藏回复：只读不行；不存在 → not_found', isErr(await asA(AV, `select admin_sb_reply_hide($1, true, '人身攻击')`, [RP]), 'admin_forbidden') && isErr(await asA(AO, `select admin_sb_reply_hide(999999, true, '人身攻击')`), 'not_found'));
+  // 照片审核：只处理 blurred
+  const phr = (adm, idx, a) => asA(adm, `select admin_sb_photo_review($1, $2, $3)`, [P.pub, idx, a]);
+  await q(`update sb_photos set review='blurred', flagged_by='report' where post_id=$1 and idx=0`, [P.pub]);
+  T('照片审核：动作只能是 keep / remove；只读不行；别的城市不行', isErr(await phr(AO, 0, 'x'), 'invalid') && isErr(await phr(AV, 0, 'keep'), 'admin_forbidden') && isErr(await phr(AY, 0, 'keep'), 'admin_forbidden'));
+  T('照片审核：保留 → ok，记审核人和时间，来源（举报）不变；再审一次 → state_changed', (await phr(AM, 0, 'keep')).ok
+    && J0(await one(`select review, flagged_by, reviewed_by = $2::uuid as by, reviewed_at is not null as at from sb_photos where post_id=$1 and idx=0`, [P.pub, AM])) === J0({ review: 'ok', flagged_by: 'report', by: true, at: true })
+    && isErr(await phr(AM, 0, 'keep'), 'state_changed'));
+  await q(`update sb_photos set review='blurred', flagged_by=null, reviewed_at=null, reviewed_by=null where post_id=$1 and idx=0`, [P.pub]);
+  T('照片审核：拿掉 → removed（来源没有记录时记 admin）；没送审的（已拿掉的）→ state_changed', (await phr(AO, 0, 'remove')).ok
+    && (await one(`select review, flagged_by from sb_photos where post_id=$1 and idx=0`, [P.pub])).review === 'removed' && (await one(`select flagged_by from sb_photos where post_id=$1 and idx=0`, [P.pub])).flagged_by === 'admin'
+    && isErr(await phr(AO, 1, 'keep'), 'state_changed'));
+  T('照片审核记操作日志（report.handle，对象 sbphoto:）', +(await one(`select count(*) n from admin_audit_log where action='report.handle' and target like 'sbphoto:%'`)).n === 2);
+  await q(`update sb_photos set review='blurred', flagged_by='admin', reviewed_at=null, reviewed_by=null where post_id=$1 and idx=0`, [P.pub]);   // 和原来的状态一致：第一张被打码
   // 举报（S2b 起：只能举报自己看得到的；U.B 对 P.pub 点了不感兴趣，所以用 U.H）
   const rep = (uid, t, tid, reason, via = 'sideline') => as('nbq_user', uid, `insert into reports(reporter_id,target_type,target_id,reason,source,via) values ('${uid}','${t}','${tid}','${reason}','in_app','${via}')`);
   T('场边举报：不当照片 / 虚假交易 / 骚扰 / 其他（不要求写说明）', (await rep(U.H, 'sb_post', P.pub, 'photo')).ok && (await rep(U.C, 'sb_post', P.pub, 'other')).ok);

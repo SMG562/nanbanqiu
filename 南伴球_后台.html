@@ -26,7 +26,7 @@ svg.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-wid
 #app{display:none;min-height:100%}
 .side{position:fixed;inset:0 auto 0 0;width:224px;background:var(--sf);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;z-index:5}
 .side .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px}.side .brand svg{width:32px;height:32px}.side .brand b{font-size:16px}.side .brand span{display:block;font-size:11px;color:var(--mut);font-weight:500;letter-spacing:.04em}
-.nav{display:flex;flex-direction:column;gap:2px}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0;overflow-y:auto}   /* 页面多了，导航自己滚动（A1 加了场边 4 页后「城市」落到屏幕外） */
 .nav button{display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border-radius:10px;color:var(--ink2);font-weight:600;font-size:13.5px;text-align:left}
 .nav button:hover{background:var(--hover)}.nav button.on{background:var(--gw);color:var(--g)}
 .nav button i{margin-left:auto;font-style:normal;font-size:11px;font-weight:700;background:var(--crit);color:#fff;border-radius:99px;padding:0 6px;line-height:18px}
@@ -191,6 +191,111 @@ table.clk tbody tr{cursor:pointer}
 .hm{grid-template-columns:28px repeat(17,minmax(0,1fr))}.search{max-width:100%}[style*="display:flex"]>.search{width:0;min-width:0}
 .pill.ev-sv{background:rgba(42,120,214,.1);color:var(--c1)}
 @media(max-width:600px){.fs{grid-template-columns:84px 1fr 92px!important;gap:8px}.lad{grid-template-columns:1fr}.ud-k{grid-template-columns:repeat(2,1fr)}.search{width:100%}.ch .r{margin-left:0;flex-wrap:wrap}}
+/* ===== 场边 24h · 后台模块 ===== */
+.sbnote{display:flex;gap:10px;align-items:flex-start;background:var(--gw);border-radius:14px;padding:12px 14px;font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:16px}
+.sbnote b{color:var(--g)}
+.kpis6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+@media (max-width:1280px){.kpis6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.trend svg{width:100%;height:220px;display:block}
+.trend .ax{font-size:10.5px;fill:var(--mut)}
+.trend .gl{stroke:var(--line)}
+.sbhm{display:grid;grid-template-columns:28px repeat(24,minmax(0,1fr));gap:3px;font-size:10.5px;color:var(--mut);align-items:center}
+.sbhm i{display:block;aspect-ratio:1.4;border-radius:3px;background:var(--g)}
+.sbhm span{text-align:center}
+.thumb{width:40px;height:40px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:10px;color:#fff;font-weight:700}
+.thumb.tx{background:var(--sf2);color:var(--mut)}
+.pst{display:flex;gap:10px;align-items:center;max-width:340px}.pst p{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.pst small{color:var(--mut);font-size:11.5px;display:block}
+.sbfn{display:flex;flex-direction:column;gap:8px}
+.sbfn .st{display:grid;grid-template-columns:120px 1fr 70px;gap:10px;align-items:center;font-size:12.5px}
+.sbfn .st .t{height:26px;background:var(--sf2);border-radius:6px;overflow:hidden}.sbfn .st .t i{display:block;height:100%;background:var(--g);border-radius:6px}
+.sbfn .st b{text-align:right}
+.flag{color:#9A6A00;font-weight:600}
+.sbm{font-size:11.5px;color:var(--mut)}
+.tq2{font-size:12.5px;color:var(--ink2)}
+.stc{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)}
+.stc span{display:flex;gap:8px;align-items:center}.stc em{font-style:normal;color:var(--mut);margin-left:auto;font-variant-numeric:tabular-nums}
+/* 开关 */
+.tg{width:36px;height:21px;border-radius:11px;background:#CBD2CD;position:relative;flex:none;transition:background .2s;cursor:pointer;border:0}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .2s}
+.tg.on{background:var(--g)}.tg.on::after{transform:translateX(15px)}
+/* 抽屉 */
+.scrim{position:fixed;inset:0;background:rgba(16,24,20,.28);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drw{position:fixed;top:0;right:0;bottom:0;width:min(880px,96vw);background:var(--bg);z-index:41;transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-30px 0 60px -40px rgba(0,0,0,.4)}
+.drw.on{transform:none}
+.drw .dh{display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--line);background:var(--sf)}
+.drw .dh b{font-size:16px;margin-right:auto}
+.drw .db{flex:1;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;padding:22px}
+.fld{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.fld>label{font-size:12px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:8px}
+.fld>label small{font-weight:500;color:var(--mut)}
+.fld input[type=text],.fld input[type=number],.fld input[type=date],.fld select,.fld textarea{height:38px;border:1px solid var(--line);background:var(--sf);border-radius:10px;padding:0 12px;font:inherit;font-size:13.5px;color:var(--ink);outline:none;width:100%}
+.fld textarea{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--g);box-shadow:0 0 0 3px var(--gw)}
+.fld .cnt{font-size:11px;color:var(--mut);margin-left:auto;font-weight:500}
+.fld .cnt.bad{color:var(--crit)}
+.fld .warn{font-size:11.5px;color:#9A6A00}
+.srow{display:flex;gap:6px;align-items:center}
+.srow input{flex:1}
+.srow button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--sf);color:var(--mut);display:grid;place-items:center;font-size:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tags span{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 6px 0 11px;border-radius:99px;background:var(--sf2);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink2)}
+.tags span button{width:18px;height:18px;border-radius:50%;color:var(--mut);display:grid;place-items:center}
+.tags input{height:28px;border:1px dashed var(--line);border-radius:99px;padding:0 11px;font:inherit;font-size:12.5px;width:120px;outline:none;background:var(--sf)}
+.opt{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.opt div{flex:1}.opt b{font-size:13px;font-weight:600;display:block}.opt small{font-size:11.5px;color:var(--mut)}
+/* 预览手机 */
+.pv{position:sticky;top:0;align-self:start}
+.pv .lb{font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.08em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.ph{width:280px;height:540px;border-radius:38px;background:#121514;padding:9px;box-shadow:0 30px 50px -30px rgba(0,0,0,.45)}
+.ph .sc{width:100%;height:100%;border-radius:30px;background:#F4F2EE;position:relative;overflow:hidden;font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;color:#17181A}
+.ph .tb{display:flex;justify-content:space-between;align-items:center;padding:38px 14px 8px;font-size:12px;color:#4B4D49}
+.ph .tb b{background:#17181A;color:#fff;border-radius:14px;padding:4px 12px;font-size:11.5px}
+.ph .ct{margin:6px 16px 0;font-size:12px;font-weight:600;color:#1E5A44}.ph .ct.off{color:#A3A5A0}
+.ph .pl{margin:4px 16px 0;font-size:17px;font-weight:500;color:#B4B6B1;min-height:50px;line-height:1.4}
+.ph .ss{margin:6px 16px 0}.ph .ss p{font-size:13px;color:#8E908B;padding:8px 0;border-bottom:1px solid rgba(20,21,22,.07)}.ph .ss p:last-child{border:0}
+.ph .ss .sg{font-size:12.5px;padding:8px 0;border-bottom:1px solid rgba(20,21,22,.07);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ph .ss .sg b{color:#1E5A44;margin-right:8px}.ph .ss .sg span{color:#A3A5A0}
+.ph .bt{position:absolute;left:0;right:0;bottom:0;padding:10px 14px 18px;border-top:1px solid rgba(20,21,22,.07);background:#F4F2EE;display:flex;gap:8px}
+.ph .bt span{height:28px;padding:0 11px;border-radius:14px;background:rgba(20,21,22,.05);font-size:11.5px;display:grid;place-items:center;color:#4B4D49}
+.ph .fe{padding:40px 12px 0}
+.ph .fe h4{font-size:17px;margin:4px 4px 10px}
+.ph .card2{background:rgba(255,255,255,.55);border-radius:14px;padding:12px;margin-bottom:8px;font-size:12.5px}
+.ph .card2 small{display:block;color:#9A9C97;font-size:10.5px;margin-top:6px}
+.ph .bar2{position:absolute;left:10px;right:10px;bottom:16px;height:40px;border-radius:20px;background:#fff;box-shadow:0 10px 24px -14px rgba(0,0,0,.4);display:flex;align-items:center;padding:0 14px;font-size:13px;color:#A3A5A0;gap:8px}
+.ph .bar2 em{font-style:normal;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;transition:opacity .3s}
+.ph .bar2 i{font-style:normal;font-size:10.5px;background:rgba(20,21,22,.05);border-radius:10px;padding:3px 8px;color:#4B4D49}
+.pvtabs{display:flex;gap:4px;margin-bottom:10px}
+.pvtabs button{height:26px;padding:0 10px;border-radius:13px;font-size:11.5px;font-weight:600;color:var(--mut);border:1px solid var(--line);background:var(--sf)}.pvtabs button.on{background:var(--ink);color:var(--sf);border-color:var(--ink)}
+/* 排期 */
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.wk .d{background:var(--sf);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.wk .d.today{border-color:var(--g);box-shadow:0 0 0 2px var(--gw)}
+.wk .d h4{font-size:12px;color:var(--mut);display:flex;justify-content:space-between}
+.wk .d select{height:34px;border:1px solid var(--line);border-radius:9px;padding:0 8px;font:inherit;font-size:12.5px;font-weight:600;background:var(--sf2);color:var(--ink);width:100%}
+.wk .d input{height:30px;border:1px solid var(--line);border-radius:8px;padding:0 8px;font:inherit;font-size:12px;background:var(--sf);width:100%}
+.wk .d .sbm b{color:var(--ink)}
+.sbev{display:grid;grid-template-columns:150px 1fr 220px 100px;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+/* 文案 */
+.ql{display:flex;flex-direction:column}
+.qi{display:grid;grid-template-columns:22px minmax(0,1fr) 120px 90px 36px 30px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.qi:first-child{border-top:0}
+.qi input{height:34px;border:1px solid transparent;border-radius:8px;padding:0 10px;font:inherit;font-size:13.5px;background:transparent;color:var(--ink);width:100%}
+.qi input:hover{border-color:var(--line)}.qi input:focus{border-color:var(--g);background:var(--sf);outline:none}
+.qi .h{color:var(--mut);cursor:grab;text-align:center}
+.qi .x{color:var(--mut);width:28px;height:28px;border-radius:8px}
+.slot{display:grid;grid-template-columns:110px 130px minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+.slot select{height:34px;border:1px solid var(--line);border-radius:9px;padding:0 8px;font:inherit;font-size:12.5px;background:var(--sf);width:100%}
+.slot .tm{display:flex;gap:4px;align-items:center;color:var(--mut)}.slot .tm input{width:44px;height:30px;border:1px solid var(--line);border-radius:8px;text-align:center;font:inherit;font-size:12.5px}
+.ver{display:flex;flex-direction:column;gap:0}
+.ver div{display:grid;grid-template-columns:70px 1fr auto;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px;align-items:center}
+.ver div:first-child{border-top:0}
+.pubbar{position:sticky;bottom:0;z-index:3;margin-top:16px;background:var(--sf);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 -10px 30px -24px rgba(0,0,0,.3)}
+.pubbar span{font-size:12.5px;color:var(--ink2);margin-right:auto}.pubbar b{color:#9A6A00}
+.toast2{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--ink);color:var(--sf);padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;z-index:60;pointer-events:none}
+.toast2.on{opacity:1;transform:translate(-50%,0)}
+.ph0{padding:60px;text-align:center;color:var(--mut)}
+@media (max-width:900px){.wk{grid-template-columns:repeat(2,minmax(0,1fr))}.sbev{grid-template-columns:1fr;gap:4px}}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="logo" viewBox="0 0 100 100"><clipPath id="lgclip"><rect width="100" height="100" rx="24"/></clipPath><g clip-path="url(#lgclip)"><defs><linearGradient id="lgf1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E7E59"/><stop offset="1" stop-color="#0E5139"/></linearGradient><radialGradient id="lgf1v" cx="30%" cy="18%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="100" height="100" fill="url(#lgf1)"/><rect width="100" height="100" fill="url(#lgf1v)"/><defs><mask id="lgf2" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><circle cx="67" cy="66" r="19.7" fill="#000"/></mask></defs><g mask="url(#lgf2)"><g transform="translate(40 40)"><defs><radialGradient id="lgf3g" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#EEFB9A"/><stop offset=".45" stop-color="#D3EE4C"/><stop offset=".85" stop-color="#B9DA30"/><stop offset="1" stop-color="#9EC021"/></radialGradient> <filter id="lgf3s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.38"/></filter> <filter id="lgf3f" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.54" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35"/><feComposite in2="SourceGraphic" operator="in"/></filter> <clipPath id="lgf3c"><circle r="26"/></clipPath></defs> <circle cx="1.56" cy="4.42" r="25.48" fill="#03140D" opacity="0.36" filter="url(#lgf3s)"/><circle r="26" fill="url(#lgf3g)"/><g clip-path="url(#lgf3c)"><rect x="-26" y="-26" width="52" height="52" fill="#fff" opacity="0.22" filter="url(#lgf3f)"/><g transform="rotate(-22)"><g transform="translate(0 0.65)"><path d="M-17.40 -19.32 C-7.80 -8.84 -7.80 8.84 -17.40 19.32" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="3.90" stroke-linecap="round"/><path d="M17.40 -19.32 C7.80 -8.84 7.80 8.84 17.40 19.32" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="3.90" stroke-linecap="round"/></g><path d="M-17.40 -19.32 C-7.80 -8.84 -7.80 8.84 -17.40 19.32" fill="none" stroke="#FBFDF3" stroke-width="2.21" stroke-linecap="round"/><path d="M17.40 -19.32 C7.80 -8.84 7.80 8.84 17.40 19.32" fill="none" stroke="#FBFDF3" stroke-width="2.21" stroke-linecap="round"/></g> <ellipse cx="-8.32" cy="-10.40" rx="10.92" ry="6.76" fill="#fff" opacity=".24" transform="rotate(-28 -8.32 -10.40)" filter="url(#lgf3s)"/> <circle r="25.6" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/></g></g></g><g transform="translate(67 66)"><defs><radialGradient id="lgf4g" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#EEFB9A"/><stop offset=".45" stop-color="#D3EE4C"/><stop offset=".85" stop-color="#B9DA30"/><stop offset="1" stop-color="#9EC021"/></radialGradient> <filter id="lgf4s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.15"/></filter> <filter id="lgf4f" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35"/><feComposite in2="SourceGraphic" operator="in"/></filter> <clipPath id="lgf4c"><circle r="16.5"/></clipPath></defs> <circle cx="0.99" cy="2.81" r="16.169999999999998" fill="#03140D" opacity="0.42" filter="url(#lgf4s)"/><circle r="16.5" fill="url(#lgf4g)"/><g clip-path="url(#lgf4c)"><rect x="-16.5" y="-16.5" width="33" height="33" fill="#fff" opacity="0.22" filter="url(#lgf4f)"/><g transform="rotate(28)"><g transform="translate(0 0.41)"><path d="M-11.04 -12.26 C-4.95 -5.61 -4.95 5.61 -11.04 12.26" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="2.48" stroke-linecap="round"/><path d="M11.04 -12.26 C4.95 -5.61 4.95 5.61 11.04 12.26" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="2.48" stroke-linecap="round"/></g><path d="M-11.04 -12.26 C-4.95 -5.61 -4.95 5.61 -11.04 12.26" fill="none" stroke="#FBFDF3" stroke-width="1.40" stroke-linecap="round"/><path d="M11.04 -12.26 C4.95 -5.61 4.95 5.61 11.04 12.26" fill="none" stroke="#FBFDF3" stroke-width="1.40" stroke-linecap="round"/></g> <ellipse cx="-5.28" cy="-6.60" rx="6.93" ry="4.29" fill="#fff" opacity=".24" transform="rotate(-28 -5.28 -6.60)" filter="url(#lgf4s)"/> <circle r="16.1" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/></g></g></g></symbol></defs></svg>
 
@@ -223,8 +328,10 @@ table.clk tbody tr{cursor:pointer}
       </div>
     </div>
     <div id="page"></div>
+    <div class="pubbar" id="pub" style="display:none"><span>引导文案有 <b id="pubn">0</b> 处改动还没发布。发布前在右边预览里看一眼。</span><button class="btn" data-discard>放弃</button><button class="btn p" data-publish>发布</button></div>
   </main>
 </div>
+<div class="scrim" id="scrim"></div><aside class="drw" id="drw"></aside>
 <div id="tip"></div>
 <script>
 // 页面报错上报（5d）：只有错误信息和位置，不含用户内容；同一条只报一次、每页最多 20 条 → POST /api/client-errors → client_error_log()
@@ -1599,10 +1706,10 @@ function pageVenues6(){const all=VENUES.map(v=>({v,a:vA(v)})),ok=all.filter(x=>x
   return head+need+rank+db}
 
 /* ---------- 待审核 ---------- */
-function pageReview(){const pend=VENUES.filter(v=>v[6]==='pending'),f=S.tab2==='reports'?'reports':'venues',ago=v=>v[0]==='v17'?'2 小时前':v[0]==='v48'?'昨天':'3 天前';
+function pageReview(){const pend=VENUES.filter(v=>v[6]==='pending'),f=S.tab2==='reports'?'reports':S.tab2==='sideline'?'sideline':'venues',ago=v=>v[0]==='v17'?'2 小时前':v[0]==='v48'?'昨天':'3 天前';
   const dup=v=>v[0]==='v17';
-  return `<div class="card"><div class="tabs"><button class="${f==='venues'?'on':''}" data-tab2="venues">用户提交的球场 ${pend.length?`(${pend.length})`:''}</button><button class="${f==='reports'?'on':''}" data-tab2="reports">举报 (${S.reports.filter(r=>r.status==='open').length})</button></div>
-  ${f==='venues'?(pend.length?`<table><thead><tr><th>球场全称 / 简称</th><th>所在区</th><th>场地类型</th><th>提交人</th><th class="r">已被使用</th><th>系统检查</th><th></th></tr></thead><tbody>${pend.map(v=>{const a=vA(v);return `<tr><td><b style="font-weight:600">${esc(v[1])}</b><br><small style="color:var(--mut)">${esc(v[2])}</small></td><td>${esc(v[3])} <small style="color:var(--mut)">${VPC[v[3]]||''}</small></td><td>${(a.surf.length?a.surf:['hard']).map(s=>VSURF[s]).join(' / ')}</td><td>${esc(v[5]||'')}<br><small style="color:var(--mut)">${ago(v)}</small></td><td class="r num">${V3HEAT(v[0])} 局</td>
+  return `<div class="card"><div class="tabs"><button class="${f==='venues'?'on':''}" data-tab2="venues">用户提交的球场 ${pend.length?`(${pend.length})`:''}</button><button class="${f==='reports'?'on':''}" data-tab2="reports">举报 (${S.reports.filter(r=>r.status==='open').length})</button><button class="${f==='sideline'?'on':''}" data-tab2="sideline">场边 (${sbReviewOpen()})</button></div>
+  ${f==='sideline'?sbReviewPane():f==='venues'?(pend.length?`<table><thead><tr><th>球场全称 / 简称</th><th>所在区</th><th>场地类型</th><th>提交人</th><th class="r">已被使用</th><th>系统检查</th><th></th></tr></thead><tbody>${pend.map(v=>{const a=vA(v);return `<tr><td><b style="font-weight:600">${esc(v[1])}</b><br><small style="color:var(--mut)">${esc(v[2])}</small></td><td>${esc(v[3])} <small style="color:var(--mut)">${VPC[v[3]]||''}</small></td><td>${(a.surf.length?a.surf:['hard']).map(s=>VSURF[s]).join(' / ')}</td><td>${esc(v[5]||'')}<br><small style="color:var(--mut)">${ago(v)}</small></td><td class="r num">${V3HEAT(v[0])} 局</td>
     <td>${dup(v)?'<span class="pill w">150 m 内有相似球场</span>':'<span class="pill g">地址可定位</span>'}</td><td><div class="rowacts"><button class="btn sm p" data-act="vok" data-id="${v[0]}">通过</button><button class="btn sm" data-act="vmerge" data-id="${v[0]}">合并</button><button class="btn sm" data-act="vno" data-id="${v[0]}">驳回</button></div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">都处理完了 ✓</div>')
   :`<table><thead><tr><th>举报人</th><th>对象</th><th>类型</th><th>来源</th><th>原因</th><th>时间</th><th>状态</th><th></th></tr></thead><tbody>${S.reports.map(r=>`<tr><td>${esc(r.who)}</td><td><b style="font-weight:600">${esc(r.target)}</b></td><td>${r.type}</td><td>${REP_SRC(r)}</td><td>${REP_RC[r.rc]||'其他'}${r.note?`<br><small style="color:var(--mut)">${esc(r.note)}</small>`:''}</td><td>${r.at}</td><td>${r.status==='open'?'<span class="pill w">待处理</span>':r.status==='actioned'?'<span class="pill g">已处理</span>':'<span class="pill">已忽略</span>'}</td>
     <td>${r.status==='open'?`<div class="rowacts"><button class="btn sm" data-adm="msgs" data-id="${r.id}">查看对话</button><button class="btn sm p" data-act="rok" data-id="${r.id}">处理</button><button class="btn sm" data-act="rno" data-id="${r.id}">忽略</button></div>`:''}</td></tr>`).join('')}</tbody></table>`}</div>
@@ -1743,7 +1850,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-udg]');if(
 USERS.forEach(u=>u.lv=b1lv(u));
 function b1sync(){RISK.forEach(r=>{const u=USERS.find(x=>x.id===r.uid);if(u&&['limited','suspended','banned','review'].includes(u.st)&&(r.st==='open'||r.st==='watching'))r.st='handled'})}
 document.addEventListener('click',e=>{if(e.target.closest('[data-udgo]'))setTimeout(()=>{b1sync();drawNav()},0)});
-function drawNav(){b1sync();const rv=S.pending+S.reports.filter(r=>r.status==='open').length,rk=RISK.filter(r=>r.st==='open').length;
+function drawNav(){b1sync();const rv=S.pending+S.reports.filter(r=>r.status==='open').length+sbReviewOpen(),rk=RISK.filter(r=>r.st==='open').length;
   $('#nav').innerHTML=PAGES.map(p=>p[0]==='h'?`<div class="navh">${p[1]}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${p[0]}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]}</svg>${p[1]}${p[0]==='review'&&rv?`<i>${rv}</i>`:p[0]==='safety'&&rk?`<i>${rk}</i>`:''}</button>`).join('');
   $('#rng').innerHTML=RANGES.map(r=>`<button class="${S.range===r[0]?'on':''}" data-rg="${r[0]}">${r[1]}</button>`).join('');
   $('#plat').innerHTML=[['all','全部设备'],['pwa','手机'],['web','电脑']].map(p=>`<button class="${S.plat===p[0]?'on':''}" data-pl="${p[0]}" title="按设备：事件的 device 字段">${p[1]}</button>`).join('')}
@@ -1751,7 +1858,7 @@ function drawNav(){b1sync();const rv=S.pending+S.reports.filter(r=>r.status==='o
 /* ---------- 渲染 ---------- */
 function b1wrap(root){root.querySelectorAll('table').forEach(t=>{const p=t.parentElement;if(!p||p.classList.contains('tw')||p.style.overflowX==='auto')return;const w=document.createElement('div');w.className='tw';p.insertBefore(w,t);w.appendChild(t)})}
 function render(){b1sync();drawNav();$('#pt').textContent=TITLES[S.page];
-  const P={regions:pageRegions7,games:pageGames,env:pageEnv,users:pageUsers3,venues:pageVenues8,platform:pagePlatform,traffic:pageTraffic,safety:pageSafety6,overview:pageOverview,cards:pageCards6,growth:pageGrowth,review:pageReview,events:pageEvents,admin:pageAdmin,cities:pageCities,life:pageLife,after:pageAfter,grow:pageGrow}[S.page]||pageOverview;
+  const P={regions:pageRegions7,games:pageGames,env:pageEnv,users:pageUsers3,venues:pageVenues8,platform:pagePlatform,traffic:pageTraffic,safety:pageSafety6,overview:pageOverview,cards:pageCards6,growth:pageGrowth,review:pageReview,events:pageEvents,admin:pageAdmin,cities:pageCities,life:pageLife,after:pageAfter,grow:pageGrow,sb:pageSb,stopic:pageSbTopic,ssched:pageSbSched,sguide:pageSbGuide}[S.page]||pageOverview;
   SEED=20261002+S.range*7+(S.plat==='pwa'?3:S.plat==='web'?5:0);$('#page').innerHTML=P();b1wrap($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));
   const one=S.range===1,days=one?HIST.slice(-14):inRange(),lab=(x,i,a)=>`${md(x.d)} 周${WD[x.d.getDay()]}${one&&i===a.length-1?'（今天，截至现在）':''}`,m=METRICS.find(x=>x[0]===S.metric)||METRICS[0];
   if($('#trend'))lineChart($('#trend'),days.map((x,i,a)=>[md(x.d),x[m[0]]*PFm(m[0]),lab(x,i,a)]),m[1],v=>fmt(v),one);
@@ -2790,7 +2897,7 @@ const CARDSRC={
   '添加到主屏幕':[['pwa_install_funnel()'],'在手机浏览器里用过的球友'],'微信 / 小红书里的球友去哪了':[['inapp_handoff_funnel()'],'按登录后的用户 ID 串起不同环境'],
   '系统':[['env_usage()'],'按会话'],'主屏幕用户 vs 手机浏览器用户':[['env_usage()','v_counted_games'],''],'电脑':[['env_usage()'],'浏览器，按会话'],
  },
- review:{'#venues':[['venue_suggestions'],'用户提交的球场；已被使用 = 提交人发局时用过几次'],'#reports':[['reports'],'站内 + 邮件录入'] },
+ review:{'#venues':[['venue_suggestions'],'用户提交的球场；已被使用 = 提交人发局时用过几次'],'#reports':[['reports'],'站内 + 邮件录入'],'#sideline':[['sb_photos','reports','sb_posts','sb_replies'],'场边：被打码送审的照片（自动识别可疑 / 被举报）+ 场边举报（reports.via = sideline）'] },
  safety:{
   '看到球友约定':[['events'],'pact_view(via=gate)'],'同意约定':[['events'],'pact_accept'],'举报':[['reports'],''],'屏蔽':[['blocks'],''],'高风险用户':[['user_risk','risk_alerts'],'风险分 ≥ 60'],'需要看一下':[['risk_alerts'],'待处理'],
   '潜在风险用户':[['user_risk','risk_rules','risk_alerts'],'风险分 = 满足的规则权重之和，≥30 列出'],'处理阶梯':[['user_status_log'],''],'风险规则':[['risk_rules','user_risk'],'现在满足的人'],
@@ -2877,8 +2984,8 @@ function notifCard(){const C=X3.ctx(),{dk}=MM().range,L=N3().filter(n=>n.t>=C.t0
  *   页面上不能做的按钮置灰并说明需要什么角色；需要理由的操作先填理由（至少 4 个字，记进操作日志）；
  *   真实环境里服务端同样拦（admin_ 函数），这里只是让管理员一眼看清。演示：登录页选身份
  * ===================================================================== */
-const ADMIN_PERMS=[["page.view","查看统计和名单",["owner","operator","viewer"],false],["audit.view","查看操作日志",["owner","operator"],false],["user.status","待核实 / 受限 / 暂停 / 恢复正常",["owner","operator"],true],["user.ban","永久封禁、恢复已封禁或已注销的账号",["owner"],true],["user.reset","重置昵称 / 头像",["owner","operator"],true],["user.gender","性别：清除 / 解除男改女限制",["owner","operator"],true],["user.notify","给球友发通知",["owner","operator"],false],["phone.reveal","查看完整手机号",["owner"],true],["report.handle","处理举报",["owner","operator"],false],["message.read","查看被举报的对话",["owner","operator"],true],["message.hide","隐藏消息 / 评价",["owner","operator"],true],["venue.review","审核球场",["owner","operator"],false],["risk.handle","处理风险提醒",["owner","operator"],false],["data.export","导出统计（不含用户 ID）",["owner","operator"],false],["data.export_ids","导出带用户 ID 的数据",["owner"],true],["rules.edit","修改风险 / 频率规则",["owner"],true],["admin.manage","管理管理员",["owner"],true],["city.manage","城市上线状态和资料",["owner"],true],["city.waitlist","导出「开放时通知我」名单",["owner"],true]];
-const ADMIN_ERR={"admin_bad_login":"邮箱、密码或验证码不对","admin_locked":"输错次数太多，请 15 分钟后再试","admin_session_expired":"登录已过期，请重新登录","admin_forbidden":"你的角色不能做这件事","admin_reason_required":"请填写理由（至少 4 个字）","admin_last_owner":"至少要保留一位超级管理员","admin_city_not_ready":"这个城市还没准备好：检查清单里还有没通过的项"};
+const ADMIN_PERMS=[["page.view","查看统计和名单",["owner","operator","viewer"],false],["audit.view","查看操作日志",["owner","operator"],false],["user.status","待核实 / 受限 / 暂停 / 恢复正常",["owner","operator"],true],["user.ban","永久封禁、恢复已封禁或已注销的账号",["owner"],true],["user.reset","重置昵称 / 头像",["owner","operator"],true],["user.gender","性别：清除 / 解除男改女限制",["owner","operator"],true],["user.notify","给球友发通知",["owner","operator"],false],["phone.reveal","查看完整手机号",["owner"],true],["report.handle","处理举报",["owner","operator"],false],["message.read","查看被举报的对话",["owner","operator"],true],["message.hide","隐藏消息 / 评价",["owner","operator"],true],["venue.review","审核球场",["owner","operator"],false],["risk.handle","处理风险提醒",["owner","operator"],false],["data.export","导出统计（不含用户 ID）",["owner","operator"],false],["data.export_ids","导出带用户 ID 的数据",["owner"],true],["rules.edit","修改风险 / 频率规则",["owner"],true],["admin.manage","管理管理员",["owner"],true],["city.manage","城市上线状态和资料",["owner"],true],["city.waitlist","导出「开放时通知我」名单",["owner"],true],["sideline.config","场边：改话题、引导文案、排期，发布 / 退回版本",["owner","operator"],false]];
+const ADMIN_ERR={"admin_bad_login":"邮箱、密码或验证码不对","admin_locked":"输错次数太多，请 15 分钟后再试","admin_session_expired":"登录已过期，请重新登录","admin_forbidden":"你的角色不能做这件事","admin_reason_required":"请填写理由（至少 4 个字）","admin_last_owner":"至少要保留一位超级管理员","admin_city_not_ready":"这个城市还没准备好：检查清单里还有没通过的项","admin_config_stale":"别人刚发布了新版本，请刷新后再改"};
 const ROLE_NAME={owner:'超级管理员',operator:'运营',viewer:'只读'},ROLE_WHO={owner:'Han',operator:'Amy',viewer:'Leo'};
 const VIEWER_PAGES=new Set(['overview','cards','games','venues','regions','life','after','grow','traffic','growth','platform','env','events']);   // 只读：只看统计（数据库 nbq_viewer 读不到球友、举报、风险）；页面上的昵称换成「某球友」
 S.role=S.role||'owner';
@@ -2892,7 +2999,7 @@ function admAction(t){
   const g=t.closest('[data-udg]');if(g&&g.dataset.udg==='clear')return {a:'user.gender',label:'清除性别'};
   if(g&&g.dataset.udg==='unlock')return {a:'user.gender',noReason:true};
   if(g&&g.dataset.udg==='unlockgo')return {a:'user.gender',reasonFrom:'udgWhy'};
-  const ac=t.closest('[data-act]');if(ac){const k=ac.dataset.act;if(/^v(ok|no|merge)$/.test(k))return {a:'venue.review'};if(/^r(ok|no)$/.test(k))return {a:'report.handle'};if(k==='rk')return {a:'risk.handle'}}
+  const ac=t.closest('[data-act]');if(ac){const k=ac.dataset.act;if(/^v(ok|no|merge)$/.test(k))return {a:'venue.review'};if(/^r(ok|no)$/.test(k)||/^sb(pk|px|ro|rd)$/.test(k))return {a:'report.handle'};if(k==='sbrh')return {a:'message.hide',label:'隐藏被举报的场边内容'};if(k==='rk')return {a:'risk.handle'}}
   if(t.closest('[data-rkst],[data-rkgo]'))return {a:'risk.handle'};
   if(t.closest('[onclick="exportCSV()"]'))return S.page==='users'?{a:'data.export_ids',label:'导出球友名单（含编号和昵称）'}:{a:'data.export'};
   const ad=t.closest('[data-adm]');if(ad)return {a:{phone:'phone.reveal',msgs:'message.read',invite:'admin.manage',cyst:'city.manage',cywl:'city.waitlist',cywd:'city.waitlist'}[ad.dataset.adm],label:ad.dataset.label||ad.textContent.trim(),own:true};
@@ -2989,4 +3096,316 @@ function citySel(){const sel=document.getElementById('citySel');if(!sel)return;c
   sel.style.display='';sel.innerHTML=`<option value="all">全部城市</option>`+open.map(c=>`<option value="${c.key}">${esc(c.zh)}</option>`).join('');sel.value=open.some(c=>c.key===S.city)?S.city:'all';S.city=sel.value;
   sel.onchange=()=>{S.city=sel.value;render()}}
 const _cityRender=render;render=function(){const r=_cityRender.apply(this,arguments);citySel();return r};
+/* =====================================================================
+ * 第八批 A1：场边 24h 后台四页（场边数据 · 话题 · 今日推荐排期 · 引导文案）并入正式后台
+ *   原设计稿 南伴球_后台_场边.html（第七批，已并入，稿子不再单独维护）。
+ *   配置（话题 / 相似词 / 太宽的词 / 规则 / 周历 / 特别安排 / 问题 / 时段 / 设置）的结构 = 数据库 sb_config 第 1 版；
+ *   演示数据：统计是模拟的；配置改了只留在页面里。真实环境：读 admin_sb_config_draft()，写 admin_sb_config_set / _discard / _publish / _rollback，
+ *   提前放出话题 admin_sb_topic_release；每个写操作带页面上看到的版本号，别人刚发布过 → admin_config_stale。
+ *   权限：写操作要 sideline.config（超级管理员、运营）；只读能看，不能改。操作记进操作日志（action = sideline.config）。
+ * ===================================================================== */
+const SB={tab:'all',topicSort:'posts',courtSort:'posts',edit:null,dirty:0,slot:2,tr:'posts'};
+
+/* ---------- 可配置的内容（与前端 v35 的数据结构一一对应） ---------- */
+const SB_TOPICS=[
+ {id:'ootd',t:'网球人的OOTD',kind:'常驻',q:'今天穿什么上场？拍一张发上来。',ask:'今天穿什么上场？',fills:['今天这身是','第一次穿网球裙上场，','这双鞋终于到了，'],photo:['穿搭','鞋'],on:true,sug:true},
+ {id:'brain',t:'脑子会了，身体没会',kind:'常驻',q:'教学视频看了十遍，手还是不听话。',ask:'今天哪个动作又没跟上？',fills:['看了十遍教学视频，','教练说的我都懂，就是','今天的反手又'],photo:[],on:true,sug:true},
+ {id:'dopa',t:'多巴胺太爽了',kind:'常驻',q:'那一拍打出去的时候。',ask:'今天哪一拍最爽？',fills:['今天终于赢了一盘，','第一次发球直接得分，','打了两个小时，'],photo:[],on:true,sug:true},
+ {id:'pet',t:'带着宠物去打球',kind:'常驻',q:'来看球的、来捡球的，都算。',ask:'今天带它来了吗？',fills:['今天带狗狗来看球，','它在场边乖乖等了','它捡球比我还积极，'],photo:['宠物'],on:true,sug:true},
+ {id:'trip',t:'带着球拍去旅行',kind:'常驻',q:'换一座城市，换一块场。',ask:'这次带球拍去了哪？',fills:['这次旅行带上了球拍，','出门在外也没忘了打球，','找到一块海边的球场，'],photo:['风景'],on:true,sug:true},
+ {id:'gear',t:'我的新装备',kind:'常驻',q:'新拍子、新鞋、新手胶，拆开的那一刻。',ask:'最近换了什么装备？',fills:['换了新拍子，','新鞋第一次上场，','纠结了一个月，终于入手了'],photo:['球拍','球包'],on:true,sug:true},
+ {id:'spot',t:'宝藏球场',kind:'常驻',q:'人少、灯亮、地面好，悄悄分享。',ask:'最近发现了哪块好场？',fills:['发现一块宝藏球场：','这块场人少，而且','周末不用抢的场：'],photo:['球场'],on:true,sug:true},
+ {id:'good',t:'实用网球好物',kind:'常驻',q:'不贵，但真的好用。',ask:'最近离不开的小东西？',fills:['用了就回不去的：','十几块钱买的','球包里一定会带的'],photo:[],on:true,sug:true},
+ {id:'sunset',t:'场边的晚霞',kind:'常驻',q:'最后一局，抬头看一眼。',ask:'今天的晚霞……',fills:['打完最后一局，抬头','今天的晚霞','夜场的灯亮起来的时候，'],photo:['晚霞'],on:true,sug:true},
+ {id:'love',t:'别人在恋爱，而我在打球',kind:'常驻',q:'周末的约会对象：一块场，一筐球。',ask:'周末和网球约会了吗？',fills:['这个周末的约会对象，是','别人在约会，我在','今天又和球拍待了一下午，'],photo:['影子'],on:true,sug:true},
+ {id:'ao',t:'AO来了',kind:'限时',q:'墨尔本的一月，全城都在看球。',ask:'今年去看 AO 了吗？',fills:['今年的 AO，','在场边看到了','回家第一件事是'],photo:[],on:false,sug:true,from:'2027-01-12',to:'2027-02-01'},
+ {id:'u2',t:'下班后的夜场',kind:'大家发起',by:'阿杰',q:'',ask:'',fills:[],photo:[],on:true,sug:false,people:41},
+ {id:'u1',t:'反手终于开窍了',kind:'大家发起',by:'Yuki',q:'',ask:'',fills:[],photo:[],on:true,sug:false,people:23},
+ {id:'u3',t:'第一次打红土',kind:'大家发起',by:'Mia',q:'',ask:'',fills:[],photo:[],on:true,sug:false,people:12},
+ {id:'u4',t:'周末夜场',kind:'大家发起',by:'Leo',q:'',ask:'',fills:[],photo:[],on:true,sug:false,people:2,pending:true},
+ {id:'u5',t:'雨后的红土',kind:'大家发起',by:'安安',q:'',ask:'',fills:[],photo:[],on:true,sug:false,people:1,pending:true},
+];
+const SB_ALIAS=[['神仙球场','spot'],['好场','spot'],['穿搭','ootd'],['宠物','pet'],['狗','pet'],['旅行','trip'],['装备','gear'],['好物','good'],['日落','sunset'],['学不会','brain']];
+const SB_GENERIC=['网球','墨尔本','打球','运动','日常','tennis','健身','生活'];
+const SB_RULES={min:2,max:12,people:3,days:7,sink:30};
+const SB_WEEK=[['周一','dopa','周末的余温'],['周二','gear','周末刚买的'],['周三','@hot','大家发起的本周最热'],['周四','spot','为周末找场'],['周五','ootd','周末前的打扮'],['周六','pet','周末带它出门'],['周日','sunset','和 #实用网球好物 隔周轮换']];
+const SB_EVENTS=[{id:'ao',from:'2027-01-12',to:'2027-02-01',note:'澳网期间每天推荐，盖过周历'},{id:'',name:'第一场雨后',trig:'天气：雨停 2 小时内',ask:'场地干了吗？',note:'自动，最多一天一次'}];
+const SB_GENQ=[{t:'场边有什么新鲜事？',on:true,k:'通用'},{t:'捡到东西了？',on:true,k:'失物招领'}];
+const SB_SLOTS=[{n:'早上',f:5,to:11,tp:['brain','gear']},{n:'中午',f:11,to:16,tp:['good','spot']},{n:'傍晚',f:16,to:20,tp:['sunset','dopa']},{n:'晚上',f:20,to:5,tp:['dopa','love']}];
+const SB_COURTQ=[{t:'{球场} 现在怎么样？',on:true},{t:'{球场} 有空场吗？',on:true,day:true},{t:'{球场} 的灯亮了吗？',on:true,night:true}];
+const SB_COURTF=['{球场} 现在有空场，','{球场} 风好大，','刚下过雨，{球场} 的场地'];
+const SB_LOSTF=['在 {球场} 捡到一个','有没有人在 {球场} 看到一个'];
+const SB_SET={every:4,hold:4,sugN:3,hlen:12};
+const SB_VERS=[['v14','Amy','把周三改成「大家发起的本周最热」','10-24 18:20'],['v13','Han','#脑子会了，身体没会 上线','10-22 11:05'],['v12','Amy','底栏问题：去掉「有拍子要出？」（点进率 0.4%）','10-19 09:40']];
+
+/* ---------- 统计（演示数据，口径见每张卡片下方） ---------- */
+const sbK=()=>S.range===1?1/7:S.range===7?1:S.range===30?4.2:9;
+const SB_COURTS=[['Kooyong Lawn',212],['Glen Iris Park',188],['Albert Park',121],['National Tennis Centre',104],['Hawthorn',77],['Royal South Yarra',58],['Fawkner Park',41],['Melbourne Park',33]];
+const SB_TS=SB_TOPICS.filter(t=>t.kind!=='限时').map((t,i)=>{const base={ootd:262,brain:207,dopa:174,pet:96,trip:58,gear:151,spot:131,good:88,sunset:153,love:186,u2:41,u1:23,u3:12,u4:2,u5:1}[t.id]||10;return {...t,posts:base,people:Math.round(base*.78),balls:Math.round(base*7.4),replies:Math.round(base*1.9),views:Math.round(base*41),grow:{ootd:.18,brain:.42,dopa:.07,pet:.21,trip:.35,gear:-.04,spot:.12,good:.03,sunset:-.08,love:.02,u2:.66,u1:.9,u3:.4}[t.id]??0}});
+const SB_POSTS=[['今天的配色：奶白 + 一点网球绿','ootd','Kooyong Lawn','Lily','outfit',2840,126,18,41],['下午四点的影子，比我打得好看','love','Glen Iris Park','Nana','shadow',2210,64,9,22],['草地刚开，脚感太好了','','Royal South Yarra','Ben','',1960,58,14,3],['教练说的我都懂，就是反手永远慢半拍','brain','Albert Park','Coco','',1720,88,31,6],['发现一块宝藏球场：Fawkner 7 号，晚上没人','spot','Fawkner Park','Ray','court',1650,47,26,19],['新鞋第一次上场，脚后跟磨破了','gear','Hawthorn','阿杰','shoes',1410,39,17,8],['它捡球比我还积极','pet','Kooyong Lawn','Yuki','dog',1380,92,12,27],['在 Kooyong 捡到一个黑色水壶，放前台了','','Kooyong Lawn','Mia','',1120,21,6,0],['打完最后一局，抬头就是这个','sunset','Albert Park','小鹿','sunset',1090,71,4,33],['第一次发球直接得分，记录一下','dopa','National Tennis Centre','Kevin','',980,44,10,2]];
+const SB_PCOL={outfit:'#D9C8AE',shadow:'#5F7068',court:'#5E8A72',shoes:'#7FA79A',dog:'#C9A57E',sunset:'#C88A6B'};
+const SB_QS=[['场边有什么新鲜事？','',12400,.061,.52],['今天穿什么上场？','ootd',9800,.094,.63],['Kooyong 现在怎么样？','court',6100,.072,.71],['今天哪个动作又没跟上？','brain',5200,.081,.58],['最近换了什么装备？','gear',4300,.052,.55],['今天的晚霞……','sunset',3900,.066,.61],['捡到东西了？','lost',3800,.014,.81],['周末和网球约会了吗？','love',3500,.038,.49],['最近离不开的小东西？','good',3100,.029,.44]];
+/* ---------- 场边数据 ---------- */
+const sbTn=id=>{const t=SB_TOPICS.find(x=>x.id===id);return t?'#'+t.t:id==='court'?'球场问题':id==='lost'?'失物招领':'—'};
+function sbSeries(n,base,amp,trend){SEED=Math.round(base*13)+n;return Array.from({length:n},(_,i)=>Math.max(0,base*(1+trend*i/n)+amp*Math.sin(i/1.6)+(rnd()-.5)*amp*1.4))}
+function sbTrend(vals,labels){const W=900,H=220,pl=40,pb=24,mx=Math.max(...vals)*1.15,x=i=>pl+i/(vals.length-1)*(W-pl-28),y=v=>H-pb-(v/mx)*(H-pb-10);
+  const ticks=[0,.25,.5,.75,1].map(f=>mx*f);const step=Math.ceil(labels.length/7);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${ticks.map(t=>`<line class="gl" x1="${pl}" x2="${W-8}" y1="${y(t)}" y2="${y(t)}"/><text class="ax" x="${pl-6}" y="${y(t)+3}" text-anchor="end">${fmt(t)}</text>`).join('')}
+   <path d="M${x(0)},${y(0)} ${vals.map((v,i)=>`L${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')} L${x(vals.length-1)},${y(0)}Z" fill="var(--gw)"/><polyline points="${vals.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="var(--g)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+   ${labels.map((l,i)=>i%step===0||i===labels.length-1?`<text class="ax" x="${x(i)}" y="${H-6}" text-anchor="middle">${l}</text>`:'').join('')}</svg>`}
+const sbBars=(rows,lw=150)=>{const mx=Math.max(...rows.map(r=>r[1]),1);return `<div class="bars" style="--lw:${lw}px">${rows.map(r=>`<div class="bar" ${r[3]||''}><span class="n">${r[0]}</span><span class="t"><i style="width:${(r[1]/mx*100).toFixed(1)}%"></i></span><span class="v num">${r[2]??fmt(r[1])}</span></div>`).join('')}</div>`};
+
+
+/* ---------- 页面：场边数据 ---------- */
+function pageSb(){const k=sbK(),days=S.range===1?24:Math.min(S.range,90),lab=S.range===1?Array.from({length:24},(_,i)=>i+':00'):Array.from({length:days},(_,i)=>{const d=new Date(2026,9,26-days+1+i);return (d.getMonth()+1)+'/'+d.getDate()});
+  const pf=S.plat==='pwa'?.71:S.plat==='web'?.29:1;
+  const kp=[['发布',Math.round(1860*k*pf),.12,'这段时间发出的条数（含 24 小时后已存进相册的）'],['发布的人',Math.round(1140*k*pf),.09,'至少发过一条的人，去重'],['看过场边的人',Math.round(15200*k*pf),.05,'打开过场边这一页的人，去重（含未登录）'],['发布率',.075,.06,'发布的人 ÷ 看过场边的人'],['网球 + 回复',Math.round(16800*k*pf),.14,'点的网球数 + 回复数'],['带照片的',.58,.03,'带照片的发布 ÷ 全部发布']];
+  const kpH=kp.map((x,i)=>`<div class="card kpi"><div class="l">${x[0]} <span class="hp" data-tv="口径" data-tl="${esc(x[3])}">?</span></div><div class="v num">${x[1]<1?pct(x[1]):fmt(x[1])}</div><div class="d ${x[2]>=0?'up':'dn'}">${x[2]>=0?'▲':'▼'} ${pct(Math.abs(x[2]))} 较上一周期</div>${spark(sbSeries(14,40+i*7,6,x[2]))}</div>`).join('');
+  const tv=sbSeries(lab.length,S.range===1?78:265,S.range===1?40:35,.15).map(v=>v*pf*(SB.tr==='views'?8:SB.tr==='balls'?9:1));
+  const ts=[...SB_TS].sort((a,b)=>SB.topicSort==='grow'?b.grow-a.grow:SB.topicSort==='people'?b.people-a.people:SB.topicSort==='balls'?b.balls-a.balls:b.posts-a.posts).slice(0,8);
+  const tval=t=>SB.topicSort==='grow'?t.grow:SB.topicSort==='people'?t.people:SB.topicSort==='balls'?t.balls:t.posts;
+  const cs=[...SB_COURTS].map(c=>({n:c[0],posts:Math.round(c[1]*k*pf),views:Math.round(c[1]*39*k*pf),act:Math.round(c[1]*8.6*k*pf)})).sort((a,b)=>b[SB.courtSort]-a[SB.courtSort]);
+  SEED=11;const hm=Array.from({length:7},(_,d)=>Array.from({length:24},(_,h)=>{const base=(h>=6&&h<=9?.55:0)+(h>=17&&h<=21?1:0)+(h>=11&&h<=13?.3:0)+(d>=5&&h>=8&&h<=17?.7:0);return Math.max(.03,base+(rnd()-.5)*.25)}));const hmx=Math.max(...hm.flat());
+  return `
+  <div class="kpis6">${kpH}</div>
+  <div class="card sec trend"><div class="ch"><b>趋势</b><small>${S.range===1?'今天每小时':'每天'}</small><div class="r chips">${[['posts','发布'],['views','浏览'],['balls','网球'],['replies','回复']].map(c=>`<button class="${(SB.tr||'posts')===c[0]?'on':''}" data-tr="${c[0]}">${c[1]}</button>`).join('')}</div></div>${sbTrend(tv,lab)}</div>
+  <div class="grid g2 sec">
+   <div class="card"><div class="ch"><b>最热闹的话题</b><small>点一个直接去编辑</small><div class="r chips">${[['posts','发布'],['people','参与人'],['balls','网球'],['grow','增长']].map(c=>`<button class="${SB.topicSort===c[0]?'on':''}" data-ts="${c[0]}">${c[1]}</button>`).join('')}</div></div>
+    ${sbBars(ts.map(t=>[`${esc('#'+t.t)}${t.kind==='大家发起'?' <span class="pill nodot">大家发起</span>':''}`,SB.topicSort==='grow'?Math.max(0,t.grow):tval(t)*k,SB.topicSort==='grow'?(t.grow>=0?'▲ ':'▼ ')+pct(Math.abs(t.grow)):fmt(tval(t)*k*pf),`data-edit="${t.id}" style="cursor:pointer"`]),200)}
+    <p class="cap">发布：带这个话题发出的条数；参与人：去重；增长：和上一周期比。#网球人的OOTD 今天是推荐日，会偏高。</p></div>
+   <div class="card"><div class="ch"><b>发布最多的球场</b><small>只算选了球场的发布</small><div class="r chips">${[['posts','发布'],['views','浏览'],['act','互动']].map(c=>`<button class="${SB.courtSort===c[0]?'on':''}" data-cs="${c[0]}">${c[1]}</button>`).join('')}</div></div>
+    ${sbBars(cs.map(c=>[esc(c.n),c[SB.courtSort]]),200)}
+    <p class="cap">${pct(.63)} 的发布选了球场。没选的不计入这里。</p></div>
+  </div>
+  <div class="card sec"><div class="ch"><b>浏览最多的发布</b><small>${S.range===1?'今天':'近 '+S.range+' 天'} · 浏览 = 打开详情或在信息流里停留超过 1 秒</small></div>
+   <table><thead><tr><th>#</th><th>发布</th><th>话题</th><th>球场</th><th class="r">浏览</th><th class="r">网球</th><th class="r">回复</th><th class="r">分享</th><th></th></tr></thead><tbody>
+   ${SB_POSTS.map((p,i)=>`<tr><td class="num">${i+1}</td><td><div class="pst"><span class="thumb ${p[4]?'':'tx'}" style="${p[4]?'background:'+SB_PCOL[p[4]]:''}">${p[4]?'':'文'}</span><div><p>${esc(p[0])}</p><small>${esc(sbWho(p[3]))} · ${i<3?'仍在 24 小时内':'已存进相册'}</small></div></div></td><td>${p[1]?`<span class="pill g">${esc(sbTn(p[1]))}</span>`:'<span class="sbm">—</span>'}</td><td class="sbm">${esc(p[2])}</td><td class="r num"><b>${fmt(p[5]*k*pf)}</b></td><td class="r num">${fmt(p[6]*k*pf)}</td><td class="r num">${fmt(p[7]*k*pf)}</td><td class="r num">${fmt(p[8]*k*pf)}</td><td><div class="rowacts"><button class="btn sm" data-hide="${i}">隐藏</button></div></td></tr>`).join('')}</tbody></table>
+   <p class="cap">「分享」= 生成分享图并存到相册、发到 Instagram 快拍或小红书的次数。只有作者自己能分享。</p></div>
+  <div class="grid g2 sec">
+   <div class="card"><div class="ch"><b>引导有没有用</b><small>从看到底栏的问题，到发出一条</small></div>
+    <div class="sbfn">${[['看到底栏问题',152000],['点进来写',10900],['发出',6900]].map((s,i,a)=>`<div class="st"><span>${s[0]}</span><span class="t"><i style="width:${(s[1]/a[0][1]*100).toFixed(1)}%;min-width:4px"></i></span><b class="num">${i?pct(s[1]/a[i-1][1]):fmt(s[1]*k*pf)}</b></div>`).join('')}</div>
+    <p class="cap" style="margin-top:6px">百分比是相对上一步。发出的里有 <b>54%</b> 用了三行开头。</p>
+    <table style="margin-top:14px"><thead><tr><th>底栏问题</th><th>带出的话题</th><th class="r">展示</th><th class="r">点进率</th><th class="r">写完发出</th><th></th></tr></thead><tbody>
+    ${SB_QS.map(q=>`<tr><td>${esc(q[0])}</td><td class="sbm">${esc(sbTn(q[1]))}</td><td class="r num">${fmt(q[2]*k*pf)}</td><td class="r num ${q[3]<.03?'flag':''}">${pct(q[3])}</td><td class="r num">${pct(q[4])}</td><td>${q[3]<.03?'<span class="pill w">建议换掉</span>':''}</td></tr>`).join('')}</tbody></table>
+    <p class="cap">点进率 = 这句问题正在显示时点进发布页的次数 ÷ 展示次数；低于 3% 标黄。「写完发出」= 点进来后真的发出去的比例。</p></div>
+   <div class="card"><div class="ch"><b>哪些开头被用了</b><small>点了开头的人里，最后发出的比例</small></div>
+    <table><thead><tr><th>话题 · 开头</th><th class="r">被点</th><th class="r">发出</th></tr></thead><tbody>
+    ${SB_TS.filter(t=>t.fills.length).slice(0,6).map((t,ti)=>t.fills.map((f,i)=>{SEED=ti*7+i+3;const c=Math.round((420-ti*40-i*90+rnd()*60)*k*pf),r=.42+rnd()*.38;return `<tr><td>${i===0?`<b>#${esc(t.t)}</b><br>`:''}<span class="tq2">${esc(f)}…</span></td><td class="r num">${fmt(Math.max(3,c))}</td><td class="r num ${r<.5?'flag':''}">${pct(r)}</td></tr>`}).join('')).join('')}
+    </tbody></table><p class="cap">「发出」低于 50% 标黄：大家点了却没写下去，这句开头可能不好接。</p></div>
+  </div>
+  <div class="grid g2 sec">
+   <div class="card"><div class="ch"><b>什么时候最热闹</b><small>发布数，按星期和小时（墨尔本时间）</small></div>
+    <div class="sbhm"><span></span>${Array.from({length:24},(_,h)=>`<span>${h%3===0?h:''}</span>`).join('')}${hm.map((r,d)=>`<span>${'一二三四五六日'[d]}</span>${r.map(v=>`<i style="opacity:${(.08+v/hmx*.92).toFixed(2)}" title="周${'一二三四五六日'[d]} · ${fmt(v*40*k)} 条"></i>`).join('')}`).join('')}</div>
+    <p class="cap">晚上 6–9 点和周末上午最多；底栏的时段问题就是按这个分的，可以在「引导文案」里调时间。</p></div>
+   <div class="card"><div class="ch"><b>发的时候大家怎么选</b></div>
+    ${sbBars([['带话题',.71,'71%'],['选了球场',.63,'63%'],['带照片',.58,'58%'],['2 小时后再公开',.17,'17%'],['关闭回复',.06,'6%'],['24 小时后留给自己',.34,'34%']],150)}
+    <div class="ch" style="margin-top:18px"><b>不想看到的</b><small>越低越好</small></div>
+    ${sbBars([['不感兴趣',212,'212'],['· 少看这一类',96,'96'],['· 少看这个人',41,'41'],['· 离我太远',58,'58'],['屏蔽',19,'19'],['举报',7,'7'],['自己撤回 / 删除',64,'64']].map(r=>[r[0],r[1]*k,r[2]==String(r[1])?fmt(r[1]*k):r[2]]),150)}
+    <p class="cap">举报会进入「待审核」。不感兴趣的原因只用来调排序，不会通知对方。</p></div>
+  </div>`}
+/* ---------- 页面：话题 ---------- */
+function pageSbTopic(){const tabs=[['all','全部'],['常驻','常驻'],['限时','限时'],['大家发起','大家发起'],['pending','还没到门槛'],['off','已下线']];
+  const list=SB_TOPICS.filter(t=>SB.tab==='all'?!t.pending:SB.tab==='pending'?t.pending:SB.tab==='off'?!t.on:t.kind===SB.tab&&!t.pending);
+  const st=id=>SB_TS.find(x=>x.id===id)||{posts:0,people:0,balls:0};
+  return `<div class="card sec" style="margin-top:0"><div class="ch"><b>所有话题</b><small>改完点「保存」，5 分钟内在场边生效</small><div class="r"><input class="search" placeholder="搜话题" style="width:200px" id="tsearch"><button class="btn p" data-new>＋ 新建话题</button></div></div>
+   <div class="tabs">${tabs.map(t=>`<button class="${SB.tab===t[0]?'on':''}" data-tab="${t[0]}">${t[1]}${t[0]==='pending'?` <span class="pill w">${SB_TOPICS.filter(x=>x.pending).length}</span>`:''}</button>`).join('')}</div>
+   <table><thead><tr><th>话题</th><th>类型</th><th>它的问题</th><th>三个开头</th><th class="r">近 7 天发布</th><th class="r">参与人</th><th>上线</th><th></th></tr></thead><tbody>
+   ${list.map(t=>{const s=st(t.id);return `<tr><td><b>#${esc(t.t)}</b>${t.by?`<br><small class="sbm">由 ${esc(sbWho(t.by))} 发起</small>`:''}</td><td><span class="pill ${t.kind==='常驻'?'g':t.kind==='限时'?'w':'nodot'}">${t.kind}</span></td><td class="tq2">${esc(t.ask)||'<span class="sbm">（没有，提示用「说说 #话题」）</span>'}</td><td class="sbm">${t.fills.length?t.fills.length+' 句':'—'}</td>
+     <td class="r num">${t.pending?`${t.people} / ${SB_RULES.people} 人`:fmt(s.posts)}</td><td class="r num">${t.pending?'—':fmt(s.people)}</td><td><button class="tg ${t.on?'on':''}" data-on="${t.id}" aria-label="上线"></button></td>
+     <td><div class="rowacts"><button class="btn sm" data-edit="${t.id}">编辑</button>${t.kind==='大家发起'&&!t.pending?`<button class="btn sm" data-promote="${t.id}">转为常驻</button>`:''}${t.pending?`<button class="btn sm" data-release="${t.id}">提前放出</button>`:''}</div></td></tr>`}).join('')||'<tr><td colspan="8" class="sbm">没有</td></tr>'}</tbody></table>
+   ${SB.tab==='pending'?`<p class="cap">「大家发起」的新话题，7 天内有 ${SB_RULES.people} 个不同的人用过才会出现在「大家在聊」和搜索里。没到门槛前只挂在帖子上。</p>`:''}</div>
+  <div class="grid g2 sec">
+   <div class="card"><div class="ch"><b>相似的合并</b><small>输入时先推荐已有的话题；意思一样的直接并过去</small></div>
+    <table><thead><tr><th>大家输入的词</th><th>推荐 / 并入</th><th></th></tr></thead><tbody>${SB_ALIAS.map((a,i)=>`<tr><td><b>${esc(a[0])}</b></td><td>#${esc(SB_TOPICS.find(t=>t.id===a[1]).t)}</td><td><button class="btn sm" data-ral="${i}">删除</button></td></tr>`).join('')}
+    <tr><td><input class="search" id="alw" placeholder="比如：神仙场" style="width:150px"></td><td><select class="search" id="alt" style="width:200px">${SB_TOPICS.filter(t=>t.kind!=='大家发起').map(t=>`<option value="${t.id}">#${esc(t.t)}</option>`).join('')}</select></td><td><button class="btn sm p" data-aal>添加</button></td></tr></tbody></table></div>
+   <div class="card"><div class="ch"><b>规则</b><small>大家发起话题时</small></div>
+    <div class="fld"><label>太宽的词 <small>不能新建，会提示「换个具体的？」</small></label><div class="tags" id="gen">${SB_GENERIC.map((g,i)=>`<span>${esc(g)}<button data-rgen="${i}">×</button></span>`).join('')}<input placeholder="加一个，回车" id="genin"></div></div>
+    <div class="row2"><div class="fld"><label>名字最短</label><input type="number" value="${SB_RULES.min}" data-rule="min"></div><div class="fld"><label>名字最长</label><input type="number" value="${SB_RULES.max}" data-rule="max"></div></div>
+    <div class="row2"><div class="fld"><label>几个人用过才被看到</label><input type="number" value="${SB_RULES.people}" data-rule="people"></div><div class="fld"><label>在几天内</label><input type="number" value="${SB_RULES.days}" data-rule="days"></div></div>
+    <div class="fld"><label>多少天没人用就沉下去</label><input type="number" value="${SB_RULES.sink}" data-rule="sink"></div></div>
+  </div>`}
+
+/* ---------- 页面：今日推荐排期 ---------- */
+function pageSbSched(){const opts=sel=>`<option value="@hot" ${sel==='@hot'?'selected':''}>大家发起的本周最热（自动）</option>`+SB_TOPICS.filter(t=>t.kind!=='大家发起'&&t.on).map(t=>`<option value="${t.id}" ${sel===t.id?'selected':''}>#${esc(t.t)}</option>`).join('');
+  const last={dopa:[61,48],gear:[44,35],'@hot':[39,30],spot:[52,41],ootd:[88,70],pet:[57,45],sunset:[49,40]};
+  return `<div class="card sec" style="margin-top:0"><div class="ch"><b>每周的固定栏目</b><small>每天 0 点换；今天（周五）的推荐显示在场边的「今日推荐」卡片和底栏问题里</small></div>
+   <div class="wk">${SB_WEEK.map((w,i)=>{const l=last[w[1]]||[0,0];return `<div class="d ${i===4?'today':''}"><h4><span>${w[0]}</span>${i===4?'<span class="pill g">今天</span>':''}</h4><select data-wk="${i}">${opts(w[1])}</select><input value="${esc(w[2])}" data-wkn="${i}" placeholder="一句说明（只给自己看）"><div class="sbm">上周这天：<b>${l[0]}</b> 条 · <b>${l[1]}</b> 人</div></div>`}).join('')}</div>
+   <p class="cap">原则：周一、周日偏一句话，周五、周六偏照片；周三留给大家发起的话题，给发起人一点回报。同一个话题一周只出现一次。</p></div>
+  <div class="card sec"><div class="ch"><b>特别安排</b><small>盖过周历；有起止时间，到点自动开始和结束</small><div class="r"><button class="btn sm p" data-newev>＋ 添加</button></div></div>
+   <div class="sbev" style="border-top:0;font-size:11.5px;color:var(--mut);font-weight:600"><span>话题</span><span>什么时候</span><span>说明</span><span></span></div>
+   <div class="sbev"><b>#AO来了 <span class="pill w">限时</span></b><span class="num">2027-01-12 → 2027-02-01</span><span class="sbm">澳网期间每天推荐</span><span><button class="btn sm" data-edit="ao">编辑</button></span></div>
+   <div class="sbev"><b>#雨停了 <span class="pill nodot">自动</span></b><span>天气：雨停 2 小时内（按球场所在区）</span><span class="sbm">问题「场地干了吗？」，最多一天一次</span><span><button class="tg on" data-x></button></span></div>
+   <div class="sbev"><b>#夏令时的第一个晚场</b><span class="num">2026-10-04（已结束）</span><span class="sbm">212 条 · 160 人</span><span class="sbm">已结束</span></div></div>
+  <div class="sbnote"><b>i</b><span>每天的推荐会同时出现在三个地方：场边信息流里的「今日推荐」卡片、底栏轮播的第二句、发布页「今天想聊点什么」的第一个。改了排期，三个地方一起变。</span></div>`}
+
+/* ---------- 页面：引导文案 ---------- */
+const sbQrow=(q,i,grp,extra='')=>`<div class="qi"><span class="h">⋮⋮</span><input value="${esc(q.t)}" data-q="${grp}:${i}" maxlength="20"><span class="sbm">${extra}</span><span class="sbm ${q.t.replace(/\{球场\}/,'Kooyong').length>SB_SET.hlen||/！|!/.test(q.t)?'flag':''}">${q.t.replace(/\{球场\}/,'Kooyong').length} 字${/！|!/.test(q.t)?' · 有感叹号':''}</span><button class="tg ${q.on?'on':''}" data-qon="${grp}:${i}"></button><button class="x" data-qx="${grp}:${i}">×</button></div>`;
+function pageSbGuide(){const tOpt=sel=>SB_TOPICS.filter(t=>t.on&&t.kind!=='大家发起').map(t=>`<option value="${t.id}" ${sel===t.id?'selected':''}>#${esc(t.t)} · ${esc(t.ask)}</option>`).join('');
+  return `<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start">
+  <div>
+  <div class="card" ><div class="ch"><b>底栏的问题</b><small>浏览时输入框里轮播的那一句。只问此刻，${SB_SET.hlen} 个字以内，不用感叹号</small></div>
+   <div class="row2"><div class="fld"><label>每句停留 <small>秒</small></label><input type="number" value="${SB_SET.every}" data-set="every"></div><div class="fld"><label>换了球场或筛选后，至少停留 <small>秒</small></label><input type="number" value="${SB_SET.hold}" data-set="hold"></div></div>
+   <div class="ch" style="margin:6px 0 0"><b style="font-size:13px">一直会出现的</b></div>
+   <div class="ql">${SB_GENQ.map((q,i)=>sbQrow(q,i,'gen',q.k)).join('')}</div>
+   <div class="ch" style="margin:16px 0 0"><b style="font-size:13px">按时段带出的话题</b><small>每个时段两个话题，用的是话题自己的问题；今日推荐固定在第二句</small></div>
+   ${SB_SLOTS.map((s,i)=>`<div class="slot"><b>${s.n}</b><span class="tm"><input value="${s.f}" data-sf="${i}">–<input value="${s.to}" data-st="${i}">点</span><select data-sl="${i}:0">${tOpt(s.tp[0])}</select><select data-sl="${i}:1">${tOpt(s.tp[1])}</select></div>`).join('')}
+   <div class="ch" style="margin:16px 0 0"><b style="font-size:13px">选了球场时</b><small>{球场} 会换成那块场的名字</small></div>
+   <div class="ql">${SB_COURTQ.map((q,i)=>sbQrow(q,i,'court',q.night?'只在晚上':q.day?'白天':'')).join('')}</div>
+   <p class="cap">排在最前面的先出现；拖动 ⋮⋮ 改顺序。点进率低于 3% 的问题会在「场边数据」里标黄。</p></div>
+
+  <div class="card sec"><div class="ch"><b>不是话题的开头</b><small>从球场问题、失物招领进来时，输入框下面的几行</small></div>
+   <div class="fld"><label>球场</label>${SB_COURTF.map((f,i)=>`<div class="srow" style="margin-bottom:6px"><input type="text" value="${esc(f)}" data-cf="${i}"><button>↑</button><button>↓</button></div>`).join('')}</div>
+   <div class="fld"><label>失物招领 <small>实用的只给两句</small></label>${SB_LOSTF.map((f,i)=>`<div class="srow" style="margin-bottom:6px"><input type="text" value="${esc(f)}" data-lf="${i}"><button>↑</button><button>↓</button></div>`).join('')}</div></div>
+
+  <div class="card sec"><div class="ch"><b>发布页</b></div>
+   <div class="opt" style="border-top:0"><div><b>没带话题进来时，下面给几个话题</b><small>按：和照片相配 → 今日推荐 → 这个时段的话题</small></div><input type="number" value="${SB_SET.sugN}" style="width:64px;height:34px;border:1px solid var(--line);border-radius:9px;text-align:center" data-set="sugN"></div>
+   <div class="opt"><div><b>照片和话题怎么配</b><small>识别出照片里有这些东西时，先推荐对应话题。在每个话题的编辑页里设置</small></div><button class="btn sm" data-pg="stopic">去话题</button></div>
+   <div class="opt"><div><b>写开头的原则</b><small>只给半句；落到一件具体的东西；不问感受；不需要露脸、比水平、晒成绩</small></div></div></div>
+
+  <div class="card sec"><div class="ch"><b>改动记录</b><small>每次发布都留一个版本，可以退回</small></div>
+   <div class="ver">${SB_VERS.map(v=>`<div><b class="mono">${v[0]}</b><span>${esc(v[2])}<br><small class="sbm">${v[1]} · ${v[3]}</small></span><button class="btn sm" data-rollback="${v[0]}">退回到这一版</button></div>`).join('')}</div></div>
+  </div>
+  <div class="pv"><div class="lb">预览</div><div class="pvtabs">${SB_SLOTS.map((s,i)=>`<button class="${SB.slot===i?'on':''}" data-pvs="${i}">${s.n}</button>`).join('')}</div>${sbPhoneBar()}<p class="cap">按「每句停留」的时间轮播；这里用 1.5 秒播一遍。</p></div>
+  </div>`}
+
+/* ---------- 预览 ---------- */
+function sbHintList(slot){const s=SB_SLOTS[slot],T=id=>SB_TOPICS.find(t=>t.id===id);const today=T('ootd');return [...SB_GENQ.filter(q=>q.on&&q.k==='通用').map(q=>q.t),today.ask,...s.tp.map(id=>T(id).ask),...SB_GENQ.filter(q=>q.on&&q.k!=='通用').map(q=>q.t)]}
+function sbPhoneBar(){return `<div class="ph"><div class="sc"><div class="fe"><h4>场边<sup style="font-size:9px;color:#1E5A44">24h</sup></h4><div class="card2">红土 3、4 号空着，快来<small>Mia · KOOYONG · 2 分钟前</small></div><div class="card2">风好大，高球全飘了<small>阿杰 · GLEN IRIS · 8 分钟前</small></div><div class="card2" style="background:#fff"><b style="font-size:11px;color:#1E5A44">今日推荐 · 周五</b><br>#网球人的OOTD<small>已有 37 张 · 我也发一张</small></div></div><div class="bar2"><em id="pvh">${esc(sbHintList(SB.slot)[0])}</em><i>球场</i></div></div></div>`}
+function sbPhoneCompose(t){const has=!!t.t,F=t.fills.filter(Boolean);return `<div class="ph"><div class="sc"><div class="tb"><span>取消</span><b>发布</b></div><div class="ct ${has?'':'off'}"># ${esc(t.t||'加个话题')} ⌄</div><div class="pl">${esc(t.ask||('说说 #'+(t.t||'')))}</div><div class="ss">${F.map(f=>`<p>${esc(f)}…</p>`).join('')}</div><div class="bt"><span>⌖ 球场</span></div></div></div>`}
+let sbPvT;function sbRunPv(){clearInterval(sbPvT);const e=$('#pvh');if(!e)return;let i=0;sbPvT=setInterval(()=>{const L=sbHintList(SB.slot),el=$('#pvh');if(!el){clearInterval(sbPvT);return}el.style.opacity=0;setTimeout(()=>{el.textContent=L[++i%L.length];el.style.opacity=1},300)},1500)}
+/* ---------- 编辑话题 ---------- */
+function sbOpenEdit(id){const t=id==='new'?{id:'n'+Date.now(),t:'',kind:'常驻',q:'',ask:'',fills:['','',''],photo:[],on:false,sug:true,isNew:true}:JSON.parse(JSON.stringify(SB_TOPICS.find(x=>x.id===id)));while(t.fills.length<3&&t.kind!=='大家发起')t.fills.push('');SB.edit=t;sbDrawEdit();$('#scrim').classList.add('on');$('#drw').classList.add('on')}
+function sbCloseEdit(){$('#scrim').classList.remove('on');$('#drw').classList.remove('on');SB.edit=null}
+function sbDrawEdit(){const t=SB.edit,len=t.t.length,bad=len&&(len<SB_RULES.min||len>SB_RULES.max),gen=SB_GENERIC.includes(t.t.trim().toLowerCase()),stat=SB_TS.find(x=>x.id===t.id);
+  $('#drw').innerHTML=`<div class="dh"><b>${t.isNew?'新建话题':'编辑 #'+esc(t.t)}</b><button class="btn" data-close>取消</button><button class="btn p" data-save>保存</button></div>
+  <div class="db"><div>
+   <div class="fld"><label>名字 <small>一个具体的场景或动作</small><span class="cnt ${bad?'bad':''}">${len} / ${SB_RULES.max}</span></label><input type="text" value="${esc(t.t)}" data-f="t">${gen?'<span class="warn">这个词太宽了，大家发起时也不能用</span>':''}</div>
+   <div class="row2"><div class="fld"><label>类型</label><select data-f="kind">${['常驻','限时','大家发起'].map(k=>`<option ${t.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+    <div class="fld"><label>上线</label><div style="display:flex;align-items:center;gap:10px;height:38px"><button class="tg ${t.on?'on':''}" data-fon></button><span class="sbm">${t.on?'在场边可以看到、可以选':'只有后台能看到'}</span></div></div></div>
+   ${t.kind==='限时'?`<div class="row2"><div class="fld"><label>开始</label><input type="date" value="${t.from||''}" data-f="from"></div><div class="fld"><label>结束</label><input type="date" value="${t.to||''}" data-f="to"></div></div>`:''}
+   <div class="fld"><label>一句说明 <small>话题页顶部那一行</small><span class="cnt">${t.q.length} / 24</span></label><input type="text" value="${esc(t.q)}" data-f="q" maxlength="24"></div>
+   <div class="fld"><label>它的问题 <small>底栏和发布页的提示；${SB_SET.hlen} 个字以内，问句或省略号</small><span class="cnt ${t.ask.length>SB_SET.hlen?'bad':''}">${t.ask.length} / ${SB_SET.hlen}</span></label><input type="text" value="${esc(t.ask)}" data-f="ask" maxlength="20">${/！|!/.test(t.ask)?'<span class="warn">不用感叹号</span>':''}${t.ask&&!/[？?…]$/.test(t.ask)?'<span class="warn">建议用问句或省略号结尾</span>':''}</div>
+   <div class="fld"><label>三个开头 <small>只给半句，读着就知道后面接什么；空着就不显示</small></label>${[0,1,2].map(i=>`<div class="srow" style="margin-bottom:6px"><input type="text" value="${esc(t.fills[i]||'')}" data-fill="${i}" maxlength="16" placeholder="第 ${i+1} 句"><button data-up="${i}" ${i?'':'disabled'}>↑</button><button data-dn="${i}" ${i<2?'':'disabled'}>↓</button></div>`).join('')}</div>
+   <div class="fld"><label>照片里有这些时，优先推荐它</label><div class="tags">${['穿搭','鞋','球拍','球包','宠物','球场','晚霞','风景','影子'].map(p=>`<span style="cursor:pointer;${t.photo.includes(p)?'background:var(--gw);color:var(--g);border-color:transparent':''}" data-ph="${p}">${p}</span>`).join('')}</div></div>
+   <div class="opt"><div><b>出现在「今天想聊点什么」</b><small>没带话题进来时的三个建议</small></div><button class="tg ${t.sug?'on':''}" data-fsug></button></div>
+   ${stat?`<div class="opt"><div><b>近 7 天</b><small>${fmt(stat.posts)} 条 · ${fmt(stat.people)} 人 · ${fmt(stat.balls)} 个网球 · 增长 ${(stat.grow>=0?'▲ ':'▼ ')+pct(Math.abs(stat.grow))}</small></div></div>`:''}
+  </div>
+  <div class="pv"><div class="lb">预览 · 发布页</div>${sbPhoneCompose(t)}<p class="cap">从底栏「${esc(t.ask||'…')}」点进来时，看到的就是这样。</p></div></div>`}
+
+const SB_IC={sb:'<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16h0A2.5 2.5 0 0 1 4 13.5z"/>',
+ stopic:'<path d="M9 4 7 20M17 4l-2 16M4.5 9h15M4 15h15"/>',ssched:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16M9 14h2M13 14h2M9 17h2"/>',sguide:'<path d="M5 6h14M5 10.5h10M5 15h14M5 19.5h7"/>'};
+
+/* ---------- 并入：导航、标题、只读能看的页面 ---------- */
+Object.assign(IC,SB_IC);
+(()=>{const i=PAGES.findIndex(p=>p[0]==='h'&&p[1]==='体验与成长');PAGES.splice(i,0,['h','场边 24h'],['sb','场边数据'],['stopic','话题'],['ssched','今日推荐排期'],['sguide','引导文案']);
+  Object.assign(TITLES,{sb:'场边数据',stopic:'话题',ssched:'今日推荐排期',sguide:'引导文案'})})();
+const SB_PAGES=['sb','stopic','ssched','sguide'];
+SB_PAGES.forEach(p=>VIEWER_PAGES.add(p));   // 只读能看（配置和统计里没有球友的私人信息；昵称按只读规则隐藏）
+const sbWho=n=>S.role==='viewer'?'某球友':n;
+function sbGo(p){S.page=p;render()}
+// 写操作：要 sideline.config（超级管理员、运营）；没有权限 → 提示，和服务端 admin_forbidden 一致
+function sbCan(){if(admCan('sideline.config'))return true;admToast(`${ADMIN_ERR.admin_forbidden}（需要${admNeed('sideline.config')}）`);return false}
+function sbLog(t){S.audit.unshift([admWho(),'sideline.config',t,'刚刚'])}
+function sbVer(note){const n=15+SB_VERS.length-3;SB_VERS.unshift(['v'+n,admWho(),note,'刚刚']);return 'v'+n}
+function sbDirty(){SB.dirty++;sbPubBar()}
+function sbPubBar(){const p=$('#pub');if(!p)return;p.style.display=SB.dirty&&SB_PAGES.includes(S.page)?'flex':'none';$('#pubn').textContent=SB.dirty}
+
+/* ---------- 渲染之后：筛选条、发布条、预览轮播、没权限的控件 ---------- */
+const _sbDrawNav=drawNav;drawNav=function(){_sbDrawNav();const n=SB_TOPICS.filter(t=>t.pending).length,b=document.querySelector('#nav [data-pg="stopic"]');if(b&&n)b.insertAdjacentHTML('beforeend',`<i>${n}</i>`)};
+const _sbRender=render;render=function(){const r=_sbRender.apply(this,arguments);sbAfter();return r};
+function sbAfter(){const on=SB_PAGES.includes(S.page),data=S.page==='sb';
+  ['#rng','#plat'].forEach(s=>{const e=$(s);if(e)e.style.display=!on||data?'':'none'});
+  const csv=document.querySelector('.filters .btn');if(csv)csv.style.display=on&&!data?'none':'';
+  sbPubBar();
+  if(on&&!admCan('sideline.config')){document.querySelectorAll('#page input,#page select').forEach(e=>{e.disabled=true});
+    document.querySelectorAll('#page [data-on],#page [data-promote],#page [data-release],#page [data-ral],#page [data-aal],#page [data-rgen],#page [data-qon],#page [data-qx],#page [data-rollback],#page [data-newev],#page [data-new]').forEach(b=>{b.classList.add('noperm');b.title='需要'+admNeed('sideline.config')})}
+  if(S.page==='sguide')sbRunPv()}
+
+/* ---------- 交互 ---------- */
+document.addEventListener('click',e=>{const b=e.target.closest('#page [data-tr],#page [data-ts],#page [data-cs],[data-edit],[data-new],#page [data-tab],#page [data-on],[data-promote],[data-hide],[data-ral],[data-aal],[data-rgen],[data-close],[data-save],[data-fon],[data-fsug],[data-ph],[data-up],[data-dn],[data-pvs],[data-release],[data-qon],[data-qx],[data-rollback],[data-newev],[data-publish],[data-discard]');if(!b)return;const d=b.dataset;
+  if(d.tr){SB.tr=d.tr;sbGo('sb');return}if(d.ts){SB.topicSort=d.ts;sbGo('sb');return}if(d.cs){SB.courtSort=d.cs;sbGo('sb');return}
+  if(d.edit){sbOpenEdit(d.edit);return}
+  if(d.tab){SB.tab=d.tab;sbGo('stopic');return}
+  if('close' in d){sbCloseEdit();return}
+  if(d.fon!==undefined&&SB.edit){SB.edit.on=!SB.edit.on;sbDrawEdit();return}if(d.fsug!==undefined&&SB.edit){SB.edit.sug=!SB.edit.sug;sbDrawEdit();return}
+  if(d.ph&&SB.edit){const p=SB.edit.photo,i=p.indexOf(d.ph);i>=0?p.splice(i,1):p.push(d.ph);sbDrawEdit();return}
+  if((d.up!==undefined||d.dn!==undefined)&&SB.edit){const f=SB.edit.fills,i=+(d.up??d.dn),j=d.up!==undefined?i-1:i+1;[f[i],f[j]]=[f[j],f[i]];sbDrawEdit();return}
+  if(d.pvs!==undefined){SB.slot=+d.pvs;sbGo('sguide');return}
+  // 以下都是写操作
+  if(!sbCan())return;
+  if('new' in d){sbOpenEdit('new');return}
+  if('newev' in d){sbOpenEdit('new');SB.edit.kind='限时';sbDrawEdit();return}
+  if(d.on){const t=SB_TOPICS.find(x=>x.id===d.on);t.on=!t.on;b.classList.toggle('on',t.on);sbLog(`#${t.t} ${t.on?'上线':'下线'}`);admToast(t.on?`#${t.t} 已上线`:`#${t.t} 已下线，场边看不到了`);return}
+  if(d.promote){const t=SB_TOPICS.find(x=>x.id===d.promote);t.kind='常驻';sbOpenEdit(t.id);admToast('转为常驻：补上问题和三个开头再保存');return}
+  if(d.release){const t=SB_TOPICS.find(x=>x.id===d.release);t.pending=false;sbLog(`#${t.t} 提前放出`);sbGo('stopic');admToast(`#${t.t} 已放出，出现在「大家在聊」和搜索里`);return}
+  if(d.hide!==undefined){b.closest('tr').style.opacity=.35;b.textContent='已隐藏';b.disabled=true;admToast('已隐藏，作者会收到说明');return}
+  if(d.ral!==undefined){const a=SB_ALIAS.splice(+d.ral,1)[0];sbLog(`相似词 删除「${a[0]}」`);sbGo('stopic');return}
+  if('aal' in d){const w=$('#alw').value.trim();if(!w)return;SB_ALIAS.push([w,$('#alt').value]);sbLog(`相似词 添加「${w}」`);sbGo('stopic');admToast('已添加');return}
+  if(d.rgen!==undefined){const g=SB_GENERIC.splice(+d.rgen,1)[0];sbLog(`太宽的词 删除「${g}」`);sbGo('stopic');return}
+  if('save' in d){const t=SB.edit;if(!t.t.trim()){admToast('先写名字');return}if(t.t.length<SB_RULES.min||t.t.length>SB_RULES.max){admToast(`名字 ${SB_RULES.min}–${SB_RULES.max} 个字`);return}if(t.kind!=='大家发起'&&!t.ask.trim()){admToast('常驻和限时话题要有一个问题');return}
+    t.fills=t.fills.filter(f=>f.trim());const i=SB_TOPICS.findIndex(x=>x.id===t.id);delete t.isNew;if(i>=0)SB_TOPICS[i]=t;else SB_TOPICS.unshift(t);sbVer(`编辑 #${t.t}`);sbLog(`编辑 #${t.t}`);sbCloseEdit();render();admToast('已保存，5 分钟内在场边生效');return}
+  if(d.qon){const [g,i]=d.qon.split(':'),L=g==='gen'?SB_GENQ:SB_COURTQ;L[+i].on=!L[+i].on;b.classList.toggle('on',L[+i].on);sbDirty();return}
+  if(d.qx){const [g,i]=d.qx.split(':'),L=g==='gen'?SB_GENQ:SB_COURTQ;L.splice(+i,1);sbGo('sguide');sbDirty();return}
+  if(d.rollback){const v=sbVer(`退回到 ${d.rollback}`);sbLog(`退回到 ${d.rollback}（新版本 ${v}）`);admToast(`已退回到 ${d.rollback}，5 分钟内生效`);render();return}
+  if('publish' in d){SB.dirty=0;const v=sbVer('改了引导文案');sbLog(`发布 ${v}：引导文案`);admToast('已发布，5 分钟内生效');render();return}
+  if('discard' in d){SB.dirty=0;sbLog('放弃草稿');admToast('已放弃改动');render();return}
+});
+document.addEventListener('input',e=>{const el=e.target,d=el.dataset;
+  if(SB.edit&&d.f){SB.edit[d.f]=el.value;const pos=el.selectionStart;sbDrawEdit();const n=$(`#drw [data-f="${d.f}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return}
+  if(SB.edit&&d.fill!==undefined){SB.edit.fills[+d.fill]=el.value;const pos=el.selectionStart;sbDrawEdit();const n=$(`#drw [data-fill="${d.fill}"]`);n.focus();n.setSelectionRange(pos,pos);return}
+  if(!SB_PAGES.includes(S.page)||!el.closest('#page'))return;
+  if(el.id==='tsearch'){const q=el.value.trim();document.querySelectorAll('#page tbody tr').forEach(tr=>tr.style.display=!q||tr.textContent.includes(q)?'':'none');return}
+  if(!sbCan()){render();return}
+  if(d.q){const [g,i]=d.q.split(':');(g==='gen'?SB_GENQ:SB_COURTQ)[+i].t=el.value;sbDirty();return}
+  if(d.sl){const [i,j]=d.sl.split(':');SB_SLOTS[+i].tp[+j]=el.value;sbDirty();return}
+  if(d.set){SB_SET[d.set]=+el.value;sbDirty();return}
+  if(d.wk!==undefined){SB_WEEK[+d.wk][1]=el.value;sbLog(`周历 ${SB_WEEK[+d.wk][0]} 改了`);admToast('排期已保存');return}
+  if(d.rule){SB_RULES[d.rule]=+el.value;sbLog(`规则 ${d.rule} = ${el.value}`);admToast('规则已保存');return}
+  if(d.cf!==undefined||d.lf!==undefined||d.sf!==undefined||d.st!==undefined){sbDirty();return}});
+document.addEventListener('keydown',e=>{if(e.target.id==='genin'&&e.key==='Enter'){const v=e.target.value.trim();if(v&&sbCan()){SB_GENERIC.push(v);sbLog(`太宽的词 添加「${v}」`);sbGo('stopic')}}if(e.key==='Escape'&&SB.edit)sbCloseEdit()});
+$('#scrim').onclick=sbCloseEdit;
+
+/* ---------- 卡片数据源登记（数据口径 → 卡片与数据源；key = 卡片标题） ---------- */
+Object.assign(CARDSRC,{
+ sb:{'发布':[['sb_posts'],'这段时间发出的条数（含 24 小时后已存进相册的）'],'发布的人':[['sb_posts'],'至少发过一条的人，去重'],'看过场边的人':[['sb_views','events'],'打开过场边这一页的人，去重（含未登录）'],'发布率':[['sb_posts','sb_views'],'发布的人 ÷ 看过场边的人'],'网球 + 回复':[['sb_balls','sb_replies'],'点的网球数 + 回复数'],'带照片的':[['sb_posts','sb_photos'],'带照片的发布 ÷ 全部发布'],
+  '趋势':[['sb_posts','sb_views','sb_balls','sb_replies'],'今天按小时，其余按天'],'最热闹的话题':[['sb_posts','sb_topics'],'发布 / 参与人（去重）/ 网球 / 和上一周期比的增长'],'发布最多的球场':[['sb_posts','venues'],'只算选了球场的发布'],'浏览最多的发布':[['sb_posts','sb_views'],'浏览 = 打开详情或在信息流里停留超过 1 秒'],
+  '引导有没有用':[['events','sb_hints','sb_posts'],'看到底栏问题 → 点进来写 → 发出；点进率低于 3% 标黄'],'哪些开头被用了':[['events','sb_topics'],'点了开头的人里，最后发出的比例；低于 50% 标黄'],'什么时候最热闹':[['sb_posts'],'发布数，按星期和小时（墨尔本时间）'],'发的时候大家怎么选':[['sb_posts','sb_hides','reports'],'带话题 / 球场 / 照片 / 延迟公开 / 关回复；不感兴趣、屏蔽、举报、撤回'] },
+ stopic:{'所有话题':[['sb_topics','sb_config_draft'],'admin_sb_config_draft() 读、admin_sb_config_set() 写；提前放出 admin_sb_topic_release()'],'相似的合并':[['sb_topic_alias'],'大家输入的词 → 推荐 / 并入的话题'],'规则':[['sb_settings','sb_generic_words'],'太宽的词、名字长短、几个人用过才被看到、几天没人用就沉下去'] },
+ ssched:{'每周的固定栏目':[['sb_week','sb_today'],'每天 0 点换；同一个话题一周只出现一次'],'特别安排':[['sb_specials'],'盖过周历，有起止时间；自动安排按触发条件'] },
+ sguide:{'底栏的问题':[['sb_hints','sb_slots','sb_settings'],'一直会出现的、按时段带出的、选了球场时的问题'],'不是话题的开头':[['sb_starters'],'球场问题、失物招领进来时输入框下面的几行'],'发布页':[['sb_settings'],'没带话题进来时给几个话题'],'改动记录':[['sb_config_versions'],'每次发布留一个版本，可以退回'] },
+});
+/* =====================================================================
+ * 待审核 → 场边（A1）：被打码送审的照片 + 场边举报
+ *   照片：sb_photos.review = 'blurred'（自动识别可疑，或有人举报「不当照片」→ 这条的照片先打码送审）。保留 → ok；拿掉 → removed（别人看不到，作者自己还能看到）。人工审过的不再被自动改。
+ *   举报：reports.via = 'sideline'，对象 sb_post / sb_reply，原因 harass 骚扰或冒犯 / photo 不当照片 / fraud 虚假交易 / other（不要求写说明）。
+ *   隐藏 = 作者仍在相册里看到、别人看不到，作者收到说明；处理 / 忽略只改举报状态。
+ *   真实环境：照片 admin_sb_photo_review(post, idx, keep|remove)（权限 report.handle）；隐藏 admin_sb_post_hide / admin_sb_reply_hide（权限 message.hide，要理由）；
+ *   举报状态 admin_report_handle（report.handle）。后台不再有直接改 sb_ 表审核列的权限，一律走这些函数。演示数据。
+ * ===================================================================== */
+const SB_REP_RC={harass:'骚扰或冒犯',photo:'不当照片',fraud:'虚假交易',other:'其他'};
+const SB_REVIEW={
+ photos:[{id:'sp1',post:'今天的配色：奶白 + 一点网球绿',who:'Lily',sw:'#D9C8AE',why:'auto',at:'2 小时前',st:'blurred'},
+         {id:'sp2',post:'下午四点的影子，比我打得好看',who:'Nana',sw:'#5F7068',why:'report',at:'5 小时前',st:'blurred'},
+         {id:'sp3',post:'它捡球比我还积极',who:'Yuki',sw:'#C9A57E',why:'auto',at:'昨天',st:'blurred'}],
+ reports:[{id:'sr1',kind:'发布',text:'便宜出一支 Wilson 拍子，先转钱再发货',author:'Ray',who:'Mia',rc:'fraud',at:'1 小时前',st:'open'},
+          {id:'sr2',kind:'回复',text:'你这水平还来场边发什么',author:'Ben',who:'Coco',rc:'harass',at:'3 小时前',st:'open'},
+          {id:'sr3',kind:'发布',text:'今天的配色：奶白 + 一点网球绿',author:'Lily',who:'阿杰',rc:'photo',at:'今天 09:12',st:'open'},
+          {id:'sr4',kind:'回复',text:'哈哈哈哈',author:'Leo',who:'Amy',rc:'other',at:'昨天',st:'dismissed'}]};
+const sbReviewOpen=()=>SB_REVIEW.photos.filter(x=>x.st==='blurred').length+SB_REVIEW.reports.filter(x=>x.st==='open').length;
+function sbReviewPane(){const P=SB_REVIEW.photos,R=SB_REVIEW.reports,pill=s=>s==='open'||s==='blurred'?'<span class="pill w">待处理</span>':s==='ok'||s==='actioned'?'<span class="pill g">已处理</span>':'<span class="pill nodot">已忽略</span>';
+  const pst=s=>s==='blurred'?'<span class="pill w">待审核</span>':s==='ok'?'<span class="pill g">已保留</span>':'<span class="pill nodot">已拿掉</span>';
+  return `<div class="ch" style="margin:4px 0 8px"><b>照片待审核</b><small>自动识别可疑、或被举报的照片先打码，等你看一眼</small></div>
+  ${P.length?`<table><thead><tr><th>照片</th><th>发布</th><th>作者</th><th>为什么送审</th><th>时间</th><th>状态</th><th></th></tr></thead><tbody>${P.map(x=>`<tr><td><span class="thumb" style="background:${x.sw};filter:${x.st==='blurred'?'blur(1.5px)':'none'}"></span></td><td>${esc(x.post)}</td><td>${esc(x.who)}</td><td>${x.why==='report'?'有人举报「不当照片」':'自动识别可疑'}</td><td>${x.at}</td><td>${pst(x.st)}</td>
+    <td>${x.st==='blurred'?`<div class="rowacts"><button class="btn sm p" data-act="sbpk" data-id="${x.id}">保留</button><button class="btn sm" data-act="sbpx" data-id="${x.id}">拿掉</button></div>`:''}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">都处理完了 ✓</div>'}
+  <div class="ch" style="margin:22px 0 8px"><b>场边举报</b><small>举报发布或回复；不会告诉对方是谁举报的</small></div>
+  <table><thead><tr><th>举报人</th><th>对象</th><th>作者</th><th>原因</th><th>时间</th><th>状态</th><th></th></tr></thead><tbody>${R.map(x=>`<tr><td>${esc(x.who)}</td><td><span class="pill nodot">${x.kind}</span> ${esc(x.text)}</td><td>${esc(x.author)}</td><td>${SB_REP_RC[x.rc]}</td><td>${x.at}</td><td>${pill(x.st)}</td>
+    <td>${x.st==='open'?`<div class="rowacts"><button class="btn sm p" data-act="sbrh" data-id="${x.id}">隐藏内容</button><button class="btn sm" data-act="sbro" data-id="${x.id}">已处理</button><button class="btn sm" data-act="sbrd" data-id="${x.id}">忽略</button></div>`:''}</td></tr>`).join('')}</tbody></table>
+  <p class="cap">举报「不当照片」会让这条的照片先打码送审；人工审过的照片不会再被自动改。「隐藏内容」：作者在相册里还看得到，别人看不到，作者会收到说明；要写理由。</p>`}
+const _sbAct=act;act=function(d){if(!/^sb(pk|px|rh|ro|rd)$/.test(d.act||''))return _sbAct(d);
+  const k=d.act,now=`今天 ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+  if(k==='sbpk'||k==='sbpx'){const x=SB_REVIEW.photos.find(p=>p.id===d.id);if(!x)return;x.st=k==='sbpk'?'ok':'removed';S.audit.unshift([admWho(),k==='sbpk'?'sb.photo_keep':'sb.photo_remove',x.post,now])}
+  else{const x=SB_REVIEW.reports.find(p=>p.id===d.id);if(!x)return;x.st=k==='sbrd'?'dismissed':'actioned';
+    if(k==='sbrh'){S.audit.unshift([admWho(),'sb.hide',`${x.kind}：${x.text}`,now])}
+    else S.audit.unshift([admWho(),k==='sbro'?'sb.report_action':'sb.report_dismiss',`${x.kind}：${x.text}`,now])}
+  render()};
 </script></body></html>

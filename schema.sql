@@ -5606,6 +5606,8 @@ begin
     uid := case when p_target ~ '^[0-9a-f-]{36}$' then p_target::uuid end;
     c := case
       when p_action in ('user.status','user.ban','user.reset','user.gender','user.notify','phone.reveal') then (select home_city from users where id = uid)
+      when p_action in ('report.handle','message.hide') and p_target ~ '^sb(post|photo):' then (select p.city from sb_posts p where p.id::text = split_part(p_target, ':', 2))   -- 场边：按发布所在城市
+      when p_action = 'message.hide' and p_target ~ '^sbreply:' then (select p.city from sb_replies r join sb_posts p on p.id = r.post_id where r.id::text = split_part(p_target, ':', 2))
       when p_action in ('report.handle','message.read') then (select u.home_city from reports r join users u on u.id = r.reporter_id where r.id = uid)
       when p_action = 'message.hide' and p_target ~ '^[0-9]{1,18}$' then (select u.home_city from messages m join users u on u.id = m.sender_id where m.id = p_target::bigint)
       when p_action = 'venue.review' then (select v.city from venues v where v.id = uid)
@@ -5982,13 +5984,11 @@ drop policy if exists sb_ball_own on sb_balls;
 create policy sb_ball_own on sb_balls for select to nbq_user using (user_id = nbq_uid());
 drop policy if exists sb_hide_own on sb_hides;
 create policy sb_hide_own on sb_hides for select to nbq_user using (user_id = nbq_uid());
--- 后台运营：审核相关的列可改（隐藏发布 / 回复、照片审核）；其余一律只读
-grant update (status, hidden_reason) on sb_posts to nbq_admin;
-grant update (review, flagged_by, reviewed_by, reviewed_at) on sb_photos to nbq_admin;
-grant update (status) on sb_replies to nbq_admin;
-drop policy if exists adm_upd on sb_posts;   create policy adm_upd on sb_posts   for update to nbq_admin using (true) with check (true);
-drop policy if exists adm_upd on sb_photos;  create policy adm_upd on sb_photos  for update to nbq_admin using (true) with check (true);
-drop policy if exists adm_upd on sb_replies; create policy adm_upd on sb_replies for update to nbq_admin using (true) with check (true);
+-- 后台运营：场边表一律只读；隐藏发布 / 回复、照片审核走 admin_sb_post_hide / admin_sb_reply_hide / admin_sb_photo_review（A1，2026-10：原来直接给 nbq_admin 改审核列的权限收回，和球友 / 举报「后台一律走函数」一致）
+revoke update on sb_posts, sb_photos, sb_replies from nbq_admin;
+drop policy if exists adm_upd on sb_posts;
+drop policy if exists adm_upd on sb_photos;
+drop policy if exists adm_upd on sb_replies;
 
 -- ---------- 后台统计（场边数据页；城市当地时间；后台只读也能看） ----------
 -- 时间范围一律 [p_from, p_to)，按 publish_at；「看过场边的人」「底栏问题点进率」「开头被用」要等前台埋点（下一批 C5），这里先不出
@@ -6867,3 +6867,33 @@ grant execute on function admin_sb_config_set(text, jsonb, int), admin_sb_config
   admin_sb_topic_release(text) to nbq_admin;
 grant execute on function sb_config(int) to nbq_user, nbq_service, nbq_admin, nbq_viewer;
 grant execute on function sb_config_export() to nbq_service;
+
+-- ---------- 后台审核场边（A1，2026-10；待审核页「场边」） ----------
+--   隐藏发布 / 回复：权限 message.hide（要理由；只负责部分城市的只能管自己城市）；隐藏 = 作者仍在相册看到、别人看不到，hidden_reason 作者能看到；p_hide = false 恢复
+--   照片审核：权限 report.handle；只处理 review = 'blurred'（自动识别可疑 / 被举报）送审的：keep → ok，remove → removed；记审核人，之后不再被自动改
+--   举报本身的状态仍走 admin_report_handle
+create or replace function admin_sb_post_hide(p_post uuid, p_hide boolean, p_reason text) returns void language plpgsql security definer set search_path = public as $$
+begin
+  perform nbq_admin_act('message.hide', 'sbpost:' || p_post, p_reason, jsonb_build_object('hide', coalesce(p_hide, true)));
+  update sb_posts set status = case when coalesce(p_hide, true) then 'hidden' else 'visible' end,
+                      hidden_reason = case when coalesce(p_hide, true) then btrim(p_reason) end
+   where id = p_post and deleted_at is null;
+  if not found then perform nbq_err('not_found', 'post'); end if;
+end $$;
+create or replace function admin_sb_reply_hide(p_reply bigint, p_hide boolean, p_reason text) returns void language plpgsql security definer set search_path = public as $$
+begin
+  perform nbq_admin_act('message.hide', 'sbreply:' || p_reply, p_reason, jsonb_build_object('hide', coalesce(p_hide, true)));
+  update sb_replies set status = case when coalesce(p_hide, true) then 'hidden' else 'visible' end where id = p_reply and deleted_at is null;
+  if not found then perform nbq_err('not_found', 'reply'); end if;
+end $$;
+create or replace function admin_sb_photo_review(p_post uuid, p_idx int, p_action text) returns void language plpgsql security definer set search_path = public as $$
+declare adm uuid;
+begin
+  if p_action not in ('keep','remove') then perform nbq_err('invalid', 'action'); end if;
+  adm := nbq_admin_act('report.handle', 'sbphoto:' || p_post || ':' || p_idx, null, jsonb_build_object('action', p_action));
+  update sb_photos set review = case p_action when 'keep' then 'ok' else 'removed' end, flagged_by = coalesce(flagged_by, 'admin'), reviewed_by = adm, reviewed_at = now()
+   where post_id = p_post and idx = p_idx and review = 'blurred';
+  if not found then perform nbq_err('state_changed'); end if;
+end $$;
+revoke execute on function admin_sb_post_hide(uuid, boolean, text), admin_sb_reply_hide(bigint, boolean, text), admin_sb_photo_review(uuid, int, text) from public;
+grant execute on function admin_sb_post_hide(uuid, boolean, text), admin_sb_reply_hide(bigint, boolean, text), admin_sb_photo_review(uuid, int, text) to nbq_admin;
