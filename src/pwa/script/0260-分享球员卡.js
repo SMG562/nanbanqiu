@@ -65,7 +65,7 @@ function openAuth(next,why){AUTH.next=next;
 function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="height:auto;margin-bottom:6px">‹ 修改手机号</button><div class="sh-t">输入验证码</div><p class="sh-s">已发送至 ${esc(AUTH.cc)} ${esc(AUTH.phone)}</p>
   <input class="inp otp num" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······"><div class="fine" id="resend">60 秒后可重新发送</div>`);
   let n=60;clearInterval(AUTH.t);AUTH.t=setInterval(()=>{n--;const r=$('#resend');if(!r){clearInterval(AUTH.t);return}r.innerHTML=n>0?n+' 秒后可重新发送':'<b style="color:var(--g)" data-a="sendCode">重新发送</b>';if(n<=0)clearInterval(AUTH.t)},1000);
-  setTimeout(()=>{const o=$('#otp');if(!o)return;o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){clearInterval(AUTH.t);openNewProfile()}}},350)}
+  setTimeout(()=>{const o=$('#otp');if(!o)return;o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},350)}
 function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,6);
   const draw=()=>openSheet(`<div class="sh-t">欢迎来到南伴球 👋</div><p class="sh-s">填一次就好，发起人会看到</p>
   <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">

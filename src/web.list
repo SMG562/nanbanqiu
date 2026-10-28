@@ -138,6 +138,7 @@ web/script/0240-弹窗.js
 shared/script/0470-分享球员卡.js
 web/script/0250-分享球员卡.js
 shared/script/0480-分享球员卡.js
+shared/script/0490-Supabase登录.js
 web/script/0260-分享球员卡.js
 web/script/0270-事件.js
 web/script/0280-演示.js

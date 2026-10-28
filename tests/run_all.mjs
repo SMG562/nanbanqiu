@@ -108,6 +108,7 @@ add('frontend', 'frontend/dst', ['node', '-r', PRELOAD, path.join(HERE, 'fronten
 add('frontend', 'frontend/xss', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { pass: [/PASS xss/], timeout: 900 });
 add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/csp.js')], { pass: [/PASS csp/], timeout: 600 });
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
+add('frontend', 'frontend/sb_login', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sb_login.js')], { pass: [/sb_login: \d+ 通过, 0 失败/], timeout: 600 });
 for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
