@@ -4801,7 +4801,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!
  * key 只能填公开的 publishable / anon key（可以放前端）；service_role 绝不能出现在这里。
  * 登录态存在本机 localStorage（nbq_sb）；后端上线后改成 httpOnly Cookie（api_spec §0.1）。
  * 纯逻辑部分 sbAuthMake 不碰页面变量（unit/sb_auth 在空沙盒里载入测试）。 */
-const SB_CFG={url:'',key:''};
+// 真配置只在正式域名（nanbanqiu.app、预览站 pages.dev）启用；本地文件、测试域名、localhost 仍是演示登录
+const SB_REAL={url:'https://uyysusnzaosvweemwmkl.supabase.co',key:'sb_publishable_8GPwPKG7EYNYfLbcTDt_5g_62r0k3MO'};
+const SB_CFG=(typeof location!=='undefined'&&/(^|\.)(nanbanqiu\.app|pages\.dev)$/.test(location.hostname))?SB_REAL:{url:'',key:''};
 const SB_ERR_MAP={over_sms_send_rate_limit:'otp_too_fast',over_request_rate_limit:'rate_limited',otp_expired:'otp_wrong',otp_disabled:'sms_failed',sms_send_failed:'sms_failed',phone_provider_disabled:'sms_failed',validation_failed:'otp_wrong',invalid_credentials:'otp_wrong',user_banned:'account_banned'};
 // 只有登录这一步用得到的提示（不在后端接口的错误码表里）；其余沿用 apiErrText
 const SB_TXT={otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};
