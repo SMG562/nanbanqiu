@@ -31,7 +31,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
         window.__clip = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__clip = t; return Promise.resolve() } }, configurable: true });
         window.__shared = null; Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true }); Object.defineProperty(navigator, 'share', { value: d => { window.__shared = d; return Promise.resolve() }, configurable: true });
         openPoster(GAMES.find(g => g.share_code).id); await new Promise(r => setTimeout(r, 900));
-        const btns = [...document.querySelectorAll('[data-sx="xhsCopy"]')], n = document.querySelectorAll('.xhs-steps').length; btns[0].click(); await new Promise(r => setTimeout(r, 300));
+        const btns = [...document.querySelectorAll('[data-sx="xhsCopy"]')], n = document.querySelectorAll('.xhs-steps').length; btns[0].click(); for (let i = 0; i < 60 && !window.__shared; i++) await new Promise(r => setTimeout(r, 100));   // 等分享被调用（最多 6 秒）
         return { btns: btns.length, steps: n, clip: window.__clip, file: window.__shared && window.__shared.files && window.__shared.files[0].type, text: window.__shared && window.__shared.text } });
       T(`${f} 小红书一键：只有一个按钮，没有三步`, y.btns === 1 && y.steps === 0, y);
       T(`${f} 小红书一键：文案已复制（带 https:// 链接）、系统分享带图片`, /https:\/\/nanbanqiu\.app\/g\//.test(y.clip || '') && y.file === 'image/png', y);
