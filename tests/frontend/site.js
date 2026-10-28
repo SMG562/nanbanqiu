@@ -23,7 +23,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   const hd = fs.readFileSync(path.join(out, '_headers'), 'utf8');
   T('_headers：全站不让搜索引擎收录、页面不缓存', /^\/\*\n/.test(hd) && /X-Robots-Tag: noindex/.test(hd) && /Cache-Control: no-cache/.test(hd), hd);
   const idx = fs.readFileSync(path.join(out, 'index.html'), 'utf8'), links = [...idx.matchAll(/href="([^"]+)"/g)].map(m => m[1]);
-  T('入口页：手机端 / 网页端 / 后台，链接都指向 site/ 里的文件', JSON.stringify(links) === '["pwa.html","web.html","admin.html"]' && links.every(l => files.includes(l)), links);
+  T('入口页：手机端 / 网页端 / 后台 / 宣传物料，链接都指向 site/ 里的文件', JSON.stringify(links) === '["pwa.html","web.html","admin.html","materials.html"]' && links.every(l => files.includes(l)), links);
   T('入口页写着这次部署的提交（Cloudflare 给的提交号前 7 位）', /提交 0123abc /.test(idx) && /name="robots" content="noindex"/.test(idx));
 
   // Cloudflare 部署配置：只发布 site/
@@ -32,13 +32,14 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   T('Worker 入口和 Pages functions 入口都在，并共用 server/og/page.mjs', fs.existsSync(path.join(ROOT, 'worker', 'index.mjs')) && fs.existsSync(path.join(ROOT, 'functions', 'g', '[code].js')) && fs.existsSync(path.join(ROOT, 'functions', 'p', '[no].js')) && /server\/og\/page\.mjs/.test(fs.readFileSync(path.join(ROOT, 'worker', 'index.mjs'), 'utf8')));   // 没有对应文件的路径（/g/码、/p/编号）落到入口页再转走
 
   // 像线上一样用 http 打开
-  const types = { html: 'text/html; charset=utf-8', webmanifest: 'application/manifest+json' }, miss = [];
+  const types = { html: 'text/html; charset=utf-8', webmanifest: 'application/manifest+json', webp: 'image/webp' }, miss = [];
   const srv = http.createServer((q, r) => { const p = decodeURIComponent(new URL(q.url, 'http://x').pathname), f = path.join(out, p === '/' ? 'index.html' : p.slice(1));
     if (!f.startsWith(out) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { miss.push(p); r.writeHead(404); r.end(); return }
     r.writeHead(200, { 'content-type': types[f.split('.').pop()] || 'application/octet-stream' }); r.end(fs.readFileSync(f)) }).listen(0);
   const base = `http://127.0.0.1:${srv.address().port}`;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-  for (const [name, vp, check] of [['index.html', { width: 390, height: 844 }, () => document.querySelectorAll('a').length === 3],
+  for (const [name, vp, check] of [['index.html', { width: 390, height: 844 }, () => document.querySelectorAll('a').length === 4],
+    ['materials.html', { width: 390, height: 844 }, () => document.querySelectorAll('#grid .card').length >= 16 && document.documentElement.scrollWidth <= innerWidth],
     ['pwa.html', { width: 390, height: 844 }, () => typeof ME !== 'undefined' && document.querySelectorAll('#tabbar [data-tab]').length >= 4 && CITY.slug === 'melbourne'],
     ['web.html', { width: 1440, height: 900 }, () => typeof ME !== 'undefined' && document.querySelectorAll('#tabs [data-tab]').length === 3 && CITY.slug === 'melbourne'],
     ['admin.html', { width: 1440, height: 900 }, () => getComputedStyle(document.querySelector('#login')).display !== 'none' && /演示身份/.test(document.body.innerText)]]) {
@@ -49,6 +50,32 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     const ok = await pg.evaluate(check).catch(e => String(e));
     T(`${name}：http 打开能跑${name === 'web.html' ? '（含场边）' : ''}`, ok === true, ok);
     T(`${name}：没有脚本错误`, errs.filter(e => !/\bL is not defined|QRCode|html2canvas/.test(e)).length === 0, errs);
+    await ctx.close();
+  }
+  // 宣传物料页（marketing/）：清单、源文件、图片对得上；手机尺寸能浏览、点开大图、筛选
+  {
+    const list = S.posters(), mk = path.join(ROOT, 'marketing', 'posters'), nn = p => String(p.id).padStart(2, '0');
+    const srcs = fs.readdirSync(mk).filter(f => /^p\d\d_.+\.py$/.test(f)).sort();
+    T('物料：posters.json 和 marketing/posters/ 源文件一一对应', JSON.stringify(srcs) === JSON.stringify(list.map(p => `p${nn(p)}_${p.slug.replace(/-/g, '_')}.py`).sort()), { srcs: srcs.length, list: list.length });
+    T('物料：每张都有大图和缩略图，且在 site/ 里', list.length >= 16 && list.every(p => files.includes(`materials/img/${S.posterName(p)}.webp`) && files.includes(`materials/thumb/${S.posterName(p)}.webp`)));
+    const webp = f => { const x = fs.readFileSync(path.join(out, f)); return x.slice(0, 4).toString() === 'RIFF' && x.slice(8, 12).toString() === 'WEBP' ? [x.readUInt16LE(26) & 0x3fff, x.readUInt16LE(28) & 0x3fff] : null };
+    T('物料：大图 1080×1350、缩略图 360×450（webp）', list.every(p => JSON.stringify(webp(`materials/img/${S.posterName(p)}.webp`)) === '[1080,1350]' && JSON.stringify(webp(`materials/thumb/${S.posterName(p)}.webp`)) === '[360,450]'));
+    T('物料：编号不重复，每张有文案、创意、用途', new Set(list.map(p => p.id)).size === list.length && list.every(p => p.lines.length && p.concept && p.use && p.title));
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
+    const pg = await ctx.newPage(); await pg.goto(`${base}/materials.html`);
+    await pg.evaluate(() => { document.querySelectorAll('img').forEach(i => { i.loading = 'eager' }) }); await pg.waitForTimeout(1200);
+    const bad = await pg.evaluate(() => [...document.querySelectorAll('#grid img')].filter(i => !(i.complete && i.naturalWidth > 0)).length);
+    T('物料页：缩略图全部加载出来', bad === 0, bad);
+    await pg.click('#grid .card'); await pg.waitForTimeout(400);
+    T('物料页：点开大图，有保存按钮，地址带编号', await pg.evaluate(() => document.getElementById('lb').classList.contains('on') && /materials\/img\/01-/.test(document.getElementById('lbimg').src) && document.getElementById('dl').getAttribute('href').endsWith('.webp') && location.hash === '#01'));
+    await pg.click('#next'); await pg.waitForTimeout(200);
+    T('物料页：下一张 → 02', await pg.evaluate(() => /materials\/img\/02-/.test(document.getElementById('lbimg').src)));
+    await pg.keyboard.press('Escape');
+    T('物料页：Esc 关闭', await pg.evaluate(() => !document.getElementById('lb').classList.contains('on')));
+    await pg.click('#chips button:nth-child(2)'); const n1 = await pg.evaluate(() => document.querySelectorAll('#grid .card').length);
+    T('物料页：筛选后数量变少', n1 > 0 && n1 < list.length, n1);
+    await pg.goto(`${base}/materials.html#05`); await pg.waitForTimeout(400);
+    T('物料页：带 #编号 打开直接看大图', await pg.evaluate(() => document.getElementById('lb').classList.contains('on') && /materials\/img\/05-/.test(document.getElementById('lbimg').src)));
     await ctx.close();
   }
   // 分享短链接：线上落到入口页（SPA 回退），按屏幕宽度转到手机端 / 网页端并打开对应球局 / 球员卡

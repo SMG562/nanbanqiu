@@ -5,7 +5,9 @@
  *   node tools/site.mjs            生成 site/（先清空 site/ 里上次生成的文件——只删 site/ 之内、本脚本建的）
  *
  * 只放可以公开的文件（白名单 FILES）；进度记录、数据库、测试、服务端代码一律不进。
- * 入口页 index.html：手机端 / 网页端 / 后台三个链接 + 这次部署对应的提交。
+ * 入口页 index.html：手机端 / 网页端 / 后台 / 宣传物料四个链接 + 这次部署对应的提交。
+ * 宣传物料页 materials.html（10-29）：由 marketing/posters.json + marketing/img、thumb 里的 webp 生成；
+ *   海报源文件和出图流程见 .claude/skills/nanbanqiu-poster/SKILL.md，新增海报不用改本文件。
  * _headers：不让搜索引擎收录；页面不缓存（每次打开都是最新部署）。
  * static/site 测试核对：只有白名单里的文件、页面引用的本地文件都在。
  */
@@ -28,7 +30,14 @@ export const FILES = {
   'icons/icon-512.png': 'icons/icon-512.png',
   'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
 };
-export const GENERATED = ['index.html', '_headers', 'manifest.webmanifest'];
+// 宣传物料：清单来自 marketing/posters.json（build.py 登记），图在 marketing/img、thumb（webp，已入库）
+export const posterName = p => `${String(p.id).padStart(2, '0')}-${p.slug}`;
+export function posters() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'marketing', 'posters.json'), 'utf8')) } catch { return [] } }
+for (const p of posters()) {
+  FILES[`materials/img/${posterName(p)}.webp`] = `marketing/img/${posterName(p)}.webp`;
+  FILES[`materials/thumb/${posterName(p)}.webp`] = `marketing/thumb/${posterName(p)}.webp`;
+}
+export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest'];
 
 // 预览站的 manifest：仓库里的 manifest 是给正式站用的（根网址 / 就是应用）；预览站的根是入口页，
 // 应用在 /pwa.html，所以「添加到主屏幕」后要从 /pwa.html 打开（不然会打开入口页）
@@ -64,7 +73,67 @@ a small{color:var(--mut);font-weight:400}a:hover{border-color:var(--g)}
 <a href="pwa.html">手机端<small>PWA</small></a>
 <a href="web.html">电脑网页端<small>Web</small></a>
 <a href="admin.html">管理后台<small>Admin</small></a>
+<a href="materials.html">宣传物料<small>Marketing</small></a>
 </main></body></html>
+`;
+}
+export function materialsHTML(list, sha, when) {
+  const data = list.map(p => ({ id: p.id, f: posterName(p), title: p.title, lines: p.lines, style: p.style, tone: p.tone, demo: !!p.demo, concept: p.concept, use: p.use }));
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>南伴球 宣传物料</title>
+<style>
+:root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--lime:#C6EA3D;--line:#E5E8E5}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+header,main{max-width:1100px;margin:0 auto;padding:0 16px}header{padding-top:20px}
+.back{display:inline-block;color:var(--mut);font-size:13px;text-decoration:none;margin-bottom:10px}
+h1{margin:0 0 4px;font-size:22px;color:var(--g)}.note{margin:0 0 14px;color:var(--mut);font-size:13px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 14px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chips button{flex:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--g);border-color:var(--g);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding-bottom:40px}
+@media(min-width:720px){.grid{grid-template-columns:repeat(4,1fr);gap:16px}}
+.card{display:block;width:100%;padding:0;border:0;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.card .im{position:relative;aspect-ratio:4/5;border-radius:14px;overflow:hidden;background:#dfe5e0;box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.card img{width:100%;height:100%;object-fit:cover;display:block}
+.card .bd{position:absolute;right:8px;top:8px;background:rgba(255,255,255,.92);color:#8A5A00;font-size:11px;border-radius:999px;padding:1px 8px}
+.card b{display:block;margin-top:8px;font-size:14px}.card small{color:var(--mut);font-size:12px}
+#lb{position:fixed;inset:0;z-index:10;background:rgba(8,18,14,.96);color:#fff;display:none;flex-direction:column}
+#lb.on{display:flex}#lb .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px 12px 4px}
+#lb .stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+#lb .info{padding:6px 18px 10px;max-width:640px;width:100%;margin:0 auto;max-height:34vh;overflow:auto}
+#lb h2{margin:0 0 2px;font-size:17px}#lb p{margin:2px 0;font-size:13px;color:#cfd8d3}#lb .dm{color:#F2B134}
+#lb .bar{display:flex;gap:10px;padding:8px 16px calc(12px + env(safe-area-inset-bottom));max-width:640px;width:100%;margin:0 auto}
+#lb .bar button,#lb .bar a{flex:1;text-align:center;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;padding:10px 0;font:inherit;font-size:14px;text-decoration:none;cursor:pointer}
+#lb .bar a{background:var(--lime);border-color:var(--lime);color:#0B3B2A;font-weight:600;flex:1.4}
+</style></head><body>
+<header><a class="back" href="index.html">← 预览首页</a><h1>宣传物料</h1>
+<p class="note">${data.length} 张海报 · 点开看大图，长按或「保存大图」存到手机 · 带「示意」的海报里，时间、人数、位置只是排版示例${sha ? ` · 提交 ${esc(sha)}` : ''}${when ? ` · ${esc(when)}` : ''}</p>
+<div class="chips" id="chips"></div></header>
+<main><div class="grid" id="grid"></div></main>
+<div id="lb" role="dialog" aria-modal="true" aria-label="海报大图"><div class="stage"><img id="lbimg" alt=""></div>
+<div class="info"><h2 id="lbt"></h2><p id="lbl"></p><p id="lbc"></p><p id="lbu"></p><p class="dm" id="lbd"></p></div>
+<div class="bar"><button id="prev" type="button">上一张</button><a id="dl" download>保存大图</a><button id="next" type="button">下一张</button><button id="close" type="button">关闭</button></div></div>
+<script>
+const D=${json};
+const $=id=>document.getElementById(id);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+let flt='全部',cur=-1;
+const tags=['全部',...[...new Set(D.flatMap(p=>[p.tone,...p.style]))]];
+tags.forEach(t=>{const b=el('button','',t);b.type='button';b.setAttribute('aria-pressed',t==='全部');b.onclick=()=>{flt=t;[...$('chips').children].forEach(c=>c.setAttribute('aria-pressed',c.textContent===t));draw()};$('chips').append(b)});
+const vis=()=>D.filter(p=>flt==='全部'||p.tone===flt||p.style.includes(flt));
+function draw(){const g=$('grid');g.textContent='';vis().forEach(p=>{const c=el('button','card');c.type='button';const im=el('div','im'),i=new Image();i.src='materials/thumb/'+p.f+'.webp';i.alt=p.title;i.loading='lazy';im.append(i);if(p.demo)im.append(el('span','bd','示意'));c.append(im,el('b','',p.title),el('small','',p.tone+' · '+p.style.join(' / ')));c.onclick=()=>open(p.id);g.append(c)})}
+function open(id){const v=vis();cur=v.findIndex(p=>p.id===id);if(cur<0)return;show();$('lb').classList.add('on');document.body.style.overflow='hidden'}
+function show(){const p=vis()[cur];$('lbimg').src='materials/img/'+p.f+'.webp';$('lbimg').alt=p.title;$('lbt').textContent=String(p.id).padStart(2,'0')+' · '+p.title;$('lbl').textContent='文案：'+p.lines.join('');$('lbc').textContent='创意：'+p.concept;$('lbu').textContent='用途：'+p.use;$('lbd').textContent=p.demo?'示意内容：图里的时间、人数、位置只是排版示例，不是真实数据':'';$('dl').href='materials/img/'+p.f+'.webp';$('dl').setAttribute('download','南伴球-'+p.title+'.webp');history.replaceState(null,'','#'+String(p.id).padStart(2,'0'))}
+function step(d){const n=vis().length;cur=(cur+d+n)%n;show()}
+function shut(){$('lb').classList.remove('on');document.body.style.overflow='';history.replaceState(null,'',location.pathname+location.search)}
+$('prev').onclick=()=>step(-1);$('next').onclick=()=>step(1);$('close').onclick=shut;
+addEventListener('keydown',e=>{if(!$('lb').classList.contains('on'))return;if(e.key==='Escape')shut();if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)});
+let x0=null;$('lb').addEventListener('touchstart',e=>{x0=e.touches[0].clientX},{passive:true});$('lb').addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60)step(dx<0?1:-1)});
+function fromHash(){const h=location.hash.match(/^#(\\d+)$/);if(h)open(+h[1])}
+draw();fromHash();addEventListener('hashchange',fromHash);
+</script></body></html>
 `;
 }
 export const HEADERS = `/*
@@ -82,6 +151,7 @@ export function build(out = path.join(ROOT, 'site')) {
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), previewManifest(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8')));
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }).slice(0, -3);
   fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));
+  fs.writeFileSync(path.join(out, 'materials.html'), materialsHTML(posters(), commit(), when + ' 墨尔本'));
   fs.writeFileSync(path.join(out, '_headers'), HEADERS);
   return out;
 }
