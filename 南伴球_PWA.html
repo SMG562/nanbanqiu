@@ -45,6 +45,9 @@ a{color:inherit;text-decoration:none}
   .stage{padding:0;display:block}
   .device{width:100%;height:100dvh;border-radius:0;box-shadow:none;--sb:env(safe-area-inset-top);--hb:env(safe-area-inset-bottom)}
   .statusbar,.homebar,.panel{display:none}
+  /* 真手机（≤560px）：微信自己有顶栏；.wxbar 是电脑演示里模拟的假顶栏，这里不要，也不要给它让位置（否则微信里出现两层 ✕ 和 ···，里面那层还点不了） */
+  .wxbar,.env-wechat .wxbar{display:none!important}
+  .device.env-wechat{--wx:0px}
 }
 .wxbar{position:absolute;top:var(--sb);left:0;right:0;height:44px;background:#EDEDED;z-index:800;display:none;align-items:center;justify-content:space-between;padding:0 14px;font-size:16px;font-weight:600;border-bottom:1px solid #DCDCDC}
 .env-wechat .wxbar{display:flex}

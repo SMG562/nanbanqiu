@@ -41,5 +41,17 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     }
     T(`${f} 无脚本错误`, errs.length === 0, errs); await ctx.close();
   }
+  // 微信里打开：只有微信自己的顶栏。.wxbar 是电脑演示的假顶栏，真手机上不能出现，也不能给它留位置
+  const WXUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.50 NetType/WIFI Language/zh_CN';
+  for (const [name, vp, ua, wantBar] of [['微信手机', { width: 390, height: 844 }, WXUA, false], ['电脑演示（切到微信环境）', { width: 1360, height: 900 }, undefined, true]]) {
+    const ctx = await b.newContext({ viewport: vp, userAgent: ua, isMobile: !!ua, hasTouch: !!ua }), pg = await ctx.newPage();
+    await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.goto('https://nanbanqiu.test/'); await pg.settle(600); if (!ua) { await pg.evaluate(() => setEnv('wechat')); await pg.settle(300) }
+    const x = await pg.evaluate(() => { const bar = document.querySelector('.wxbar'), top = document.querySelector('.topbar'); return { env: ENV, bar: getComputedStyle(bar).display, wx: getComputedStyle(document.getElementById('dev')).getPropertyValue('--wx').trim(), tip: !!document.querySelector('.wxtip') && getComputedStyle(document.querySelector('.wxtip')).display !== 'none' } });
+    T(`${name}：${wantBar ? '演示里的模拟微信顶栏照常显示' : '没有第二层 ✕ / ··· 顶栏，也没给它留位置'}`, wantBar ? (x.env === 'wechat' && x.bar !== 'none' && x.wx === '44px') : (x.env === 'wechat' && x.bar === 'none' && x.wx === '0px'), x);
+    if (!wantBar) T('微信手机：顶部「添加到主屏幕」提示条仍在（引导去浏览器）', x.tip, x);
+    await ctx.close();
+  }
   await b.close(); console.log(`wx_share: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1) });
