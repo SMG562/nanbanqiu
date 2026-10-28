@@ -106,6 +106,9 @@ try {
   r = await anon(`select sb_config(1) r`);
   T('前台拿到第 2 版', r.v.version === 2 && r.v.config.hints.some(h => h.text === '今天的球感怎么样？'));
   T('没有改动不能发布', is(await amy(`select admin_sb_config_publish('再发一次', 2)`), 'invalid', 'unchanged'));
+  await q(`insert into sb_config_draft(config, base_version) select config, version from sb_config_versions order by version desc limit 1`);
+  T('草稿内容和正式一样也不能发布，版本号不变', is(await amy(`select admin_sb_config_publish('原样再发', 2)`), 'invalid', 'unchanged') && +(await one(`select max(version) n from sb_config_versions`)).n === 2);
+  await q(`delete from sb_config_draft`);
   T('两个人同时发布：后发布的版本号对不上', (await set(own, 'hints', C.hints, 2)).ok && (await own(`select admin_sb_config_publish('去掉那句', 2)`)).ok && is(await amy(`select admin_sb_config_publish('我也发', 2)`), 'admin_config_stale', '3'));
   // 话题：改问题、加常驻、下线、转为常驻
   await q(`insert into users(id,phone_e164,nickname,utr,gender) values ('00000000-0000-0000-0000-000000000001','+61400000001','Yuki',5,'f')`);
