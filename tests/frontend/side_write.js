@@ -20,6 +20,12 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   await E(() => { SBV.every = 1e9 }); await pg.waitForFunction(() => SBV.qi >= 1, null, { timeout: 4000, polling: 50 }).catch(() => {}); await W(300);   // 等第一条自动新动态冒出来（原来固定等 2.5 秒）   // 演示的自动新动态只冒第一条，之后不再冒，免得干扰数数
 
   // ---- 没登录：第一次互动时登录，登录后接着做 ----
+  // 信息流里的照片卡片双击点网球，同样要先登录（原来这条路径漏了登录检查）
+  { const card = sr('[data-s="home"] .ln.pc').first(), cid = await card.getAttribute('data-ln'), m0 = await E(id => !!SBV.L.find(x => String(x.id) === id).my, cid);
+    await card.scrollIntoViewIfNeeded(); await card.dblclick({ position: { x: 180, y: 150 } }); await W(450);
+    T('没登录双击照片卡片 → 先登录（说明「点网球前…」）', /点网球前/.test(await sheet()), await sheet());
+    T('没登录双击照片卡片：网球没点上', await E(id => !!SBV.L.find(x => String(x.id) === id).my, cid) === m0);
+    await E(() => closeSheet()); await W(300) }
   const ball = sr('[data-s="home"] [data-ball]').first(), bid = await ball.getAttribute('data-ball');
   const on0 = await E(id => !!SBV.L.find(x => String(x.id) === id).my, bid);
   await ball.click(); await W(450);

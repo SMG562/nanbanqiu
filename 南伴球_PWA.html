@@ -5695,7 +5695,7 @@ function App(el,init){
     if('lib' in d){S.cmp.lib=!S.cmp.lib;S.cmp.libReady=true;drawCompose();return}
     if(d.fill){S.cmp.text=d.fill;drawCompose();const ct=$('[data-ctext]');ct.focus({preventScroll:true});ct.setSelectionRange(ct.value.length,ct.value.length);return}
     if(d.ln&&!t.classList.contains('pc')){openSheet(d.ln);return}
-    if(d.ln&&t.matches('.rr')===false){const now=Date.now();if(S._tap&&S._tap.k===d.ln&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;dbl(t,d.ln,e);return}
+    if(d.ln&&t.matches('.rr')===false){const now=Date.now();if(S._tap&&S._tap.k===d.ln&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t,id=d.ln;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}
       const id=d.ln;S._tap={k:id,t:now,h:setTimeout(()=>{S._tap=null;openSheet(id)},240)};return}});
   if(S.typed)inp.value=S.typed;
   if(S.compose)S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:true,sh:null},S.compose);
