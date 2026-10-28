@@ -10,3 +10,4 @@ node_modules/
 # 预览网站（tools/site.mjs 生成，Cloudflare Pages 部署时现生成）
 site/
 !tests/visual/baseline/*.png
+!icons/*.png

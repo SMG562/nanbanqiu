@@ -136,11 +136,37 @@ function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" 
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
   <h3>添加到主屏幕</h3><p class="lead">有人申请加入你的球局，<em>第一时间</em>通知你</p>
   <div class="ntf"><svg class="ic"><use href="#logo"/></svg><div><b>南伴球<small>现在</small></b><span>Grace 申请加入你周六 9:00 的球局</span></div></div>
-  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li><li><i>3</i><div>点击分享 <span class="kbd">⬆︎</span>，选「添加到主屏幕」</div></li></ol>
+  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li><li><i>3</i><div>点底部的分享 <span class="kbd">⬆︎</span>（看不到就点地址栏的菜单），选「添加到主屏幕」</div></li></ol>
   <button class="btn" data-a="wxclose">知道了</button>`}
-function openA2HS(){openSheet(`<div class="center"><svg viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:0 auto 14px;border-radius:16px;box-shadow:0 6px 16px rgba(23,107,77,.22)"><use href="#logo"/></svg><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，接收申请结果推送</p></div>
-  <div class="steps"><div class="step"><i>1</i><div><b>点击 Safari 底部的分享 <span class="kbd">⬆︎</span></b></div></div><div class="step"><i>2</i><div><b>选择「添加到主屏幕」</b></div></div><div class="step"><i>3</i><div><b>从主屏幕打开，允许通知</b><p>需要 iOS 16.4 或更新</p></div></div></div>
-  <button class="btn btn-p" data-a="simA2hs">演示：已添加并从主屏幕打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
+// 添加到主屏幕（10-29 重做）：按浏览器给最直白的步骤，每一步配和真实界面一致的图标；没有演示按钮
+// iOS Safari：底部工具栏的分享（新版 Safari 工具栏收起时，在地址栏的 ≡ / ⋯ 菜单里）→ 添加到主屏幕 → 添加
+// iOS 其他浏览器 / App 内置浏览器：先换到 Safari（复制链接）；安卓 Chrome：能一键就一键（beforeinstallprompt），否则 ⋮ 菜单
+let A2HS_EV=null;
+function a2hsKind(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
+  if(/MicroMessenger|xhsdiscover|XiaoHongShu|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(ua)||(ios&&!/Safari/.test(ua)))return'inapp';
+  if(ios)return/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo/.test(ua)?'ios_other':'ios_safari';
+  return'android'}
+const A2G={
+  share:'<svg viewBox="0 0 24 24"><path d="M12 15V3.5M8 7l4-4 4 4M7.5 10H6a1.5 1.5 0 0 0-1.5 1.5v8A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18 10h-1.5"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8.5v7M8.5 12h7"/></svg>',
+  menu:'<svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg>',
+  dots:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>',
+  vdots:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5.5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.5" r="1.7"/></svg>',
+  add:'<b class="a2t">添加</b>'};
+const a2s=(n,t,sub,g)=>`<div class="a2s"><i>${n}</i><div class="a2b"><b>${t}</b>${sub?`<p>${sub}</p>`:''}</div><span class="a2g">${A2G[g]}</span></div>`;
+function a2hsSteps(k){
+  if(k==='android')return a2s(1,'点浏览器右上角的「<u>⋮</u>」','','vdots')+a2s(2,'点「添加到主屏幕」','有的手机显示为「安装应用」','plus')+a2s(3,'点「添加」','桌面出现南伴球图标，之后从它打开','add');
+  return a2s(1,'点屏幕底部的「分享」','看不到？点地址栏的 <span class="a2i">'+A2G.menu+'</span> 或 <span class="a2i">'+A2G.dots+'</span>，再选「分享」','share')
+    +a2s(2,'向上滑，点「添加到主屏幕」','在分享菜单里往上滑一点就能看到','plus')
+    +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
+function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+  let top='',main='';
+  if(k==='inapp'||k==='ios_other'){
+    top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;
+    main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
+  else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
+  else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，再按提示允许通知（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}

@@ -73,7 +73,8 @@ DEV.addEventListener('click',e=>{
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;
     case'a2hs':openA2HS();break;
-    case'simA2hs':setEnv('pwa');closeSheet();toast('已从主屏幕打开');setTimeout(enablePush,500);break;
+    case'a2hsGo':if(A2HS_EV){const ev=A2HS_EV;ev.prompt();ev.userChoice.then(r=>{A2HS_EV=null;closeSheet();if(r&&r.outcome==='accepted')toast('已添加到主屏幕')},()=>{})}break;
+    case'a2hsLink':copy(location.href.split('#')[0],'链接已复制，到 Safari 粘贴打开');break;
     case'logout':sbaLogout();ME=null;toast('已退出登录');render();break;
     case'create':closeDetail();openCreate();break;
   }

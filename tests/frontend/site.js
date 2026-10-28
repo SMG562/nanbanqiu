@@ -8,10 +8,18 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   const S = await import(url.pathToFileURL(path.join(ROOT, 'tools', 'site.mjs')).href);
   process.env.CF_PAGES_COMMIT_SHA = '0123abcdef0123';   // Cloudflare 构建时给的提交号
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-site-')); S.build(out);
-  const files = fs.readdirSync(out).sort(), want = [...Object.keys(S.FILES), ...S.GENERATED].sort();
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)).map(x => e.name + '/' + x) : [e.name]);
+  const files = walk(out).sort(), want = [...Object.keys(S.FILES), ...S.GENERATED].sort();
   T('site/ 只有白名单里的文件', JSON.stringify(files) === JSON.stringify(want), { files, want });
   T('不含进度记录、数据库、测试、服务端代码', !files.some(f => /\.(md|sql|py|mjs|cjs)$|^tests|^server|^src/.test(f)), files);
   T('页面和仓库里的文件逐字节一致', Object.entries(S.FILES).every(([to, from]) => fs.readFileSync(path.join(out, to)).equals(fs.readFileSync(path.join(ROOT, from)))));
+  // 主屏幕图标：manifest 和 apple-touch-icon 引用的文件都在、是真 PNG、尺寸对；预览站 manifest 从 /pwa.html 打开（根是入口页）
+  const png = f => { const b = fs.readFileSync(path.join(out, f)); return b.slice(1, 4).toString() === 'PNG' ? [b.readUInt32BE(16), b.readUInt32BE(20)] : null };
+  const mf = JSON.parse(fs.readFileSync(path.join(out, 'manifest.webmanifest'), 'utf8'));
+  T('图标：180 / 192 / 512 / maskable 512 都是对应尺寸的 PNG', JSON.stringify([png('icons/icon-180.png'), png('icons/icon-192.png'), png('icons/icon-512.png'), png('icons/icon-maskable-512.png')]) === '[[180,180],[192,192],[512,512],[512,512]]');
+  T('manifest 里的图标文件都在 site/ 里', mf.icons.length >= 3 && mf.icons.every(i => files.includes(i.src.replace(/^\//, ''))), mf.icons);
+  T('页面的 apple-touch-icon 指向 site/ 里的文件', (() => { const m = fs.readFileSync(path.join(out, 'pwa.html'), 'utf8').match(/rel="apple-touch-icon" href="([^"]+)"/); return !!m && files.includes(m[1].replace(/^\//, '')) })());
+  T('预览站 manifest：从 /pwa.html 打开（不是入口页），快捷方式同', mf.start_url === '/pwa.html?source=pwa' && mf.id === '/pwa.html' && mf.shortcuts.every(x => x.url.startsWith('/pwa.html?')), mf);
   const hd = fs.readFileSync(path.join(out, '_headers'), 'utf8');
   T('_headers：全站不让搜索引擎收录、页面不缓存', /^\/\*\n/.test(hd) && /X-Robots-Tag: noindex/.test(hd) && /Cache-Control: no-cache/.test(hd), hd);
   const idx = fs.readFileSync(path.join(out, 'index.html'), 'utf8'), links = [...idx.matchAll(/href="([^"]+)"/g)].map(m => m[1]);

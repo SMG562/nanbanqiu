@@ -22,9 +22,22 @@ export const FILES = {
   'admin.html': '南伴球_后台.html',
   'privacy.html': 'privacy.html',
   'terms.html': 'terms.html',
-  'manifest.webmanifest': 'manifest.webmanifest',
+  // 主屏幕图标（页面里写的是 /icons/…；没有这些文件时 iOS 会拿页面标题的第一个字「南」生成图标）
+  'icons/icon-180.png': 'icons/icon-180.png',
+  'icons/icon-192.png': 'icons/icon-192.png',
+  'icons/icon-512.png': 'icons/icon-512.png',
+  'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
 };
-export const GENERATED = ['index.html', '_headers'];
+export const GENERATED = ['index.html', '_headers', 'manifest.webmanifest'];
+
+// 预览站的 manifest：仓库里的 manifest 是给正式站用的（根网址 / 就是应用）；预览站的根是入口页，
+// 应用在 /pwa.html，所以「添加到主屏幕」后要从 /pwa.html 打开（不然会打开入口页）
+export function previewManifest(src) {
+  const m = JSON.parse(src);
+  m.id = '/pwa.html'; m.start_url = '/pwa.html?source=pwa';
+  m.shortcuts = (m.shortcuts || []).map(x => ({ ...x, url: x.url.replace(/^\/\?/, '/pwa.html?') }));
+  return JSON.stringify(m, null, 2) + '\n';
+}
 
 function commit() {
   const env = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA;
@@ -65,7 +78,8 @@ export function build(out = path.join(ROOT, 'site')) {
     if (fs.lstatSync(out).isSymbolicLink()) throw new Error('site/ 是链接，停止');
     for (const f of [...Object.keys(FILES), ...GENERATED]) { const p = path.join(out, f); if (fs.existsSync(p)) fs.unlinkSync(p) }
   } else fs.mkdirSync(out);
-  for (const [to, from] of Object.entries(FILES)) fs.copyFileSync(path.join(ROOT, from), path.join(out, to));
+  for (const [to, from] of Object.entries(FILES)) { fs.mkdirSync(path.dirname(path.join(out, to)), { recursive: true }); fs.copyFileSync(path.join(ROOT, from), path.join(out, to)) }
+  fs.writeFileSync(path.join(out, 'manifest.webmanifest'), previewManifest(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8')));
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }).slice(0, -3);
   fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));
   fs.writeFileSync(path.join(out, '_headers'), HEADERS);
