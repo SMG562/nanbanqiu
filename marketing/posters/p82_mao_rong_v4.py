@@ -5,7 +5,7 @@ from mao4 import figure4, K_ARM, GROUND
 META = dict(
     id=82, slug='mao-rong-v4', title='小毛和小绒，好朋友（毛茸茸版）', lines=['小毛和小绒，', '好朋友。'],
     style=['插画', '角色', '拟人', '极简'], tone='浅色', demo=False,
-    concept='v4 设定：毛茸茸的黄绿小毛（头顶一小撮毛）和棉花糖粉的小绒（小蝴蝶结）；婴儿比例的大眼睛、短短的黑线手脚；主图击掌，下面三个合照：搭肩 / 一起招手 / 晚安',
+    concept='v4 设定：毛茸茸的黄绿小毛和棉花糖粉的小绒（小蝴蝶结）；婴儿比例的大眼睛、短短的黑线手脚；主图击掌，下面三个合照：搭肩 / 一起招手 / 晚安',
     use='客服 / 运营形象的双人设定；做“约球搭子”“带朋友一起来”的物料',
 )
 
@@ -31,8 +31,7 @@ def svg():
     rong_pose = dict(L=((-1.5, -.2), raw(SH_L, hr)), R=DOWN_R, legs='stand')
     sparks = ''.join(pen(f'M{tx + math.cos(math.radians(a))*30:.1f} {ty + math.sin(math.radians(a))*30:.1f} L{tx + math.cos(math.radians(a))*52:.1f} {ty + math.sin(math.radians(a))*52:.1f}', 3)
                      for a in (-150, -120, -90, -60, -30))
-    note = (pen('M214 440 Q280 454 332 440', 2.6) + pen('M318 432 L333 440 L319 449', 2.6)
-            + pen('M876 470 Q850 478 812 490', 2.6) + pen('M826 478 L811 490 L828 496', 2.6))
+    note = (pen('M876 470 Q850 478 812 490', 2.6) + pen('M826 478 L811 490 L828 496', 2.6))
     r2, gy2 = 44, 1080
     duo = ''
     xc = 200
@@ -65,7 +64,6 @@ def svg():
 {figure4('m', xm, 0, rm, mao_pose, 'happy', gy=gy)}
 {figure4('r', xr, 0, rr, rong_pose, 'smile', char='rong', gy=gy)}
 <g filter="url(#rough2)">{sparks}{note}</g>
-{label(96, 438, '一小撮毛', size=24)}
 {label(884, 462, '小蝴蝶结', size=24)}
 <text x="{xm}" y="{gy+64}" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="38" fill="#0B3B2A">小毛</text>
 <text x="{xr}" y="{gy+64}" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="38" fill="#0B3B2A">小绒</text>

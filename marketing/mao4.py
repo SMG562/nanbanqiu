@@ -98,17 +98,34 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
     defs = (
         f'<defs>'
         f'<radialGradient id="bg{id}" cx=".36" cy=".30" r=".82"><stop offset="0" stop-color="{pal["hi"]}"/><stop offset=".48" stop-color="{mid}"/><stop offset="1" stop-color="{lo}"/></radialGradient>'
-        f'<radialGradient id="fs{id}" cx=".34" cy=".28" r=".98"><stop offset=".58" stop-color="{lo}" stop-opacity="0"/><stop offset="1" stop-color="{_mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .35)}" stop-opacity=".42"/></radialGradient>'
+        f'<radialGradient id="fs{id}" cx=".34" cy=".28" r=".98"><stop offset=".58" stop-color="{lo}" stop-opacity="0"/><stop offset="1" stop-color="{_mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .35)}" stop-opacity=".55"/></radialGradient>'
         f'<radialGradient id="hl{id}" cx=".3" cy=".24" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
         f'<clipPath id="bc{id}"><circle r="{r}"/></clipPath>'
         f'<filter id="sf{id}" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="{seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/><feGaussianBlur stdDeviation=".45"/></filter>'
         f'<filter id="sb{id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>'
         f'<filter id="ed{id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="{.9/max(r,40)*40:.2f}" numOctaves="2" seed="{seed+3}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="{max(1.2, .03*r):.1f}"/></filter>'
         f'</defs>')
-    return (defs + f'<g transform="translate({cx:.1f} {cy:.1f})">{halo_svg}'
-            f'<circle r="{r}" fill="url(#bg{id})" filter="url(#ed{id})"/>'
-            f'<g clip-path="url(#bc{id})"><g transform="scale({u})">{seam_svg}</g>{fiber_svg}'
-            f'<circle r="{r}" fill="url(#fs{id})"/><circle r="{r}" fill="url(#hl{id})"/></g></g>')
+    fr = min(1.0, max(.45, 110 / r))
+    ds = max(1.4, .026 * r)
+    felt = (
+        f'<filter id="fz{id}" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">'
+        f'<feTurbulence type="fractalNoise" baseFrequency="{fr*.8:.2f}" numOctaves="3" seed="{seed}" result="n"/>'
+        f'<feDisplacementMap in="SourceGraphic" in2="n" scale="{ds:.1f}" xChannelSelector="R" yChannelSelector="G" result="d"/>'
+        f'<feGaussianBlur in="d" stdDeviation="{max(.6, .0065*r):.2f}" result="db"/>'
+        f'<feTurbulence type="fractalNoise" baseFrequency="{fr*1.7:.2f}" numOctaves="2" seed="{seed+5}" result="n2"/>'
+        f'<feDiffuseLighting in="n2" surfaceScale="1.5" diffuseConstant="1.15" lighting-color="#fff" result="lit"><feDistantLight azimuth="235" elevation="58"/></feDiffuseLighting>'
+        f'<feComposite in="lit" in2="db" operator="in" result="li"/>'
+        f'<feBlend in="li" in2="db" mode="multiply"/>'
+        f'</filter>'
+        f'<filter id="gl{id}" x="-15%" y="-15%" width="130%" height="130%">'
+        f'<feTurbulence type="fractalNoise" baseFrequency="{fr*.9:.2f}" numOctaves="3" seed="{seed+9}" result="n"/>'
+        f'<feDisplacementMap in="SourceGraphic" in2="n" scale="{ds*1.9:.1f}" xChannelSelector="R" yChannelSelector="G"/>'
+        f'<feGaussianBlur stdDeviation="{max(1., .01*r):.2f}"/></filter>')
+    return (defs + f'<defs>{felt}</defs><g transform="translate({cx:.1f} {cy:.1f})">'
+            f'<circle r="{r*1.0:.1f}" fill="{mid}" opacity=".55" filter="url(#gl{id})"/>'
+            f'<g filter="url(#fz{id})"><circle r="{r}" fill="url(#bg{id})"/>'
+            f'<g clip-path="url(#bc{id})"><g transform="scale({u})">{seam_svg}</g></g></g>'
+            f'<g clip-path="url(#bc{id})"><circle r="{r}" fill="url(#fs{id})"/><circle r="{r}" fill="url(#hl{id})"/></g></g>')
 
 
 def face4(id, cx, cy, r, mood='smile', look=0, pal=LIME_P):
@@ -275,7 +292,7 @@ def figure4(id, cx, cy, r, pose='wave', mood='happy', char='mao', tilt=None, lif
     ground = pen(f'M{cx - .9*r:.1f} {gy:.1f} Q{cx - .3*r:.1f} {gy - .03*r:.1f} {cx + .15*r:.1f} {gy:.1f} T{cx + .9*r:.1f} {gy - .004*r:.1f}', w * .7, .55)
     soft_sh = (f'<ellipse cx="{cx + .05*r:.1f}" cy="{gy:.1f}" rx="{(.82 - lift*.4)*r:.1f}" ry="{.085*r:.1f}" fill="#0B3B2A" opacity="{.16 - lift*.2:.2f}" '
                f'filter="url(#{"bl6" if r < 80 else "bl14"})"/>') if soft else ''
-    hair = tuft4(cx, cy, r, w) if char != 'rong' else bow4(cx, cy, r, w)
+    hair = bow4(cx, cy, r, w) if char == 'rong' else ''
     seed = seed or (zlib.crc32(str(id).encode()) % 97 + 3)
     front = f'<g filter="url(#rough2)">{arms}</g>' if P.get('front') else ''
     limbs = f'<g filter="url(#rough2)">{legs}{arms if not P.get("front") else ""}</g>'

@@ -22,7 +22,7 @@ def svg():
 <rect width="{W}" height="{H}" fill="url(#bg83)"/>
 {tag('XIAO MAO · XIAO RONG', color='#0B3B2A', rule='#0B3B2A', op=.8, weight=700)}
 {headline(META['lines'], y=290, size=70, colors=('#0B3B2A', '#C2410C'), ls=4, lh=78)}
-{head('m', *a[:3], a[3], LIME_P, 'happy', tuft4, 0, 5)}
+{head('m', *a[:3], a[3], LIME_P, 'happy', lambda *a: '', 0, 5)}
 {head('r', *b[:3], b[3], PINK_P, 'smile', bow4, -1, 11)}
 <path d="M0 1204 Q540 1172 1080 1204 V1350 H0 Z" fill="#0B3B2A"/>
 {wordmark(1276, '#F3E6CC', sub=False, op=.95)}
