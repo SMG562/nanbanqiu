@@ -61,7 +61,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     const webp = f => { const x = fs.readFileSync(path.join(out, f)); return x.slice(0, 4).toString() === 'RIFF' && x.slice(8, 12).toString() === 'WEBP' ? [x.readUInt16LE(26) & 0x3fff, x.readUInt16LE(28) & 0x3fff] : null };
     T('物料：大图 1080×1350、缩略图 360×450（webp）', list.every(p => JSON.stringify(webp(`materials/img/${S.posterName(p)}.webp`)) === '[1080,1350]' && JSON.stringify(webp(`materials/thumb/${S.posterName(p)}.webp`)) === '[360,450]'));
     T('物料：编号不重复，每张有文案、创意、用途', new Set(list.map(p => p.id)).size === list.length && list.every(p => p.lines.length && p.concept && p.use && p.title));
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort()); await ctx.route(/^http:\/\/127\.0\.0\.1/, r => r.continue());   // preload 默认拦掉所有 http，本站放行（和上面各页一样）
     const pg = await ctx.newPage(); await pg.goto(`${base}/materials.html`);
     await pg.evaluate(() => { document.querySelectorAll('img').forEach(i => { i.loading = 'eager' }) }); await pg.waitForTimeout(1200);
     const bad = await pg.evaluate(() => [...document.querySelectorAll('#grid img')].filter(i => !(i.complete && i.naturalWidth > 0)).length);
