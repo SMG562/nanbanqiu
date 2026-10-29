@@ -2,7 +2,7 @@
 //   前台三个页面都是单文件（脚本、样式写在页面里，后台还有 oninput= 这类行内处理），所以 script-src 暂时要 'unsafe-inline'；
 //   防注入主要靠「所有用户文字先 esc() 再显示」（tests/frontend/xss.js、tests/admin/xss.js 保证）。
 //   以后拆成独立 .js 文件后，把 'unsafe-inline' 换成 nonce，并给第三方库加 integrity（或直接放到本站）。
-export const SUPABASE = process.env.SUPABASE_URL || 'https://uyysusnzaosvweemwmkl.supabase.co';
+export const SUPABASE = process.env.SUPABASE_URL || 'https://xosrdkrkfxkdrwldfhac.supabase.co';
 
 export const CSP = [
   "default-src 'self'",
