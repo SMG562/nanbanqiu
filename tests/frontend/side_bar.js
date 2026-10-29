@@ -27,6 +27,9 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
     return {sameBox:Math.abs(o.left-b.left)<1&&Math.abs(o.width-b.width)<1&&Math.abs(o.height-b.height)<1,ghostNoPointer:g.pointerEvents==='none',ghostTiny:parseFloat(g.width)<=1,sendNoPointer:getComputedStyle(r.querySelector('[data-send]')).pointerEvents==='none'}}`);
   T('点击层盖住整个输入框；真输入框是点不到的 1px 幽灵；灰着的发送键不吃点击', cover.sameBox && cover.ghostNoPointer && cover.ghostTiny && cover.sendNoPointer, cover);
 
+  const pos = await q(`r=>{const f=x=>{const b=r.querySelector(x).getBoundingClientRect();return [b.left,b.top,b.width,b.height].map(v=>Math.round(v*10)/10)};return {box:f('.bar .box'),where:f('[data-place]'),cam:f('[data-cam]'),send:f('[data-send]')}}`);
+  T('球场标签 / 相机 / 发送键靠右排好，位置和改动前一模一样（量过坐标）', JSON.stringify(pos) === JSON.stringify({ box: [12, 714, 366, 50], where: [225.1, 723, 61.9, 32], cam: [293, 723, 34, 32], send: [333, 719, 40, 40] }), pos);
+
   // ---- 点提示文字区域 → 进写页，话题（当前提示的话题）带过去，首页输入框仍没焦点 ----
   const hintBefore = await q(`r=>r.querySelector('[data-hint]').textContent`);
   await clickAt('.bar .box', 0.25); await W(700);
