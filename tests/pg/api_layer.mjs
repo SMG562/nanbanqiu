@@ -57,6 +57,33 @@ try {
   const log = console.error; console.error = () => { }; r = await call('GET', '/api/me', await token(A), boom); console.error = log;
   T('数据库连不上 → 503，响应里没有地址和密码', r.s === 503 && r.j.error === 'db_unavailable' && !/secret-host|hunter2|ECONNREFUSED/.test(JSON.stringify(r.j) + [...r.h].join()), r);
 
+
+  // ---- 第 2 步：只读接口 ----
+  const HA = (await admin.query(`select id from users where auth_id = $1`, [A])).rows[0].id, HB = (await admin.query(`select id from users where auth_id = $1`, [B])).rows[0].id;
+  const V1 = (await admin.query(`insert into venues(name, short_name, suburb, location) values ('Glen Iris Tennis Club','Glen Iris','Glen Iris', st_makepoint(145.05, -37.86)::geography) returning id`)).rows[0].id;
+  const mkGame = async (host, code, vis, hours) => (await admin.query(`insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, visibility, venue_name)
+    values ($1,$2,$3, now() + ($4 || ' hours')::interval, 90, 'singles', 2, 4.0, 8.0, $5, null) returning id`, [code, host, V1, String(hours), vis])).rows[0].id;
+  const g1 = await mkGame(HA, 'Ab12', 'public', 5), g2 = await mkGame(HA, 'Zz99', 'private', 6), g3 = await mkGame(HB, 'Cd34', 'public', 2);
+  await mkGame(HA, 'Old1', 'public', 9); await admin.query(`update games set status = 'cancelled' where share_code = 'Old1'`);
+  r = await call('GET', '/api/venues'); T('venues：不用登录；有坐标，没有内部列', r.s === 200 && r.j.venues.length === 1 && r.j.venues[0].lat === -37.86 && r.j.venues[0].lng === 145.05 && r.j.venues[0].name === 'Glen Iris Tennis Club', r);
+  r = await call('GET', '/api/games'); T('games：没登录 → 401', r.s === 401);
+  r = await call('GET', '/api/games', await token(N)); T('games：令牌有效但没注册 → 403 not_registered', r.s === 403 && r.j.error === 'not_registered', r);
+  r = await call('GET', '/api/games', await token(B));
+  T('games：B 看到公开的两局（按开打时间排，已取消的不出现），看不到 A 的私人球局', r.s === 200 && r.j.games.map(x => x.share_code).join() === 'Cd34,Ab12', r.j.games?.map(x => x.share_code));
+  T('games：带发起人昵称和余位，没有手机号等私密列', r.j.games[1].host_nickname === '小明' && r.j.games[1].spots_left === 1 && r.j.games[1].approved_count === 1 && r.j.games[1].pending_count === 0, r.j.games[1]);
+  T('games：返回里没有手机号 / 登录 id', !/phone|auth_id|\+61/.test(JSON.stringify(r.j)));
+  r = await call('GET', '/api/games', await token(A)); T('games：A 自己的私人球局 A 能看到', r.j.games.some(x => x.share_code === 'Zz99'), r.j.games?.map(x => x.share_code));
+  r = await call('GET', '/api/game?code=Ab12', await token(B)); T('game：按分享码取到球局', r.s === 200 && r.j.game.share_code === 'Ab12', r);
+  r = await call('GET', '/api/game?code=Zz99', await token(B)); T('game：别人的私人球局 → 404（和不存在一样）', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('GET', '/api/game?code=Nope', await token(B)); T('game：不存在 → 404', r.s === 404);
+  r = await call('GET', "/api/game?code=x';drop", await token(B)); T('game：分享码格式不对 → 400', r.s === 400 && r.j.error === 'bad_code');
+  r = await call('GET', '/api/game?code=Ab12'); T('game：没登录 → 401', r.s === 401);
+  r = await call('GET', '/api/profile?id=' + HA, await token(B)); T('profile：B 看 A 的公开资料', r.s === 200 && r.j.profile.nickname === '小明', r);
+  T('profile：没有手机号 / 登录 id / 微信号 / 邮箱', !/phone|auth_id|wechat|email|\+61/.test(JSON.stringify(r.j)), r.j);
+  r = await call('GET', '/api/profile?id=' + G, await token(B)); T('profile：不存在 → 404', r.s === 404);
+  r = await call('GET', '/api/profile?id=abc', await token(B)); T('profile：id 格式不对 → 400', r.s === 400);
+  r = await call('GET', '/api/games', await token(A), { verify, db: makeDb(null) }); T('games：没配数据库 → 503', r.s === 503);
+
   // 路由
   r = await call('GET', '/api/nope'); T('不存在的路径 → 404 not_found', r.s === 404 && r.j.error === 'not_found');
   r = await call('POST', '/api/me', await token(A)); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed');

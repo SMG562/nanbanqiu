@@ -5,6 +5,8 @@
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 
+// 球局卡片对外的列（不含发起设备、系列 id 等内部列）
+const GAME_COLS = 'id, share_code, host_id, host_nickname, host_utr, venue_id, venue_name, short_name, starts_at, duration_min, game_type, capacity, utr_min, utr_max, note, status, tags, visibility, approved_count::int as approved_count, pending_count::int as pending_count, spots_left::int as spots_left';
 const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme, created_at';
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
@@ -39,6 +41,33 @@ const ROUTES = {
     if (!w.uid) return send(200, { registered: false });
     const user = await d.db.asUser(w.uid, async q => (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0] || null);
     return send(200, user ? { registered: true, user } : { registered: false });
+  },
+  // ---- 第 2 步：只读接口（球场 / 球局 / 球友公开资料）----
+  // 球场是公共参考数据，没登录也能看（场边页本来就允许未登录浏览）
+  'GET /api/venues': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select id, name, short_name, suburb, surfaces, courts, lights, indoor, booking_url,
+      round(st_y(location::geometry)::numeric, 5)::float8 as lat, round(st_x(location::geometry)::numeric, 5)::float8 as lng from venues order by name`)).rows);
+    return send(200, { venues: rows }, { 'Cache-Control': 'public, max-age=300' });
+  },
+  // 球局列表：只要还没开打的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断
+  'GET /api/games': async (req, d) => {
+    const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
+    const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from api_game_cards where status in ('open','full') and starts_at > now() order by starts_at limit 100`)).rows);
+    return send(200, { games: rows });
+  },
+  // 单个球局（分享码），打开分享链接用
+  'GET /api/game': async (req, d) => {
+    const code = new URL(req.url).searchParams.get('code') || ''; if (!/^[A-Za-z0-9]{3,16}$/.test(code)) return send(400, { error: 'bad_code' });
+    const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
+    const g = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from api_game_cards where share_code = $1`, [code])).rows[0] || null);
+    return g ? send(200, { game: g }) : send(404, { error: 'not_found' });   // 看不见的球局（私人 / 被屏蔽）和不存在的一样返回 404
+  },
+  // 别人的资料：只给球员卡上本来就公开的列（public_profiles）
+  'GET /api/profile': async (req, d) => {
+    const id = new URL(req.url).searchParams.get('id') || ''; if (!/^[0-9a-f-]{36}$/i.test(id)) return send(400, { error: 'bad_id' });
+    const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
+    const p = await d.db.asUser(w.uid, async q => (await q(`select id, member_no, nickname, last_initial, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, seal_roll, card_theme, level, gone from public_profiles where id = $1`, [id])).rows[0] || null);
+    return p ? send(200, { profile: p }) : send(404, { error: 'not_found' });
   },
 };
 
