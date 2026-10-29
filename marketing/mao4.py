@@ -49,7 +49,8 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
         tx, ty = (r + L) * math.cos(th + lean * L / r), (r + L) * math.sin(th + lean * L / r)
         px, py = -s_ * w, c * w
         fur.append(f'M{bx + px:.1f} {by + py:.1f} L{tx:.1f} {ty:.1f} L{bx - px:.1f} {by - py:.1f}Z')
-    fur_svg = f'<path d="{" ".join(fur)}" fill="{mid}"/>'
+    fur_svg = (f'<filter id="fh{id}" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="{max(.7, .007*r):.2f}"/></filter>'
+               f'<circle r="{r*1.006:.1f}" fill="{mid}" opacity=".85" filter="url(#fh{id})"/>')
     # 2) 球面绒纹：很淡、很短、顺着球面走的小弧线
     dark, light = _mix(mid, lo, .55), _mix(mid, hh, .7)
     bk = {'d': [], 'l': []}
