@@ -1,0 +1,114 @@
+// 5g-3 第 3 步：写接口（球局 / 申请 / 同意…）经 HTTP 层走一遍；规则本身由 pg/api 测，这里测接线：令牌、路径参数、JSON、错误码 → 状态码、重试。
+// （原头注释）5g-3 第 1 步：接口层（server/api）连真实数据库：令牌 → 球友 → 以 nbq_user 身份读自己；用真正的 nbq_api 账号登录；
+//   没登录 / 令牌错 / 没注册 / 已注销、健康检查、数据库连不上不泄露细节、连接用完即还。
+import fs from 'fs'; import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
+import { startCluster, loadSchema } from './cluster.mjs';
+const require = createRequire(import.meta.url); const pg = require('pg');
+const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
+const { handleApi } = await import(path.join(DIR, 'server/api/handler.mjs')), { makeVerifier } = await import(path.join(DIR, 'server/api/jwt.mjs')), { makeDb } = await import(path.join(DIR, 'server/api/db.mjs'));
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 500) : '')) };
+
+const UUIDre = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const c = startCluster(); let admin;
+try {
+  c.createdb('nbq');
+  const errs = loadSchema(c, 'nbq', path.join(DIR, 'schema.sql')); T('schema 执行无错误', !errs.length, errs.slice(0, 3));
+  admin = new pg.Pool({ host: c.host, port: c.port, user: 'postgres', database: 'nbq', max: 2 });
+  await admin.query(`create role nbq_api login in role nbq_user, nbq_service`);   // 和正式环境一致：API 用的账号只属于这两个角色
+
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const jwk = { ...(await crypto.subtle.exportKey('jwk', kp.publicKey)), alg: 'ES256', kid: 'k1' }, U = 'https://t.supabase.co', ISS = U + '/auth/v1';
+  const b64 = x => Buffer.from(x).toString('base64url');
+  const token = async sub => { const h = b64(JSON.stringify({ alg: 'ES256', kid: 'k1' })), p = b64(JSON.stringify({ iss: ISS, aud: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 600 }));
+    return h + '.' + p + '.' + b64(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, new TextEncoder().encode(h + '.' + p))) };
+  const verify = makeVerifier({ url: U, fetch: async () => ({ ok: true, json: async () => ({ keys: [jwk] }) }) });
+  const connect = () => async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_api', database: 'nbq' }); await cl.connect(); return cl };
+  const deps = { verify, db: makeDb(connect()) };
+  const call = async (method, p, tok, body, d = deps) => { const init = { method, headers: tok ? { Authorization: 'Bearer ' + tok } : {} };
+    if (body !== undefined) init.body = typeof body === 'string' ? body : JSON.stringify(body);
+    const r = await handleApi(new Request('https://x.test' + p, init), d); let j = null; try { j = await r.clone().json() } catch (_) { } return { s: r.status, j, h: r.headers } };
+
+  const AH = '11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa', AP = '22222222-bbbb-4bbb-8bbb-bbbbbbbbbbbb', AQ = '33333333-cccc-4ccc-8ccc-cccccccccccc', AN = '44444444-dddd-4ddd-8ddd-dddddddddddd';
+  await admin.query(`insert into users(auth_id, phone_e164, nickname, utr, pact_accepted_at) values ($1,'+61400000001','发起人',6.0, now()), ($2,'+61400000002','球友P',6.0, now()), ($3,'+61400000003','球友Q',6.0, null)`, [AH, AP, AQ]);
+  const uid = async a => (await admin.query('select id from users where auth_id = $1', [a])).rows[0].id; const H = await uid(AH), P = await uid(AP), Q = await uid(AQ);
+  const V = (await admin.query(`insert into venues(name, short_name, suburb, location) values ('Glen Iris Tennis Club','Glen Iris','Glen Iris', st_makepoint(145.05, -37.86)::geography) returning id`)).rows[0].id;
+  const slot = async (off, hm) => (await admin.query(`select ((mel_today() + $1::int)::timestamp + $2::time) at time zone 'Australia/Melbourne' as t`, [off, hm])).rows[0].t.toISOString();
+  const tH = await token(AH), tP = await token(AP), tQ = await token(AQ), tN = await token(AN);
+  const NG = async (extra = {}) => ({ venue_id: V, starts_at: await slot(2, '18:00'), duration_min: 90, game_type: 'singles', utr_min: 4, utr_max: 8, ...extra });
+
+  // 登录 / 参数
+  let r = await call('POST', '/api/games', null, await NG()); T('发局：没登录 → 401 login_required', r.s === 401 && r.j.error === 'login_required', r);
+  r = await call('POST', '/api/games', 'garbage', await NG()); T('发局：乱写的令牌 → 401 login_required', r.s === 401 && r.j.error === 'login_required');
+  r = await call('POST', '/api/games', tN, await NG()); T('发局：令牌有效但没注册 → 401 login_required', r.s === 401 && r.j.error === 'login_required', r);
+  r = await call('POST', '/api/games', tH, '{bad json'); T('发局：JSON 不对 → 400 bad_json', r.s === 400 && r.j.error === 'bad_json', r);
+  r = await call('POST', '/api/games', tH, '[1,2]'); T('发局：JSON 不是对象 → 400 bad_json', r.s === 400 && r.j.error === 'bad_json');
+  r = await call('POST', '/api/games', tH, 'x'.repeat(40000)); T('发局：请求体太大 → 413', r.s === 413, r.s);
+  r = await call('POST', '/api/games', tH, await NG({ duration_min: 45 })); T('发局：时长不对 → 422 invalid，detail 指出字段', r.s === 422 && r.j.error === 'invalid' && r.j.detail === 'duration_min', r);
+  r = await call('POST', '/api/games', tH, await NG({ starts_at: 'not-a-time' })); T('发局：时间格式不对 → 422 invalid（不外露数据库原文）', r.s === 422 && r.j.error === 'invalid' && !/timestamp|syntax/.test(JSON.stringify(r.j)), r);
+  r = await call('POST', '/api/games', tQ, await NG()); T('发局：没确认球友约定 → 428 pact_required', r.s === 428 && r.j.error === 'pact_required', r);
+  r = await call('POST', '/api/me/pact', tQ); T('确认球友约定', r.s === 200 && r.j.ok === true, r);
+  r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
+
+  // 发局 → 看得到
+  r = await call('POST', '/api/games', tH, await NG());
+  T('发局：200，返回 id 和分享码', r.s === 200 && UUIDre.test(r.j.id) && /^[0-9a-f]{6}$/.test(r.j.share_code), r);
+  const G = r.j.id, CODE = r.j.share_code;
+  r = await call('GET', '/api/game?code=' + CODE, tP); T('发出的球局别人马上能读到', r.s === 200 && r.j.game.id === G && r.j.game.spots_left === 1, r);
+
+  // 申请 / 同意
+  r = await call('POST', `/api/games/${G}/requests`, tP, { message: '我也想打' }); T('P 申请 → pending', r.s === 200 && r.j.status === 'pending', r);
+  r = await call('POST', `/api/games/${G}/requests`, tP, { message: '再来' }); T('重复申请 → 409 already_applied', r.s === 409 && r.j.error === 'already_applied', r);
+  r = await call('POST', `/api/games/${G}/requests`, tP, { message: 123 }); T('message 不是文字 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/approve`, tP); T('P 自己同意自己 → 403 not_host', r.s === 403 && r.j.error === 'not_host', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/approve`, tH); T('发起人同意 → approved', r.s === 200 && r.j.status === 'approved', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/approve`, tH); T('再同意一次 → 409 state_changed', r.s === 409 && r.j.error === 'state_changed', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/decline`, tH, { reason: 'pass' }); T('已同意的不能再婉拒 → 409 state_changed', r.s === 409 && r.j.error === 'state_changed', r);
+  r = await call('GET', '/api/game?code=' + CODE, tP); T('同意后球局满员（余位 0）', r.j.game.spots_left === 0 && r.j.game.status === 'full', r.j.game);
+
+  // 退出 / 婉拒 / 加入
+  r = await call('DELETE', `/api/games/${G}/requests/me`, tP); T('P 退出 → left', r.s === 200 && r.j.status === 'left', r);
+  r = await call('DELETE', `/api/games/${G}/requests/me`, tH); T('发起人退出 → 409 host_cannot_leave', r.s === 409 && r.j.error === 'host_cannot_leave', r);
+  r = await call('POST', `/api/games/${G}/requests`, tP, {}); T('退出后可再申请', r.s === 200 && r.j.status === 'pending', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/decline`, tH, { reason: 'bogus' }); T('婉拒原因不对 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', `/api/games/${G}/requests/${P}/decline`, tH, { reason: 'level', note: '下次吧' }); T('婉拒 → ok', r.s === 200 && r.j.ok === true, r);
+  r = await call('POST', `/api/games/${G}/join`, tP); T('不是 instant 的局直接加入 → 409 join_not_allowed', r.s === 409 && r.j.error === 'join_not_allowed', r);
+
+  // 编辑 / 顺延 / 取消 / 路径参数
+  r = await call('PATCH', `/api/games/${G}`, tP, { note: 'x' }); T('非发起人改球局 → 403 not_host', r.s === 403 && r.j.error === 'not_host', r);
+  r = await call('PATCH', `/api/games/${G}`, tH, { note: '带球拍就行' }); T('发起人改说明 → 200', r.s === 200, r);
+  r = await call('POST', `/api/games/${G}/postpone`, tH); T('顺延一次 → 返回新开打时间', r.s === 200 && Date.parse(r.j.starts_at) - Date.parse((await admin.query('select original_start from games where id=$1', [G])).rows[0].original_start) === 3600000, r);
+  r = await call('POST', `/api/games/${G}/postpone`, tH); T('再顺延 → 409 postpone_once', r.s === 409 && r.j.error === 'postpone_once', r);
+  r = await call('POST', '/api/games/not-a-uuid/cancel', tH); T('路径里的 id 不是 uuid → 404 not_found', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('POST', '/api/games/00000000-0000-4000-8000-000000000000/cancel', tH); T('球局不存在 → 404 not_found', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('POST', `/api/games/${G}/cancel`, tP); T('非发起人取消 → 403 not_host', r.s === 403, r);
+  r = await call('POST', `/api/games/${G}/cancel`, tH); T('发起人取消 → ok', r.s === 200 && r.j.ok === true, r);
+  r = await call('POST', `/api/games/${G}/cancel`, tH); T('已取消的再取消 → 409', r.s === 409, r);
+  r = await call('POST', `/api/games/${G}/requests`, tP, {}); T('已取消的球局不能申请 → 409 game_closed', r.s === 409 && r.j.error === 'game_closed', r);
+
+  // 频率限制：返回 429 + Retry-After
+  let hit = null; for (let i = 0; i < 8 && !hit; i++) { const x = await call('POST', '/api/games', tH, await NG({ starts_at: await slot(1 + (i % 6), i % 2 ? '18:00' : '19:00') })); if (x.s === 429 || (x.s === 409 && x.j.error === 'game_open_limit')) hit = x }
+  T('连续发局触到上限：429 game_daily_limit 或 409 game_open_limit', hit && ((hit.s === 429 && hit.j.error === 'game_daily_limit') || (hit.s === 409 && hit.j.error === 'game_open_limit')), hit);
+  if (hit && hit.s === 429) T('429 带 Retry-After', /^\d+$/.test(hit.h.get('Retry-After') || '') && hit.j.retry_after > 0, [...hit.h]);
+
+  // 路由
+  r = await call('GET', '/api/games/' + G + '/cancel', tH); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed', r);
+  r = await call('POST', '/api/nope/x', tH); T('不存在的路径 → 404', r.s === 404);
+  r = await call('POST', `/api/games/${G}/join`, tP, undefined, { verify, db: makeDb(null) }); T('没配数据库 → 503 db_unavailable', r.s === 503 && r.j.error === 'db_unavailable', r);
+
+  // 死锁 / 序列化冲突：整笔重试一次
+  { let n = 0; const flaky = { verify, db: { ...deps.db, asUser: async (u, fn) => { if (n++ === 0) throw Object.assign(new Error('deadlock'), { code: '40P01' }); return deps.db.asUser(u, fn) } } };
+    r = await call('POST', '/api/me/pact', tH, undefined, flaky); T('遇到死锁重试一次后成功', r.s === 200 && n === 2, [r.s, n]);
+    n = -99; const bad = { verify, db: { ...deps.db, asUser: async () => { throw Object.assign(new Error('deadlock'), { code: '40P01' }) } } };
+    r = await call('POST', '/api/me/pact', tH, undefined, bad); T('重试仍失败 → 503 busy_retry', r.s === 503 && r.j.error === 'busy_retry', r); }
+  { const log = console.error; let leaked = ''; console.error = (...a) => { leaked += a.join(' ') };
+    const boom = { verify, db: { ...deps.db, asUser: async () => { throw new Error('connect ECONNREFUSED secret-host.example password=hunter2') } } };
+    r = await call('POST', '/api/me/pact', tH, undefined, boom); console.error = log;
+    T('数据库连不上 → 503，响应里没有地址和密码', r.s === 503 && !/secret-host|hunter2/.test(JSON.stringify(r.j)), r); }
+
+  // 连接用完即还
+  await new Promise(r => setTimeout(r, 200));
+  const left = +(await admin.query(`select count(*) n from pg_stat_activity where usename = 'nbq_api'`)).rows[0].n;
+  T('请求结束后 nbq_api 的连接全部关闭', left === 0, left);
+} catch (e) { fail++; console.log('FAIL 异常', e.stack || e.message) }
+finally { try { await admin?.end() } catch (_) { } c.stop() }
+console.log(`api_write: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

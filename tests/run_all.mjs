@@ -79,6 +79,7 @@ add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass:
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_jobs', ['node', path.join(HERE, 'pg/sb_jobs.mjs')], { pass: [/sb_jobs: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_race', ['node', path.join(HERE, 'pg/sb_race.mjs')], { pass: [/sb_race: \d+ 通过, 0 失败/], timeout: 600 });
 // 第八批：前台场边内置的配置、今日推荐 = 数据库

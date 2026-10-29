@@ -28,6 +28,44 @@ const why = e => { const c = String(e && e.code || ''), m = String(e && e.messag
   if (/invalid|parse|url/i.test(m) && !c) return 'bad_url';
   return 'other'; };
 
+
+// ---- 写操作（5g-3 第 3 步）：规则全在数据库的 api_ 函数里，这里只管登录、参数格式、错误码 → HTTP 状态 ----
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// 数据库错误（P0001，message = 错误码，见 tests/spec/api_spec.md §1）→ HTTP 状态；表里没有的按 409
+const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game']);
+const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed']);
+export const statusOf = code => code === 'login_required' ? 401 : code === 'not_found' ? 404 : code === 'pact_required' ? 428 : code === 'restore_expired' ? 410
+  : /^account_/.test(code) || ST403.has(code) ? 403 : ST422.has(code) ? 422
+  : code !== 'game_open_limit' && /(_limit|_too_fast)$|^rate_limited$|^otp_/.test(code) ? 429 : 409;
+function dbError(e) {
+  if (!e) return null;
+  if (e.code === 'P0001' && /^[a-z][a-z_]{1,40}$/.test(e.message || '')) {
+    const st = statusOf(e.message), body = { error: e.message }, extra = {}, det = String(e.detail || '');
+    if (det) { body.detail = det; if (st === 429 && /^\d+$/.test(det)) { body.retry_after = +det; extra['Retry-After'] = det } }
+    return send(st, body, extra);
+  }
+  if (/^(22|23)/.test(String(e.code || ''))) return send(422, { error: 'invalid' });    // 格式不对 / 约束不满足：不外露数据库原文
+  return null;
+}
+async function readBody(req) {
+  const t = await req.text(); if (t.length > 32768) return { err: send(413, { error: 'too_large' }) };
+  if (!t.trim()) return { body: {} };
+  try { const b = JSON.parse(t); return b && typeof b === 'object' && !Array.isArray(b) ? { body: b } : { err: send(400, { error: 'bad_json' }) } } catch (_) { return { err: send(400, { error: 'bad_json' }) } }
+}
+// 写接口的固定流程：验令牌 → 球友 → 取 JSON → 在 nbq_user 事务里执行（死锁 / 序列化冲突整笔重试一次）→ 失败按错误码返回
+async function act(req, d, params, fn, { body = true, ids = [] } = {}) {
+  const w = await whoIs(req, d);
+  if (w.err) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err.headers.get('X-Auth-Reason') || '' });
+  if (!w.uid) return send(401, { error: 'login_required' });
+  for (const k of ids) if (!UUID.test(params[k] || '')) return send(404, { error: 'not_found' });
+  let b = {}; if (body) { const r = await readBody(req); if (r.err) return r.err; b = r.body }
+  for (let i = 0; ; i++) {
+    try { return send(200, await d.db.asUser(w.uid, q => fn(q, b, params))) }
+    catch (e) { if ((e.code === '40P01' || e.code === '40001') && i === 0) continue; if (e.code === '40P01' || e.code === '40001') return send(503, { error: 'busy_retry' }); throw e }
+  }
+}
+const one = async (q, sql, args) => (await q(sql, args)).rows[0];
+
 const ROUTES = {
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
@@ -69,12 +107,37 @@ const ROUTES = {
     const p = await d.db.asUser(w.uid, async q => (await q(`select id, member_no, nickname, last_initial, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, seal_roll, card_theme, level, gone from public_profiles where id = $1`, [id])).rows[0] || null);
     return p ? send(200, { profile: p }) : send(404, { error: 'not_found' });
   },
+  // ---- 第 3 步：球局与申请的写操作（对应 api_spec §4–§5）----
+  'POST /api/me/pact': (req, d, p) => act(req, d, p, async q => { await q('select api_pact_accept()'); return { ok: true } }, { body: false }),
+  'POST /api/games': (req, d, p) => act(req, d, p, async (q, b) => {
+    const id = (await one(q, 'select api_game_create($1::jsonb) as id', [JSON.stringify(b)])).id;
+    return { id, share_code: (await one(q, 'select share_code from games where id = $1', [id])).share_code } }),
+  'PATCH /api/games/:id': (req, d, p) => act(req, d, p, async (q, b, x) => ({ changes: (await one(q, 'select api_game_edit($1, $2::jsonb) as r', [x.id, JSON.stringify(b)])).r }), { ids: ['id'] }),
+  'POST /api/games/:id/postpone': (req, d, p) => act(req, d, p, async (q, b, x) => ({ starts_at: (await one(q, 'select api_game_postpone($1) as t', [x.id])).t }), { ids: ['id'], body: false }),
+  'POST /api/games/:id/cancel': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_game_cancel($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  'POST /api/games/:id/requests': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (b.message != null && typeof b.message !== 'string') throw Object.assign(new Error('invalid'), { code: '22023' });
+    return { status: (await one(q, 'select api_apply($1, $2) as s', [x.id, b.message ?? null])).s } }, { ids: ['id'] }),
+  'POST /api/games/:id/join': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_join($1) as s', [x.id])).s }), { ids: ['id'], body: false }),
+  'POST /api/games/:id/requests/:uid/approve': (req, d, p) => act(req, d, p, async (q, b, x) => (await one(q, 'select api_approve($1, $2) as r', [x.id, x.uid])).r, { ids: ['id', 'uid'], body: false }),
+  'POST /api/games/:id/requests/:uid/decline': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    await q('select api_decline($1, $2, $3, $4)', [x.id, x.uid, typeof b.reason === 'string' ? b.reason : null, typeof b.note === 'string' ? b.note : null]); return { ok: true } }, { ids: ['id', 'uid'] }),
+  'DELETE /api/games/:id/requests/me': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_leave($1) as s', [x.id])).s }), { ids: ['id'], body: false }),
+  'POST /api/games/:id/change-ack': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_change_ack($1, $2) as s', [x.id, typeof b.choice === 'string' ? b.choice : null])).s }), { ids: ['id'] }),
 };
+
+// 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
+const PATTERNS = Object.keys(ROUTES).filter(k => k.includes(':')).map(k => { const [m, pth] = k.split(' ');
+  const names = []; const re = new RegExp('^' + pth.replace(/:([a-z]+)/g, (_, n) => { names.push(n); return '([^/]+)' }) + '$'); return { key: k, m, re, names } });
+const matchPattern = (method, path) => { for (const t of PATTERNS) if (t.m === method) { const r = t.re.exec(path); if (r) return { h: ROUTES[t.key], params: Object.fromEntries(t.names.map((n, i) => [n, decodeURIComponent(r[i + 1])])), key: t.key } } return null };
+const pathExists = path => Object.keys(ROUTES).some(k => k.endsWith(' ' + path)) || PATTERNS.some(t => t.re.test(path));
 
 export async function handleApi(request, deps) {
   const path = new URL(request.url).pathname.replace(/\/+$/, '');
-  const key = request.method + ' ' + path, h = ROUTES[key] || (request.method === 'HEAD' && ROUTES['GET ' + path]);
-  if (!h) return Object.keys(ROUTES).some(k => k.endsWith(' ' + path)) ? send(405, { error: 'method_not_allowed' }) : send(404, { error: 'not_found' });
-  try { return await h(request, deps) }
-  catch (e) { console.error('api_error', key, e && (e.code || e.message)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看 Workers 日志
+  const key = request.method + ' ' + path;
+  let h = ROUTES[key] || (request.method === 'HEAD' && ROUTES['GET ' + path]), params = {}, name = key;
+  if (!h) { const m = matchPattern(request.method, path); if (m) { h = m.h; params = m.params; name = m.key } }
+  if (!h) return pathExists(path) ? send(405, { error: 'method_not_allowed' }) : send(404, { error: 'not_found' });
+  try { return await h(request, deps, params) }
+  catch (e) { const r = dbError(e); if (r) return r; console.error('api_error', name, e && (e.code || e.message)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看日志
 }
