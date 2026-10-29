@@ -1,6 +1,6 @@
 /* ===== 场边（第八批 F3）：导航里的「场边 24h」；场边页占满导航以下，背景和场边一致；页脚不显示 ===== */
 .tabs .h24{font-size:9.5px;font-weight:650;color:var(--g);margin-left:-4px;transform:translateY(-7px);font-feature-settings:"tnum";line-height:1}
-.sbscr{height:calc(100vh - var(--nav));background:#F4F2EE}
+.sbscr{height:calc(100vh - var(--nav));background:#F9F7EF}
 .sbscr[hidden]{display:none}
 #sbHost{display:block;height:100%}
 .is-side .foot,.is-side .commpill{display:none}
