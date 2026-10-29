@@ -36,7 +36,7 @@ if (( FAIL )); then echo; echo "建前检查未通过，没有改动数据库。
 [[ "$MODE" == "--apply" ]] || { echo; echo "建前检查通过（只检查，没改库）。确认后：NBQ_DB_URL=… bash tools/db_apply.sh --apply"; exit 0; }
 
 echo; echo "== 建库（schema.sql 里有 enum 加值，不能包在单个事务里；出错即停）=="
-if ! psql "$NBQ_DB_URL" -X -q -v ON_ERROR_STOP=1 -f schema.sql >/dev/null; then
+if ! PGOPTIONS="-c client_min_messages=error" psql "$NBQ_DB_URL" -X -q -v ON_ERROR_STOP=1 -f schema.sql >/dev/null; then
   echo "✗ 建库中途出错，库里可能留着一半的表。把上面的错误发给 Claude；重试前要先把库清空（Supabase 建议直接用新的空项目，或由你确认后在 SQL Editor 里 drop schema public cascade; create schema public;）。"
   exit 1
 fi
@@ -48,9 +48,10 @@ R=$(Q "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespa
 (( R == 0 )) && ok "$T 张表（含分区），分区之外全部开启 RLS" || bad "有 $R 张表没开 RLS"
 
 for role in anon authenticated; do
-  P=$(Q "select count(*) from information_schema.role_table_grants where grantee='$role' and table_schema='public'")
-  F=$(Q "select count(*) from information_schema.routine_privileges where grantee='$role' and routine_schema='public'")
-  (( P == 0 && F == 0 )) && ok "$role 对 public 的表 / 函数无任何权限（公开 key 读不到数据）" || bad "$role 仍有权限：表 $P 项、函数 $F 项"
+  # 扩展自带的对象（PostGIS 的坐标系表、几何函数）在 Supabase 上属于平台账号，收不回，也不含用户数据，不计入
+  P=$(Q "select count(*) from pg_class c where c.relnamespace='public'::regnamespace and c.relkind in ('r','p','v','m','S') and not exists (select 1 from pg_depend d where d.objid=c.oid and d.deptype='e') and (has_table_privilege('$role', c.oid, 'select,insert,update,delete') or (c.relkind='S' and has_sequence_privilege('$role', c.oid, 'usage,select')))")
+  F=$(Q "select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e') and has_function_privilege('$role', p.oid, 'execute')")
+  (( P == 0 && F == 0 )) && ok "$role 对我们的表 / 函数无任何权限（公开 key 读不到数据）" || bad "$role 仍有权限：表 $P 项、函数 $F 项"
 done
 
 C=$(Q "select count(*) from cities")

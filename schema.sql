@@ -2710,9 +2710,14 @@ grant execute on function nbq_uid(), can_act(uuid, text, uuid, boolean), is_bloc
 do $$ declare t record; begin
   for t in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
            where n.nspname = 'public' and c.relkind in ('r','p') and not c.relispartition loop
-    execute format('alter table %I enable row level security', t.relname);
-    execute format('drop policy if exists svc_all on %I', t.relname);
-    execute format('create policy svc_all on %I to nbq_service using (true) with check (true)', t.relname);
+    begin
+      execute format('alter table %I enable row level security', t.relname);
+      execute format('drop policy if exists svc_all on %I', t.relname);
+      execute format('create policy svc_all on %I to nbq_service using (true) with check (true)', t.relname);
+    exception when insufficient_privilege then
+      -- PostGIS 自带的 spatial_ref_sys 在 Supabase 上属于平台账号，改不了；里面只有坐标系参考数据，没有用户数据
+      if t.relname <> 'spatial_ref_sys' then raise; end if;
+    end;
   end loop; end $$;
 
 -- ③ 前台用户（nbq_user）
@@ -2874,8 +2879,12 @@ do $$ declare t record; cols text; begin
   end loop;
   for t in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
            where n.nspname = 'public' and c.relkind in ('r','p') and not c.relispartition loop
-    execute format('drop policy if exists adm_read on %I', t.relname);
-    execute format('create policy adm_read on %I for select to nbq_admin using (true)', t.relname);
+    begin
+      execute format('drop policy if exists adm_read on %I', t.relname);
+      execute format('create policy adm_read on %I for select to nbq_admin using (true)', t.relname);
+    exception when insufficient_privilege then
+      if t.relname <> 'spatial_ref_sys' then raise; end if;   -- 同上
+    end;
   end loop;
   select string_agg(quote_ident(column_name), ', ') into cols from information_schema.columns
    where table_schema = current_schema() and table_name = 'users' and column_name not in ('phone_e164', 'auth_id');
