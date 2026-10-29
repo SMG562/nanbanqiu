@@ -1,6 +1,6 @@
 from lib import *
 from mao2 import face2
-from mao3 import pen, hand3, shoe3, tuft3, PEN
+from mao3 import pen, hand3, shoe3, tuft3, face3, PEN
 
 META = dict(
     id=79, slug='mao-swing-pen', title='等你推一把（线条版）', lines=['等你来，', '推一把。'],
@@ -44,7 +44,7 @@ def svg():
 <g transform="rotate(7 560 596)">
   <g filter="url(#rough2)">{pen('M470 596 L440 930', 3)}{pen('M650 598 L680 930', 3)}</g>
   <ellipse cx="560" cy="1070" rx="160" ry="12" fill="#0B3B2A" opacity=".16" filter="url(#bl14)"/>
-  <g filter="url(#rough2)">{arms}</g>{ball('b', cx, cy, r)}{face2(cx + 8, cy + 6, r/118, 'happy', 1, ink=PEN)}<g filter="url(#rough2)">{tuft3(cx, cy, r, 3.2)}</g>
+  <g filter="url(#rough2)">{arms}</g>{ball('b', cx, cy, r)}{face3(cx + 8, cy + 6, r/118, 'happy', 1)}<g filter="url(#rough2)">{tuft3(cx, cy, r, 3.2)}</g>
   <rect x="408" y="920" width="304" height="26" rx="10" fill="#B0582F"/><rect x="408" y="920" width="304" height="8" rx="4" fill="#D9854F"/>
   <g filter="url(#rough2)">{legs}</g>
 </g>

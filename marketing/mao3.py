@@ -21,18 +21,19 @@ def hand3(x, y, r, w):
 
 def shoe3(x, y, r, w, rot=0):
     return (f'<g transform="translate({x:.1f} {y:.1f}) rotate({rot})"><ellipse rx="{.21*r:.1f}" ry="{.09*r:.1f}" fill="{PAPER}" stroke="{PEN}" stroke-width="{w:.2f}"/>'
-            f'<path d="M{-.15*r:.1f} {.035*r:.1f} Q0 {.075*r:.1f} {.15*r:.1f} {.035*r:.1f}" fill="none" stroke="{PEN}" stroke-width="{w*.6:.2f}" stroke-linecap="round"/></g>')
+            f'<path d="M{-.17*r:.1f} {.04*r:.1f} Q0 {.085*r:.1f} {.17*r:.1f} {.04*r:.1f}" fill="none" stroke="{PEN}" stroke-width="{w*.75:.2f}" stroke-linecap="round"/>'
+            f'<path d="M{-.03*r:.1f} {-.055*r:.1f} l{.06*r:.1f} {.025*r:.1f} M{.02*r:.1f} {-.075*r:.1f} l{.06*r:.1f} {.022*r:.1f}" fill="none" stroke="{PEN}" stroke-width="{w*.45:.2f}" stroke-linecap="round"/></g>')
 
 
 SH_L, SH_R = (-.93, .12), (.93, .12)
 DOWN_L, DOWN_R = ((-1.38, .45), (-1.24, .86)), ((1.38, .45), (1.24, .86))
 POSES = {
-    'wave':   dict(L=DOWN_L, R=((1.62, .0), (1.44, -.80)), legs='stand', sparks='wave'),
+    'wave':   dict(L=DOWN_L, R=((1.62, .0), (1.44, -.80)), legs='stand', sparks='wave', tilt=-2),
     'cheer':  dict(L=((-1.58, -.05), (-1.36, -1.00)), R=((1.58, -.05), (1.36, -1.00)), legs='jump', lift=.26, sparks='cheer'),
-    'plead':  dict(L=((-.62, .62), (-.15, .82)), R=((.62, .62), (.15, .82)), front=True, legs='stand'),
-    'racket': dict(L=DOWN_L, R=((1.40, .36), (1.30, .30)), legs='stand', racket=True),
+    'plead':  dict(L=((-.62, .62), (-.15, .82)), R=((.62, .62), (.15, .82)), front=True, legs='stand', sparks='plead', tilt=-5),
+    'racket': dict(L=DOWN_L, R=((1.40, .36), (1.30, .30)), legs='stand', racket=True, tilt=3),
     'wow':    dict(L=((-1.52, .25), (-1.68, -.32)), R=((1.52, .25), (1.68, -.32)), legs='step', sparks='wow'),
-    'sorry':  dict(L=DOWN_L, R=((1.55, -.55), (.56, -1.06)), legs='stand'),
+    'sorry':  dict(L=DOWN_L, R=((1.55, -.55), (.56, -1.06)), legs='stand', tilt=-4),
     'sleep':  dict(L=DOWN_L, R=DOWN_R, legs='stand', tilt=-9, zz=True),
 }
 LEGS = {  # (髋, 控制点, 脚踝, 鞋的角度)
@@ -46,6 +47,8 @@ def _flip(P):
     fl = lambda a: None if a is None else ((-a[0][0], a[0][1]), (-a[1][0], a[1][1]))
     Q = dict(P)
     Q['L'], Q['R'] = fl(P.get('R')), fl(P.get('L'))
+    if 'tilt' in Q:
+        Q['tilt'] = -Q['tilt']
     return Q
 
 
@@ -62,26 +65,77 @@ def tuft3(cx, cy, r, w):
     return out
 
 
-def pony3(cx, cy, r, w):
-    """小绒的高马尾（黑色一笔甩出去）+ 橙色蝴蝶结。"""
-    P = lambda x, y: f'{cx + x*r:.1f} {cy + y*r:.1f}'
-    bx, by = .30, -.96
-    tail = (f'<path d="M{P(bx,by)} C{P(.55,-1.45)} {P(1.10,-1.40)} {P(1.12,-.80)} C{P(.98,-1.05)} {P(.70,-1.08)} {P(bx,by)} Z" '
-            f'fill="{PEN}" stroke="{PEN}" stroke-width="{w*.5:.2f}" stroke-linejoin="round"/>')
-    lobe = lambda k: (f'<path d="M0 0 L{k*.24*r:.1f} {-.15*r:.1f} Q{k*.30*r:.1f} 0 {k*.24*r:.1f} {.15*r:.1f} Z" fill="#E8643C" stroke="{PEN}" stroke-width="{w*.7:.2f}" stroke-linejoin="round"/>')
-    bow = (f'<g transform="translate({cx + bx*r:.1f} {cy + by*r:.1f}) rotate(-28)">{lobe(-1)}{lobe(1)}'
-           f'<circle r="{.065*r:.1f}" fill="#E8643C" stroke="{PEN}" stroke-width="{w*.7:.2f}"/></g>')
-    return tail + bow
+def bow3(cx, cy, r, w):
+    """小绒头顶右侧的小蝴蝶结：奶油白 + 黑线描边，中间一个结，两瓣各一道褶。"""
+    bx, by = .50, -.87
+    lobe = lambda k: (f'<path d="M0 0 L{k*.27*r:.1f} {-.17*r:.1f} Q{k*.34*r:.1f} 0 {k*.27*r:.1f} {.17*r:.1f} Z" fill="{PAPER}" stroke="{PEN}" stroke-width="{w*.8:.2f}" stroke-linejoin="round"/>'
+                      f'<path d="M{k*.06*r:.1f} 0 L{k*.23*r:.1f} {-.07*r:.1f} M{k*.06*r:.1f} 0 L{k*.23*r:.1f} {.07*r:.1f}" stroke="{PEN}" stroke-width="{w*.4:.2f}" stroke-linecap="round" opacity=".55"/>')
+    return (f'<g transform="translate({cx + bx*r:.1f} {cy + by*r:.1f}) rotate(-24)">{lobe(-1)}{lobe(1)}'
+            f'<circle r="{.07*r:.1f}" fill="{PAPER}" stroke="{PEN}" stroke-width="{w*.8:.2f}"/></g>')
 
 
-def skirt3(cx, cy, r, w):
-    """小绒的白色网球裙：奶油白 + 黑线描边 + 几道褶。"""
-    P = lambda x, y: f'{cx + x*r:.1f} {cy + y*r:.1f}'
-    d = (f'M{P(-.62,.66)} L{P(.62,.66)} L{P(.80,1.00)} Q{P(.60,1.08)} {P(.40,1.00)} Q{P(.20,1.08)} {P(0,1.00)} '
-         f'Q{P(-.20,1.08)} {P(-.40,1.00)} Q{P(-.60,1.08)} {P(-.80,1.00)} Z')
-    out = f'<path d="{d}" fill="{PAPER}" stroke="{PEN}" stroke-width="{w*.9:.2f}" stroke-linejoin="round"/>'
-    for x in (-.42, -.14, .14, .42):
-        out += f'<path d="M{P(x*.78,.70)} L{P(x,1.01)}" stroke="{PEN}" stroke-width="{w*.4:.2f}" stroke-linecap="round" opacity=".5"/>'
+def ball_c(id, cx, cy, r, hi, mid, lo, seam='#FFF6F0', rim='#3b0d1f', rot=-22):
+    """和 lib.ball 同一种写实网球，只是换颜色（粉色的小绒用）。"""
+    s = r / 100
+    return f'''
+<g transform="translate({cx} {cy}) scale({s})">
+  <circle r="100" fill="url(#pg{id})"/>
+  <clipPath id="pc{id}"><circle r="100"/></clipPath>
+  <g clip-path="url(#pc{id})">
+    <g transform="rotate({rot})">
+      <path d="M-67 -74 C-30 -34 -30 34 -67 74" fill="none" stroke="{seam}" stroke-width="11" stroke-linecap="round" opacity=".92"/>
+      <path d="M67 -74 C30 -34 30 34 67 74" fill="none" stroke="{seam}" stroke-width="11" stroke-linecap="round" opacity=".92"/>
+    </g>
+    <circle r="100" fill="#000" filter="url(#fuzz)" opacity=".30" style="mix-blend-mode:multiply"/>
+    <circle r="100" fill="url(#pr{id})"/>
+  </g>
+</g>
+<defs>
+ <radialGradient id="pg{id}" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="{hi}"/><stop offset=".55" stop-color="{mid}"/><stop offset="1" stop-color="{lo}"/></radialGradient>
+ <radialGradient id="pr{id}" cx="30%" cy="25%" r="90%"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="{rim}" stop-opacity="0"/><stop offset="1" stop-color="{rim}" stop-opacity=".5"/></radialGradient>
+</defs>'''
+
+
+PINK = dict(hi='#FFD3E0', mid='#F68FB4', lo='#C2517A')
+
+
+def brows3(cx, cy, s, mood):
+    """细细的眉毛：不同心情抬得不一样；睡着了没有。"""
+    if mood == 'sleep':
+        return ''
+    e = 42 * s
+    f = lambda v: f'{v:.1f}'
+    table = {'happy': (-30, -32), 'cheer': (-31, -34), 'wink': (-30, -32), 'wow': (-36, -41), 'plead': (-22, -34), 'sweat': (-22, -31)}
+    yo, yi = table.get(mood, (-23, -25))
+    out = ''
+    for sx in (-1, 1):
+        xo, xi = sx * (e + 14 * s), sx * (e - 13 * s)
+        if mood == 'wink' and sx == 1:
+            yo, yi = -23, -25
+        out += (f'<path d="M{f(cx + xo)} {f(cy + yo*s)} Q{f(cx + (xo + xi)/2)} {f(cy + (min(yo, yi) - 6)*s)} {f(cx + xi)} {f(cy + yi*s)}" '
+                f'fill="none" stroke="{PEN}" stroke-width="{f(3*s)}" stroke-linecap="round" opacity=".9"/>')
+    return out
+
+
+def sleepbubble(cx, cy, s):
+    return (f'<circle cx="{cx + 25*s:.1f}" cy="{cy + 39*s:.1f}" r="{8*s:.1f}" fill="#fff" fill-opacity=".55" stroke="{PEN}" stroke-width="{2.4*s:.2f}"/>'
+            f'<path d="M{cx + 21*s:.1f} {cy + 37*s:.1f} q{2*s:.1f} {-3*s:.1f} {5*s:.1f} {-3*s:.1f}" fill="none" stroke="#fff" stroke-width="{1.6*s:.2f}" stroke-linecap="round"/>')
+
+
+def star4(x, y, k, w):
+    return (f'<path d="M{x:.1f} {y-k:.1f} L{x+.28*k:.1f} {y-.28*k:.1f} L{x+k:.1f} {y:.1f} L{x+.28*k:.1f} {y+.28*k:.1f} L{x:.1f} {y+k:.1f} '
+            f'L{x-.28*k:.1f} {y+.28*k:.1f} L{x-k:.1f} {y:.1f} L{x-.28*k:.1f} {y-.28*k:.1f} Z" fill="none" stroke="{PEN}" stroke-width="{w:.2f}" stroke-linejoin="round"/>')
+
+
+def face3(cx, cy, s, mood='smile', look=0, char='mao'):
+    """脸 + 眉毛；小绒加睫毛、玫瑰色腮红；睡着了鼻子吹个泡泡。cx,cy 为脸中心。"""
+    pink = char == 'rong'
+    out = face2(cx, cy, s, mood, look, ink=PEN, blush_c=('#E23F6B' if pink else '#E8643C'), blush_op=(.40 if pink else .35))
+    out += brows3(cx, cy, s, mood)
+    if pink:
+        out += lashes3(cx, cy, s)
+    if mood == 'sleep':
+        out += sleepbubble(cx, cy, s)
     return out
 
 
@@ -147,9 +201,11 @@ def figure3(id, cx, cy, r, pose='wave', mood='happy', tilt=None, lift=None, look
         for rad in (.20, .32):
             extra += pen(f'M{hx + m*rad*r:.1f} {hy - .14*r:.1f} Q{hx + m*(rad+.07)*r:.1f} {hy:.1f} {hx + m*rad*r:.1f} {hy + .14*r:.1f}', w * .8)
     elif sp == 'wow':
-        for a in ((-125, -90) if char == 'rong' else (-125, -90, -55)):
+        for a in (-125, -90, -55):
             ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
             extra += pen(f'M{cx + ca*1.12*r:.1f} {cy + sa*1.12*r:.1f} L{cx + ca*1.30*r:.1f} {cy + sa*1.30*r:.1f}', w * .8)
+    if sp == 'plead':
+        extra += star4(cx - 1.12 * r, cy - .50 * r, .15 * r, w * .7) + star4(cx + 1.20 * r, cy - .70 * r, .10 * r, w * .7) + star4(cx - 1.34 * r, cy - .86 * r, .07 * r, w * .6)
     z = ''
     if P.get('zz'):
         for i in range(3):
@@ -165,10 +221,10 @@ def figure3(id, cx, cy, r, pose='wave', mood='happy', tilt=None, lift=None, look
     front = f'<g filter="url(#rough2)">{arms}</g>' if P.get('front') else ''
     marks = f'<g filter="url(#rough2)">{extra}{z}</g>'
     if char == 'rong':
-        dress = f'<g filter="url(#rough2)">{skirt3(cx, cy, r, w)}</g>'
-        hair = f'<g filter="url(#rough2)">{pony3(cx, cy, r, w)}</g>'
-        lash = lashes3(*fc, s)
+        hair = f'<g filter="url(#rough2)">{bow3(cx, cy, r, w)}</g>'
+        body = ball_c(id, cx, cy, r, **PINK)
     else:
-        dress, hair, lash = '', f'<g filter="url(#rough2)">{tuft3(cx, cy, r, w)}</g>', ''
-    return (soft_sh + gnd + f'<g transform="rotate({tilt} {cx} {cy})">{limbs}{ball(id, cx, cy, r)}{dress}'
-            f'{face2(*fc, s, mood, look, ink=PEN)}{lash}{hair}{front}{marks}</g>')
+        hair = f'<g filter="url(#rough2)">{tuft3(cx, cy, r, w)}</g>'
+        body = ball(id, cx, cy, r)
+    return (soft_sh + gnd + f'<g transform="rotate({tilt} {cx} {cy})">{limbs}{body}'
+            f'{face3(*fc, s, mood, look, char)}{hair}{front}{marks}</g>')

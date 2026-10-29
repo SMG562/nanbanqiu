@@ -5,7 +5,7 @@ from mao3 import figure3, pen, hand3, PEN, DOWN_L, DOWN_R
 META = dict(
     id=80, slug='mao-rong', title='小毛和小绒，好朋友', lines=['小毛和小绒，', '好朋友。'],
     style=['插画', '角色', '拟人', '极简'], tone='浅色', demo=False,
-    concept='角色设定：男生小毛（头顶一小撮毛，嘴硬心软）和女生小绒（高马尾、橙色蝴蝶结、睫毛、白网球裙，话多守时）。主图两人击掌，笔线标出各自的记号；下面三个合照姿势：搭肩 / 一起招手 / 晚安',
+    concept='角色设定：男生小毛（头顶一小撮毛，嘴硬心软）和女生小绒（一颗粉色的球，头顶奶油白小蝴蝶结、睫毛，话多守时）。主图两人击掌，笔线标出各自的记号；下面三个合照姿势：搭肩 / 一起招手 / 晚安',
     use='客服 / 运营形象的双人设定；做“约球搭子”“带朋友一起来”的物料',
 )
 
@@ -18,18 +18,18 @@ def svg():
     random.seed(80)
     gy = 760
     rm, rr = 122, 114
-    xm, xr = 385, 695
+    xm, xr = 368, 712
     cym, cyr = gy - 1.53 * rm, gy - 1.53 * rr
-    tx, ty = 540, 440                      # 击掌的位置
+    tx, ty = 540, 452                      # 击掌的位置
     hm = ((tx - 6 - xm) / rm, (ty - cym) / rm)
     hr = ((tx + 6 - xr) / rr, (ty - cyr) / rr)
-    mao_pose = dict(L=DOWN_L, R=((1.50, -.30), hm), legs='stand')
-    rong_pose = dict(L=((-1.60, -.30), hr), R=DOWN_R, legs='stand')
+    mao_pose = dict(L=DOWN_L, R=((1.50, -.55), hm), legs='stand')
+    rong_pose = dict(L=((-1.62, -.60), hr), R=DOWN_R, legs='stand')
     sparks = ''.join(pen(f'M{tx + math.cos(math.radians(a))*30:.1f} {ty + math.sin(math.radians(a))*30:.1f} L{tx + math.cos(math.radians(a))*52:.1f} {ty + math.sin(math.radians(a))*52:.1f}', 3)
                      for a in (-150, -120, -90, -60, -30))
     # 笔线标注
-    note = (pen('M214 440 Q290 452 356 432', 2.6) + pen('M342 424 L357 432 L343 441', 2.6)
-            + pen('M876 456 Q850 470 826 458', 2.6) + pen('M838 449 L824 458 L840 466', 2.6))
+    note = (pen('M214 440 Q280 454 338 434', 2.6) + pen('M324 426 L339 434 L325 443', 2.6)
+            + pen('M876 458 Q846 470 806 482', 2.6) + pen('M820 470 L805 482 L822 488', 2.6))
     # 三个合照
     r2, gy2 = 40, 1075
     duo = ''
@@ -66,7 +66,7 @@ def svg():
 {figure3('r', xr, 0, rr, rong_pose, 'happy', gy=gy, char='rong')}
 <g filter="url(#rough2)">{sparks}{note}</g>
 {label(96, 438, '一小撮毛', size=24)}
-{label(884, 446, '高马尾', size=24)}{label(884, 478, '和蝴蝶结', size=24)}
+{label(884, 452, '小蝴蝶结', size=24)}
 <text x="{xm}" y="{gy+60}" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="38" fill="#0B3B2A">小毛</text>
 <text x="{xr}" y="{gy+60}" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="38" fill="#0B3B2A">小绒</text>
 {label(xm, gy + 98, '嘴硬，心软。', 'middle', 22, .68)}{label(xr, gy + 98, '话多，守时。', 'middle', 22, .68)}

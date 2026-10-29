@@ -7,7 +7,7 @@ from lib import *
 LIMB, LIMB_O, SHOE, INK = '#B8DA38', '#5E8A1A', '#F7EBD6', '#0B3B2A'
 
 
-def face2(cx, cy, s, mood='smile', look=0, ink=INK):
+def face2(cx, cy, s, mood='smile', look=0, ink=INK, blush_c='#E8643C', blush_op=.35):
     """s = 球半径 / 118。mood: smile 微笑 / happy 弯眼笑 / cheer 张嘴大笑 / wow 惊讶 / plead 求约(大眼睛) / wink 眨眼 / sweat 不好意思 / sleep 闭眼。"""
     e = 42 * s
     f = lambda v: f'{v:.1f}'
@@ -45,7 +45,7 @@ def face2(cx, cy, s, mood='smile', look=0, ink=INK):
         g = arc_dn(-e) + arc_dn(e) + f'<path d="M{f(-7*s)} {f(34*s)} Q0 {f(40*s)} {f(7*s)} {f(34*s)}" {st}/>'
     else:
         g = eye(-e) + eye(e) + smile
-    blush = ''.join(f'<ellipse cx="{f(x)}" cy="{f(24*s)}" rx="{f(15*s)}" ry="{f(9*s)}" fill="#E8643C" opacity=".35"/>' for x in (-e - 30 * s, e + 30 * s))
+    blush = ''.join(f'<ellipse cx="{f(x)}" cy="{f(24*s)}" rx="{f(15*s)}" ry="{f(9*s)}" fill="{blush_c}" opacity="{blush_op}"/>' for x in (-e - 30 * s, e + 30 * s))
     return f'<g transform="translate({f(cx)} {f(cy)})">{blush}{g}</g>'
 
 
