@@ -90,6 +90,61 @@ try {
   T('连续发局触到上限：429 game_daily_limit 或 409 game_open_limit', hit && ((hit.s === 429 && hit.j.error === 'game_daily_limit') || (hit.s === 409 && hit.j.error === 'game_open_limit')), hit);
   if (hit && hit.s === 429) T('429 带 Retry-After', /^\d+$/.test(hit.h.get('Retry-After') || '') && hit.j.retry_after > 0, [...hit.h]);
 
+
+  // ---- 续：邀约、偏好、聊天、举报、屏蔽、通知 ----
+  await admin.query(`update users set pact_accepted_at = now() where id = $1`, [Q]);
+  const inv = async (to, over = {}) => ({ to_user: to, starts_at: await slot(2, '09:00'), ends_at: await slot(2, '10:30'), venue_id: V, game_type: 'singles', note: '约一场', ...over });
+  r = await call('POST', '/api/invites', tP, await inv(P)); T('邀约：约自己 → 422 invite_self', r.s === 422 && r.j.error === 'invite_self', r);
+  r = await call('POST', '/api/invites', null, await inv(H)); T('邀约：没登录 → 401', r.s === 401);
+  r = await call('POST', '/api/invites', tP, await inv(H)); T('邀约：P 约发起人 → 200 返回 id', r.s === 200 && UUIDre.test(r.j.id), r);
+  const IV = r.j.id;
+  r = await call('POST', '/api/invites', tP, await inv(H, { starts_at: await slot(3, '09:00'), ends_at: await slot(3, '10:30') })); T('邀约：对同一人已有待回复的 → 409 invite_pending', r.s === 409 && r.j.error === 'invite_pending', r);
+  r = await call('POST', `/api/invites/${IV}/accept`, tP); T('邀约：自己不能接受自己发的 → 403/409/404（不是 200）', r.s !== 200, r);
+  r = await call('POST', `/api/invites/${IV}/decline`, tH, { reason: 'bogus' }); T('邀约：婉拒原因不对 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', `/api/invites/${IV}/decline`, tH, { reason: 'week', note: '这周满了' }); T('邀约：婉拒 → ok', r.s === 200 && r.j.ok === true, r);
+  r = await call('POST', `/api/invites/${IV}/withdraw`, tP); T('邀约：对方已婉拒后撤回 → 409 invite_ended', r.s === 409 && r.j.error === 'invite_ended', r);
+  r = await call('POST', '/api/invites', tP, await inv(Q)); const IV2 = r.j.id; T('邀约：约 Q → 200', r.s === 200, r);
+  r = await call('POST', `/api/invites/${IV2}/withdraw`, tP); T('邀约：撤回 → 200', r.s === 200, r);
+  r = await call('POST', `/api/invites/${IV2}/accept`, tQ); T('邀约：已撤回的不能接受 → 409 invite_ended', r.s === 409 && r.j.error === 'invite_ended', r);
+  r = await call('POST', '/api/invites/not-a-uuid/accept', tP); T('邀约：id 不是 uuid → 404', r.s === 404);
+
+  r = await call('PUT', `/api/players/${H}/pref`, tP, { pref: 'more' }); T('偏好：多遇到 → ok', r.s === 200 && r.j.ok === true, r);
+  r = await call('PUT', `/api/players/${H}/pref`, tP, { pref: 'love' }); T('偏好：值不对 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('PUT', `/api/players/${P}/pref`, tP, { pref: 'more' }); T('偏好：对自己 → 422 invalid', r.s === 422, r);
+  r = await call('POST', `/api/players/${H}/kudos`, tP, { game_id: G }); T('好评：没一起打过 → 4xx（不是 200）', r.s >= 400 && r.s < 500, r);
+  r = await call('POST', `/api/players/${H}/kudos`, tP, {}); T('好评：缺 game_id → 422', r.s === 422);
+  r = await call('PUT', `/api/games/${G}/recap`, tP, { feel: 'ok' }); T('赛后：没打过这局 → 4xx', r.s >= 400 && r.s < 500, r);
+  r = await call('POST', `/api/games/${G}/noshow`, tP, { target_id: 'x' }); T('爽约反馈：target_id 不是 uuid → 422', r.s === 422);
+  r = await call('POST', `/api/games/${G}/attendance/${P}`, tP, { value: 'came' }); T('出席：非发起人 → 403', r.s === 403, r);
+
+  r = await call('POST', '/api/threads', tP, { user_id: H }); T('聊天：开私信 → 200 返回对话 id', r.s === 200 && UUIDre.test(r.j.id), r); const TH = r.j.id;
+  r = await call('POST', '/api/threads', tP, { user_id: H }); T('聊天：同一对话再开 → 同一个 id', r.j.id === TH);
+  r = await call('POST', '/api/threads', tP, { user_id: H, game_id: G }); T('聊天：user_id 和 game_id 只能给一个 → 422', r.s === 422);
+  r = await call('POST', '/api/threads', tP, { user_id: P }); T('聊天：和自己 → 404', r.s === 404, r);
+  r = await call('POST', `/api/threads/${TH}/messages`, tP, { body: '你好' }); T('聊天：发消息 → 200 返回消息 id', r.s === 200 && r.j.id, r);
+  r = await call('POST', `/api/threads/${TH}/messages`, tP, { body: '看 https://x.example' }); T('聊天：带链接 → 422 message_link', r.s === 422 && r.j.error === 'message_link', r);
+  r = await call('POST', `/api/threads/${TH}/messages`, tQ, { body: '我是外人' }); T('聊天：不在对话里 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden', r);
+
+  r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: H, reason: 'other', via: 'card' }); T('举报：选「其他」没写说明 → 422 report_note_required', r.s === 422 && r.j.error === 'report_note_required', r);
+  r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: H, reason: 'harass', via: 'card' }); T('举报：→ 200', r.s === 200 && r.j.ok === true, r);
+  r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: H, reason: 'harass', via: 'card' }); T('举报：同一对象未处理时重复 → 409 report_duplicate', r.s === 409 && r.j.error === 'report_duplicate', r);
+  r = await call('POST', '/api/reports', tP, { target_type: 'message', target_id: H, reason: 'harass', via: 'card' }); T('举报：对象类型不支持 → 422', r.s === 422);
+  r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: Q, reason: 'harass', via: 'card', status: 'actioned', reporter_id: H });
+  { const row = (await admin.query(`select reporter_id, status from reports where target_id = $1`, [Q])).rows[0]; T('举报：多传的 reporter_id / status 被忽略（举报人=自己、状态=open）', row && row.reporter_id === P && row.status === 'open', row); }
+
+  r = await call('POST', '/api/blocks', tP, { user_id: Q }); T('屏蔽：→ 200', r.s === 200, r);
+  r = await call('POST', '/api/threads', tP, { user_id: Q }); T('屏蔽后不能再开对话 → 403 blocked', r.s === 403 && r.j.error === 'blocked', r);
+  r = await call('DELETE', `/api/blocks/${Q}`, tP); T('取消屏蔽 → 200', r.s === 200, r);
+  r = await call('POST', '/api/blocks', tP, {}); T('屏蔽：缺 user_id → 422', r.s === 422);
+
+  r = await call('GET', '/api/notifications', tH); T('通知：发起人有通知（申请 / 邀约 / 私信）', r.s === 200 && r.j.notifications.length > 0 && !('user_id' in r.j.notifications[0]), r.j);
+  const unread = r.j.notifications.filter(x => !x.read_at).length;
+  r = await call('POST', '/api/notifications/read', tH, { ids: [r.j.notifications[0].id] }); T('通知：标记一条已读 → read 1', r.s === 200 && r.j.read === 1, r);
+  r = await call('POST', '/api/notifications/read', tH, { all: true }); T('通知：全部已读', r.s === 200 && r.j.read === unread - 1, [r.j, unread]);
+  r = await call('POST', '/api/notifications/read', tH, { ids: ['1; drop'] }); T('通知：ids 不是整数 → 422', r.s === 422);
+  r = await call('POST', '/api/notifications/read', tH, {}); T('通知：不给 ids 也不给 all → 422', r.s === 422);
+  r = await call('GET', '/api/notifications'); T('通知：没登录 → 401', r.s === 401);
+
   // 路由
   r = await call('GET', '/api/games/' + G + '/cancel', tH); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed', r);
   r = await call('POST', '/api/nope/x', tH); T('不存在的路径 → 404', r.s === 404);

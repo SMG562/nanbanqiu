@@ -44,6 +44,7 @@ function dbError(e) {
     if (det) { body.detail = det; if (st === 429 && /^\d+$/.test(det)) { body.retry_after = +det; extra['Retry-After'] = det } }
     return send(st, body, extra);
   }
+  if (e.constraint === 'reports_one_open') return send(409, { error: 'report_duplicate' });
   if (/^(22|23)/.test(String(e.code || ''))) return send(422, { error: 'invalid' });    // 格式不对 / 约束不满足：不外露数据库原文
   return null;
 }
@@ -64,6 +65,8 @@ async function act(req, d, params, fn, { body = true, ids = [] } = {}) {
     catch (e) { if ((e.code === '40P01' || e.code === '40001') && i === 0) continue; if (e.code === '40P01' || e.code === '40001') return send(503, { error: 'busy_retry' }); throw e }
   }
 }
+const str = v => typeof v === 'string' ? v : null;   // 不是文字的字段一律当没填，让数据库的检查去报错
+const bad = () => Object.assign(new Error('invalid'), { code: '22023' });
 const one = async (q, sql, args) => (await q(sql, args)).rows[0];
 
 const ROUTES = {
@@ -124,6 +127,45 @@ const ROUTES = {
     await q('select api_decline($1, $2, $3, $4)', [x.id, x.uid, typeof b.reason === 'string' ? b.reason : null, typeof b.note === 'string' ? b.note : null]); return { ok: true } }, { ids: ['id', 'uid'] }),
   'DELETE /api/games/:id/requests/me': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_leave($1) as s', [x.id])).s }), { ids: ['id'], body: false }),
   'POST /api/games/:id/change-ack': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_change_ack($1, $2) as s', [x.id, typeof b.choice === 'string' ? b.choice : null])).s }), { ids: ['id'] }),
+  // ---- 第 3 步（续）：邀约、赛后、球友偏好、聊天、举报、屏蔽、通知 ----
+  'POST /api/invites': (req, d, p) => act(req, d, p, async (q, b) => ({ id: (await one(q, 'select api_invite($1::jsonb) as id', [JSON.stringify(b)])).id })),
+  'POST /api/invites/:id/accept': (req, d, p) => act(req, d, p, async (q, b, x) => ({ game_id: (await one(q, 'select api_invite_accept($1) as g', [x.id])).g }), { ids: ['id'], body: false }),
+  'POST /api/invites/:id/counter': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_invite_counter($1, $2::jsonb)', [x.id, JSON.stringify(b)]); return { ok: true } }, { ids: ['id'] }),
+  'POST /api/invites/:id/decline': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_invite_decline($1, $2, $3)', [x.id, str(b.reason), str(b.note)]); return { ok: true } }, { ids: ['id'] }),
+  'POST /api/invites/:id/withdraw': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_invite_withdraw($1) as s', [x.id])).s }), { ids: ['id'], body: false }),
+  'PUT /api/games/:id/recap': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_recap($1, $2::jsonb)', [x.id, JSON.stringify(b)]); return { ok: true } }, { ids: ['id'] }),
+  'POST /api/games/:id/attendance/:uid': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_attendance($1, $2, $3)', [x.id, x.uid, str(b.value)]); return { ok: true } }, { ids: ['id', 'uid'] }),
+  'POST /api/games/:id/noshow': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (!UUID.test(str(b.target_id) || '')) throw bad();
+    return { confirmed: (await one(q, 'select api_noshow_report($1, $2) as r', [x.id, b.target_id])).r } }, { ids: ['id'] }),
+  'DELETE /api/games/:id/noshow': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (!UUID.test(str(b.target_id) || '')) throw bad();
+    await q('select api_noshow_undo($1, $2)', [x.id, b.target_id]); return { ok: true } }, { ids: ['id'] }),
+  'POST /api/games/:id/appeal': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_noshow_appeal($1, $2, $3)', [x.id, str(b.reason), str(b.note)]); return { ok: true } }, { ids: ['id'] }),
+  'PUT /api/players/:id/pref': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_pref_set($1, $2)', [x.id, str(b.pref)]); return { ok: true } }, { ids: ['id'] }),
+  'POST /api/players/:id/kudos': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (!UUID.test(str(b.game_id) || '')) throw bad();
+    return { kudos: (await one(q, 'select api_kudos($1, $2) as n', [b.game_id, x.id])).n } }, { ids: ['id'] }),
+  // 聊天：先开对话（DM 给对方 id，群聊给球局 id），再发消息
+  'POST /api/threads': (req, d, p) => act(req, d, p, async (q, b) => {
+    const u = str(b.user_id), g = str(b.game_id); if ((u ? 1 : 0) + (g ? 1 : 0) !== 1 || !UUID.test(u || g)) throw bad();
+    return { id: u ? (await one(q, 'select api_thread_dm($1) as t', [u])).t : (await one(q, 'select api_thread_game($1) as t', [g])).t } }),
+  'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'] }),
+  'POST /api/reports': (req, d, p) => act(req, d, p, async (q, b) => {
+    const tt = str(b.target_type), tid = str(b.target_id), why = str(b.reason), via = str(b.via), note = str(b.note);
+    if (!['user', 'game'].includes(tt) || !UUID.test(tid || '')) throw bad();
+    if (why === 'other' && !(note || '').trim()) throw Object.assign(new Error('report_note_required'), { code: 'P0001' });
+    await q(`insert into reports(reporter_id, target_type, target_id, reason, note, source, via, context_ref) values (nbq_uid(), $1, $2, $3, $4, 'in_app', $5, $6)`, [tt, tid, why, note || null, via, str(b.context_ref)]);
+    return { ok: true } }),
+  'POST /api/blocks': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.user_id) || '')) throw bad(); await q('select api_block($1)', [b.user_id]); return { ok: true } }),
+  'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  'GET /api/notifications': async (req, d) => {
+    const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' }); if (!w.uid) return send(401, { error: 'login_required' });
+    const rows = await d.db.asUser(w.uid, async q => (await q(`select id::float8 as id, kind, game_id, actor_id, read_at, created_at from notifications where user_id = nbq_uid() order by created_at desc limit 100`)).rows);
+    return send(200, { notifications: rows }) },
+  'POST /api/notifications/read': (req, d, p) => act(req, d, p, async (q, b) => {
+    const ids = b.all === true ? null : Array.isArray(b.ids) && b.ids.length <= 200 && b.ids.every(n => Number.isInteger(n) && n > 0) ? b.ids : (() => { throw bad() })();
+    return { read: (await one(q, 'select api_notif_read($1::bigint[]) as n', [ids])).n } }),
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
