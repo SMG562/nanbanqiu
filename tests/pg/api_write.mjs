@@ -145,6 +145,51 @@ try {
   r = await call('POST', '/api/notifications/read', tH, {}); T('通知：不给 ids 也不给 all → 422', r.s === 422);
   r = await call('GET', '/api/notifications'); T('通知：没登录 → 401', r.s === 401);
 
+
+  // ---- 续 2：我的资料、球场 / 区、聊天记录 ----
+  r = await call('PATCH', '/api/me', tP, { nickname: '新昵称', utr: 7.25, card_theme: 'clay' }); T('资料：改昵称 / 水平 / 卡片主题 → 200 返回新资料', r.s === 200 && r.j.user.nickname === '新昵称' && Number(r.j.user.utr) === 7.25 && r.j.user.card_theme === 'clay', r);
+  T('资料：返回里没有手机号 / 登录 id', !/phone|auth_id|\+61/.test(JSON.stringify(r.j)));
+  r = await call('PATCH', '/api/me', tP, { status: 'active' }); T('资料：改状态 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden', r);
+  r = await call('PATCH', '/api/me', tP, { level: 5 }); T('资料：改等级 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden');
+  r = await call('PATCH', '/api/me', tP, { phone_e164: '+61400999999' }); T('资料：改手机号 → 403 forbidden', r.s === 403);
+  r = await call('PATCH', '/api/me', tP, {}); T('资料：什么都没改 → 422', r.s === 422);
+  r = await call('PATCH', '/api/me', tP, { card_theme: 'rainbow' }); T('资料：主题值不对 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('PATCH', '/api/me', tP, { nickname: '微信 vx12345678' }); T('资料：昵称带联系方式 → 422 nickname_not_allowed', r.s === 422 && r.j.error === 'nickname_not_allowed', r);
+  r = await call('PATCH', '/api/me', tP, { invite_from: 'played', email_prefs: { request: false, result: true, change: true } }); T('资料：邀约设置 + 邮件偏好（对象）→ 200', r.s === 200 && r.j.user, r);
+  { const row = (await admin.query('select invite_from, email_prefs from users where id = $1', [P])).rows[0]; T('资料：确实写进了数据库', row.invite_from === 'played' && row.email_prefs.request === false, row); }
+  r = await call('PATCH', '/api/me', null, { nickname: 'x' }); T('资料：没登录 → 401', r.s === 401);
+  r = await call('PUT', '/api/me/clubs', tP, { venue_ids: [V] }); T('常去球场：存 1 个 → 200', r.s === 200, r);
+  T('常去球场：写进了数据库', (await admin.query('select count(*)::int n from user_clubs where user_id = $1', [P])).rows[0].n === 1);
+  r = await call('PUT', '/api/me/clubs', tP, { venue_ids: [V, V] }); T('常去球场：重复 → 422', r.s === 422);
+  r = await call('PUT', '/api/me/clubs', tP, { venue_ids: [V, V, V, V] }); T('常去球场：超过 3 个 → 422', r.s === 422);
+  r = await call('PUT', '/api/me/clubs', tP, { venue_ids: ['00000000-0000-4000-8000-000000000000'] }); T('常去球场：球场不存在 → 422，且原来的不丢（整笔回滚）', r.s === 422 && (await admin.query('select count(*)::int n from user_clubs where user_id = $1', [P])).rows[0].n === 1, r);
+  r = await call('PUT', '/api/me/clubs', tP, { venue_ids: [] }); T('常去球场：清空 → 200', r.s === 200 && (await admin.query('select count(*)::int n from user_clubs where user_id = $1', [P])).rows[0].n === 0);
+  r = await call('PUT', '/api/me/suburb', tP, { suburb: 'Nowhere', postcode: '9999' }); T('所在区：不存在的区 → 422', r.s === 422, r);
+  r = await call('PUT', '/api/me/suburb', tP, { suburb: 'x', postcode: 'abc' }); T('所在区：邮编格式不对 → 422', r.s === 422);
+
+  // 私人球局里展示微信
+  const PG = (await admin.query(`insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, visibility)
+    values ('Pv01',$1,$2, now() + interval '30 hours', 90,'singles',2,4,8,'private') returning id`, [H, V])).rows[0].id;
+  await admin.query(`insert into game_participants(game_id, user_id, role, status) values ($1,$2,'player','approved') on conflict do nothing`, [PG, P]);
+  r = await call('PATCH', `/api/games/${PG}/me`, tP, { show_wechat: true }); T('展示微信：私人球局里打开 → 200', r.s === 200 && r.j.show_wechat === true, r);
+  r = await call('PATCH', `/api/games/${PG}/me`, tP, { show_wechat: 'yes' }); T('展示微信：值不是布尔 → 422', r.s === 422);
+  r = await call('PATCH', `/api/games/${G}/me`, tP, { show_wechat: true }); T('展示微信：公开球局 / 没加入 → 403 not_in_game', r.s === 403 && r.j.error === 'not_in_game', r);
+  r = await call('PATCH', `/api/games/${PG}/me`, tQ, { show_wechat: true }); T('展示微信：不在这局的人改不了 → 403', r.s === 403);
+
+  // 聊天记录
+  r = await call('POST', `/api/threads/${TH}/messages`, tH, { body: '收到' });
+  r = await call('GET', '/api/threads', tP); T('对话列表：有刚才的私信，带最后一条和未读', r.s === 200 && r.j.threads.length === 1 && r.j.threads[0].id === TH && r.j.threads[0].other_id === H && r.j.threads[0].last_body === '收到' && r.j.threads[0].unread === true, r.j);
+  r = await call('GET', '/api/threads', tQ); T('对话列表：别人的对话看不到', r.s === 200 && r.j.threads.length === 0, r.j);
+  r = await call('GET', `/api/threads/${TH}/messages`, tP); T('消息：按时间从旧到新，id 是数字', r.s === 200 && r.j.messages.length === 2 && r.j.messages[0].body === '你好' && typeof r.j.messages[0].id === 'number' && r.j.messages[0].id < r.j.messages[1].id, r.j);
+  r = await call('GET', `/api/threads/${TH}/messages?before=${r.j.messages[1].id}`, tP); T('消息：before 翻页', r.j.messages.length === 1 && r.j.messages[0].body === '你好', r.j);
+  r = await call('GET', `/api/threads/${TH}/messages?before=abc`, tP); T('消息：before 不是数字 → 422', r.s === 422);
+  r = await call('GET', `/api/threads/${TH}/messages`, tQ); T('消息：不在对话里 → 空（行级权限，不报错）', r.s === 200 && r.j.messages.length === 0, r.j);
+  await admin.query(`update messages set hidden = true where body = '收到'`);
+  r = await call('GET', `/api/threads/${TH}/messages`, tP); T('消息：被隐藏的别人的消息看不到', r.j.messages.length === 1, r.j);
+  r = await call('POST', `/api/threads/${TH}/read`, tP); T('已读：→ 200', r.s === 200, r);
+  r = await call('GET', '/api/threads', tP); T('已读后不再未读', r.j.threads[0].unread === false, r.j);
+  r = await call('POST', `/api/threads/${TH}/read`, tQ); T('已读：不在对话里 → 404', r.s === 404 && r.j.error === 'not_found', r);
+
   // 路由
   r = await call('GET', '/api/games/' + G + '/cancel', tH); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed', r);
   r = await call('POST', '/api/nope/x', tH); T('不存在的路径 → 404', r.s === 404);

@@ -44,6 +44,7 @@ function dbError(e) {
     if (det) { body.detail = det; if (st === 429 && /^\d+$/.test(det)) { body.retry_after = +det; extra['Retry-After'] = det } }
     return send(st, body, extra);
   }
+  if (e.code === '42501') return send(403, { error: 'forbidden' });                    // 改了不允许改的列（列权限）
   if (e.constraint === 'reports_one_open') return send(409, { error: 'report_duplicate' });
   if (/^(22|23)/.test(String(e.code || ''))) return send(422, { error: 'invalid' });    // 格式不对 / 约束不满足：不外露数据库原文
   return null;
@@ -67,6 +68,7 @@ async function act(req, d, params, fn, { body = true, ids = [] } = {}) {
 }
 const str = v => typeof v === 'string' ? v : null;   // 不是文字的字段一律当没填，让数据库的检查去报错
 const bad = () => Object.assign(new Error('invalid'), { code: '22023' });
+const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'utr', 'utr_estimated', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
 const one = async (q, sql, args) => (await q(sql, args)).rows[0];
 
 const ROUTES = {
@@ -166,6 +168,39 @@ const ROUTES = {
   'POST /api/notifications/read': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.all === true ? null : Array.isArray(b.ids) && b.ids.length <= 200 && b.ids.every(n => Number.isInteger(n) && n > 0) ? b.ids : (() => { throw bad() })();
     return { read: (await one(q, 'select api_notif_read($1::bigint[]) as n', [ids])).n } }),
+  // ---- 第 3 步（续 2）：我的资料、球场/区、聊天记录 ----
+  // 只放行资料类的列（和 schema 里 grant update 一致）；其余列 → 403 forbidden；昵称规则、改名频率、性别只能改一次等由数据库触发器判断
+  'PATCH /api/me': (req, d, p) => act(req, d, p, async (q, b) => {
+    const keys = Object.keys(b); if (!keys.length) throw bad();
+    if (keys.some(k => !ME_EDITABLE.has(k))) throw Object.assign(new Error('forbidden'), { code: 'P0001' });
+    const vals = keys.map(k => b[k] !== null && typeof b[k] === 'object' ? JSON.stringify(b[k]) : b[k]);
+    const r = await q(`update users set ${keys.map((k, i) => `${k} = $${i + 1}`).join(', ')} where id = nbq_uid() returning ${ME_COLS}`, vals);
+    if (!r.rows[0]) throw Object.assign(new Error('not_found'), { code: 'P0001' });
+    return { user: r.rows[0] } }),
+  'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
+    const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
+    await q('delete from user_clubs where user_id = nbq_uid()'); for (const v of ids) await q('insert into user_clubs(user_id, venue_id) values (nbq_uid(), $1)', [v]);
+    return { venue_ids: ids } }),
+  'PUT /api/me/suburb': (req, d, p) => act(req, d, p, async (q, b) => {
+    const sub = str(b.suburb), pc = str(b.postcode); if (!sub || !/^\d{4}$/.test(pc || '')) throw bad();
+    await q(`insert into user_suburb_picks(user_id, suburb, postcode) values (nbq_uid(), $1, $2) on conflict (user_id, suburb, postcode) do update set picked_at = now()`, [sub, pc]); return { ok: true } }),
+  'PATCH /api/games/:id/me': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (typeof b.show_wechat !== 'boolean') throw bad();
+    return { show_wechat: (await one(q, 'select api_show_wechat($1, $2) as v', [x.id, b.show_wechat])).v } }, { ids: ['id'] }),
+  'GET /api/threads': (req, d, p) => act(req, d, p, async q => ({ threads: (await q(`
+      select t.id, t.kind, t.game_id, case when t.kind = 'dm' then case when t.user_a = nbq_uid() then t.user_b else t.user_a end end as other_id,
+             lm.body as last_body, lm.created_at as last_at, coalesce(lm.sender_id <> nbq_uid() and (tr.last_read_at is null or lm.created_at > tr.last_read_at), false) as unread
+        from threads t
+        left join lateral (select m.body, m.created_at, m.sender_id from messages m where m.thread_id = t.id and (not m.hidden or m.sender_id = nbq_uid()) order by m.id desc limit 1) lm on true
+        left join thread_reads tr on tr.thread_id = t.id and tr.user_id = nbq_uid()
+       order by coalesce(lm.created_at, t.created_at) desc limit 100`)).rows }), { body: false }),
+  'GET /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const before = new URL(req.url).searchParams.get('before'); if (before !== null && !/^\d{1,15}$/.test(before)) throw bad();
+    const rows = (await q(`select id::float8 as id, sender_id, body, created_at from messages where thread_id = $1 and (not hidden or sender_id = nbq_uid()) ${before ? 'and id < $2' : ''} order by id desc limit 50`, before ? [x.id, before] : [x.id])).rows;
+    return { messages: rows.reverse() } }, { ids: ['id'], body: false }),
+  'POST /api/threads/:id/read': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const t = await q('select 1 from threads where id = $1', [x.id]); if (!t.rowCount) throw Object.assign(new Error('not_found'), { code: 'P0001' });   // 行级权限：不在对话里 = 看不到 = 404
+    await q(`insert into thread_reads(thread_id, user_id, last_read_at) values ($1, nbq_uid(), now()) on conflict (thread_id, user_id) do update set last_read_at = now()`, [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）

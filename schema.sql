@@ -3482,6 +3482,17 @@ begin
   if not found then perform nbq_err('state_changed'); end if;
 end $$;
 
+-- 私人球局里向对方展示微信号：已加入的人（含发起人）改自己的开关。直接 update 会被 gp_self 的 with check 拦下（它只允许状态为待确认 / 撤回 / 退出的行），所以走函数
+create or replace function api_show_wechat(p_game uuid, p_value boolean) returns boolean language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me();
+begin
+  if p_value is null then perform nbq_err('invalid', 'show_wechat'); end if;
+  update game_participants set show_wechat = p_value
+   where game_id = p_game and user_id = u and status = 'approved' and exists (select 1 from games g where g.id = p_game and g.visibility = 'private');
+  if not found then perform nbq_err('not_in_game'); end if;
+  return p_value;
+end $$;
+
 -- ---------- 聊天 ----------
 -- 打开私信（没有就建）；屏蔽时不行
 create or replace function api_thread_dm(p_user uuid) returns uuid language plpgsql security definer set search_path = public as $$
