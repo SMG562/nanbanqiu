@@ -2922,7 +2922,8 @@ create trigger trg_audit_append_only before update or delete on admin_audit_log 
 -- 触发器里的连带处理（自动结束申请、补发起人那一行、发通知、记性别变更）以定义者身份运行：由谁触发都能完成，规则本身已在函数里
 do $$ declare f record; begin
   for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-           where n.nspname = 'public' and p.prorettype = 'trigger'::regtype loop
+           where n.nspname = 'public' and p.prorettype = 'trigger'::regtype
+             and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e') loop   -- 扩展自带的触发器函数（PostGIS）不动
     execute format('alter function %s security definer set search_path = public', f.sig);
   end loop; end $$;
 -- 约束里用到的函数，写入的人要能调用
