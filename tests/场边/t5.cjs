@@ -14,7 +14,7 @@ await tap('.bar .box');await W(700);
 let r=await pg.evaluate(E=>{const el=document.querySelector(E);return {cmp:el.classList.contains('composing'),qing:el.classList.contains('qing'),focus:document.activeElement===el.querySelector('[data-in]'),top:el.querySelector('.ctop').textContent,txt:el.querySelector('[data-ctext]').value}},E);
 ok(r.cmp&&!r.qing&&!r.focus,'点输入框：直接进写动态页，首页没有话题条、输入框没焦点',JSON.stringify(r));ok(r.top.replace(/[#\s]/g,'').length>0&&!r.top.includes('加个话题'),'这句问题带出的话题已选好',`${hq} → ${r.top}`);
 const chip=r.top.replace(/[#\s]/g,'');
-await W(4500);const hz=await pg.$eval(PS+' [data-hint]',e=>e.textContent);ok(hz===hq,'正在写时，首页问题停住不换',hz);
+const hy=await pg.$eval(PS+' [data-hint]',e=>e.textContent);await W(4500);const hz=await pg.$eval(PS+' [data-hint]',e=>e.textContent);ok(hz===hy,'正在写时，首页问题停住不换（进写页后量，不受点击前那一下轮换影响）',`${hy} → ${hz}`);
 // 带话题发（在写页里写、发布）
 await setText('测试：带话题');await pg.evaluate(E=>document.querySelector(E+' [data-cgo]').click(),E);await W(1200);
 r=await pg.evaluate(E=>{const el=document.querySelector(E),ln=el.querySelector('[data-s="home"] .ln');return {txt:ln.querySelector('.tx').textContent,tp:(ln.querySelector('.tpl,.flr')||{}).textContent||'',me:ln.querySelector('.un').textContent.trim(),cmp:el.classList.contains('composing'),qing:el.classList.contains('qing'),val:el.querySelector('[data-in]').value,undo:el.querySelector('.undo').classList.contains('show')}},E);
