@@ -17,11 +17,20 @@ async function whoIs(request, { verify, db }) {
   return { sub: v.sub, uid };
 }
 
+// 数据库连不上时只给一个粗略的类别（排查用，不含地址 / 用户名 / 报错原文）
+const why = e => { const c = String(e && e.code || ''), m = String(e && e.message || '');
+  if (c === 'db_not_configured') return 'not_configured';
+  if (c === '28P01' || c === '28000') return 'auth_failed';                 // 密码不对 / 账号不存在
+  if (/tenant or user not found/i.test(m)) return 'user_not_found';         // 连接池里用户名格式不对（要 nbq_api.项目编号）
+  if (/^(ECONN|ENOTFOUND|ETIMEDOUT|EAI_|EHOSTUNREACH)/.test(c) || /connection (terminated|timeout)/i.test(m)) return 'network';
+  if (/invalid|parse|url/i.test(m) && !c) return 'bad_url';
+  return 'other'; };
+
 const ROUTES = {
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
     if (new URL(req.url).searchParams.get('db') === '1') {
-      try { await d.db.asService(q => q('select 1')); out.db = true } catch (_) { out.db = false; out.ok = false }
+      try { await d.db.asService(q => q('select 1')); out.db = true } catch (e) { out.db = false; out.ok = false; out.why = why(e) }
     }
     return send(out.ok ? 200 : 503, out);
   },

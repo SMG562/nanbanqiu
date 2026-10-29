@@ -32,7 +32,10 @@ try {
   // 健康检查
   let r = await call('GET', '/api/health'); T('health：200，不碰数据库', r.s === 200 && r.j.ok === true && r.j.db === null, r);
   r = await call('GET', '/api/health?db=1'); T('health?db=1：连得上 → db true', r.s === 200 && r.j.db === true, r);
-  r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false', r.s === 503 && r.j.db === false, r);
+  r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false、原因 not_configured', r.s === 503 && r.j.db === false && r.j.why === 'not_configured', r);
+  { const mk = e => ({ verify, db: makeDb(async () => { throw e }) }), W = async e => (await call('GET', '/api/health?db=1', null, mk(e))).j.why;
+    T('health 失败原因分类：密码错 / 用户名格式 / 网络 / 其他，且不含原文', await W(Object.assign(new Error('password authentication failed for user "nbq_api"'), { code: '28P01' })) === 'auth_failed' && await W(new Error('Tenant or user not found')) === 'user_not_found' && await W(Object.assign(new Error('getaddrinfo ENOTFOUND db.x.co'), { code: 'ENOTFOUND' })) === 'network' && await W(new Error('boom')) === 'other');
+    const leak = JSON.stringify((await call('GET', '/api/health?db=1', null, mk(Object.assign(new Error('secret-host.example hunter2'), { code: 'ECONNREFUSED' })))).j); T('分类结果里没有地址和密码', !/secret-host|hunter2/.test(leak), leak); }
   r = await call('HEAD', '/api/health'); T('HEAD 可用', r.s === 200);
 
   // /api/me
