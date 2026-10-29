@@ -9,6 +9,8 @@ node tests/run_all.mjs --only=schema,admin  # 只跑某几类
 node tests/run_all.mjs --only=static,schema,pg --fast   # 每一小轮：数据库 + 静态，约 2 分钟（跳过 9 分钟的一年数据量性能测试）
 node tests/run_all.mjs --grep=sb_,notify     # 只跑名字里含这些字的
 node tests/run_all.mjs --jobs=2              # 同时跑几项（默认 = CPU 数；性能测试总是单独跑）
+node tests/run_all.mjs --changed             # 按改动的文件挑相关测试（没提交的改动 + 新文件；隐含 --quick）；--changed=origin/main 和某个提交 / 分支比
+node tests/run_all.mjs --failed              # 只重跑「失败过、之后还没通过」的项（名单 tests/reports/failed.json，每次跑完自动更新）
 node tests/run_all.mjs --list               # 看会跑哪些
 node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，更新回归快照
 ```

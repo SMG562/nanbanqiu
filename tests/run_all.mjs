@@ -9,7 +9,10 @@
  *   --grep=sb_,rate,api   只跑名字里含这些字的测试（每一小轮只跑相关的，10-26 定）
  *   --fast                跳过最慢的几项（pg/perf@一年 约 9 分钟）；收尾时不加
  *   --jobs=N              同时跑 N 项（默认 = CPU 数，最多 4）；性能测试总是单独跑，不和别的抢 CPU
+ *   --changed[=<ref>]     按改动的文件挑相关测试（规则在 tests/lib/select.mjs）：不带 ref = 没提交的改动 + 新文件；带 ref = 和它的差别（如 origin/main）。隐含 --quick（不含回归和全部时间点）；没有对应规则的文件会列出来
+ *   --failed              只重跑「失败过、之后还没通过」的项（名单 tests/reports/failed.json，每次跑完自动更新）；和 --changed 一起用 = 两者的并集
  * 环境变量：
+ *   NBQ_FAILED_FILE  失败名单的位置（默认 tests/reports/failed.json；单元测试用）
  *   NBQ_DIR        被测文件所在目录（默认 tests 的上一级）
  *   NBQ_CACHE      依赖缓存目录（默认 ~/.cache/nbq-tests），数据库测试的 PGlite 装在这里
  *   NBQ_CHROMIUM   Chromium 路径（默认 /opt/pw-browsers/chromium，不存在就用 Playwright 自带的）
@@ -22,12 +25,13 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { selectByChanged, matches, updateFailed, missingFrom } from './lib/select.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(process.env.NBQ_DIR || path.join(HERE, '..'));
 const CACHE = path.resolve(process.env.NBQ_CACHE || path.join(os.homedir(), '.cache', 'nbq-tests'));
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, v] = a.replace(/^--/, '').split('='); return [k, v ?? true] }));
-const QUICK = !!args.quick, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null;
+const QUICK = !!args.quick || !!args.changed, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null;
 const GREP = args.grep ? String(args.grep).split(',').filter(Boolean) : null, FAST = !!args.fast, JOBS = Math.max(1, Math.min(4, +args.jobs || os.cpus().length));
 const STAMP = new Date().toLocaleString('sv-SE', { timeZone: 'Australia/Melbourne' }).replace(' ', '_').replace(/:/g, '-');   // 墨尔本时间
 const OUT = path.join(HERE, 'reports', STAMP), LOGS = path.join(OUT, 'logs'), WORK = path.join(os.tmpdir(), 'nbq-work-' + STAMP);
@@ -137,7 +141,35 @@ if (!QUICK) add('admin', 'admin/sweep', ['node', '-r', PRELOAD, path.join(HERE, 
 if (!QUICK) for (const f of fs.readdirSync(path.join(HERE, 'regression')).filter(f => f.endsWith('.js')).sort())
   add('regression', 'regression/' + f.replace(/\.js$/, ''), ['node', '-r', PRELOAD, path.join(HERE, 'regression', f)], { snapshot: true, timeout: 400, needsExit0: true });
 
-const LIST = T.filter(t => (!ONLY || ONLY.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+// ---------- --changed / --failed：按改动或上次失败选测试（规则和说明见 tests/lib/select.mjs） ----------
+const FAILED_FILE = process.env.NBQ_FAILED_FILE || path.join(HERE, 'reports', 'failed.json');
+const readFailed = () => { try { return JSON.parse(fs.readFileSync(FAILED_FILE, 'utf8')).ids || [] } catch { return [] } };
+let CHG = null, FAILED = null;
+if (args.changed) {
+  const ref = args.changed === true ? '' : String(args.changed);
+  if (ref && !/^[\w.\/~^@-]+$/.test(ref)) { console.error('--changed=<ref> 的 ref 不合法：' + ref); process.exit(2) }
+  const git = c => execSync('git -c core.quotePath=false ' + c, { cwd: DIR, encoding: 'utf8' }).split('\n').filter(Boolean);
+  let files;
+  try { files = ref ? git('diff --name-only ' + ref) : [...new Set([...git('diff --name-only HEAD'), ...git('ls-files -o --exclude-standard')])] }
+  catch (e) { console.error('--changed 读不到 git 改动：' + String(e.message).split('\n')[0]); process.exit(2) }
+  if (!files.length) { console.log('--changed：没有改动。' + (args.failed ? '' : '没有要跑的测试。')); if (!args.failed) process.exit(0) }
+  else { CHG = selectByChanged(files); CHG.n = files.length }
+}
+if (args.failed) FAILED = readFailed();
+const SEL = !!(CHG || FAILED);
+const picked = t => (CHG && (CHG.all || matches(t.id, CHG.tokens))) || (FAILED && FAILED.includes(t.id));
+const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+if (CHG) {
+  console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`));
+  if (CHG.unmatched.length) console.log(`  没有对应规则（只跑基础的 static + unit；该有规则就补进 tests/lib/select.mjs）：${CHG.unmatched.join(' ')}`);
+  if (CHG.ignored.length) console.log(`  不对应测试（文档 / 图片 / 物料 / CI 配置）：${CHG.ignored.length} 个`);
+}
+if (FAILED) {
+  console.log(`--failed：上次没通过的 ${FAILED.length} 项` + (FAILED.length ? '：' + FAILED.join(' ') : ''));
+  const gone = missingFrom(FAILED, T.map(t => t.id));
+  if (gone.length) console.log(`  这一档里没有（完整档才有，或已改名；去掉 --quick / --fast 再试）：${gone.join(' ')}`);
+}
+if (SEL && !LIST.length && !args.list) { console.log('\n没有要跑的测试。'); process.exit(0) }
 if (args.list) { LIST.forEach(t => console.log(t.suite.padEnd(11), t.id)); process.exit(0) }
 
 // ---------- 环境检查 ----------
@@ -206,7 +238,7 @@ function run(t) {
 }
 const SNAP = path.join(HERE, 'snapshots');
 const results = [];
-console.log(`南伴球测试 · ${QUICK ? '快速' : '完整'}${FAST ? ' · 跳过慢的' : ''}${GREP ? ' · 只跑 ' + GREP.join('/') : ''} · ${LIST.length} 项 · 同时 ${JOBS} 项 · 被测目录 ${DIR}\n`);
+console.log(`南伴球测试 · ${QUICK ? '快速' : '完整'}${FAST ? ' · 跳过慢的' : ''}${GREP ? ' · 只跑 ' + GREP.join('/') : ''}${CHG ? ' · 按改动选' : ''}${FAILED ? ' · 重跑失败的' : ''} · ${LIST.length} 项 · 同时 ${JOBS} 项 · 被测目录 ${DIR}\n`);
 // 同时跑：普通的 JOBS 项一起跑，单独跑的（性能测试）最后一项一项跑；输出按完成顺序，报告按列表顺序
 async function check(t) {
   let r = await run(t);
@@ -252,6 +284,7 @@ const md = [`# 南伴球测试报告 · ${STAMP}`, '', `模式：${QUICK ? '快�
   '', `日志：logs/ 目录；快照差异：logs/*.diff.txt`].join('\n');
 fs.writeFileSync(path.join(OUT, 'summary.md'), md + '\n');
 fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ stamp: STAMP, quick: QUICK, dir: DIR, files: Object.fromEntries(files.map(f => [f, sha(f)])), results }, null, 2));
+try { fs.writeFileSync(FAILED_FILE, JSON.stringify({ stamp: STAMP, ids: updateFailed(readFailed(), results) }, null, 2) + '\n') } catch { /* 名单写不了不影响测试结果 */ }
 if (!args.keep) fs.rmSync(WORK, { recursive: true, force: true });
 console.log(`\n${nFail ? '有 ' + nFail + ' 项失败' : '全部通过'} · 报告：${path.relative(process.cwd(), path.join(OUT, 'summary.md'))}`);
 process.exit(nFail ? 1 : 0);

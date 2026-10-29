@@ -1,0 +1,70 @@
+// 选测试的规则（10-30）：run_all.mjs 的 --changed / --failed 用。全是纯函数，tests/unit/select.mjs 直接测。
+//
+// --changed  按改动的文件挑「相关的」测试（取代每轮手选 --grep）。规则在下面的 RULES：
+//            [文件路径的正则, [测试名里含的字, ...]]；测试名用 substring 匹配，和 --grep 一样。
+//            新增源文件目录、新增测试时，同步改这里（unit/select 会核对每个「字」至少匹配一个真实的测试名）。
+// --failed   只重跑「失败过、之后还没通过」的项。名单存在 tests/reports/failed.json，每次跑完按结果更新。
+
+// 任何改动都跑的基础项（和提交前检查一样，几秒）
+export const BASE = ['static/', 'unit/'];
+
+// 改了这些就影响所有测试：不挑了，跑整个范围（--changed 隐含快速档）
+const HARNESS = /^tests\/(run_all\.mjs|lib\/)/;
+
+// 不对应任何测试：文档、图片、物料、CI 配置（CI 自己跑自己）、回归快照（回归只在完整档）
+const IGNORE = /(\.(md|png|webp|jpe?g|svg|zip)|^\.gitignore)$|^(marketing|icons|site|备份)\/|^(privacy|terms)\.html$|^\.github\/|^tests\/(snapshots|reports)\/|^wrangler\.jsonc$/;
+
+// 顺序无关：一个文件匹配多条就取并集
+export const RULES = [
+  // 前台
+  [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
+  [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login']],
+  [/^src\/(shared|pwa|web)\//, ['frontend/', 'visual/']],
+  [/^南伴球_(PWA|Web)\.html$/, ['frontend/', 'visual/']],
+  [/^南伴球_场边设计稿/, ['side_design']],
+  // 后台
+  [/^src\/admin\/|^南伴球_后台/, ['admin/', 'e2e/sb']],
+  // 数据库
+  [/^schema\.sql$/, ['schema/', 'pg/']],
+  // 服务端
+  [/^server\/api\/|^functions\/api\/|^worker\/|^package(-lock)?\.json$/, ['unit/api', 'pg/api', 'frontend/site']],
+  [/^server\/(notify|ops|admin)\/|^server\/(routes|headers)\./, ['pg/', 'admin/']],
+  [/^server\/og\/|^functions\/(g|p)\//, ['unit/og', 'frontend/wx_share', 'frontend/site']],
+  [/^sw\.js$|^manifest\.webmanifest$/, ['frontend/a2hs', 'frontend/site']],
+  [/^tools\/(site|build|lint)\./, ['static/build', 'static/lint', 'frontend/site']],
+  [/^tests\/spec\//, ['static/check', 'schema/', 'admin/consist']],
+  [/^tests\/visual\//, ['visual/']],
+  [/^tests\/场边\//, ['side_design']],
+  [/^tests\/(schema|pg|lint)\//, ['schema/', 'pg/']],
+];
+
+// 测试文件本身：tests/<套件>/<名>.<后缀> → 同名的测试
+const TEST_FILE = /^tests\/([a-z_]+)\/([^/]+?)\.(?:mjs|js|cjs|py)$/;
+
+export function selectByChanged(files) {
+  const tokens = new Set(BASE), unmatched = [], ignored = [];
+  let all = false;
+  for (const f of files) {
+    if (HARNESS.test(f)) { all = true; continue }
+    if (IGNORE.test(f)) { ignored.push(f); continue }
+    let hit = false;
+    for (const [re, ts] of RULES) if (re.test(f)) { ts.forEach(t => tokens.add(t)); hit = true }
+    const m = f.match(TEST_FILE);
+    if (m) { tokens.add(m[1] + '/' + m[2]); hit = true }
+    if (!hit) unmatched.push(f);
+  }
+  return { all, tokens: [...tokens], unmatched, ignored };
+}
+
+// 这个测试名是否被选中
+export const matches = (id, tokens) => tokens.some(t => id.includes(t));
+
+// 跑完后更新「失败过、还没通过」的名单：这次跑了的，通过 → 移出，失败 → 加入；没跑的原样保留
+export function updateFailed(prev, results) {
+  const set = new Set(prev || []);
+  for (const r of results) r.ok ? set.delete(r.id) : set.add(r.id);
+  return [...set].sort();
+}
+
+// --failed 要重跑的名单里，有哪些在这一档里不存在（比如完整档才有的项，却加了 --quick）
+export const missingFrom = (failed, allIds) => failed.filter(id => !allIds.includes(id));
