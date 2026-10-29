@@ -29,45 +29,43 @@ def _mix(a, b, t):
 
 
 def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
+    """平面设计风网球：纯色球身，无渐变无高光；绒感只来自
+    ① 轮廓上一圈短而疏的同色细绒（轮廓微微毛边） ② 球面上很淡的短绒纹 ③ 球缝两侧的几根细绒。"""
     R = random.Random(seed * 7919 + int(r))
     u = r / 100
-    lx, ly = -math.sqrt(.5), -math.sqrt(.5)          # 光从左上来
     mid, lo, hh = pal['mid'], pal['lo'], pal['hair_hi']
-    cols = [lo, _mix(lo, mid, .55), mid, _mix(mid, hh, .45), _mix(mid, hh, .8)]
-    # 1) 轮廓一圈细毛（受光处发亮、背光处偏深）
-    halo = [[] for _ in range(5)]
-    for _ in range(int(12 * r * dens)):
-        th = R.uniform(0, math.tau)
-        lit = math.cos(th) * lx + math.sin(th) * ly
-        t = max(0., min(1., .5 + .5 * lit + R.uniform(-.28, .28)))
-        c, s = math.cos(th), math.sin(th)
-        r0, r1 = r * R.uniform(.95, .985), r * R.uniform(1.014, 1.058)
-        bend = R.uniform(-.05, .05) * r
-        halo[min(4, int(t * 5))].append(
-            f'M{r0*c:.1f} {r0*s:.1f} Q{(r0+r1)/2*c - s*bend:.1f} {(r0+r1)/2*s + c*bend:.1f} {r1*c:.1f} {r1*s:.1f}')
-    halo_svg = ''.join(
-        f'<path d="{" ".join(p)}" fill="none" stroke="{cols[k]}" stroke-width="{max(.6, .0092*r):.2f}" stroke-linecap="round" opacity=".9"/>'
-        for k, p in enumerate(halo) if p)
-    # 2) 表面绒毛：几千根短弧线，亮的偏左上，暗的偏右下
-    buckets = {k: [] for k in ('lh', 'll', 'dh', 'dl')}
-    for _ in range(int(r * r / 6.5 * dens)):
-        rho = r * math.sqrt(R.random()) * .99
+    # 1) 轮廓毛边：同色细三角，长短带缓慢起伏
+    n = int(1.15 * r * dens) + 40
+    ph = [R.uniform(0, math.tau) for _ in range(3)]
+    fur = []
+    for i in range(n):
+        th = (i + R.uniform(-.4, .4)) / n * math.tau
+        wave = .5 + .25 * math.sin(3 * th + ph[0]) + .15 * math.sin(7 * th + ph[1]) + .1 * math.sin(13 * th + ph[2])
+        L = r * (.010 + .030 * wave * R.uniform(.55, 1.0))
+        lean = R.uniform(-.45, .45)
+        w = r * R.uniform(.008, .013)
+        c, s_ = math.cos(th), math.sin(th)
+        bx, by = (r - w) * c, (r - w) * s_
+        tx, ty = (r + L) * math.cos(th + lean * L / r), (r + L) * math.sin(th + lean * L / r)
+        px, py = -s_ * w, c * w
+        fur.append(f'M{bx + px:.1f} {by + py:.1f} L{tx:.1f} {ty:.1f} L{bx - px:.1f} {by - py:.1f}Z')
+    fur_svg = f'<path d="{" ".join(fur)}" fill="{mid}"/>'
+    # 2) 球面绒纹：很淡、很短、顺着球面走的小弧线
+    dark, light = _mix(mid, lo, .55), _mix(mid, hh, .7)
+    bk = {'d': [], 'l': []}
+    for _ in range(int(r * r / 38 * dens)):
+        rho = r * math.sqrt(R.random()) * .97
         th = R.uniform(0, math.tau)
         px, py = rho * math.cos(th), rho * math.sin(th)
-        lit = (px * lx + py * ly) / r
-        ang = th + math.pi / 2 + R.uniform(-1.0, 1.0)
-        L = R.uniform(.028, .07) * r
+        ang = th + math.pi / 2 + R.uniform(-.7, .7)
+        L = R.uniform(.022, .045) * r
         dx, dy = math.cos(ang) * L, math.sin(ang) * L
-        cv = R.uniform(-.3, .3)
-        seg = f'M{px:.1f} {py:.1f} q{dx/2 - dy*cv:.1f} {dy/2 + dx*cv:.1f} {dx:.1f} {dy:.1f}'
-        light = R.random() < .5 + .32 * lit
-        buckets[('l' if light else 'd') + ('h' if R.random() < .45 else 'l')].append(seg)
-    spec = {'lh': (hh, .27, .0085), 'll': (hh, .15, .006), 'dh': (lo, .24, .0085), 'dl': (lo, .14, .006)}
-    fiber_svg = ''.join(
-        f'<path d="{" ".join(v)}" fill="none" stroke="{spec[k][0]}" stroke-opacity="{spec[k][1]}" stroke-width="{max(.5, spec[k][2]*r):.2f}" stroke-linecap="round"/>'
-        for k, v in buckets.items() if v)
-
-    # 3) 球缝：奶白色带毛边 + 压出来的暗槽 + 边缘几根白绒
+        cv = R.uniform(-.35, .35)
+        bk['d' if R.random() < .5 else 'l'].append(f'M{px:.1f} {py:.1f} q{dx/2 - dy*cv:.1f} {dy/2 + dx*cv:.1f} {dx:.1f} {dy:.1f}')
+    sw = max(.6, .0075 * r)
+    tex = (f'<path d="{" ".join(bk["d"])}" fill="none" stroke="{dark}" stroke-opacity=".30" stroke-width="{sw:.2f}" stroke-linecap="round"/>'
+           f'<path d="{" ".join(bk["l"])}" fill="none" stroke="{light}" stroke-opacity=".30" stroke-width="{sw:.2f}" stroke-linecap="round"/>')
+    # 3) 球缝：平涂奶白带，两侧几根短绒
     def bez(t, sx):
         p0, p1, p2, p3 = (sx * -67, -74), (sx * -30, -34), (sx * -30, 34), (sx * -67, 74)
         mt = 1 - t
@@ -75,69 +73,25 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
         y = mt**3 * p0[1] + 3 * mt * mt * t * p1[1] + 3 * mt * t * t * p2[1] + t**3 * p3[1]
         dx = 3 * mt * mt * (p1[0] - p0[0]) + 6 * mt * t * (p2[0] - p1[0]) + 3 * t * t * (p3[0] - p2[0])
         dy = 3 * mt * mt * (p1[1] - p0[1]) + 6 * mt * t * (p2[1] - p1[1]) + 3 * t * t * (p3[1] - p2[1])
-        n = math.hypot(dx, dy)
-        return x, y, -dy / n, dx / n
+        m = math.hypot(dx, dy)
+        return x, y, -dy / m, dx / m
     seam_d = ('M-67 -74 C-30 -34 -30 34 -67 74', 'M67 -74 C30 -34 30 34 67 74')
     tick = []
     for sx in (1, -1):
-        for _ in range(int(46 * dens + 14)):
+        for _ in range(12):
             t = R.random()
             x, y, nx, ny = bez(t, -sx)
             side = R.choice((-1, 1))
-            o, l = 5.0 + R.uniform(-.8, .6), R.uniform(2.2, 5.5)
-            a = R.uniform(-.5, .5)
-            ex_, ey_ = nx * math.cos(a) - ny * math.sin(a), nx * math.sin(a) + ny * math.cos(a)
-            tick.append(f'M{x + nx*side*o:.1f} {y + ny*side*o:.1f} l{ex_*side*l:.1f} {ey_*side*l:.1f}')
-    seam_svg = (
-        f'<g transform="rotate({rot})">'
-        f'<g fill="none" stroke-linecap="round">'
-        f'<path d="{seam_d[0]} {seam_d[1]}" stroke="{lo}" stroke-width="15" opacity=".22" filter="url(#sb{id})"/>'
-        f'<path d="{seam_d[0]} {seam_d[1]}" stroke="{pal["seam"]}" stroke-width="10.5" opacity=".97" filter="url(#sf{id})"/>'
-        f'<path d="{" ".join(tick)}" stroke="{pal["seam"]}" stroke-width=".8" opacity=".75"/></g></g>')
-
-    defs = (
-        f'<defs>'
-        f'<radialGradient id="bg{id}" cx=".36" cy=".30" r=".82"><stop offset="0" stop-color="{pal["hi"]}"/><stop offset=".48" stop-color="{mid}"/><stop offset="1" stop-color="{lo}"/></radialGradient>'
-        f'<radialGradient id="fs{id}" cx=".34" cy=".28" r=".98"><stop offset=".58" stop-color="{lo}" stop-opacity="0"/><stop offset="1" stop-color="{_mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .35)}" stop-opacity=".55"/></radialGradient>'
-        f'<radialGradient id="hl{id}" cx=".3" cy=".24" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
-        f'<clipPath id="bc{id}"><circle r="{r}"/></clipPath>'
-        f'<filter id="sf{id}" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="{seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.2"/><feGaussianBlur stdDeviation=".45"/></filter>'
-        f'<filter id="sb{id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>'
-        f'<filter id="ed{id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="{.9/max(r,40)*40:.2f}" numOctaves="2" seed="{seed+3}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="{max(1.2, .03*r):.1f}"/></filter>'
-        f'</defs>')
-    fr = min(1.0, max(.45, 110 / r))
-    ds = max(1.4, .026 * r)
-    felt = (
-        f'<filter id="fz{id}" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">'
-        f'<feTurbulence type="fractalNoise" baseFrequency="{fr*.8:.2f}" numOctaves="3" seed="{seed}" result="n"/>'
-        f'<feDisplacementMap in="SourceGraphic" in2="n" scale="{ds:.1f}" xChannelSelector="R" yChannelSelector="G" result="d"/>'
-        f'<feGaussianBlur in="d" stdDeviation="{max(.6, .0065*r):.2f}" result="db"/>'
-        f'<feTurbulence type="fractalNoise" baseFrequency="{min(1.6, fr*2.6):.2f}" numOctaves="2" seed="{seed+5}" result="n2"/>'
-        f'<feDiffuseLighting in="n2" surfaceScale=".75" diffuseConstant="1.08" lighting-color="#fff" result="lit"><feDistantLight azimuth="235" elevation="58"/></feDiffuseLighting>'
-        f'<feGaussianBlur in="lit" stdDeviation=".45" result="lb"/><feComposite in="lb" in2="db" operator="in" result="li"/>'
-        f'<feBlend in="li" in2="db" mode="multiply"/>'
-        f'</filter>'
-        f'<filter id="gl{id}" x="-15%" y="-15%" width="130%" height="130%">'
-        f'<feTurbulence type="fractalNoise" baseFrequency="{fr*.9:.2f}" numOctaves="3" seed="{seed+9}" result="n"/>'
-        f'<feDisplacementMap in="SourceGraphic" in2="n" scale="{ds*1.9:.1f}" xChannelSelector="R" yChannelSelector="G"/>'
-        f'<feGaussianBlur stdDeviation="{max(1., .01*r):.2f}"/></filter>')
-    sh_c = _mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .25)
-    rim = _mix(mid, hh, .5)
-    return (defs + f'<defs>{felt}'
-            f'<filter id="sm{id}" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="{max(.35, .002*r):.2f}"/></filter>'
-            f'<filter id="sg{id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="{.05*r:.1f}"/></filter>'
-            f'<filter id="sp{id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="{.035*r:.1f}"/></filter></defs>'
-            f'<g transform="translate({cx:.1f} {cy:.1f})">'
-            f'<circle r="{r*1.012:.1f}" fill="{mid}" opacity=".22" filter="url(#gl{id})"/>'
-            f'<g filter="url(#sm{id})"><circle r="{r}" fill="url(#bg{id})"/>'
-            f'<g clip-path="url(#bc{id})"><g transform="scale({u})">{seam_svg}</g>'
-            # 赛璐璐式柔和暗部：右下一弯月牙
-            f'<circle cx="{-.30*r:.1f}" cy="{-.34*r:.1f}" r="{1.12*r:.1f}" fill="none" stroke="{sh_c}" stroke-width="{.5*r:.1f}" opacity=".38" filter="url(#sg{id})" transform="translate({.0*r:.1f} 0)"/>'
-            # 左下反光边
-            f'<ellipse cx="{-.55*r:.1f}" cy="{.78*r:.1f}" rx="{.55*r:.1f}" ry="{.2*r:.1f}" fill="{rim}" opacity=".42" filter="url(#sg{id})" transform="rotate(35 {-.55*r:.1f} {.78*r:.1f})"/>'
-            # 左上高光
-            f'<ellipse cx="{-.40*r:.1f}" cy="{-.50*r:.1f}" rx="{.30*r:.1f}" ry="{.17*r:.1f}" fill="#fff" opacity=".55" filter="url(#sp{id})" transform="rotate(-38 {-.40*r:.1f} {-.50*r:.1f})"/>'
-            f'</g></g></g>')
+            o, l = 5.0, R.uniform(1.0, 2.2)
+            a_ = R.uniform(-.6, .6)
+            ex_, ey_ = nx * math.cos(a_) - ny * math.sin(a_), nx * math.sin(a_) + ny * math.cos(a_)
+            tick.append(f'M{x + nx*side*(o-1.2):.1f} {y + ny*side*(o-1.2):.1f} l{ex_*side*(l+1.2):.1f} {ey_*side*(l+1.2):.1f}')
+    seam_svg = (f'<g transform="rotate({rot})" fill="none" stroke-linecap="round">'
+                f'<path d="{seam_d[0]} {seam_d[1]}" stroke="{pal["seam"]}" stroke-width="10"/>'
+                f'<path d="{" ".join(tick)}" stroke="{pal["seam"]}" stroke-width="1.1" opacity=".8"/></g>')
+    return (f'<defs><clipPath id="bc{id}"><circle r="{r}"/></clipPath></defs>'
+            f'<g transform="translate({cx:.1f} {cy:.1f})">{fur_svg}<circle r="{r}" fill="{mid}"/>'
+            f'<g clip-path="url(#bc{id})">{tex}<g transform="scale({u})">{seam_svg}</g></g></g>')
 
 
 def face4(id, cx, cy, r, mood='smile', look=0, pal=LIME_P):
