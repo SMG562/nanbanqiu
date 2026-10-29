@@ -29,8 +29,8 @@ def svg():
     mx, my = (xm + xr) / 2 + 4, gy - 128
     hm = ((mx - 5 - xm) / rm, (my - cym) / rm)
     hr = ((mx + 5 - xr) / rr, (my - cyr) / rr)
-    a1 = figure4('m', xm, 0, rm, dict(L=DOWN_L, R=((1.3, .55), raw(SH_R, hm)), legs='stand'), 'happy', gy=gy)
-    a2 = figure4('r', xr, 0, rr, dict(L=((-1.3, .55), raw(SH_L, hr)), R=DOWN_R, legs='stand'), 'smile', char='rong', gy=gy, look=1)
+    a1 = figure4('m', xm, 0, rm, dict(L=DOWN_L, R=((1.3, .55), raw(SH_R, hm)), legs='stand'), 'happy', gy=gy, ball_style='soft')
+    a2 = figure4('r', xr, 0, rr, dict(L=((-1.3, .55), raw(SH_L, hr)), R=DOWN_R, legs='stand'), 'smile', char='rong', gy=gy, look=1, ball_style='soft')
     arm = ''
     body = f'''
 <defs>

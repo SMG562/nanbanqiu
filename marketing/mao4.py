@@ -95,6 +95,26 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
             f'<g clip-path="url(#bc{id})">{tex}<g transform="scale({u})">{seam_svg}</g></g></g>')
 
 
+SOFT = {'mao': ('#E4F76A', '#C6EA3D', '#7FA21C', '#0b1a00'),
+        'rong': ('#FFEEF4', '#FFC6D8', '#F29DBA', '#7a2a4a')}
+
+
+def softball(id, cx, cy, r, char='mao', rot=-22):
+    """36 号早安小球同款立体球：渐变 + 细颗粒（fuzz 滤镜）+ 边缘暗角 + 干净的奶白球缝。"""
+    hi, mid, lo, dk = SOFT[char]
+    sc = r / 100
+    sm = '#FFFDF4' if char == 'rong' else '#F7FBE8'
+    return (f'<defs><radialGradient id="sg{id}" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="{hi}"/><stop offset=".55" stop-color="{mid}"/><stop offset="1" stop-color="{lo}"/></radialGradient>'
+            f'<radialGradient id="sr{id}" cx="30%" cy="25%" r="90%"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="{dk}" stop-opacity=".5"/></radialGradient>'
+            f'<clipPath id="sc{id}"><circle r="100"/></clipPath></defs>'
+            f'<g transform="translate({cx:.1f} {cy:.1f}) scale({sc:.4f})"><circle r="100" fill="url(#sg{id})"/>'
+            f'<g clip-path="url(#sc{id})"><g transform="rotate({rot})">'
+            f'<path d="M-67 -74 C-30 -34 -30 34 -67 74" fill="none" stroke="{sm}" stroke-width="11" stroke-linecap="round" opacity=".92"/>'
+            f'<path d="M67 -74 C30 -34 30 34 67 74" fill="none" stroke="{sm}" stroke-width="11" stroke-linecap="round" opacity=".92"/></g>'
+            f'<circle r="100" fill="#000" filter="url(#fuzz)" opacity=".30" style="mix-blend-mode:multiply"/>'
+            f'<circle r="100" fill="url(#sr{id})"/></g></g>')
+
+
 def face4(id, cx, cy, r, mood='smile', look=0, pal=LIME_P):
     u = r / 100
     f = lambda v: f'{v:.1f}'
@@ -182,7 +202,7 @@ def bow4(cx, cy, r, w):
 K_ARM, K_LEG, GROUND = .80, .66, 1.36
 
 
-def figure4(id, cx, cy, r, pose='wave', mood='happy', char='mao', tilt=None, lift=None, look=0, mirror=None, gy=None, soft=True, seed=None):
+def figure4(id, cx, cy, r, pose='wave', mood='happy', char='mao', tilt=None, lift=None, look=0, mirror=None, gy=None, soft=True, seed=None, ball_style='flat'):
     pal = PINK_P if char == 'rong' else LIME_P
     if isinstance(pose, str):
         P = POSES[pose]
@@ -264,5 +284,5 @@ def figure4(id, cx, cy, r, pose='wave', mood='happy', char='mao', tilt=None, lif
     front = f'<g filter="url(#rough2)">{arms}</g>' if P.get('front') else ''
     limbs = f'<g filter="url(#rough2)">{legs}{arms if not P.get("front") else ""}</g>'
     return (soft_sh + f'<g filter="url(#rough2)">{ground}</g>'
-            f'<g transform="rotate({tilt} {cx} {cy})">{limbs}{fuzzball(id, cx, cy, r, pal, seed)}'
+            f'<g transform="rotate({tilt} {cx} {cy})">{limbs}{fuzzball(id, cx, cy, r, pal, seed) if ball_style == "flat" else softball(id, cx, cy, r, char)}'
             f'{face4(id, cx, cy, r, mood, look, pal)}<g filter="url(#rough2)">{hair}</g>{front}<g filter="url(#rough2)">{extra}{z}</g></g>')
