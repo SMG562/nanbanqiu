@@ -1,17 +1,15 @@
 from lib import *
-from mao3 import pen, DOWN_L, DOWN_R, SH_L, SH_R, PEN, PAPER
-from mao4 import figure4, GROUND, K_ARM
+from mao3 import figure3, DOWN_L, DOWN_R
 
-
-def raw(sh, t):
-    return (sh[0] + (t[0] - sh[0]) / K_ARM, sh[1] + (t[1] - sh[1]) / K_ARM)
 
 META = dict(
     id=84, slug='mao-rong-sunset', title='打完球，看会儿天', lines=['打完球，', '看会儿天。'],
     style=['插画', '角色', '意境', '暖色'], tone='暖色', demo=False,
-    concept='36 号范式：角色放进有光的场景。傍晚的草坡上，小毛搭着小绒的肩，一起看日落；渐变天空 + 光芒 + 三层平涂山丘，脸极简',
+    concept='36 号范式：角色放进有光的场景。傍晚的草坡上，小毛和小绒牵着手一起看日落；渐变天空 + 光芒 + 三层平涂山丘，立体球 + 黑色细线手脚',
     use='傍晚场 / 打完球的小红书配图；小毛小绒首张场景海报',
 )
+
+
 
 
 def svg():
@@ -21,16 +19,15 @@ def svg():
                    for a in [math.pi + i * math.pi / 15 for i in range(16)])
     birds = ''.join(f'<path transform="translate({x} {y}) scale({s})" d="M-14 0 Q-7 -9 0 0 Q7 -9 14 0" fill="none" stroke="#0B3B2A" stroke-width="3" stroke-linecap="round"/>'
                     for x, y, s in [(830, 560, 1.1), (910, 520, .8), (190, 640, .8)])
-    rm, rr = 152, 140
-    gy = 1112
+    rm, rr = 150, 138
+    gy = 1100
     xm, xr = 372, 716
-    cym = gy - GROUND * rm
-    cyr = gy - GROUND * rr
-    mx, my = (xm + xr) / 2 + 4, gy - 128
+    cym, cyr = gy - 1.53 * rm, gy - 1.53 * rr
+    mx, my = (xm + xr) / 2, gy - 150
     hm = ((mx - 5 - xm) / rm, (my - cym) / rm)
     hr = ((mx + 5 - xr) / rr, (my - cyr) / rr)
-    a1 = figure4('m', xm, 0, rm, dict(L=DOWN_L, R=((1.3, .55), raw(SH_R, hm)), legs='stand'), 'happy', gy=gy, ball_style='soft')
-    a2 = figure4('r', xr, 0, rr, dict(L=((-1.3, .55), raw(SH_L, hr)), R=DOWN_R, legs='stand'), 'smile', char='rong', gy=gy, look=1, ball_style='soft')
+    a1 = figure3('m', xm, 0, rm, dict(L=DOWN_L, R=((1.32, .55), hm), legs='stand'), 'happy', gy=gy)
+    a2 = figure3('r', xr, 0, rr, dict(L=((-1.32, .55), hr), R=DOWN_R, legs='stand'), 'happy', gy=gy, char='rong', look=1)
     arm = ''
     body = f'''
 <defs>

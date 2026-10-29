@@ -96,7 +96,7 @@ def ball_c(id, cx, cy, r, hi, mid, lo, seam='#FFF6F0', rim='#3b0d1f', rot=-22):
 </defs>'''
 
 
-PINK = dict(hi='#FFD3E0', mid='#F68FB4', lo='#C2517A')
+PINK = dict(hi='#FFEEF4', mid='#FFC6D8', lo='#F29DBA', seam='#FFFDF6', rim='#7a2a4a')
 
 
 def brows3(cx, cy, s, mood):
@@ -130,10 +130,7 @@ def star4(x, y, k, w):
 def face3(cx, cy, s, mood='smile', look=0, char='mao'):
     """脸 + 眉毛；小绒加睫毛、玫瑰色腮红；睡着了鼻子吹个泡泡。cx,cy 为脸中心。"""
     pink = char == 'rong'
-    out = face2(cx, cy, s, mood, look, ink=PEN, blush_c=('#E23F6B' if pink else '#E8643C'), blush_op=(.40 if pink else .35))
-    out += brows3(cx, cy, s, mood)
-    if pink:
-        out += lashes3(cx, cy, s)
+    out = face2(cx, cy, s, mood, look, ink=PEN, blush_c=('#FF7FA3' if pink else '#E8643C'), blush_op=(.50 if pink else .35))
     if mood == 'sleep':
         out += sleepbubble(cx, cy, s)
     return out
@@ -224,7 +221,7 @@ def figure3(id, cx, cy, r, pose='wave', mood='happy', tilt=None, lift=None, look
         hair = f'<g filter="url(#rough2)">{bow3(cx, cy, r, w)}</g>'
         body = ball_c(id, cx, cy, r, **PINK)
     else:
-        hair = f'<g filter="url(#rough2)">{tuft3(cx, cy, r, w)}</g>'
+        hair = ''
         body = ball(id, cx, cy, r)
     return (soft_sh + gnd + f'<g transform="rotate({tilt} {cx} {cy})">{limbs}{body}'
             f'{face3(*fc, s, mood, look, char)}{hair}{front}{marks}</g>')
