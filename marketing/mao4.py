@@ -101,7 +101,7 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
         f'<radialGradient id="fs{id}" cx=".34" cy=".28" r=".98"><stop offset=".58" stop-color="{lo}" stop-opacity="0"/><stop offset="1" stop-color="{_mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .35)}" stop-opacity=".55"/></radialGradient>'
         f'<radialGradient id="hl{id}" cx=".3" cy=".24" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
         f'<clipPath id="bc{id}"><circle r="{r}"/></clipPath>'
-        f'<filter id="sf{id}" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="{seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/><feGaussianBlur stdDeviation=".45"/></filter>'
+        f'<filter id="sf{id}" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="2" seed="{seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.2"/><feGaussianBlur stdDeviation=".45"/></filter>'
         f'<filter id="sb{id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>'
         f'<filter id="ed{id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="{.9/max(r,40)*40:.2f}" numOctaves="2" seed="{seed+3}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="{max(1.2, .03*r):.1f}"/></filter>'
         f'</defs>')
@@ -121,11 +121,23 @@ def fuzzball(id, cx, cy, r, pal, seed=1, rot=-22, dens=1.0):
         f'<feTurbulence type="fractalNoise" baseFrequency="{fr*.9:.2f}" numOctaves="3" seed="{seed+9}" result="n"/>'
         f'<feDisplacementMap in="SourceGraphic" in2="n" scale="{ds*1.9:.1f}" xChannelSelector="R" yChannelSelector="G"/>'
         f'<feGaussianBlur stdDeviation="{max(1., .01*r):.2f}"/></filter>')
-    return (defs + f'<defs>{felt}</defs><g transform="translate({cx:.1f} {cy:.1f})">'
-            f'<circle r="{r*1.0:.1f}" fill="{mid}" opacity=".55" filter="url(#gl{id})"/>'
-            f'<g filter="url(#fz{id})"><circle r="{r}" fill="url(#bg{id})"/>'
-            f'<g clip-path="url(#bc{id})"><g transform="scale({u})">{seam_svg}</g></g></g>'
-            f'<g clip-path="url(#bc{id})"><circle r="{r}" fill="url(#fs{id})"/><circle r="{r}" fill="url(#hl{id})"/></g></g>')
+    sh_c = _mix(lo, "#3A1020" if pal is PINK_P else "#1F3A00", .25)
+    rim = _mix(mid, hh, .5)
+    return (defs + f'<defs>{felt}'
+            f'<filter id="sm{id}" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="{max(.35, .002*r):.2f}"/></filter>'
+            f'<filter id="sg{id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="{.05*r:.1f}"/></filter>'
+            f'<filter id="sp{id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="{.035*r:.1f}"/></filter></defs>'
+            f'<g transform="translate({cx:.1f} {cy:.1f})">'
+            f'<circle r="{r*1.012:.1f}" fill="{mid}" opacity=".22" filter="url(#gl{id})"/>'
+            f'<g filter="url(#sm{id})"><circle r="{r}" fill="url(#bg{id})"/>'
+            f'<g clip-path="url(#bc{id})"><g transform="scale({u})">{seam_svg}</g>'
+            # 赛璐璐式柔和暗部：右下一弯月牙
+            f'<circle cx="{-.30*r:.1f}" cy="{-.34*r:.1f}" r="{1.12*r:.1f}" fill="none" stroke="{sh_c}" stroke-width="{.5*r:.1f}" opacity=".38" filter="url(#sg{id})" transform="translate({.0*r:.1f} 0)"/>'
+            # 左下反光边
+            f'<ellipse cx="{-.55*r:.1f}" cy="{.78*r:.1f}" rx="{.55*r:.1f}" ry="{.2*r:.1f}" fill="{rim}" opacity=".42" filter="url(#sg{id})" transform="rotate(35 {-.55*r:.1f} {.78*r:.1f})"/>'
+            # 左上高光
+            f'<ellipse cx="{-.40*r:.1f}" cy="{-.50*r:.1f}" rx="{.30*r:.1f}" ry="{.17*r:.1f}" fill="#fff" opacity=".55" filter="url(#sp{id})" transform="rotate(-38 {-.40*r:.1f} {-.50*r:.1f})"/>'
+            f'</g></g></g>')
 
 
 def face4(id, cx, cy, r, mood='smile', look=0, pal=LIME_P):
