@@ -28,7 +28,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 
   // Cloudflare 部署配置：只发布 site/
   const wr = JSON.parse(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
-  T('wrangler.jsonc：只把 site/ 作为静态资源发布；Worker 只接管 /g/ /p/（分享链接卡片），其余走静态资源', wr.assets && wr.assets.directory === './site' && wr.main === 'worker/index.mjs' && wr.assets.binding === 'ASSETS' && JSON.stringify(wr.assets.run_worker_first) === '["/g/*","/p/*"]' && wr.assets.not_found_handling === 'single-page-application', wr);
+  T('wrangler.jsonc：Pages 格式，只发布 site/，声明 nodejs_compat（/api 打包 pg 需要）；分享卡片和 /api 走 functions/', wr.pages_build_output_dir === './site' && (wr.compatibility_flags || []).includes('nodejs_compat') && !wr.assets && !wr.main && fs.existsSync(path.join(ROOT, 'functions', 'api', '[[path]].js')), wr);
   T('Worker 入口和 Pages functions 入口都在，并共用 server/og/page.mjs', fs.existsSync(path.join(ROOT, 'worker', 'index.mjs')) && fs.existsSync(path.join(ROOT, 'functions', 'g', '[code].js')) && fs.existsSync(path.join(ROOT, 'functions', 'p', '[no].js')) && /server\/og\/page\.mjs/.test(fs.readFileSync(path.join(ROOT, 'worker', 'index.mjs'), 'utf8')));   // 没有对应文件的路径（/g/码、/p/编号）落到入口页再转走
 
   // 像线上一样用 http 打开
