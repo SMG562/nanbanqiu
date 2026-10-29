@@ -51,6 +51,32 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const top = await E(() => { const r = document.querySelector('#sbHost').shadowRoot; return { pend: SBV.pend ? SBV.pend.length : 0, pill: r.querySelector('[data-more]').classList.contains('show'), rows: r.querySelectorAll('[data-s="home"] .ln').length } });
   T('回到顶部停稳后：攒着的新动态放进列表，提示条收起', top.pend === 0 && !top.pill, top);
 
+  // ---- 帖子卡片：手机上有关闭按钮，能下滑关闭（顶部条拖 / 内容在最上面时下拉），短拖弹回，内容滚下去后下拉不关 ----
+  await E(() => { SBV.every = 1e9 });
+  const cdp = await ctx.newCDPSession(pg);
+  const drag = async (x, y0, dy, steps = 10) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] }); for (let i = 1; i <= steps; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 + dy * i / steps }] }); await pg.waitForTimeout(16) } };
+  const rel = () => cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const open = async () => { await E(() => { document.querySelectorAll('.banner.show').forEach(b => b.classList.remove('show'));  const r = document.querySelector('#sbHost').shadowRoot; SBV.api.open(+r.querySelector('[data-s="home"] .ln.pc').dataset.ln) }); await W(900) };
+  const sst = () => E(() => { const r = document.querySelector('#sbHost').shadowRoot, sh = r.querySelector('.sheet'); return { open: SBV.open, top: Math.round(sh.getBoundingClientRect().top), tf: sh.style.transform, x: r.querySelector('.shx') ? r.querySelector('.shx').getBoundingClientRect().width : 0 } });
+  await open(); let ss = await sst();
+  T('帖子卡片：手机上有可见的关闭按钮（X）', ss.x >= 28, ss);
+  await drag(200, 60, 60); ss = await sst(); T('从顶部条往下拖：卡片跟手', ss.top > 40 && /translateY/.test(ss.tf), ss);
+  await rel(); await W(700); ss = await sst(); T('拖得不够远松手：弹回原位，不关', ss.open && ss.top < 20 && ss.tf === '', ss);
+  await drag(200, 60, 200); await rel(); await W(900); ss = await sst(); T('拖得够远松手：卡片收起', !ss.open && ss.top > 800, ss);
+  await open(); await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('.shx').click()); await W(800); ss = await sst(); T('点 X：卡片收起', !ss.open, ss);
+  await open(); await drag(200, 500, 220, 12); await rel(); await W(900); ss = await sst(); T('内容在最上面时往下拉：卡片收起', !ss.open, ss);
+  await open(); await E(() => { document.querySelector('#sbHost').shadowRoot.querySelector('.sh-sc').scrollTop = 200 }); await drag(200, 500, 220, 12); await rel(); await W(900); ss = await sst(); T('内容已经滚下去后往下拉：只是滚内容，不关卡片', ss.open && ss.top < 20, ss);
+  await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('.shx').click()); await W(600);
+
+  // ---- 键盘 + 回复框：正在输入时，高度少一截（≥120）就算键盘；没输入时要少 ≥200 才算（地址栏收放不误判）----
+  await open(); await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-rin]').focus()); await W(200);
+  await fake(560, 0); await W(400); g = await geo();
+  T('回复框获得焦点 + 键盘：外壳缩到可视区，回复框在键盘上方', g.kb && g.h === 560 && g.box <= 560 && g.box > 400, g);
+  await E(() => document.activeElement.blur && document.querySelector('#sbHost').shadowRoot.activeElement && document.querySelector('#sbHost').shadowRoot.activeElement.blur()); await fake(844, 0); await W(500); g = await geo();
+  T('收起键盘：外壳回到整屏', !g.kb && g.h === 844, g);
+  await fake(760, 0); await W(300); g = await geo(); T('只是地址栏收放（少 84px、没在输入）：不当成键盘', !g.kb, g);
+  await fake(844, 0); await E(() => SBV.api.setHome && 0); await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('.shx').click()); await W(600);
+
   T('没有页面报错', errs.length === 0, errs);
   console.log(`\n${pass} passed, ${fail} failed`); await b.close(); process.exit(fail ? 1 : 0);
 })();

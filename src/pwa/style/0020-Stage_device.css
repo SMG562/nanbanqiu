@@ -13,7 +13,7 @@
   .stage{padding:0;display:block;min-height:0;height:100%}
   .device{position:fixed;left:0;top:0;width:100%;height:var(--vvh,100%);border-radius:0;box-shadow:none;--sb:env(safe-area-inset-top);--hb:env(safe-area-inset-bottom)}
   /* 键盘弹出（0285-视口.js 加 .kb）：外壳缩到键盘上方的可视区，底栏收走，输入框贴着键盘 */
-  .device.kb{--hb:0px;--tabh:0px}
+  .device.kb{--hb:0px;--tabh:0px;--barpb:10px}
   .device.kb .tabbar{transform:translateY(105%);pointer-events:none}
   .tabbar{transition:transform .2s ease}
   /* iOS 聚焦字号小于 16px 的输入框会自动放大页面，收起后常停在放大 / 错位的状态 */

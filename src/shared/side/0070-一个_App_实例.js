@@ -323,6 +323,20 @@ function App(el,init){
   const openSheet=(id,via)=>{S.open=id;drawSheet();requestAnimationFrame(state);const x=find(id);
     if(x)track('sb_post_view',{post_id:x.id,own:!!x.mine,via:via||(S.album?'album':S.court?'court':S.wall||(S.f&&S.f.k==='topic')?'topic':'feed')})};
   const shut=()=>{S.open=null;el.classList.remove('acting');state()};
+  // 帖子卡片：手机上可以从顶部条往下拖，或内容已经在最上面时往下拉关闭（跟手；松手超过 110px 或甩得够快就收起，否则弹回）
+  if(!desk){const sh=$('.sheet'),scrim=$('.scrim');let g=null;
+    const drop=()=>{sh.classList.remove('dragging');sh.style.transform='';scrim.style.opacity='';scrim.style.transition=''};
+    sh.addEventListener('touchstart',e=>{g=null;if(!S.open||e.touches.length!==1||e.target.closest('input,textarea'))return;
+      const zone=e.target.closest('.grab,.sh-top'),sc=e.target.closest('.sh-sc');if(!zone&&!(sc&&sc.scrollTop<=0))return;
+      g={x:e.touches[0].clientX,y:e.touches[0].clientY,t:performance.now(),dy:0,drag:!!zone,sc}},{passive:true});
+    sh.addEventListener('touchmove',e=>{if(!g)return;const t=e.touches[0],dy=t.clientY-g.y,dx=t.clientX-g.x;
+      if(!g.drag){if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>6||dy<-4||(g.sc&&g.sc.scrollTop>0)){g=null;return}if(dy<8)return;g.drag=true;g.y=t.clientY;return}
+      if(e.cancelable)e.preventDefault();g.dy=Math.max(0,dy);g.last=performance.now();
+      sh.classList.add('dragging');sh.style.transform=`translateY(${g.dy>0?g.dy:0}px)`;scrim.style.transition='none';scrim.style.opacity=String(Math.max(.15,1-g.dy/420))},{passive:false});
+    const end=()=>{if(!g||!g.drag){g=null;return}const dy=g.dy,v=dy/Math.max(60,performance.now()-g.t);g=null;
+      if(dy>110||(v>.55&&dy>40)){sh.classList.remove('dragging');shut();sh.style.transform='';scrim.style.transition='';scrim.style.opacity=''}
+      else{sh.classList.remove('dragging');sh.style.transition='transform .38s var(--spring)';sh.style.transform='';scrim.style.transition='';scrim.style.opacity='';setTimeout(()=>{sh.style.transition=''},400)}};
+    sh.addEventListener('touchend',end,{passive:true});sh.addEventListener('touchcancel',()=>{g=null;drop()},{passive:true})}
 
   // 发布成功（F2 埋点）：话题是官方的、大家发起的，还是这次新建的
   const tkind=tp=>{const T=tp&&S.T[tp];return !T?'none':T.fresh?'new':T.user?'user':'official'};
