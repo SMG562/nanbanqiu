@@ -138,6 +138,7 @@ shared/script/0490-Supabase登录.js
 pwa/script/0260-分享球员卡.js
 pwa/script/0270-事件.js
 pwa/script/0280-环境_演示.js
+pwa/script/0285-视口.js
 pwa/script/0290-启动.js
 pwa/page/0030-结尾.html
 shared/side/0010-开头.js

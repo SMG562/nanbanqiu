@@ -7,8 +7,17 @@
 .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:122px;height:35px;border-radius:20px;background:#000}
 .homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#111;z-index:990;pointer-events:none}
 @media (max-width:560px){
-  .stage{padding:0;display:block}
-  .device{width:100%;height:100dvh;border-radius:0;box-shadow:none;--sb:env(safe-area-inset-top);--hb:env(safe-area-inset-bottom)}
+  /* 真手机：整页锁死，外壳钉在视口上，只有里面各页自己滚。
+     旧做法是 height:100dvh + 页面本身可滚：iOS 收放地址栏、键盘弹出 / 收起、滚到头继续拖，都会把整页（含底栏）带着上移，下面露出灰底。 */
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg)}
+  .stage{padding:0;display:block;min-height:0;height:100%}
+  .device{position:fixed;left:0;top:0;width:100%;height:var(--vvh,100%);border-radius:0;box-shadow:none;--sb:env(safe-area-inset-top);--hb:env(safe-area-inset-bottom)}
+  /* 键盘弹出（0285-视口.js 加 .kb）：外壳缩到键盘上方的可视区，底栏收走，输入框贴着键盘 */
+  .device.kb{--hb:0px;--tabh:0px}
+  .device.kb .tabbar{transform:translateY(105%);pointer-events:none}
+  .tabbar{transition:transform .2s ease}
+  /* iOS 聚焦字号小于 16px 的输入框会自动放大页面，收起后常停在放大 / 错位的状态 */
+  .device input:not([type=checkbox]):not([type=radio]):not([type=range]),.device textarea,.device select{font-size:16px!important}
   .statusbar,.homebar,.panel{display:none}
   /* 真手机（≤560px）：微信自己有顶栏；.wxbar 是电脑演示里模拟的假顶栏，这里不要，也不要给它让位置（否则微信里出现两层 ✕ 和 ···，里面那层还点不了） */
   .wxbar,.env-wechat .wxbar{display:none!important}
