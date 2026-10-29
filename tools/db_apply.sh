@@ -36,7 +36,8 @@ if (( FAIL )); then echo; echo "建前检查未通过，没有改动数据库。
 [[ "$MODE" == "--apply" ]] || { echo; echo "建前检查通过（只检查，没改库）。确认后：NBQ_DB_URL=… bash tools/db_apply.sh --apply"; exit 0; }
 
 echo; echo "== 建库（schema.sql 里有 enum 加值，不能包在单个事务里；出错即停）=="
-if ! { echo "set client_min_messages = error;"; cat schema.sql; } | psql "$NBQ_DB_URL" -X -q -v ON_ERROR_STOP=1 -f - >/dev/null; then
+# schema.sql 开头自己把消息级别设回 warning，所以这里直接过滤 PostGIS 自带对象收不回 / 给不了权限的无害提示（其余警告和报错照常显示）
+if ! { cat schema.sql; } | psql "$NBQ_DB_URL" -X -q -v ON_ERROR_STOP=1 -f - >/dev/null 2> >(grep -v -E 'no privileges (could be revoked|were granted)' >&2); then
   echo "✗ 建库中途出错，库里可能留着一半的表。把上面的错误发给 Claude；重试前要先把库清空（Supabase 建议直接用新的空项目，或由你确认后在 SQL Editor 里 drop schema public cascade; create schema public;）。"
   exit 1
 fi
