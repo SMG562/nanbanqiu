@@ -96,13 +96,17 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('改局：PATCH /api/games/:id，带接口认的字段，没有玩法'), !!S.bodies[`PATCH /api/games/${G3}`] && eb.note === '改个备注' && eb.utr_min === 3 && eb.duration_min > 0 && eb.venue_id === V1 && !('game_type' in eb) && !!eb.starts_at, [S.log, eb]);
     T(tag('改局：双打带 filled（4 - 已确认人数 - 缺几人），单打不带'), exp === null ? !('filled' in eb) : eb.filled === exp, [exp, eb]);
     T(tag('改局成功：提示已保存'), /已保存/.test(await toasts()), await toasts());
+    // 开始时间落在时段空隙里（17:52 / 顺延后的 22:30 / 05:40）：打开改局表单不崩，时段就近归位
+    const per = await pg.evaluate(g => { const gm = GAMES.find(x => x.id === g), r = []; for (const hm of ['17:52', '22:30', '05:40', '09:45']) { gm.starts_at = dayAt(2, hm).toISOString(); try { geOpen(g); r.push(NG.per) } catch (e) { r.push('ERR ' + e.message) } NG.edit = null; if (typeof closeSheet === 'function') closeSheet() } return r }, G3);
+    T(tag('改局表单：开始时间在时段空隙里也能打开（17:52 / 22:30 / 05:40 / 09:45 → 晚上 / 晚上 / 早上 / 中午）'), per.join() === '3,3,0,1', per);
+    await pg.evaluate(() => nbqRefresh()); await pg.settle(300);
     S.log.length = 0; delete S.bodies[`PATCH /api/games/${G3}`];
     await pg.evaluate(g => { geOpen(g); NG.type = NG.type === 'doubles' ? 'singles' : 'doubles'; geSave() }, G3); await pg.settle(300);
     T(tag('改局：改玩法暂不支持，提示且不发请求'), /暂时不能改/.test(await toasts()) && !S.log.length, [await toasts(), S.log]);
-    await pg.evaluate(() => { NG.edit = null; closeSheet && closeSheet() }).catch(() => {});
+    await pg.evaluate(() => { NG.edit = null; if (typeof closeSheet === 'function') closeSheet() }).catch(() => {});
     S.fail = 'game_started'; await pg.evaluate(g => { geOpen(g); document.getElementById('ngNote').value = '再改'; geSave() }, G3); await pg.settle(400);
     T(tag('改局失败（已开打）：提示后端错误码对应的文字'), /开打/.test(await toasts()), await toasts()); S.fail = null;
-    await pg.evaluate(() => { NG.edit = null; closeSheet && closeSheet() }).catch(() => {});
+    await pg.evaluate(() => { NG.edit = null; if (typeof closeSheet === 'function') closeSheet() }).catch(() => {});
     S.log.length = 0; await click({ 'data-uf': 'widen', 'data-g': G3 }); await pg.settle(300);
     const wb = S.bodies[`PATCH /api/games/${G3}`] || {};
     T(tag('放宽水平：PATCH 只带 utr_min / utr_max'), S.log.join() === 'PATCH /api/games/G3' && typeof wb.utr_min === 'number' && typeof wb.utr_max === 'number' && Object.keys(wb).length === 2, [S.log, wb]);

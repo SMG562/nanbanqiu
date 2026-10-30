@@ -1,7 +1,7 @@
 // 5g-3 前台接入第 4 轮（4a）：真实数据只在 nanbanqiu.app 启用（两端）。用假的 Supabase 和 /api 在浏览器里拦截：
 //   ① 预览站 pages.dev：数据仍是演示，不发 /api 请求  ② nanbanqiu.app 未登录：演示数据被清空，只读公开球场
 //   ③ 老用户登录：读入我 / 球局 / 球友，球局卡片字段对得上前台（ntrp_min…）  ④ 新号码：选球场 → 注册 → 常去球场 → 读入
-//   ⑤ 刷新页面自动恢复  ⑥ 退出清空  ⑦ 全程没有页面报错
+//   ⑤ 刷新页面自动恢复（含令牌过期后续期、续期遇到临时错误自动重试、令牌被撤销才清登录）  ⑥ 退出清空  ⑦ 全程没有页面报错
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
@@ -33,9 +33,14 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
       return J(404, { error: 'not_found' }) });
     await pg.route('https://nanbanqiu-preview.pages.dev/**', r => { const u = new URL(r.request().url()); if (u.pathname.startsWith('/api/')) { api.push('PAGES ' + u.pathname); return r.fulfill({ status: 404, body: '{}' }) } html(r) });
-    await pg.route(SB + '/**', r => { const u = r.request().url(); const x = u.includes('/otp') ? { access_token: null } : u.includes('/verify') ? { access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } } : null;
+    await pg.route(SB + '/**', r => { const u = r.request().url(); if (u.includes('grant_type=refresh_token')) { REF.n++; const H = { 'access-control-allow-origin': '*' };
+        if (REF.mode === 'revoked') return r.fulfill({ status: 400, contentType: 'application/json', headers: H, body: '{"error":"invalid_grant"}' });
+        if (REF.mode === 'busy_once' && REF.n === 1) return r.fulfill({ status: 503, contentType: 'application/json', headers: H, body: '{}' });
+        return r.fulfill({ status: 200, contentType: 'application/json', headers: H, body: JSON.stringify({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) }) }
+      const x = u.includes('/otp') ? { access_token: null } : u.includes('/verify') ? { access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } } : null;
       r.fulfill({ status: x ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: x && x.access_token !== null ? JSON.stringify(x) : (x ? '{}' : '') }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    const REF = { n: 0, mode: 'ok' };
     const state = () => pg.evaluate(() => ({ g: GAMES.length, u: Object.keys(USERS).length, v: Object.keys(VEN).length, me: ME && ME.name, net: !!NBQ_NET }));
     const login = async () => { await pg.evaluate(() => { openAuth(null) }); await pg.settle(300); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456'); await pg.waitForFunction(() => ME || document.querySelector('#npName'), null, { timeout: 10000 }).catch(() => { }); await pg.settle(300) };
 
@@ -59,6 +64,17 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     // ⑤ 刷新自动恢复
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
+    // ⑤b 令牌过期后重新打开（手机桌面应用隔一阵再开）
+    const expire = () => pg.evaluate(() => { const k = JSON.parse(localStorage.getItem('nbq_sb')); k.expires_at = Math.floor(Date.now() / 1000) - 7200; localStorage.setItem('nbq_sb', JSON.stringify(k)) });
+    await expire(); REF.n = 0; REF.mode = 'ok'; await pg.reload(); await pg.settle(1500); s = await state();
+    T(tag('令牌过期后重开：自动续期并登录，只刷新一次'), s.me === 'Sam' && REF.n === 1, [s, REF.n]);
+    await expire(); REF.n = 0; REF.mode = 'busy_once'; await pg.reload(); await pg.settle(600); s = await state();
+    T(tag('续期碰上服务端临时出错：先不登录，但登录态保留'), s.me === null && await pg.evaluate(() => !!localStorage.getItem('nbq_sb')), s);
+    await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Sam', null, { timeout: 8000 }).catch(() => { }); s = await state();
+    T(tag('自动重试后登录成功（不用重新输手机号）'), s.me === 'Sam' && REF.n >= 2, [s, REF.n]);
+    await expire(); REF.mode = 'revoked'; await pg.reload(); await pg.settle(1200); s = await state();
+    T(tag('令牌确实被撤销（400）：才清掉登录'), s.me === null && await pg.evaluate(() => !localStorage.getItem('nbq_sb')), s);
+    REF.mode = 'ok';
     // ⑥ 退出
     await pg.evaluate(() => { sbaLogout(); ME = null; render() }); await pg.settle(700); s = await state();
     T(tag('退出：我的数据清空，回到公开球局'), s.me === null && s.g === 1 && s.u === 1, s);

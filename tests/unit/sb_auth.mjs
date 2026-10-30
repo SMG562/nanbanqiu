@@ -62,4 +62,17 @@ const e7 = env(CFG, []); e7.A.setProf('u-1', { name: '小明', last: 'W', ntrp: 
 const pr = e7.A.prof('u-1'); T('资料缓存：只存资料字段（不存编号、屏蔽名单等演示内部字段）', pr.name === '小明' && pr.ntrp === 3.5 && pr.no === undefined && pr.blocked === undefined && pr.password === undefined, pr);
 T('资料缓存：按用户分开，没有的返回空', e7.A.prof('u-2') === null && e7.A.prof(undefined) === null);
 const eb = env(CFG, []); eb.mem.nbq_sb = '{坏的'; T('本机数据损坏：当作没登录，不报错', eb.A.session() === null);
+// 刷新登录的健壮性（10-31：手机桌面应用隔一阵再打开要重新登录）
+const ec = env(CFG, [OK(), OK({ access_token: 'AT2', refresh_token: 'RT2' })]); await ec.A.verify('+61412345678', '1'); ec.tick(7200);
+const cc = await Promise.all([ec.A.fresh(), ec.A.fresh(), ec.A.fresh()]);
+T('并发刷新只发一次请求，三个调用拿到同一份新令牌', ec.calls.length === 2 && cc.every(x => x && x.access_token === 'AT2') && ec.A.session().refresh_token === 'RT2', [ec.calls.length, cc]);
+for (const st of [429, 500, 502, 503]) {
+  const ex = env(CFG, [OK(), { s: st, d: {} }, OK({ access_token: 'AT3', refresh_token: 'RT3' })]); await ex.A.verify('+61412345678', '1'); ex.tick(7200);
+  const a1 = await ex.A.fresh(); const kept = ex.A.session() !== null && ex.A.session().refresh_token === 'RT';
+  const a2 = await ex.A.fresh();
+  T(`刷新遇到 ${st}（限流 / 服务端临时出错）：不清登录，已过期先返回空，下次再试就能续上`, a1 === null && kept && a2 && a2.access_token === 'AT3', [a1, kept, a2]);
+}
+for (const st of [400, 401, 403]) { const ex = env(CFG, [OK(), { s: st, d: {} }]); await ex.A.verify('+61412345678', '1'); ex.tick(7200); T(`刷新被拒（${st}，令牌无效）：清掉登录`, (await ex.A.fresh()) === null && ex.A.session() === null) }
+const en = env(CFG, [OK(), 'net', OK({ access_token: 'AT4', refresh_token: 'RT4' })]); await en.A.verify('+61412345678', '1'); en.tick(7200);
+T('已过期时断网：返回空但保留登录，网络回来再试能续上', (await en.A.fresh()) === null && en.A.session() !== null && (await en.A.fresh()).access_token === 'AT4');
 console.log(`\nsb_auth: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

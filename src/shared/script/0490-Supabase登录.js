@@ -24,6 +24,7 @@ function sbAuthMake(cfg,io){
     let r;try{r=await io.fetch(base()+path,{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.key,Authorization:'Bearer '+(token||cfg.key)},body:JSON.stringify(body||{})})}catch(_){return{ok:false,status:0,code:'network'}}
     let d=null;try{d=await r.json()}catch(_){}
     return r.ok?{ok:true,status:r.status,data:d}:{ok:false,status:r.status,code:codeOf(r.status,d)}}
+  let inflight=null;   // 同一时刻只发一次刷新：并发刷新会让服务端以为令牌被盗用而撤销整个登录
   const keep=(d,old)=>{const s={access_token:d.access_token,refresh_token:d.refresh_token||(old&&old.refresh_token),
       expires_at:d.expires_at||Math.floor(io.now()/1000)+(d.expires_in||3600),uid:(d.user&&d.user.id)||(old&&old.uid),phone:(d.user&&d.user.phone)||(old&&old.phone)||''};wr(K,s);return s};
   return {
@@ -36,11 +37,15 @@ function sbAuthMake(cfg,io){
       const s=keep(d,null);return{ok:true,uid:s.uid}},
     session(){return rd(K)},
     // 取有效登录态：快过期（60 秒内）就用 refresh token 换新；换不了（被撤销）清掉；断网保留，下次再试
-    async fresh(){const s=rd(K);if(!s||!on())return null;if(s.expires_at-io.now()/1000>60)return s;
-      const r=await call('/auth/v1/token?grant_type=refresh_token',{refresh_token:s.refresh_token});
-      if(r.ok&&r.data&&r.data.access_token)return keep(r.data,s);
-      if(r.code==='network')return s.expires_at>io.now()/1000?s:null;
-      del(K);return null},
+    fresh(){const s=rd(K);if(!s||!on())return Promise.resolve(null);if(s.expires_at-io.now()/1000>60)return Promise.resolve(s);
+      if(inflight)return inflight;
+      inflight=(async()=>{
+        const r=await call('/auth/v1/token?grant_type=refresh_token',{refresh_token:s.refresh_token});
+        if(r.ok&&r.data&&r.data.access_token)return keep(r.data,s);
+        // 只有服务端明确说令牌无效（400 / 401 / 403）才清掉登录；断网、限流（429）、服务端临时出错（5xx）都保留，下次再试
+        if(r.status===400||r.status===401||r.status===403){del(K);return null}
+        return s.expires_at>io.now()/1000?s:null})().finally(()=>{inflight=null});
+      return inflight},
     async logout(){const s=rd(K);del(K);if(s&&on()){try{await call('/auth/v1/logout',{},s.access_token)}catch(_){}}},
     prof(uid){return uid?rd('nbq_prof_'+uid):null},
     setProf(uid,me){if(!uid||!me)return;const p={};SB_PROF_KEYS.forEach(k=>{if(me[k]!==undefined)p[k]=me[k]});wr('nbq_prof_'+uid,p)}
@@ -70,8 +75,15 @@ function sbaOtpDone(code){
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
 function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
-// 打开页面：有登录态又有资料 → 自动登录
+let SBA_TRY=0;
+// 打开页面：有登录态又有资料 → 自动登录；碰上网络没准备好（手机从后台冷启动常见）会重试，页面重新可见 / 网络恢复时也再试
+function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY)}
+function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||ME)return;
-  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(!s||ME)return;return nbqEnter().then(e=>{if(e.st==='ok')render()})});return}
+  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME)return;if(!s){if(SBA.session())sbaRetry();return}
+    return nbqEnter().then(e=>{if(ME)return;if(e.st==='ok'){SBA_TRY=0;sbaClosePrompt();render()}else if(e.st==='error')sbaRetry()})});return}
   SBA.fresh().then(s=>{if(!s||ME)return;const p=SBA.prof(s.uid);if(!p)return;api.login(Object.assign({sb_uid:s.uid},p));render()})}
+function sbaWake(){if(!ME&&SBA.on()&&SBA.session()){SBA_TRY=0;sbaRestore()}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sbaWake()});
+window.addEventListener('online',sbaWake);window.addEventListener('pageshow',sbaWake);
 setTimeout(sbaRestore,0);

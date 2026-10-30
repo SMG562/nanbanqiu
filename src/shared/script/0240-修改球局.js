@@ -5,10 +5,12 @@
  *   · 大改（时间、时长、地点、玩法）：保存前列出改了什么、会通知谁；已加入的人收到通知，在球局页确认「还能来」或「来不了」，
  *     来不了直接退出，不算临时退出、不影响赴约率；待审核的申请保留，也会收到通知
  * 开打后不能改；已加入的人数超过新玩法的人数时不能改玩法。 */
+// 时间落在表单时段的空隙里（如 17:52、顺延后的 22:30）时 perOf 是 -1，就近归到相邻的时段，不让改局表单崩
+const gePer=t=>{const i=perOf(t);if(i>=0)return i;const m=toMin(t);return m<PERIODS[0][1]?0:m>PERIODS[3][2]?3:PERIODS.findIndex(p=>m<p[1])};
 function geOpen(id){const c=api.get(id);if(!c||!c.isHost||c.start<=NOW)return;
   if(typeof UI!=='undefined'&&UI.detail&&typeof closeSheet==='function')closeSheet();
   openCreate();const t=hm(c.start),o=dOff(c.start);
-  Object.assign(NG,{edit:id,o,t,per:perOf(t),dur:c.duration_min,venue_id:c.venue_id,search:false,adding:null,q:'',type:c.game_type,miss:c.game_type==='doubles'?Math.max(1,c.spots):3,
+  Object.assign(NG,{edit:id,o,t,per:gePer(t),dur:c.duration_min,venue_id:c.venue_id,search:false,adding:null,q:'',type:c.game_type,miss:c.game_type==='doubles'?Math.max(1,c.spots):3,
     lv:'custom',mn:c.ntrp_min,mx:c.ntrp_max,tags:new Set(c.tags||[]),note:c.note||'',hide:!!c.hide_done,instant:c.join_mode==='instant',rep:false});drawCreate()}
 const geWhen=(st,dur)=>`${relDay(st)} ${hm(st)}–${hm(new Date(+st+dur*6e4))}`;
 function geDiff(c,f){const ns=dayAt(f.o,f.t),key=[],lite=[];
