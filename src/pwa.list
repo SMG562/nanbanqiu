@@ -135,6 +135,7 @@ shared/script/0470-分享球员卡.js
 pwa/script/0250-分享球员卡.js
 shared/script/0480-分享球员卡.js
 shared/script/0490-Supabase登录.js
+shared/script/0495-接口调用.js
 pwa/script/0260-分享球员卡.js
 pwa/script/0270-事件.js
 pwa/script/0280-环境_演示.js
