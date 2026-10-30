@@ -6,6 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const src = fs.readFileSync(new URL('../src/shared/script/0080-数据.js', import.meta.url), 'utf8');
 const list = JSON.parse(src.match(/\[\["v1"[\s\S]*?\]\](?=\.forEach)/)[0]);
+// 另一份 AI 生成的名单里我们库里没有的 133 家（只取名字等信息，坐标不用），一起查，id 记作 n1…
+const cand = JSON.parse(fs.readFileSync(new URL('./venue_candidates.json', import.meta.url), 'utf8'));
+cand.forEach((c, i) => list.push(['n' + (i + 1), c.name, c.name, c.suburb, null, null]));
 const out = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
 // 旧版把结果写进了编码后的怪路径（%E5…），有就搬过来，免得重跑
@@ -32,11 +35,11 @@ for (const [id, name, short, suburb, lat, lng] of list) {
       const rs = await ask(q); await sleep(1100);
       for (const x of rs) {
         const la = +x.lat, lo = +x.lon, w = word(name), hit = w.filter(t => x.display_name.toLowerCase().includes(t)).length;
-        rec.cand.push({ lat: la, lng: lo, osm: x.osm_type + '/' + x.osm_id, type: x.type, name: x.display_name.slice(0, 120), hit: hit + '/' + w.length, km_from_old: +km(lat, lng, la, lo).toFixed(2) });
+        rec.cand.push({ lat: la, lng: lo, osm: x.osm_type + '/' + x.osm_id, type: x.type, name: x.display_name.slice(0, 120), hit: hit + '/' + w.length, km_from_old: lat == null ? null : +km(lat, lng, la, lo).toFixed(2) });
       }
       if (rec.cand.length) break;
     }
-    rec.cand.sort((a, b) => parseInt(b.hit) - parseInt(a.hit) || a.km_from_old - b.km_from_old);
+    rec.cand.sort((a, b) => parseInt(b.hit) - parseInt(a.hit) || (a.km_from_old ?? 0) - (b.km_from_old ?? 0));
     rec.best = rec.cand[0] || null;
   } catch (e) { rec.error = String(e.message || e); await sleep(3000); }
   done[id] = rec;
