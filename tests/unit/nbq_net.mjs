@@ -5,7 +5,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2]
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 600))) };
 const src = fs.readFileSync(path.join(DIR, 'src/shared/script/0495-接口调用.js'), 'utf8');
 const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent }); vm.runInContext(pure + '\n;globalThis.__x={nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent }); vm.runInContext(pure + '\n;globalThis.__x={nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -66,7 +66,7 @@ const base = () => ({ 'GET /api/me': ok({ registered: true, user: ME }), 'GET /a
   'GET /api/invites': ok({ invites: [{ id: 'i1', from_user: 'u2', to_user: 'u1', starts_at: '2026-11-03T01:00:00Z' }], profiles: { u2: HOST } }) });
 e = mk(base()); let L = await X.nbqLoadAll(e.net);
 T('一次读入：我、球友、球场、球局合并（同一局以「我的」为准）、参与记录、邀约', L.ok && L.registered && L.me === 'u1' && Object.keys(L.users).sort().join() === 'u1,u2' && L.venues.length === 1 && L.games.length === 2
-  && L.games.find(x => x.id === 'g2').status === 'full' && L.parts.length === 1 && L.invites.length === 1, L);
+  && L.games.find(x => x.id === 'g2').status === 'full' && L.parts.length === 3 && L.invites.length === 1, L);   // 3 = 我在 g2 的一行 + 两局各补一行发起人
 T('一次读入：球友卡片同时来自球局和邀约时只留一份', Object.keys(L.users).length === 2);
 const b2 = base(); b2['GET /api/me'] = ok({ registered: false }); e = mk(b2); L = await X.nbqLoadAll(e.net);
 T('新号码：registered=false，只带球场，不再读球局', L.ok && L.registered === false && L.venues.length === 1 && !e.calls.some(c => /\/api\/games|invites/.test(c.u)));
@@ -74,5 +74,23 @@ const b3 = base(); b3['GET /api/invites'] = { s: 503, d: { error: 'db_unavailabl
 T('任何一步失败：只返回错误码，不返回半份数据', L.ok === false && L.code === 'db_unavailable' && !L.games && !L.users);
 const b4 = base(); b4['GET /api/me'] = { s: 401, d: { error: 'unauthorized' } }; e = mk(b4); L = await X.nbqLoadAll(e.net);
 T('登录失效：unauthorized', L.ok === false && L.code === 'unauthorized' && e.lost() === 1);
+
+// ---- 补全 + 匿名 ----
+const CARD = (id, code, extra = {}) => ({ id, share_code: code, host_id: 'h-' + id, host_nickname: 'H' + id, host_utr: 5.5, venue_id: 'v1', starts_at: '2026-11-05T01:00:00Z', capacity: 4, utr_min: 3, utr_max: 7, status: 'open', filled: 0, approved_count: 3, pending_count: 1, spots_left: 1, ...extra });
+const b5 = base(); b5['GET /api/games'] = ok({ games: [CARD('g9', 'Zk9x'), CARD('g8', 'Yy88', { filled: 1, approved_count: 2, spots_left: 1 })] });
+e = mk(b5); L = await X.nbqLoadAll(e.net);
+const g9 = L.games.find(x => x.id === 'g9'), g8 = L.games.find(x => x.id === 'g8');
+T('别人的球局：补上发起人（卡片上的昵称 / UTR）和发起人的参与行', L.users['h-g9'].name === 'Hg9' && L.users['h-g9'].ntrp === 5.5 && L.parts.some(p => p.game_id === 'g9' && p.user_id === 'h-g9' && p.role === 'host' && p.status === 'approved'), L.users['h-g9']);
+T('别人的球局：其余已确认的人只知道人数，算进 filled → 余位和接口的 spots_left 一致', g9.filled === 2 && g9.capacity - 1 - g9.filled === 1 && g8.filled === 2 && g8.capacity - 1 - g8.filled === 1, [g9.filled, g8.filled]);
+T('我自己的球局：参与记录齐全时不加 filled', L.games.find(x => x.id === 'g2').filled === 0 && L.games.find(x => x.id === 'g2').unknown_n === 0);
+const b6 = base(); b6['GET /api/games'] = ok({ games: [CARD('g9', 'Zk9x')] }); b6['GET /api/profiles'] = ok({ profiles: { 'h-g9': { id: 'h-g9', member_no: 77, nickname: 'Hostcard', utr: 5.5, avatar_kind: 'animal', avatar_animal: 'fox' } } });
+e = mk(b6); L = await X.nbqLoadAll(e.net);
+T('公开球局的发起人：取得到完整球员卡就用球员卡（头像等）', L.users['h-g9'].name === 'Hostcard' && L.users['h-g9'].animal === 'fox' && L.users['h-g9'].no === 77, L.users['h-g9']);
+e = mk({ 'GET /api/games': ok({ games: [CARD('g9', 'Zk9x')], anon: true }) }); L = await X.nbqLoadPublic(e.net);
+T('匿名读公开球局：不带令牌（即使有登录态），用发起人卡片兜底', L.ok && e.calls.length === 1 && !e.calls[0].o.headers.Authorization && L.games.length === 1 && L.users['h-g9'].name === 'Hg9' && L.games[0].filled === 2, e.calls[0]);
+e = mk({ 'GET /api/games': { s: 503, d: { error: 'db_unavailable' } } }); L = await X.nbqLoadPublic(e.net);
+T('匿名读失败：返回错误码', L.ok === false && L.code === 'db_unavailable');
+e = mk({}, null); r = await e.net.get('/api/games', null, { noauth: true });
+T('noauth：没令牌也发请求', e.calls.length === 1 && !r.ok && r.code === 'not_found');
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

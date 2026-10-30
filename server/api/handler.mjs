@@ -97,6 +97,9 @@ const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as sta
     case when gp.user_id = nbq_uid() then gp.change_ack::text end as change_ack
   from game_participants gp where gp.game_id = any($1::uuid[]) order by gp.created_at`;
 
+// 匿名浏览：没有「我」，所以不走行级权限，改成在这里写死两条——只给公开的（visibility = public）、不是女生局的（女生局只给已注册的女生看）
+const anonGames = (d, where, params, tail) => d.db.asService(async q => (await q(`select ${GAME_COLS} from game_cards g join games gg on gg.id = g.id where g.visibility = 'public' and not coalesce('women' = any(g.tags), false) and ${where} ${tail}`, params)).rows);
+
 const ROUTES = {
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
@@ -119,14 +122,17 @@ const ROUTES = {
     return send(200, { venues: rows }, { 'Cache-Control': 'public, max-age=300' });
   },
   // 球局列表：只要还没开打的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断
+  // 没登录（请求里没有 Authorization）也能看：只给公开的、非女生局的球局（匿名浏览，10-30 定）；令牌坏了仍是 401
   'GET /api/games': async (req, d) => {
+    if (!req.headers.get('Authorization')) return send(200, { games: await anonGames(d, `g.status in ('open','full') and g.starts_at > now()`, [], 'order by g.starts_at limit 100'), anon: true });
     const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
     const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.status in ('open','full') and g.starts_at > now() order by g.starts_at limit 100`)).rows);
     return send(200, { games: rows });
   },
-  // 单个球局（分享码），打开分享链接用
+  // 单个球局（分享码），打开分享链接用；没登录也能看公开的
   'GET /api/game': async (req, d) => {
     const code = new URL(req.url).searchParams.get('code') || ''; if (!/^[A-Za-z0-9]{3,16}$/.test(code)) return send(400, { error: 'bad_code' });
+    if (!req.headers.get('Authorization')) { const g = (await anonGames(d, 'g.share_code = $1', [code], 'limit 1'))[0]; return g ? send(200, { game: g, anon: true }) : send(404, { error: 'not_found' }) }
     const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
     const g = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.share_code = $1`, [code])).rows[0] || null);
     return g ? send(200, { game: g }) : send(404, { error: 'not_found' });   // 看不见的球局（私人 / 被屏蔽）和不存在的一样返回 404

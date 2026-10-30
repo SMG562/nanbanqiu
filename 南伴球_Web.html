@@ -4875,7 +4875,7 @@ function sbaOtpDone(code){
     const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)})}
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
-function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqClear()}
+function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
 // 打开页面：有登录态又有资料 → 自动登录
 function sbaRestore(){if(!SBA.on()||ME)return;
   if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(!s||ME)return;return nbqEnter().then(e=>{if(e.st==='ok')render()})});return}
@@ -4895,8 +4895,8 @@ function nbqNetMake(io){
   const qs=o=>{const p=Object.keys(o||{}).filter(k=>o[k]!==undefined&&o[k]!==null&&o[k]!=='').map(k=>encodeURIComponent(k)+'='+encodeURIComponent(o[k]));return p.length?'?'+p.join('&'):''};
   async function call(method,path,opt){
     opt=opt||{};const h={Accept:'application/json'};
-    const tk=await io.token();
-    if(tk)h.Authorization='Bearer '+tk;else if(!opt.anon)return{ok:false,status:401,code:'login_required'};
+    const tk=opt.noauth?null:await io.token();
+    if(tk)h.Authorization='Bearer '+tk;else if(!opt.anon&&!opt.noauth)return{ok:false,status:401,code:'login_required'};
     const init={method,headers:h};
     if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
     let r;try{r=await io.fetch(base+path+qs(opt.query),init)}catch(_){return{ok:false,status:0,code:'network'}}
@@ -4932,6 +4932,14 @@ function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,s
 function nbqFromInvite(i){return{...i,starts_at:nbqMs(i.starts_at),ends_at:nbqMs(i.ends_at),counter_starts_at:nbqMs(i.counter_starts_at),counter_ends_at:nbqMs(i.counter_ends_at),
   created_at:nbqMs(i.created_at),expires_at:nbqMs(i.expires_at),responded_at:nbqMs(i.responded_at)}}
 
+// 补全：别人的球局只有卡片，没有参与记录。给每局补上发起人（资料没有时用卡片上的昵称 / UTR）和发起人的参与行；
+// 其余已确认的人只知道人数，算进 filled（前台画成「已有球友」匿名头像），这样余位和接口的 spots_left 一致
+function nbqCompose(games,parts,users){
+  games.forEach(g=>{
+    if(!users[g.host_id])users[g.host_id]=nbqFromUser({id:g.host_id,nickname:g.host_nickname,utr:g.host_utr});
+    if(!parts.some(p=>p.game_id===g.id&&p.user_id===g.host_id))parts.push({game_id:g.id,user_id:g.host_id,role:'host',status:'approved',message:'',created_at:0});
+    const known=parts.filter(p=>p.game_id===g.id&&p.status==='approved').length,unk=Math.max(0,(g.approved_count||0)-known);
+    g.filled=(g.filled||0)+unk;g.unknown_n=unk})}
 // 登录后一次读入。返回 {ok:true,registered:false} 表示新号码还没资料；任何一步失败 → {ok:false,code}，不留半份
 async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
@@ -4941,9 +4949,18 @@ async function nbqLoadAll(net){
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
-  const games={};[...(pub.data.games||[]),...(mine.data.games||[])].forEach(g=>{games[g.id]=nbqFromGame(g)});   // 同一局两边都有时以「我的」为准（后写覆盖）
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games:Object.values(games),
-    parts:(mine.data.participants||[]).map(nbqFromPart),invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  const gm={};[...(pub.data.games||[]),...(mine.data.games||[])].forEach(g=>{gm[g.id]=nbqFromGame(g)});   // 同一局两边都有时以「我的」为准（后写覆盖）
+  const games=Object.values(gm),parts=(mine.data.participants||[]).map(nbqFromPart);
+  // 公开球局的发起人：取完整球员卡（头像等）；取不到的用卡片上的昵称兜底，不算失败
+  const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
+  for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
+  nbqCompose(games,parts,users);
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+// 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
+async function nbqLoadPublic(net){
+  const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
+  const games=(r.data.games||[]).map(nbqFromGame),parts=[],users={};nbqCompose(games,parts,users);
+  return{ok:true,games,parts,users}}
 
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
@@ -4961,10 +4978,12 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
   ME=USERS[r.me];return true}
-// 启动（两端 seed() 之后调用）：真实模式先清掉演示数据，球场是公开的，先读进来（新用户选 Home Club 要用）
+// 启动（两端 seed() 之后调用）：真实模式先清掉演示数据；球场和公开球局不用登录，先读进来（新用户选 Home Club 要用球场）
 async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
-  const v=await NBQ_NET.get('/api/venues',null,{anon:true});
-  if(v.ok&&!ME){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
+  const [v,pub]=await Promise.all([NBQ_NET.get('/api/venues',null,{anon:true}),nbqLoadPublic(NBQ_NET)]);
+  if(ME)return;   // 读的时候已经登录进来了，以登录后读入的为准
+  if(v.ok){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
+  if(pub.ok){Object.assign(USERS,pub.users);pub.games.forEach(g=>GAMES.push(g));pub.parts.forEach(p=>PARTS.push(p))}
   render()}
 // 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code}
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);

@@ -69,7 +69,7 @@ function sbaOtpDone(code){
     const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)})}
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
-function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqClear()}
+function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
 // 打开页面：有登录态又有资料 → 自动登录
 function sbaRestore(){if(!SBA.on()||ME)return;
   if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(!s||ME)return;return nbqEnter().then(e=>{if(e.st==='ok')render()})});return}

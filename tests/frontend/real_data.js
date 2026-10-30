@@ -22,7 +22,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const tag = s => `${f} ${s}`, GM = () => ({ ...GAME, starts_at: new Date(S.now + 30 * 3600e3).toISOString() });   // 页面里的时钟被测试框架固定在 10-14，球局时间跟着页面走
     const html = r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
     await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return html(r);
-      const m = r.request().method(), p = u.pathname, body = r.request().postData(); api.push(m + ' ' + p); const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
+      const m = r.request().method(), p = u.pathname, body = r.request().postData(); api.push(m + ' ' + p); if (p === '/api/games') S.gamesAuth = r.request().headers()['authorization'] || null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (p === '/api/venues') return J(200, { venues: VENUES });
       if (p === '/api/me' && m === 'GET') return J(200, S.registered ? { registered: true, user: S.meUser } : { registered: false });
       if (p === '/api/me' && m === 'PATCH') { S.genderBody = JSON.parse(body); return J(200, { ok: true }) }
@@ -44,8 +44,10 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     S.now = await pg.evaluate(() => +NOW); let s = await state(); T(tag('预览站：演示数据还在、没有启用真数据'), s.g > 5 && s.net === false && !api.some(x => x.startsWith('PAGES')), s);
     // ② 正式域名未登录
     api.length = 0; await pg.goto('https://nanbanqiu.app/'); await pg.settle(800);
-    s = await state(); T(tag('正式域名未登录：演示数据已清空，球场换成服务器的'), s.net === true && s.g === 0 && s.u === 0 && s.v === 2 && s.me === null, s);
-    T(tag('未登录只读公开球场，不读球局'), api.join() === 'GET /api/venues', api);
+    s = await state(); T(tag('正式域名未登录：演示数据已清空，换成服务器的球场和公开球局（发起人用卡片昵称）'), s.net === true && s.g === 1 && s.u === 1 && s.v === 2 && s.me === null, s);
+    T(tag('未登录只读公开球场和公开球局：不带令牌，不读我的资料'), [...api].sort().join() === 'GET /api/games,GET /api/venues' && S.gamesAuth === null, [api, S.gamesAuth]);
+    const anon = await pg.evaluate(() => { const l = api.list(); return { n: l.length, host: l[0] && l[0].host && l[0].host.name, spots: l[0] && l[0].spots } });
+    T(tag('未登录也能在发现列表里看到公开球局：发起人、余位对得上（4 人局已确认 1 人 → 余 3）'), anon.n === 1 && anon.host === 'Host' && anon.spots === 3, anon);
     // ③ 老用户登录
     api.length = 0; await login(); s = await state();
     T(tag('老用户：读入我 / 球局 / 球友'), s.me === 'Sam' && s.g === 1 && s.u === 2 && api.includes('GET /api/games') && api.includes('GET /api/games/mine') && api.includes('GET /api/invites'), [s, api]);
@@ -58,8 +60,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
     // ⑥ 退出
-    await pg.evaluate(() => { sbaLogout(); ME = null; render() }); await pg.settle(300); s = await state();
-    T(tag('退出：数据清空'), s.me === null && s.g === 0 && s.u === 0, s);
+    await pg.evaluate(() => { sbaLogout(); ME = null; render() }); await pg.settle(700); s = await state();
+    T(tag('退出：我的数据清空，回到公开球局'), s.me === null && s.g === 1 && s.u === 1, s);
     // ④ 新号码
     S.registered = false; api.length = 0; await pg.reload(); await pg.settle(600); await pg.evaluate(() => { localStorage.clear() }); await pg.reload(); await pg.settle(600);
     await login(); T(tag('新号码：进填资料页，Home Club 选项来自服务器球场'), await pg.$('#npName') !== null && (await pg.$$('[data-npc]')).length === 2, api);

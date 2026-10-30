@@ -66,7 +66,12 @@ try {
   const g1 = await mkGame(HA, 'Ab12', 'public', 5), g2 = await mkGame(HA, 'Zz99', 'private', 6), g3 = await mkGame(HB, 'Cd34', 'public', 2);
   await mkGame(HA, 'Old1', 'public', 9); await admin.query(`update games set status = 'cancelled' where share_code = 'Old1'`);
   r = await call('GET', '/api/venues'); T('venues：不用登录；有坐标，没有内部列', r.s === 200 && r.j.venues.length === 1 && r.j.venues[0].lat === -37.86 && r.j.venues[0].lng === 145.05 && r.j.venues[0].name === 'Glen Iris Tennis Club', r);
-  r = await call('GET', '/api/games'); T('games：没登录 → 401', r.s === 401);
+  // 匿名浏览（10-30 定）：没有 Authorization 也能看公开的、非女生局的球局；令牌坏了仍是 401
+  await admin.query(`update games set tags = array['women'] where share_code = 'Cd34'`);
+  r = await call('GET', '/api/games'); T('games：没登录也能看公开球局（私人的、女生局的、已取消的都不给）', r.s === 200 && r.j.anon === true && r.j.games.map(x => x.share_code).join() === 'Ab12', r.j.games?.map(x => x.share_code));
+  T('games（匿名）：带发起人昵称和余位，没有手机号 / 登录 id / 设备等内部列', r.j.games[0].host_nickname === '小明' && r.j.games[0].spots_left === 1 && !/phone|auth_id|\+61|device|secret/i.test(JSON.stringify(r.j)), r.j.games[0]);
+  r = await call('GET', '/api/games', 'bad.token.here'); T('games：令牌是坏的 → 401（不当成匿名）', r.s === 401, r.s);
+  await admin.query(`update games set tags = '{}' where share_code = 'Cd34'`);
   r = await call('GET', '/api/games', await token(N)); T('games：令牌有效但没注册 → 403 not_registered', r.s === 403 && r.j.error === 'not_registered', r);
   r = await call('GET', '/api/games', await token(B));
   T('games：B 看到公开的两局（按开打时间排，已取消的不出现），看不到 A 的私人球局', r.s === 200 && r.j.games.map(x => x.share_code).join() === 'Cd34,Ab12', r.j.games?.map(x => x.share_code));
@@ -77,7 +82,11 @@ try {
   r = await call('GET', '/api/game?code=Zz99', await token(B)); T('game：别人的私人球局 → 404（和不存在一样）', r.s === 404 && r.j.error === 'not_found', r);
   r = await call('GET', '/api/game?code=Nope', await token(B)); T('game：不存在 → 404', r.s === 404);
   r = await call('GET', "/api/game?code=x';drop", await token(B)); T('game：分享码格式不对 → 400', r.s === 400 && r.j.error === 'bad_code');
-  r = await call('GET', '/api/game?code=Ab12'); T('game：没登录 → 401', r.s === 401);
+  r = await call('GET', '/api/game?code=Ab12'); T('game：没登录也能按分享码看公开球局', r.s === 200 && r.j.anon === true && r.j.game.share_code === 'Ab12', r);
+  r = await call('GET', '/api/game?code=Zz99'); T('game（匿名）：私人球局 → 404', r.s === 404, r);
+  await admin.query(`update games set tags = array['women'] where share_code = 'Ab12'`);
+  r = await call('GET', '/api/game?code=Ab12'); T('game（匿名）：女生局 → 404（登录的女生才看得到）', r.s === 404, r);
+  await admin.query(`update games set tags = '{}' where share_code = 'Ab12'`);
   r = await call('GET', '/api/profile?id=' + HA, await token(B)); T('profile：B 看 A 的公开资料', r.s === 200 && r.j.profile.nickname === '小明', r);
   T('profile：没有手机号 / 登录 id / 微信号 / 邮箱', !/phone|auth_id|wechat|email|\+61/.test(JSON.stringify(r.j)), r.j);
   r = await call('GET', '/api/profile?id=' + G, await token(B)); T('profile：不存在 → 404', r.s === 404);
