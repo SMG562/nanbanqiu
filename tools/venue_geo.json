@@ -163,6 +163,12 @@
    "lng": 145.128642,
    "来源": "谷歌定位→OSM球场"
   },
+  "v31": {
+   "名称": "Box Hill Tennis Club",
+   "lat": -37.837393,
+   "lng": 145.119651,
+   "来源": "谷歌定位→OSM球场"
+  },
   "v32": {
    "名称": "North Box Hill Tennis Club",
    "lat": -37.799114,
@@ -180,6 +186,12 @@
    "lat": -37.853779,
    "lng": 145.094607,
    "来源": "OSM名称匹配"
+  },
+  "v35": {
+   "名称": "East Burwood Tennis Club",
+   "lat": -37.854523,
+   "lng": 145.160759,
+   "来源": "谷歌定位→OSM球场"
   },
   "v36": {
    "名称": "Ashburton Tennis Club",
@@ -1353,12 +1365,9 @@
   }
  },
  "未核对": {
-  "v8": "Melbourne Park Tennis Centre",
   "v12": "Mount Waverley Tennis Club",
   "v17": "Mount Waverley Reserve Public Tennis Court",
   "v29": "Aqualink Tennis Courts",
-  "v31": "Box Hill Tennis Club",
-  "v35": "East Burwood Tennis Club",
   "v37": "Ashburton Uniting Church Tennis Club",
   "v38": "St Michaels Tennis Club",
   "v39": "St Rochs Tennis Club",
