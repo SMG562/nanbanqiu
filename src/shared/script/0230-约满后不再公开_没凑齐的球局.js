@@ -40,9 +40,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(!
     case'open':openUnfilled(id);break;
     case'close':UF_CLOSE();UF_RENDER();break;
     case'share':UF_CLOSE();setTimeout(()=>openShare(id),180);break;
-    case'widen':g.ntrp_min=Math.max(UTR_MIN,g.ntrp_min-1);g.ntrp_max=Math.min(UTR_MAX,g.ntrp_max+1);UF_CLOSE();toast(`已放宽到 UTR ${f1(g.ntrp_min)}–${f1(g.ntrp_max)}`);UF_RENDER();break;
+    case'widen':if(NBQ_NET){const mn=Math.max(UTR_MIN,g.ntrp_min-1),mx=Math.min(UTR_MAX,g.ntrp_max+1);nbqEdit(id,{utr_min:mn,utr_max:mx}).then(r=>{if(r){UF_CLOSE();toast(`已放宽到 UTR ${f1(mn)}–${f1(mx)}`);UF_RENDER()}});break}
+      g.ntrp_min=Math.max(UTR_MIN,g.ntrp_min-1);g.ntrp_max=Math.min(UTR_MAX,g.ntrp_max+1);UF_CLOSE();toast(`已放宽到 UTR ${f1(g.ntrp_min)}–${f1(g.ntrp_max)}`);UF_RENDER();break;
     case'delay':ufDelayConfirm(id);break;
-    case'delayGo':{g.starts_at=new Date(+new Date(g.starts_at)+36e5).toISOString();g.postponed=true;g.ufRemind=false;g.time_set_at=Date.now();
+    case'delayGo':{if(NBQ_NET){nbqPostpone(id).then(r=>{if(r){UF_CLOSE();toast('已顺延 1 小时');UF_RENDER()}});break}
+      g.starts_at=new Date(+new Date(g.starts_at)+36e5).toISOString();g.postponed=true;g.ufRemind=false;g.time_set_at=Date.now();
       PARTS.filter(p=>p.game_id===id&&['approved','pending'].includes(p.status)&&p.user_id!==g.host_id).forEach(p=>{if(p.status==='approved')p.chg={lines:[`时间改为 ${hm(new Date(g.starts_at))} 开打（顺延 1 小时）`],ack:false};notify(p.user_id,'postponed',id,g.host_id)});
       UF_CLOSE();toast('已顺延 1 小时');UF_RENDER();break}
     case'cancel':UF_CLOSE();setTimeout(()=>openCancelGame(id),180);break;

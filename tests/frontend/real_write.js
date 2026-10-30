@@ -1,5 +1,5 @@
 // 5g-3 前台接入第 4 轮（4b）：球局写操作在真实模式（nanbanqiu.app）走接口（两端，假 Supabase + 有状态的假 /api）：
-//   申请 · 退出 · 申请失败（错误码提示）· 同意 · 婉拒（原因映射）· 取消 · 发局 · 球友约定 · 连点只发一次 · 全程没有页面报错
+//   申请 · 退出 · 申请失败（错误码提示）· 同意 · 婉拒（原因映射）· 取消 · 发局 · 球友约定 · 连点只发一次 · 改局 / 放宽 / 顺延 / 确认改动（4c） · 全程没有页面报错
 //   流程：先调接口 → 成功后重新读入 → 页面以服务器为准；点击走真实的 data-a 事件处理，不是直接调函数
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
@@ -16,14 +16,14 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     const tag = s => `${f} ${s}`;
     const S = { now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
-      my1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
+      my1: null, ack1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
     const iso = h => new Date(S.now + h * 3600e3).toISOString();
     const G = (id, code, host, hostName, h, extra = {}) => ({ id, share_code: code, host_id: host, host_nickname: hostName, host_utr: 5.5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: iso(h), duration_min: 90, game_type: 'doubles', capacity: 4, utr_min: 4, utr_max: 6.5,
       note: '', status: 'open', tags: [], visibility: 'public', filled: 0, join_mode: 'approve', city: 'melb', approved_count: 1, pending_count: 0, spots_left: 3, ...extra });
     const games = () => [G(G1, 'Ab3k', HOST, 'Host', 30, { approved_count: S.my1 === 'approved' ? 2 : 1, pending_count: S.my1 === 'pending' ? 1 : 0 }),
       G(G2, 'Mine', ME, 'Sam', 31, { status: S.g2Cancelled ? 'cancelled' : 'open', pending_count: S.reqStatus === 'pending' ? 1 : 0, approved_count: S.reqStatus === 'approved' ? 2 : 1 }), ...(S.created ? [G(G3, 'New1', ME, 'Sam', 33)] : [])];
     const parts = () => [{ game_id: G1, user_id: HOST, role: 'host', status: 'approved', created_at: iso(-5), message: '' },
-      ...(S.my1 ? [{ game_id: G1, user_id: ME, role: 'player', status: S.my1, created_at: iso(-1), message: 'hi' }] : []),
+      ...(S.my1 ? [{ game_id: G1, user_id: ME, role: 'player', status: S.my1, created_at: iso(-1), message: 'hi', change_ack: S.my1 === 'approved' ? S.ack1 : null }] : []),
       { game_id: G2, user_id: ME, role: 'host', status: 'approved', created_at: iso(-5), message: '' },
       { game_id: G2, user_id: REQ, role: 'player', status: S.reqStatus, created_at: iso(-1), message: '想打', decline_reason: S.reqStatus === 'rejected' ? 'pass' : null }];
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
@@ -43,6 +43,9 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === `/api/games/${G1}/requests/me`) return (S.my1 = null, J(200, { status: 'withdrawn' }));
       if (p === `/api/games/${G2}/requests/${REQ}/approve`) return (S.reqStatus = 'approved', J(200, { status: 'approved' }));
       if (p === `/api/games/${G2}/requests/${REQ}/decline`) return (S.reqStatus = 'rejected', J(200, { ok: true }));
+      if (p === `/api/games/${G3}` && m === 'PATCH') return S.fail ? J(409, { error: S.fail }) : J(200, { changes: { note: ['', body.note] } });
+      if (p === `/api/games/${G3}/postpone`) return J(200, { starts_at: iso(34) });
+      if (p === `/api/games/${G1}/change-ack`) { S.ack1 = body.choice; if (body.choice === 'out') S.my1 = null; return J(200, { status: body.choice }) }
       if (p === `/api/games/${G2}/cancel`) return (S.g2Cancelled = true, J(200, { ok: true }));
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
@@ -87,6 +90,30 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const cb = S.bodies['POST /api/games'] || {};
     T(tag('发局：参数映射（utr 范围、标签、缺几人 → filled、加入方式、说明去空格）'), cb.venue_id === V1 && cb.utr_min === 3.5 && cb.utr_max === 5 && cb.game_type === 'doubles' && cb.duration_min === 90 && cb.filled === 2 && cb.join_mode === 'approve' && cb.note === '周六双打' && cb.tags.join() === 'relax,newbie' && typeof cb.starts_at === 'string', cb);
     T(tag('发局：返回服务器的球局 id，读入后列表里有这局（我是发起人）'), id === G3 && await pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return !!g && api.get(i).isHost }, G3), id);
+    // 4c：改局 / 放宽 / 顺延 / 确认改动
+    const exp = await pg.evaluate(([g]) => { geOpen(g); document.getElementById('ngNote').value = '改个备注'; NG.mn = 3; const e = NG.type === 'doubles' ? Math.max(0, CAP.doubles - api.get(g).appr.length - NG.miss) : null; geSave(); return e }, [G3]); await pg.settle(500);
+    const eb = S.bodies[`PATCH /api/games/${G3}`] || {};
+    T(tag('改局：PATCH /api/games/:id，带接口认的字段，没有玩法'), !!S.bodies[`PATCH /api/games/${G3}`] && eb.note === '改个备注' && eb.utr_min === 3 && eb.duration_min > 0 && eb.venue_id === V1 && !('game_type' in eb) && !!eb.starts_at, [S.log, eb]);
+    T(tag('改局：双打带 filled（4 - 已确认人数 - 缺几人），单打不带'), exp === null ? !('filled' in eb) : eb.filled === exp, [exp, eb]);
+    T(tag('改局成功：提示已保存'), /已保存/.test(await toasts()), await toasts());
+    S.log.length = 0; delete S.bodies[`PATCH /api/games/${G3}`];
+    await pg.evaluate(g => { geOpen(g); NG.type = NG.type === 'doubles' ? 'singles' : 'doubles'; geSave() }, G3); await pg.settle(300);
+    T(tag('改局：改玩法暂不支持，提示且不发请求'), /暂时不能改/.test(await toasts()) && !S.log.length, [await toasts(), S.log]);
+    await pg.evaluate(() => { NG.edit = null; closeSheet && closeSheet() }).catch(() => {});
+    S.fail = 'game_started'; await pg.evaluate(g => { geOpen(g); document.getElementById('ngNote').value = '再改'; geSave() }, G3); await pg.settle(400);
+    T(tag('改局失败（已开打）：提示后端错误码对应的文字'), /开打/.test(await toasts()), await toasts()); S.fail = null;
+    await pg.evaluate(() => { NG.edit = null; closeSheet && closeSheet() }).catch(() => {});
+    S.log.length = 0; await click({ 'data-uf': 'widen', 'data-g': G3 }); await pg.settle(300);
+    const wb = S.bodies[`PATCH /api/games/${G3}`] || {};
+    T(tag('放宽水平：PATCH 只带 utr_min / utr_max'), S.log.join() === 'PATCH /api/games/G3' && typeof wb.utr_min === 'number' && typeof wb.utr_max === 'number' && Object.keys(wb).length === 2, [S.log, wb]);
+    S.log.length = 0; await click({ 'data-uf': 'delayGo', 'data-g': G3 }); await pg.settle(300);
+    T(tag('顺延 1 小时：POST postpone'), S.log.join() === 'POST /api/games/G3/postpone' && /已顺延/.test(await toasts()), [S.log, await toasts()]);
+    S.my1 = 'approved'; S.ack1 = 'pending'; await pg.evaluate(() => nbqRefresh());
+    T(tag('确认改动：待确认时球局页顶部有提示'), await pg.evaluate(g => /还能来/.test(geBanner(api.get(g))), G1));
+    S.log.length = 0; await click({ 'data-ge': 'ok', 'data-g': G1 }); await pg.settle(300);
+    T(tag('确认改动「还能来」：POST change-ack ok，提示消失'), S.log.join() === 'POST /api/games/G1/change-ack' && S.bodies[`POST /api/games/${G1}/change-ack`].choice === 'ok' && await pg.evaluate(g => geBanner(api.get(g)) === '', G1), [S.log, S.bodies]);
+    S.ack1 = 'pending'; await pg.evaluate(() => nbqRefresh()); S.log.length = 0; await click({ 'data-ge': 'out', 'data-g': G1 }); await pg.settle(300);
+    T(tag('确认改动「来不了」：POST change-ack out，读入后已不在这局'), S.bodies[`POST /api/games/${G1}/change-ack`].choice === 'out' && !(await mine(G1)), [S.bodies, await mine(G1)]);
     // 球友约定
     S.me.pact_accepted_at = null; await pg.evaluate(() => nbqRefresh()); S.log.length = 0;
     await pg.evaluate(() => { window.__pactNext = false; pactGate(() => { window.__pactNext = true }) }); await pg.settle(400);

@@ -27,6 +27,7 @@ function geSave(){ngKeep();const f=NG,c=api.get(f.edit);if(!c)return;
   if(f.type!==c.game_type&&others+1>CAP[f.type]){toast(`已经有 ${others+1} 人，不能改成${TYPE[f.type]}`);return}
   if(f.type==='doubles'&&f.miss>CAP.doubles-1-others){f.miss=CAP.doubles-1-others}
   const d=geDiff(c,f);if(!d.key.length&&!d.lite.length){toast('没有改动');return}
+  if(NBQ_NET&&(f.type!==c.game_type||!!f.hide!==!!c.hide_done)){toast('玩法和「约满后不再公开」暂时不能改，其余都可以');return}
   const aff=c.appr.filter(p=>p.user_id!==c.host_id),pend=c.pend;
   if(!d.key.length||!aff.length&&!pend.length){geApply(c,f,d);return}
   const names=aff.map(p=>esc(U(p.user_id).name.split(' ')[0])).join('、');
@@ -34,7 +35,12 @@ function geSave(){ngKeep();const f=NG,c=api.get(f.edit);if(!c)return;
     <div class="ge-d">${d.key.map(x=>`<div><span>${x[0]}</span><s>${esc(x[1])}</s><b>${esc(x[2])}</b></div>`).join('')}</div>
     <p class="uf-s" style="margin:12px 0 14px">${aff.length?`${names} 会收到通知，可以确认还能来，或者直接退出（不算临时退出）。`:''}${pend.length?`${pend.length} 个待审核的申请会保留，也会收到通知。`:''}</p>
     <div class="uf-l"><button class="uf-r p" data-ge="go"><b>保存并通知</b></button><button class="uf-r" data-ge="back"><b>返回修改</b></button></div></div>`)}
-function geApply(c,f,d){const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`${x[0]}改为 ${x[2]}`);
+function geApply(c,f,d){
+  if(NBQ_NET){const id=c.id,aff=c.appr.filter(p=>p.user_id!==c.host_id).length,ap=c.appr.length;
+    nbqEdit(id,nbqEditBody(f,d.ns,ap)).then(r=>{if(!r)return;NG.edit=null;
+      if(typeof closeSheet==='function'){closeSheet();if(UI.detail===id)renderDetail();else openDetail(id);render()}else{closeModal();select(id)}
+      toast(d.key.length&&aff?`已保存，已通知 ${aff} 位球友`:'已保存')});return}
+  const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`${x[0]}改为 ${x[2]}`);
   g.starts_at=d.ns.toISOString();g.duration_min=f.dur;g.venue_id=f.venue_id;
   if(f.type!==g.game_type){g.game_type=f.type;g.capacity=CAP[f.type]}
   if(g.game_type==='doubles'){const ap=PARTS.filter(p=>p.game_id===g.id&&p.status==='approved').length;g.filled=Math.max(0,CAP.doubles-ap-f.miss)}else g.filled=0;
@@ -47,8 +53,9 @@ function geApply(c,f,d){const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`$
   if(typeof closeSheet==='function'){closeSheet();if(UI.detail===id)renderDetail();else openDetail(id);render()}else{closeModal();select(id)}
   toast(d.key.length&&n?`已保存，已通知 ${n} 位球友`:'已保存')}
 // 已加入的人：球局页顶部看到改动，确认还能来 / 来不了
-function geBanner(c){const p=c.mineP;if(!p||p.status!=='approved'||!p.chg||p.chg.ack||c.start<=NOW)return'';
-  return `<div class="ge-b"><b>${esc(c.host.name.split(' ')[0])} 修改了球局</b><p>${p.chg.lines.map(esc).join('<br>')}</p><div><button data-ge="ok" data-g="${c.id}">还能来</button><button data-ge="out" data-g="${c.id}">来不了</button></div></div>`}
+function geBanner(c){const p=c.mineP;if(!p||p.status!=='approved'||c.start<=NOW)return'';
+  const chg=p.chg||(p.change_ack==='pending'?{lines:[`现在的安排：${geWhen(c.start,c.duration_min)} · ${c.v.short}`],ack:false}:null);if(!chg||chg.ack)return'';
+  return `<div class="ge-b"><b>${esc(c.host.name.split(' ')[0])} 修改了球局</b><p>${chg.lines.map(esc).join('<br>')}</p><div><button data-ge="ok" data-g="${c.id}">还能来</button><button data-ge="out" data-g="${c.id}">来不了</button></div></div>`}
 function passHTML(c){return geBanner(c)+passHTML0(c)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ge]');if(!b)return;e.stopPropagation();const k=b.dataset.ge,id=b.dataset.g;
   const re=()=>{render();if(typeof renderDetail==='function'&&UI.detail)renderDetail()};
@@ -56,6 +63,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ge]');if(!
   if(k==='back'){drawCreate();return}
   if(k==='go'){const f=NG,c=api.get(f.edit);geApply(c,f,geDiff(c,f));return}
   const g=GAMES.find(x=>x.id===id),p=PARTS.find(x=>x.game_id===id&&x.user_id===ME.id);if(!g||!p)return;
+  if(NBQ_NET){nbqAck(id,k).then(r=>{if(r){toast(k==='ok'?'好的，球场见 🎾':'已退出，不算临时退出');re()}});return}
   if(k==='ok'){p.chg.ack=true;toast('好的，球场见 🎾');re()}
   if(k==='out'){p.status='left';p.left_at=Date.now();g.status='open';notify(g.host_id,'player_left',id,ME.id);toast('已退出，不算临时退出');re()}},true);
 

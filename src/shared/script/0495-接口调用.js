@@ -42,7 +42,7 @@ function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,s
 // 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
 const nbqIso=t=>t==null?null:new Date(t).toISOString();
 function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
-  ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[]}}
+  ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[],postponed:!!g.postponed_at}}
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
   created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
@@ -145,4 +145,11 @@ const nbqDecline=(id,uid,reason,note)=>nbqWrite('dec'+id+uid,n=>n.post('/api/gam
 // 发局：前台表单 → 接口参数。每周重复（rep）和「约满后不再公开」（hide）后端还没有，真实模式先不带
 function nbqCreateBody(f){return{venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,utr_min:f.mn,utr_max:f.mx,
   note:(f.note||'').trim().slice(0,60),tags:[...f.tags],join_mode:ugMode(f),filled:f.type==='doubles'?3-f.miss:0}}
+// 改局：只带接口认的字段（时间 / 时长 / 场地 / 水平 / 备注 / 标签 / 加入方式 / 双打缺几人）；玩法和「约满后不再公开」接口还没有，geSave 先挡住
+function nbqEditBody(f,ns,apCount){const b={starts_at:ns.toISOString(),duration_min:f.dur,venue_id:f.venue_id,utr_min:f.mn,utr_max:f.mx,
+  note:(f.note||'').trim().slice(0,60),tags:[...f.tags],join_mode:ugMode(f)};
+  if(f.type==='doubles')b.filled=Math.max(0,CAP.doubles-apCount-f.miss);return b}
+const nbqEdit=(id,body)=>nbqWrite('edit'+id,n=>n.patch('/api/games/'+id,body));
+const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpone'));
+const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
 async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}

@@ -2794,9 +2794,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(!
     case'open':openUnfilled(id);break;
     case'close':UF_CLOSE();UF_RENDER();break;
     case'share':UF_CLOSE();setTimeout(()=>openShare(id),180);break;
-    case'widen':g.ntrp_min=Math.max(UTR_MIN,g.ntrp_min-1);g.ntrp_max=Math.min(UTR_MAX,g.ntrp_max+1);UF_CLOSE();toast(`已放宽到 UTR ${f1(g.ntrp_min)}–${f1(g.ntrp_max)}`);UF_RENDER();break;
+    case'widen':if(NBQ_NET){const mn=Math.max(UTR_MIN,g.ntrp_min-1),mx=Math.min(UTR_MAX,g.ntrp_max+1);nbqEdit(id,{utr_min:mn,utr_max:mx}).then(r=>{if(r){UF_CLOSE();toast(`已放宽到 UTR ${f1(mn)}–${f1(mx)}`);UF_RENDER()}});break}
+      g.ntrp_min=Math.max(UTR_MIN,g.ntrp_min-1);g.ntrp_max=Math.min(UTR_MAX,g.ntrp_max+1);UF_CLOSE();toast(`已放宽到 UTR ${f1(g.ntrp_min)}–${f1(g.ntrp_max)}`);UF_RENDER();break;
     case'delay':ufDelayConfirm(id);break;
-    case'delayGo':{g.starts_at=new Date(+new Date(g.starts_at)+36e5).toISOString();g.postponed=true;g.ufRemind=false;g.time_set_at=Date.now();
+    case'delayGo':{if(NBQ_NET){nbqPostpone(id).then(r=>{if(r){UF_CLOSE();toast('已顺延 1 小时');UF_RENDER()}});break}
+      g.starts_at=new Date(+new Date(g.starts_at)+36e5).toISOString();g.postponed=true;g.ufRemind=false;g.time_set_at=Date.now();
       PARTS.filter(p=>p.game_id===id&&['approved','pending'].includes(p.status)&&p.user_id!==g.host_id).forEach(p=>{if(p.status==='approved')p.chg={lines:[`时间改为 ${hm(new Date(g.starts_at))} 开打（顺延 1 小时）`],ack:false};notify(p.user_id,'postponed',id,g.host_id)});
       UF_CLOSE();toast('已顺延 1 小时');UF_RENDER();break}
     case'cancel':UF_CLOSE();setTimeout(()=>openCancelGame(id),180);break;
@@ -2839,6 +2841,7 @@ function geSave(){ngKeep();const f=NG,c=api.get(f.edit);if(!c)return;
   if(f.type!==c.game_type&&others+1>CAP[f.type]){toast(`已经有 ${others+1} 人，不能改成${TYPE[f.type]}`);return}
   if(f.type==='doubles'&&f.miss>CAP.doubles-1-others){f.miss=CAP.doubles-1-others}
   const d=geDiff(c,f);if(!d.key.length&&!d.lite.length){toast('没有改动');return}
+  if(NBQ_NET&&(f.type!==c.game_type||!!f.hide!==!!c.hide_done)){toast('玩法和「约满后不再公开」暂时不能改，其余都可以');return}
   const aff=c.appr.filter(p=>p.user_id!==c.host_id),pend=c.pend;
   if(!d.key.length||!aff.length&&!pend.length){geApply(c,f,d);return}
   const names=aff.map(p=>esc(U(p.user_id).name.split(' ')[0])).join('、');
@@ -2846,7 +2849,12 @@ function geSave(){ngKeep();const f=NG,c=api.get(f.edit);if(!c)return;
     <div class="ge-d">${d.key.map(x=>`<div><span>${x[0]}</span><s>${esc(x[1])}</s><b>${esc(x[2])}</b></div>`).join('')}</div>
     <p class="uf-s" style="margin:12px 0 14px">${aff.length?`${names} 会收到通知，可以确认还能来，或者直接退出（不算临时退出）。`:''}${pend.length?`${pend.length} 个待审核的申请会保留，也会收到通知。`:''}</p>
     <div class="uf-l"><button class="uf-r p" data-ge="go"><b>保存并通知</b></button><button class="uf-r" data-ge="back"><b>返回修改</b></button></div></div>`)}
-function geApply(c,f,d){const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`${x[0]}改为 ${x[2]}`);
+function geApply(c,f,d){
+  if(NBQ_NET){const id=c.id,aff=c.appr.filter(p=>p.user_id!==c.host_id).length,ap=c.appr.length;
+    nbqEdit(id,nbqEditBody(f,d.ns,ap)).then(r=>{if(!r)return;NG.edit=null;
+      if(typeof closeSheet==='function'){closeSheet();if(UI.detail===id)renderDetail();else openDetail(id);render()}else{closeModal();select(id)}
+      toast(d.key.length&&aff?`已保存，已通知 ${aff} 位球友`:'已保存')});return}
+  const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`${x[0]}改为 ${x[2]}`);
   g.starts_at=d.ns.toISOString();g.duration_min=f.dur;g.venue_id=f.venue_id;
   if(f.type!==g.game_type){g.game_type=f.type;g.capacity=CAP[f.type]}
   if(g.game_type==='doubles'){const ap=PARTS.filter(p=>p.game_id===g.id&&p.status==='approved').length;g.filled=Math.max(0,CAP.doubles-ap-f.miss)}else g.filled=0;
@@ -2859,8 +2867,9 @@ function geApply(c,f,d){const g=GAMES.find(x=>x.id===c.id),lines=d.key.map(x=>`$
   if(typeof closeSheet==='function'){closeSheet();if(UI.detail===id)renderDetail();else openDetail(id);render()}else{closeModal();select(id)}
   toast(d.key.length&&n?`已保存，已通知 ${n} 位球友`:'已保存')}
 // 已加入的人：球局页顶部看到改动，确认还能来 / 来不了
-function geBanner(c){const p=c.mineP;if(!p||p.status!=='approved'||!p.chg||p.chg.ack||c.start<=NOW)return'';
-  return `<div class="ge-b"><b>${esc(c.host.name.split(' ')[0])} 修改了球局</b><p>${p.chg.lines.map(esc).join('<br>')}</p><div><button data-ge="ok" data-g="${c.id}">还能来</button><button data-ge="out" data-g="${c.id}">来不了</button></div></div>`}
+function geBanner(c){const p=c.mineP;if(!p||p.status!=='approved'||c.start<=NOW)return'';
+  const chg=p.chg||(p.change_ack==='pending'?{lines:[`现在的安排：${geWhen(c.start,c.duration_min)} · ${c.v.short}`],ack:false}:null);if(!chg||chg.ack)return'';
+  return `<div class="ge-b"><b>${esc(c.host.name.split(' ')[0])} 修改了球局</b><p>${chg.lines.map(esc).join('<br>')}</p><div><button data-ge="ok" data-g="${c.id}">还能来</button><button data-ge="out" data-g="${c.id}">来不了</button></div></div>`}
 function passHTML(c){return geBanner(c)+passHTML0(c)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ge]');if(!b)return;e.stopPropagation();const k=b.dataset.ge,id=b.dataset.g;
   const re=()=>{render();if(typeof renderDetail==='function'&&UI.detail)renderDetail()};
@@ -2868,6 +2877,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ge]');if(!
   if(k==='back'){drawCreate();return}
   if(k==='go'){const f=NG,c=api.get(f.edit);geApply(c,f,geDiff(c,f));return}
   const g=GAMES.find(x=>x.id===id),p=PARTS.find(x=>x.game_id===id&&x.user_id===ME.id);if(!g||!p)return;
+  if(NBQ_NET){nbqAck(id,k).then(r=>{if(r){toast(k==='ok'?'好的，球场见 🎾':'已退出，不算临时退出');re()}});return}
   if(k==='ok'){p.chg.ack=true;toast('好的，球场见 🎾');re()}
   if(k==='out'){p.status='left';p.left_at=Date.now();g.status='open';notify(g.host_id,'player_left',id,ME.id);toast('已退出，不算临时退出');re()}},true);
 
@@ -4873,7 +4883,7 @@ function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,s
 // 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
 const nbqIso=t=>t==null?null:new Date(t).toISOString();
 function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
-  ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[]}}
+  ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[],postponed:!!g.postponed_at}}
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
   created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
@@ -4976,6 +4986,13 @@ const nbqDecline=(id,uid,reason,note)=>nbqWrite('dec'+id+uid,n=>n.post('/api/gam
 // 发局：前台表单 → 接口参数。每周重复（rep）和「约满后不再公开」（hide）后端还没有，真实模式先不带
 function nbqCreateBody(f){return{venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,utr_min:f.mn,utr_max:f.mx,
   note:(f.note||'').trim().slice(0,60),tags:[...f.tags],join_mode:ugMode(f),filled:f.type==='doubles'?3-f.miss:0}}
+// 改局：只带接口认的字段（时间 / 时长 / 场地 / 水平 / 备注 / 标签 / 加入方式 / 双打缺几人）；玩法和「约满后不再公开」接口还没有，geSave 先挡住
+function nbqEditBody(f,ns,apCount){const b={starts_at:ns.toISOString(),duration_min:f.dur,venue_id:f.venue_id,utr_min:f.mn,utr_max:f.mx,
+  note:(f.note||'').trim().slice(0,60),tags:[...f.tags],join_mode:ugMode(f)};
+  if(f.type==='doubles')b.filled=Math.max(0,CAP.doubles-apCount-f.miss);return b}
+const nbqEdit=(id,body)=>nbqWrite('edit'+id,n=>n.patch('/api/games/'+id,body));
+const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpone'));
+const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
 async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
