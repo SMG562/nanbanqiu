@@ -81,6 +81,7 @@ add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass:
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/venues_seed', ['node', path.join(HERE, 'pg/venues_seed.mjs')], { pass: [/venues_seed: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/notify_run', ['node', path.join(HERE, 'pg/notify_run.mjs')], { pass: [/notify_run: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_jobs', ['node', path.join(HERE, 'pg/sb_jobs.mjs')], { pass: [/sb_jobs: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_race', ['node', path.join(HERE, 'pg/sb_race.mjs')], { pass: [/sb_race: \d+ 通过, 0 失败/], timeout: 600 });

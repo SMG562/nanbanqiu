@@ -55,6 +55,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | unit | `unit/side_rules.mjs` | 场边规则（`src/shared/side/0065-发布规则.js`、`0085-场边通知规则.js`）放进空沙盒载入（证明不依赖页面）：频率 = schema.sql rate_rules（窗口、次数、错误码、边界）、链接正则 = api_sb_post、话题名（字数按字符 = char_length、#、太宽的词、相似词、同名、昵称规则的先后）、网球 / 回复合并（起点、正好 10 分钟、不算自己、回复我）、通知文字 = server/notify/rules.mjs pushText（1200 种组合）。故意改坏 13 处全部抓到 | 0 失败 |
 | unit | `unit/sb_auth.mjs` | 5g-1 登录逻辑（0490 的 sbAuthMake，空沙盒）：请求地址 / 内容、错误码归类、登录态保存与续期、退出、资料缓存、未配置不启用 |
 | unit | `unit/nbq_net.mjs` | 5g-3 前台数据层骨架（0495 的接口调用 / 字段转换 / 一次读入，空沙盒 + 假 fetch）：令牌、错误码、断网、401 回调、查询串、后端字段 → 前台数据形状、读入失败不留半份 |
+| pg | `pg/venues_seed.mjs` | 5g-3 球场 + 区导入（server/seed/venues_seed.sql）：在真实 schema 上执行、数量与前台名录一致、区外键、坐标范围、可重复执行、核对标记、/api/venues 只给 active |
 | frontend | `frontend/sb_login.js` | 5g-1 两端用假 Supabase 接口跑完整登录：演示照旧、发码失败、验证码错、新号码填资料、刷新自动登录、退出、老用户直接进、续期被拒 |
 | frontend | `frontend/img_save.js` | 5e 保存图片（两端）：能分享走系统分享、取消不弹、被拒 / 不支持弹大图长按保存、不触发下载；小红书文案链接带 https:// |
 | frontend | `frontend/a2hs.js` | 添加到主屏幕引导：iOS Safari / iOS 其他浏览器 / App 内置浏览器 / 安卓各给对的步骤，没有演示按钮，安卓有安装事件时一键 |

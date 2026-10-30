@@ -113,7 +113,7 @@ const ROUTES = {
   // 球场是公共参考数据，没登录也能看（场边页本来就允许未登录浏览）
   'GET /api/venues': async (req, d) => {
     const rows = await d.db.asService(async q => (await q(`select id, name, short_name, suburb, surfaces, courts, lights, indoor, booking_url,
-      round(st_y(location::geometry)::numeric, 5)::float8 as lat, round(st_x(location::geometry)::numeric, 5)::float8 as lng from venues order by name`)).rows);
+      round(st_y(location::geometry)::numeric, 5)::float8 as lat, round(st_x(location::geometry)::numeric, 5)::float8 as lng from venues where status = 'active' order by name`)).rows);   // 缺区 / 待审核 / 下线的球场不对外
     return send(200, { venues: rows }, { 'Cache-Control': 'public, max-age=300' });
   },
   // 球局列表：只要还没开打的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断

@@ -12,3 +12,6 @@ site/
 !tests/visual/baseline/*.png
 !icons/*.png
 .wrangler/
+
+# 邮编库（8MB，tools/venues_seed.mjs 的输入，需要时现下载）
+tools/out/australian_postcodes.csv
