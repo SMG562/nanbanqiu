@@ -8,6 +8,11 @@ const src = fs.readFileSync(new URL('../src/shared/script/0080-数据.js', impor
 const list = JSON.parse(src.match(/\[\["v1"[\s\S]*?\]\](?=\.forEach)/)[0]);
 const out = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
+// 旧版把结果写进了编码后的怪路径（%E5…），有就搬过来，免得重跑
+const legacy = new URL('./out/', import.meta.url).pathname;
+if (legacy !== out && fs.existsSync(legacy + 'venues_geo.json') && !fs.existsSync(out + 'venues_geo.json')) {
+  fs.copyFileSync(legacy + 'venues_geo.json', out + 'venues_geo.json'); console.log('已从旧位置搬回结果：' + legacy);
+}
 const jf = path.join(out, 'venues_geo.json');
 const done = fs.existsSync(jf) ? JSON.parse(fs.readFileSync(jf, 'utf8')) : {};
 const km = (a, b, c, d) => { const r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r * Math.cos(a * r); return Math.hypot(x, y) * 6371; };
