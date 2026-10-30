@@ -190,6 +190,56 @@ try {
   r = await call('GET', '/api/threads', tP); T('已读后不再未读', r.j.threads[0].unread === false, r.j);
   r = await call('POST', `/api/threads/${TH}/read`, tQ); T('已读：不在对话里 → 404', r.s === 404 && r.j.error === 'not_found', r);
 
+
+  // ---- 续 3：场边、推送订阅、账号注销 / 恢复 ----
+  r = await call('POST', '/api/sideline/posts', null, { body: '今天球场很安静', venue_id: V, topic_title: '清晨球场' }); T('场边发布：没登录 → 401', r.s === 401);
+  r = await call('POST', '/api/sideline/posts', tP, { body: '今天球场很安静', venue_id: V, topic_title: '清晨球场' }); T('场边发布：→ 200 返回 id / 话题 / 编号', r.s === 200 && UUIDre.test(r.j.id) && r.j.floor >= 1, r);
+  const SP = r.j.id;
+  r = await call('POST', '/api/sideline/posts', tP, { body: '看 https://x.example', venue_id: V, topic_title: '清晨球场' }); T('场边发布：带链接 → 422 message_link', r.s === 422 && r.j.error === 'message_link', r);
+  r = await call('POST', '/api/sideline/posts', tP, { body: '', venue_id: V, topic_title: '清晨球场' }); T('场边发布：没字没照片 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', `/api/sideline/posts/${SP}/replies`, tH, { body: '我也在附近' }); T('场边回复：→ 200 返回数字 id', r.s === 200 && typeof r.j.id === 'number', r); const RP = r.j.id;
+  r = await call('POST', `/api/sideline/posts/${SP}/replies`, tH, { body: 'x'.repeat(61) }); T('场边回复：超过 60 字 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('PATCH', `/api/sideline/posts/${SP}`, tH, { replies_open: false }); T('场边：非作者关回复 → 404/403（不是 200）', r.s >= 400 && r.s < 500, r);
+  r = await call('PATCH', `/api/sideline/posts/${SP}`, tP, { replies_open: false }); T('场边：作者关回复 → 200', r.s === 200 && r.j.replies_open === false, r);
+  r = await call('POST', `/api/sideline/posts/${SP}/replies`, tH, { body: '再回一条' }); T('场边回复：作者关了回复 → 409 replies_closed', r.s === 409 && r.j.error === 'replies_closed', r);
+  r = await call('PUT', `/api/sideline/posts/${SP}/ball`, tH); T('网球：点 → 1', r.s === 200 && r.j.balls === 1, r);
+  r = await call('PUT', `/api/sideline/posts/${SP}/ball`, tH); T('网球：重复点不报错、不多算', r.s === 200 && r.j.balls === 1, r);
+  r = await call('DELETE', `/api/sideline/posts/${SP}/ball`, tH); T('网球：取消 → 0', r.s === 200 && r.j.balls === 0, r);
+  r = await call('POST', `/api/sideline/posts/${SP}/hide`, tH, { reason: 'bogus' }); T('不感兴趣：原因不对 → 422', r.s === 422, r);
+  r = await call('POST', `/api/sideline/posts/${SP}/hide`, tP, {}); T('不感兴趣：自己的 → 422 invalid', r.s === 422, r);
+  r = await call('POST', `/api/sideline/posts/${SP}/hide`, tH, {}); T('不感兴趣：→ 200', r.s === 200, r);
+  r = await call('DELETE', `/api/sideline/replies/${RP}`, tP); T('场边：删别人的回复 → 404', r.s === 404, r);
+  r = await call('DELETE', `/api/sideline/replies/${RP}`, tH); T('场边：删自己的回复 → 200', r.s === 200, r);
+  r = await call('DELETE', '/api/sideline/replies/abc', tH); T('场边：回复 id 不是数字 → 404', r.s === 404);
+  r = await call('POST', '/api/sideline/views', null, { post_ids: [SP], device: 'abcdef0123456789abcdef' }); T('浏览：没登录靠设备 id → 200', r.s === 200 && typeof r.j.counted === 'number', r);
+  r = await call('POST', '/api/sideline/views', null, { post_ids: [SP] }); T('浏览：没登录又没设备 id → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', '/api/sideline/views', tH, { post_ids: Array(51).fill(SP) }); T('浏览：超过 50 条 → 422', r.s === 422);
+  r = await call('POST', '/api/sideline/views', 'garbage', { post_ids: [SP] }); T('浏览：带了坏令牌 → 401（不当匿名）', r.s === 401);
+  r = await call('POST', `/api/sideline/posts/${SP}/share`, null, { device: 'abcdef0123456789abcdef' }); T('分享：没登录 → 200', r.s === 200, r);
+  r = await call('GET', '/api/sideline/config'); T('场边配置：没登录能读 → 有版本号', r.s === 200 && r.j.version >= 1 && r.j.config, r);
+  r = await call('GET', `/api/sideline/config?v=${r.j.version}`); T('场边配置：版本没变 → same', r.s === 200 && r.j.same === true, r);
+  r = await call('GET', '/api/sideline/config?v=abc'); T('场边配置：v 不是数字 → 422', r.s === 422);
+  r = await call('POST', '/api/reports', tH, { target_type: 'sb_post', target_id: SP, reason: 'photo', via: 'sideline' }); T('举报场边发布：已点不感兴趣的看不到 → 404', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('POST', '/api/reports', tP, { target_type: 'sb_post', target_id: SP, reason: 'harass', via: 'sideline' }); T('举报场边发布：举报自己的 → 422', r.s === 422, r);
+  r = await call('DELETE', `/api/sideline/posts/${SP}`, tH); T('场边：删别人的发布 → 404', r.s === 404, r);
+  r = await call('DELETE', `/api/sideline/posts/${SP}`, tP); T('场边：删自己的发布 → 200', r.s === 200, r);
+
+  const sub = { endpoint: 'https://push.example/abc123', keys: { p256dh: 'BPk', auth: 'au' }, platform: 'android' };
+  r = await call('POST', '/api/push/subscriptions', tP, sub); T('推送订阅：→ 200', r.s === 200, r);
+  r = await call('POST', '/api/push/subscriptions', tP, sub); T('推送订阅：重复订阅同一个 endpoint 不报错', r.s === 200, r);
+  T('推送订阅：库里只有一条', (await admin.query('select count(*)::int n from push_subscriptions where user_id = $1', [P])).rows[0].n === 1);
+  r = await call('POST', '/api/push/subscriptions', tP, { ...sub, endpoint: 'http://insecure.example/x' }); T('推送订阅：不是 https → 422', r.s === 422);
+  r = await call('POST', '/api/push/subscriptions', tP, { endpoint: sub.endpoint }); T('推送订阅：缺 keys → 422', r.s === 422);
+  r = await call('DELETE', '/api/push/subscriptions', tP, { endpoint: sub.endpoint }); T('推送订阅：取消 → 200 且库里没了', r.s === 200 && (await admin.query('select count(*)::int n from push_subscriptions where user_id = $1', [P])).rows[0].n === 0);
+
+  r = await call('POST', '/api/me/restore', tQ); T('恢复账号：没注销的 → 409 state_changed', r.s === 409 && r.j.error === 'state_changed', r);
+  r = await call('DELETE', '/api/me', tQ); T('注销账号：→ 200 返回影响的球局数', r.s === 200 && r.j.upcoming_left === 0 && r.j.hosted_cancelled >= 0, r);
+  r = await call('DELETE', '/api/me', tQ); T('注销账号：重复注销 → 403 account_deleted 或 409 state_changed', (r.s === 403 && r.j.error === 'account_deleted') || (r.s === 409 && r.j.error === 'state_changed'), r);
+  r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(4, '18:00') })); T('注销后不能发局 → 403 account_deleted', r.s === 403 && r.j.error === 'account_deleted', r);
+  r = await call('POST', '/api/me/restore', tQ); T('30 天内恢复 → 200', r.s === 200, r);
+  await admin.query(`update users set status = 'deleted', status_since = now() - interval '31 days' where id = $1`, [Q]);
+  r = await call('POST', '/api/me/restore', tQ); T('超过 30 天恢复 → 410 restore_expired', r.s === 410 && r.j.error === 'restore_expired', r);
+
   // 路由
   r = await call('GET', '/api/games/' + G + '/cancel', tH); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed', r);
   r = await call('POST', '/api/nope/x', tH); T('不存在的路径 → 404', r.s === 404);

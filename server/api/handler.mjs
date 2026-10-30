@@ -55,14 +55,20 @@ async function readBody(req) {
   try { const b = JSON.parse(t); return b && typeof b === 'object' && !Array.isArray(b) ? { body: b } : { err: send(400, { error: 'bad_json' }) } } catch (_) { return { err: send(400, { error: 'bad_json' }) } }
 }
 // 写接口的固定流程：验令牌 → 球友 → 取 JSON → 在 nbq_user 事务里执行（死锁 / 序列化冲突整笔重试一次）→ 失败按错误码返回
-async function act(req, d, params, fn, { body = true, ids = [] } = {}) {
-  const w = await whoIs(req, d);
-  if (w.err) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err.headers.get('X-Auth-Reason') || '' });
-  if (!w.uid) return send(401, { error: 'login_required' });
+async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon = false } = {}) {
+  let uid = null;
+  if (anon && !req.headers.get('Authorization')) uid = null;          // 没登录也能调的接口（浏览 / 分享 / 配置）：以匿名身份执行，由数据库函数判断
+  else {
+    const w = await whoIs(req, d);
+    if (w.err) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err.headers.get('X-Auth-Reason') || '' });
+    if (!w.uid && !anon) return send(401, { error: 'login_required' });
+    uid = w.uid;
+  }
   for (const k of ids) if (!UUID.test(params[k] || '')) return send(404, { error: 'not_found' });
+  for (const k of nums) if (!/^\d{1,15}$/.test(params[k] || '')) return send(404, { error: 'not_found' });
   let b = {}; if (body) { const r = await readBody(req); if (r.err) return r.err; b = r.body }
   for (let i = 0; ; i++) {
-    try { return send(200, await d.db.asUser(w.uid, q => fn(q, b, params))) }
+    try { return send(200, await d.db.asUser(uid, q => fn(q, b, params))) }
     catch (e) { if ((e.code === '40P01' || e.code === '40001') && i === 0) continue; if (e.code === '40P01' || e.code === '40001') return send(503, { error: 'busy_retry' }); throw e }
   }
 }
@@ -155,8 +161,9 @@ const ROUTES = {
   'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'] }),
   'POST /api/reports': (req, d, p) => act(req, d, p, async (q, b) => {
     const tt = str(b.target_type), tid = str(b.target_id), why = str(b.reason), via = str(b.via), note = str(b.note);
-    if (!['user', 'game'].includes(tt) || !UUID.test(tid || '')) throw bad();
-    if (why === 'other' && !(note || '').trim()) throw Object.assign(new Error('report_note_required'), { code: 'P0001' });
+    const sb = tt === 'sb_post' || tt === 'sb_reply';
+    if (!['user', 'game', 'sb_post', 'sb_reply'].includes(tt) || !(tt === 'sb_reply' ? /^\d{1,15}$/ : UUID).test(tid || '')) throw bad();
+    if (why === 'other' && !sb && !(note || '').trim()) throw Object.assign(new Error('report_note_required'), { code: 'P0001' });
     await q(`insert into reports(reporter_id, target_type, target_id, reason, note, source, via, context_ref) values (nbq_uid(), $1, $2, $3, $4, 'in_app', $5, $6)`, [tt, tid, why, note || null, via, str(b.context_ref)]);
     return { ok: true } }),
   'POST /api/blocks': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.user_id) || '')) throw bad(); await q('select api_block($1)', [b.user_id]); return { ok: true } }),
@@ -201,6 +208,35 @@ const ROUTES = {
   'POST /api/threads/:id/read': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const t = await q('select 1 from threads where id = $1', [x.id]); if (!t.rowCount) throw Object.assign(new Error('not_found'), { code: 'P0001' });   // 行级权限：不在对话里 = 看不到 = 404
     await q(`insert into thread_reads(thread_id, user_id, last_read_at) values ($1, nbq_uid(), now()) on conflict (thread_id, user_id) do update set last_read_at = now()`, [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  // ---- 第 3 步（续 3）：场边、账号注销 / 恢复、推送订阅（对应 api_spec §14、§2、§3）----
+  'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r),
+  'DELETE /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_delete($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  'PATCH /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (typeof b.replies_open !== 'boolean') throw bad(); await q('select api_sb_replies_open($1, $2)', [x.id, b.replies_open]); return { replies_open: b.replies_open } }, { ids: ['id'] }),
+  'POST /api/sideline/posts/:id/replies': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    if (b.to != null && !UUID.test(str(b.to) || '')) throw bad();
+    return { id: Number((await one(q, 'select api_sb_reply($1, $2, $3) as r', [x.id, str(b.body), b.to ?? null])).r) } }, { ids: ['id'] }),
+  'DELETE /api/sideline/replies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_reply_delete($1)', [x.id]); return { ok: true } }, { nums: ['id'], body: false }),
+  'PUT /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_ball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
+  'DELETE /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_unball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
+  'POST /api/sideline/posts/:id/hide': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_hide($1, $2)', [x.id, b.reason == null ? 'none' : str(b.reason)]); return { ok: true } }, { ids: ['id'] }),
+  // 没登录也能调：看和分享不算互动；匿名时靠 device（数据库里存哈希）
+  'POST /api/sideline/views': (req, d, p) => act(req, d, p, async (q, b) => {
+    const ids = b.post_ids; if (!Array.isArray(ids) || ids.length > 50 || !ids.every(v => UUID.test(str(v) || ''))) throw Object.assign(new Error('invalid'), { code: 'P0001', detail: 'posts' });
+    return { counted: (await one(q, 'select api_sb_view($1::uuid[], $2) as n', [ids, str(b.device)])).n } }, { anon: true }),
+  'POST /api/sideline/posts/:id/share': (req, d, p) => act(req, d, p, async (q, b, x) => ({ counted: (await one(q, 'select api_sb_share($1, $2) as n', [x.id, str(b.device)])).n }), { ids: ['id'], anon: true }),
+  'GET /api/sideline/config': (req, d, p) => act(req, d, p, async q => {
+    const v = new URL(req.url).searchParams.get('v'); if (v !== null && !/^\d{1,9}$/.test(v)) throw bad();
+    return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
+  'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
+  'POST /api/me/restore': (req, d, p) => act(req, d, p, async q => { await q('select api_account_restore()'); return { ok: true } }, { body: false }),
+  'POST /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => {
+    const ep = str(b.endpoint), k = b.keys || {}, pf = str(b.platform);
+    if (!ep || ep.length > 1000 || !/^https:\/\//.test(ep) || !str(k.p256dh) || !str(k.auth) || (pf && !['ios_pwa', 'android', 'desktop'].includes(pf))) throw bad();
+    await q(`insert into push_subscriptions(user_id, endpoint, p256dh, auth, platform) values (nbq_uid(), $1, $2, $3, $4)
+             on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, platform = excluded.platform, disabled_at = null`, [ep, k.p256dh, k.auth, pf]);
+    return { ok: true } }),
+  'DELETE /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => { await q('delete from push_subscriptions where user_id = nbq_uid() and endpoint = $1', [str(b.endpoint)]); return { ok: true } }),
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
