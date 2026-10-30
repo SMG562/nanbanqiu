@@ -18,8 +18,8 @@ const IGNORE = /(\.(md|png|webp|jpe?g|svg|zip)|^\.gitignore)$|^(marketing|icons|
 export const RULES = [
   // 前台
   [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
-  [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data']],
-  [/^src\/shared\/script\/0495/, ['unit/nbq_net', 'frontend/real_data']],
+  [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write']],
+  [/^src\/shared\/script\/0495/, ['unit/nbq_net', 'frontend/real_data', 'frontend/real_write']],
   [/^src\/(shared|pwa|web)\//, ['frontend/', 'visual/']],
   [/^南伴球_(PWA|Web)\.html$/, ['frontend/', 'visual/']],
   [/^南伴球_场边设计稿/, ['side_design']],

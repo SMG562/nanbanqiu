@@ -59,7 +59,9 @@ function pactGate(next){if(!ME||ME.pact_at){next();return}PACT_NEXT=next;
     <button class="btn btn-p w100" data-pact="ok" style="margin-top:14px">同意并继续</button><button class="btn btn-s w100" data-pact="close" style="margin-top:8px">再想想</button></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pact]');if(!b)return;e.stopPropagation();e.preventDefault();const k=b.dataset.pact;
   if(k==='1'){pactOpen();return}
-  if(k==='ok'&&ME){ME.pact_at=Date.now();const n=PACT_NEXT;PACT_NEXT=null;UF_CLOSE();if(n)setTimeout(n,260);return}
+  if(k==='ok'&&ME){const n=PACT_NEXT;PACT_NEXT=null;
+    if(typeof NBQ_NET!=='undefined'&&NBQ_NET){NBQ_NET.post('/api/me/pact').then(r=>{if(r.ok){ME.pact_at=Date.now();UF_CLOSE();if(n)setTimeout(n,260)}else toast(apiErrText(r.code))});return}   // 真实模式：同意约定要先记到数据库
+    ME.pact_at=Date.now();UF_CLOSE();if(n)setTimeout(n,260);return}
   PACT_NEXT=null;UF_CLOSE()},true);
 if(typeof gateApply==='function'){const _pgA=gateApply;gateApply=function(id,next){pactGate(()=>_pgA(id,next))}}
 {const _pgC=openCreate;openCreate=function(){if(ME&&!ME.pact_at){pactGate(()=>openCreate());return}return _pgC.apply(this,arguments)}}

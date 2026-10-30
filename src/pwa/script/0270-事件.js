@@ -54,13 +54,13 @@ DEV.addEventListener('click',e=>{
       if(NBQ_NET){nbqNpDone(n);break}
       api.login({name:n,last:($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',ntrp:NP.ntrp,home_club_ids:[...NP.clubs],gender:NP.gender==='f'||NP.gender==='m'?NP.gender:null,adult_confirmed_at:new Date().toISOString(),terms_version:LEGAL_V.terms,privacy_version:LEGAL_V.privacy});/* = api_consent_accept(true) */sbaSaveProf();toast('账号已创建 · 以后打开链接自动登录');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};closeSheet();render();if(nx)setTimeout(nx,380);break}
     case'apply':need(()=>gateApply(g,()=>openApply(g)),'发送申请前，先用手机号验证一下');break;
-    case'doApply':api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
+    case'doApply':if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim()).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
     case'leave':openLeave(g);break;
-    case'doLeave':{const was=api.get(g).mine;api.leave(g);closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
-    case'approve':if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();break;
-    case'reject':api.decide(a.dataset.g,a.dataset.u,false);;render();break;
+    case'doLeave':{const was=api.get(g).mine;if(NBQ_NET){nbqLeave(g).then(d=>{if(d){closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render()}});break}api.leave(g);closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
+    case'approve':if(NBQ_NET){const nm=U(a.dataset.u).name;nbqApprove(a.dataset.g,a.dataset.u).then(d=>{if(d)toast(`已接受 ${nm}`);render()});break}if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();break;
+    case'reject':if(NBQ_NET){nbqDecline(a.dataset.g,a.dataset.u,'pass').then(()=>render());break}api.decide(a.dataset.g,a.dataset.u,false);;render();break;
     case'cancelGame':openCancelGame(g);break;
-    case'doCancelGame':api.cancelGame(g);closeSheet();toast('球局已取消，已通知球友');render();break;
+    case'doCancelGame':if(NBQ_NET){nbqCancel(g).then(d=>{if(d){closeSheet();toast('球局已取消，已通知球友');render()}});break}api.cancelGame(g);closeSheet();toast('球局已取消，已通知球友');render();break;
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;

@@ -12,7 +12,7 @@ const GAME_COLS = 'g.id, g.share_code, g.host_id, g.host_nickname, g.host_utr, g
 const GAME_FROM = 'api_game_cards g join games gg on gg.id = g.id';
 const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme, created_at';
 // 「我」的完整资料：基本列 + 性别 + 常去球场（user_clubs）。注册返回、GET /api/me 都用这个
-const ME_SEL = `${ME_COLS}, gender, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
+const ME_SEL = `${ME_COLS}, gender, pact_accepted_at, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
 async function whoIs(request, { verify, db }) {

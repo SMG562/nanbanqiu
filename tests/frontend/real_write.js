@@ -1,0 +1,100 @@
+// 5g-3 前台接入第 4 轮（4b）：球局写操作在真实模式（nanbanqiu.app）走接口（两端，假 Supabase + 有状态的假 /api）：
+//   申请 · 退出 · 申请失败（错误码提示）· 同意 · 婉拒（原因映射）· 取消 · 发局 · 球友约定 · 连点只发一次 · 全程没有页面报错
+//   流程：先调接口 → 成功后重新读入 → 页面以服务器为准；点击走真实的 data-a 事件处理，不是直接调函数
+const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
+const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
+const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
+const U = c => `${c.repeat(8)}-${c.repeat(4)}-4${c.repeat(3)}-8${c.repeat(3)}-${c.repeat(12)}`;
+const V1 = U('1'), ME = U('a'), HOST = U('b'), REQ = U('d'), G1 = U('c'), G2 = U('e'), G3 = U('f');
+const card = (id, n, no) => ({ id, member_no: no, nickname: n, last_initial: 'W', utr: 5.5, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', seal_roll: 3, card_theme: 'court', played: 4, hosted: 1, kudos: 2, level: 'fresh', gone: false });
+const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }];
+(async () => {
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
+    const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
+    const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
+    const tag = s => `${f} ${s}`;
+    const S = { now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
+      my1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
+    const iso = h => new Date(S.now + h * 3600e3).toISOString();
+    const G = (id, code, host, hostName, h, extra = {}) => ({ id, share_code: code, host_id: host, host_nickname: hostName, host_utr: 5.5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: iso(h), duration_min: 90, game_type: 'doubles', capacity: 4, utr_min: 4, utr_max: 6.5,
+      note: '', status: 'open', tags: [], visibility: 'public', filled: 0, join_mode: 'approve', city: 'melb', approved_count: 1, pending_count: 0, spots_left: 3, ...extra });
+    const games = () => [G(G1, 'Ab3k', HOST, 'Host', 30, { approved_count: S.my1 === 'approved' ? 2 : 1, pending_count: S.my1 === 'pending' ? 1 : 0 }),
+      G(G2, 'Mine', ME, 'Sam', 31, { status: S.g2Cancelled ? 'cancelled' : 'open', pending_count: S.reqStatus === 'pending' ? 1 : 0, approved_count: S.reqStatus === 'approved' ? 2 : 1 }), ...(S.created ? [G(G3, 'New1', ME, 'Sam', 33)] : [])];
+    const parts = () => [{ game_id: G1, user_id: HOST, role: 'host', status: 'approved', created_at: iso(-5), message: '' },
+      ...(S.my1 ? [{ game_id: G1, user_id: ME, role: 'player', status: S.my1, created_at: iso(-1), message: 'hi' }] : []),
+      { game_id: G2, user_id: ME, role: 'host', status: 'approved', created_at: iso(-5), message: '' },
+      { game_id: G2, user_id: REQ, role: 'player', status: S.reqStatus, created_at: iso(-1), message: '想打', decline_reason: S.reqStatus === 'rejected' ? 'pass' : null }];
+    await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
+      const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
+      if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
+      if (m === 'GET') {
+        if (p === '/api/venues') return J(200, { venues: VENUES });
+        if (p === '/api/me') return J(200, { registered: true, user: S.me });
+        if (p === '/api/games') return J(200, { games: games() });
+        if (p === '/api/games/mine') { S.mineGets++; return J(200, { games: games().filter(g => g.host_id === ME || (g.id === G1 && S.my1)), participants: parts(), profiles: { [HOST]: card(HOST, 'Host', 1200), [REQ]: card(REQ, 'Req', 1300), [ME]: S.me } }) }
+        if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
+        if (p === '/api/profiles') return J(200, { profiles: { [HOST]: card(HOST, 'Host', 1200) } });
+        return J(404, { error: 'not_found' }) }
+      if (p === '/api/me/pact') { S.me.pact_accepted_at = new Date().toISOString(); return J(200, { ok: true }) }
+      if (p === '/api/games') { S.created = true; return J(201, { id: G3, share_code: 'New1' }) }
+      if (p === `/api/games/${G1}/requests`) return S.fail ? J(409, { error: S.fail }) : (S.my1 = 'pending', J(200, { status: 'pending' }));
+      if (p === `/api/games/${G1}/requests/me`) return (S.my1 = null, J(200, { status: 'withdrawn' }));
+      if (p === `/api/games/${G2}/requests/${REQ}/approve`) return (S.reqStatus = 'approved', J(200, { status: 'approved' }));
+      if (p === `/api/games/${G2}/requests/${REQ}/decline`) return (S.reqStatus = 'rejected', J(200, { ok: true }));
+      if (p === `/api/games/${G2}/cancel`) return (S.g2Cancelled = true, J(200, { ok: true }));
+      return J(404, { error: 'not_found' }) });
+    await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
+      r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    const click = async (attrs, extra = '') => { await pg.evaluate(([a, x]) => { const el = document.createElement('button'); el.id = '__t'; Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); const host = typeof DEV !== 'undefined' ? DEV : document.body; host.appendChild(el); if (x) { const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = x; host.appendChild(t) } el.click(); el.remove(); const t = document.getElementById('applyMsg'); if (t && x) t.remove() }, [attrs, extra]); await pg.settle(700) };
+    const mine = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? api.get(i).mine : undefined }, id);
+    const st = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? g.status : undefined }, id);
+    const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
+
+    await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);
+    await pg.evaluate(() => { openAuth(null) }); await pg.settle(300); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456'); await pg.waitForFunction(() => ME && GAMES.length === 2, null, { timeout: 10000 }).catch(() => { }); await pg.settle(200);
+    T(tag('登录后读入：球局 2 局、我的约定已记录'), await pg.evaluate(() => ME && ME.name === 'Sam' && !!ME.pact_at && GAMES.length === 2));
+
+    // 申请
+    S.log.length = 0; await click({ 'data-a': 'doApply', 'data-g': G1 }, '周六想打');
+    T(tag('申请：POST 申请，留言原样带上'), S.log.join() === 'POST /api/games/G1/requests' && S.bodies[`POST /api/games/${G1}/requests`].message === '周六想打', [S.log, S.bodies]);
+    T(tag('申请：读入后状态来自服务器（待确认）'), await mine(G1) === 'pending', await mine(G1));
+    // 退出（撤回）
+    S.log.length = 0; await click({ 'data-a': 'doLeave', 'data-g': G1 });
+    T(tag('撤回申请：DELETE，读入后回到未申请'), S.log.join() === 'DELETE /api/games/G1/requests/me' && !(await mine(G1)), [S.log, await mine(G1)]);
+    // 申请失败
+    S.fail = 'game_full'; S.log.length = 0; const m0 = S.mineGets; await click({ 'data-a': 'doApply', 'data-g': G1 }, 'x');
+    T(tag('申请失败（满员）：提示后端错误码对应的文字，状态不变，并重新同步'), /刚刚满员了/.test(await toasts()) && !(await mine(G1)) && S.mineGets > m0, [await toasts(), S.mineGets - m0]);
+    S.fail = null;
+    // 连点只发一次
+    S.slow = 400; S.log.length = 0;
+    await pg.evaluate(([a]) => { const mk = () => { const host = typeof DEV !== 'undefined' ? DEV : document.body; const el = document.createElement('button'); el.setAttribute('data-a', 'doApply'); el.setAttribute('data-g', a); host.appendChild(el); const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = 'y'; host.appendChild(t); el.click(); el.remove(); t.remove() }; mk(); mk(); mk() }, [G1]); await pg.settle(1500); S.slow = 0;
+    T(tag('连点三次只发一次申请'), S.log.filter(x => /requests$/.test(x)).length === 1, S.log);
+    await click({ 'data-a': 'doLeave', 'data-g': G1 });
+    // 同意 / 婉拒
+    S.log.length = 0; await click({ 'data-a': 'approve', 'data-g': G2, 'data-u': REQ });
+    T(tag('同意：POST approve，读入后对方已加入'), S.log.join() === 'POST /api/games/G2/requests/REQ/approve' && await pg.evaluate(([g, u]) => !!PARTS.find(p => p.game_id === g && p.user_id === u && p.status === 'approved'), [G2, REQ]), S.log);
+    S.reqStatus = 'pending'; await pg.evaluate(() => nbqRefresh()); S.log.length = 0; await click({ 'data-a': 'reject', 'data-g': G2, 'data-u': REQ });
+    T(tag('婉拒（直接）：POST decline，原因 pass'), S.log.join() === 'POST /api/games/G2/requests/REQ/decline' && S.bodies[`POST /api/games/${G2}/requests/${REQ}/decline`].reason === 'pass', [S.log, S.bodies]);
+    T(tag('婉拒原因映射：full / friends → known，level → level，其他 → pass'), await pg.evaluate(() => [nbqReason('full'), nbqReason('friends'), nbqReason('level'), nbqReason('next'), nbqReason(undefined)].join()) === 'known,known,level,pass,pass');
+    // 取消
+    S.log.length = 0; await click({ 'data-a': 'doCancelGame', 'data-g': G2 });
+    T(tag('取消球局：POST cancel，读入后状态是已取消'), S.log.join() === 'POST /api/games/G2/cancel' && await st(G2) === 'cancelled', [S.log, await st(G2)]);
+    // 发局
+    S.log.length = 0; const id = await pg.evaluate(([v]) => { const f = { venue_id: v, o: 2, t: '10:00', dur: 90, type: 'doubles', mn: 3.5, mx: 5, note: ' 周六双打 ', tags: new Set(['relax', 'newbie']), miss: 1, instant: false }; return nbqCreate(f) }, [V1]);
+    const cb = S.bodies['POST /api/games'] || {};
+    T(tag('发局：参数映射（utr 范围、标签、缺几人 → filled、加入方式、说明去空格）'), cb.venue_id === V1 && cb.utr_min === 3.5 && cb.utr_max === 5 && cb.game_type === 'doubles' && cb.duration_min === 90 && cb.filled === 2 && cb.join_mode === 'approve' && cb.note === '周六双打' && cb.tags.join() === 'relax,newbie' && typeof cb.starts_at === 'string', cb);
+    T(tag('发局：返回服务器的球局 id，读入后列表里有这局（我是发起人）'), id === G3 && await pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return !!g && api.get(i).isHost }, G3), id);
+    // 球友约定
+    S.me.pact_accepted_at = null; await pg.evaluate(() => nbqRefresh()); S.log.length = 0;
+    await pg.evaluate(() => { window.__pactNext = false; pactGate(() => { window.__pactNext = true }) }); await pg.settle(400);
+    T(tag('约定：没同意过就不直接继续，等同意'), await pg.evaluate(() => window.__pactNext === false && typeof PACT_NEXT !== 'undefined' && !!PACT_NEXT));
+    await pg.evaluate(() => { const el = document.createElement('button'); el.setAttribute('data-pact', 'ok'); document.body.appendChild(el); el.click(); el.remove() }); await pg.settle(900);   // 约定弹窗里的「同意并继续」
+    T(tag('约定：同意后先记到数据库（POST /api/me/pact），再继续原来的操作'), S.log.join() === 'POST /api/me/pact' && await pg.evaluate(() => window.__pactNext === true && !!ME.pact_at), S.log);
+    T(tag('全程没有页面报错'), errs.length === 0, errs);
+    await ctx.close();
+  }
+  await b.close(); console.log(`\nreal_write: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
+})();

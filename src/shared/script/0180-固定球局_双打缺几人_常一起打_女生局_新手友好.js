@@ -1,7 +1,7 @@
     case'lvinfo':LVINFO_OPEN(lvInfoHTML(),!!el.closest('.lvcard'));break;
     case'lvback':LV_BACK();break;
     case'softNo':SOFT_OPEN(softNoHTML(d.g,d.u));break;
-    case'softNoGo':{const p=PARTS.find(p=>p.game_id===d.g&&p.user_id===d.u),nt=((document.getElementById('snNote')||{}).value||'').trim().slice(0,30);ugExpire();if(p&&p.status==='pending'){p.reason=d.v;p.note=nt;api.decide(d.g,d.u,false);toast('已婉拒')}else api.decide(d.g,d.u,false);SOFT_CLOSE();INV_RENDER();break}
+    case'softNoGo':{const p=PARTS.find(p=>p.game_id===d.g&&p.user_id===d.u),nt=((document.getElementById('snNote')||{}).value||'').trim().slice(0,30);if(NBQ_NET){nbqDecline(d.g,d.u,d.v,nt).then(r=>{if(r)toast('已婉拒');SOFT_CLOSE();INV_RENDER()});break}ugExpire();if(p&&p.status==='pending'){p.reason=d.v;p.note=nt;api.decide(d.g,d.u,false);toast('已婉拒')}else api.decide(d.g,d.u,false);SOFT_CLOSE();INV_RENDER();break}
     case'cardLink':copy(profileUrl(U(d.u),'link'),'球员卡链接已复制，可以发给朋友');break;
     case'cardShare':{const u=U(d.u);if(navigator.share)navigator.share({title:`${cardName(u)} 的南伴球球员卡`,url:profileUrl(u)}).catch(()=>{});else copy(profileUrl(u),'球员卡链接已复制');break}
     case'endSeries':{const s=seriesOf(G());s.active=false;toast('已停止 · 这一场照常进行');INV_RENDER();break}
@@ -140,6 +140,7 @@ function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,s
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
 function ngPublish(){if(NG.edit){geSave();return}ngKeep();const f=NG;if(!f.venue_id){toast('选一个场地吧');return}if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return}
+  if(NBQ_NET){nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o)});return}   // 真实模式：先调接口，读入后再显示结果页
   const id=api.create({venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,ntrp_min:f.mn,ntrp_max:f.mx,note:f.note.trim().slice(0,60)});
   const g=GAMES.find(x=>x.id===id);g.tags=[...f.tags];g.hide_done=!!f.hide;g.created_at=Date.now();g.join_mode=ugMode(f);if(f.type==='doubles')g.filled=3-f.miss;if(f.rep)makeSeries(id);CREATE_DONE(id,f.o)}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(!el||!NG||NG.o==null)return;e.stopPropagation();const a=el.dataset.ng,v=el.dataset.v,f=NG;ngKeep();

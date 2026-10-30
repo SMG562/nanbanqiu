@@ -24,7 +24,8 @@ function ugToggleHTML(f){if(!ugShow(f))return'';
   return `<div class="tgl ngrep" data-ng="instant"><span>不用我确认<small>水平在范围内的球友可以直接加入，临时约球更快凑齐</small></span><span class="sw${f.instant?' on':''}"></span></div>`}
 
 // ---------- 申请超时 ----------
-function ugExpire(){const now=ugNow();let n=0;
+function ugExpire(){if(typeof NBQ_NET!=='undefined'&&NBQ_NET)return;   /* 真实模式：失效由服务器判断 */
+  const now=ugNow();let n=0;
   PARTS.forEach(p=>{if(p.status!=='pending')return;const g=GAMES.find(x=>x.id===p.game_id);if(!g||g.status==='cancelled')return;
     const dl=ugDeadline(p,g);if(now<dl)return;p.status='rejected';p.reason='timeout';p.expired_at=dl;n++;
     if(now-dl<30*6e4&&ugStart(g)>now-30*6e4)notify(p.user_id,'expired',g.id,g.host_id)});   // 很久以前就该失效的（离线补算）只改状态，不再打扰
@@ -83,6 +84,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ug]');if(!
     if(c.mine==='approved'){UF_CLOSE();UF_RENDER();return}
     if(c.spots<=0){UF_CLOSE();toast('刚刚满员了，看看附近其他球局');UF_RENDER();return}
     if(!ugInstant(c)||!ugFits(c,ME)){UF_CLOSE();toast('发起人改成了需要确认，请发送申请');setTimeout(()=>openApply(id),200);return}
+    if(NBQ_NET){nbqJoin(id).then(r=>{if(r){UF_RENDER();ugJoined(id)}else{UF_CLOSE();UF_RENDER()}});return}
     api.join(id);UF_RENDER();ugJoined(id)}},true);
 // 等待确认的提示条带上失效时间；超时失效的显示原因
 const _ugPass=passHTML0;passHTML0=function(c){let h=_ugPass(c);const p=c.mineP;if(!p||c.isHost)return h;

@@ -2290,7 +2290,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-sx]');if(
     case'lvinfo':LVINFO_OPEN(lvInfoHTML(),!!el.closest('.lvcard'));break;
     case'lvback':LV_BACK();break;
     case'softNo':SOFT_OPEN(softNoHTML(d.g,d.u));break;
-    case'softNoGo':{const p=PARTS.find(p=>p.game_id===d.g&&p.user_id===d.u),nt=((document.getElementById('snNote')||{}).value||'').trim().slice(0,30);ugExpire();if(p&&p.status==='pending'){p.reason=d.v;p.note=nt;api.decide(d.g,d.u,false);toast('已婉拒')}else api.decide(d.g,d.u,false);SOFT_CLOSE();INV_RENDER();break}
+    case'softNoGo':{const p=PARTS.find(p=>p.game_id===d.g&&p.user_id===d.u),nt=((document.getElementById('snNote')||{}).value||'').trim().slice(0,30);if(NBQ_NET){nbqDecline(d.g,d.u,d.v,nt).then(r=>{if(r)toast('已婉拒');SOFT_CLOSE();INV_RENDER()});break}ugExpire();if(p&&p.status==='pending'){p.reason=d.v;p.note=nt;api.decide(d.g,d.u,false);toast('已婉拒')}else api.decide(d.g,d.u,false);SOFT_CLOSE();INV_RENDER();break}
     case'cardLink':copy(profileUrl(U(d.u),'link'),'球员卡链接已复制，可以发给朋友');break;
     case'cardShare':{const u=U(d.u);if(navigator.share)navigator.share({title:`${cardName(u)} 的南伴球球员卡`,url:profileUrl(u)}).catch(()=>{});else copy(profileUrl(u),'球员卡链接已复制');break}
     case'endSeries':{const s=seriesOf(G());s.active=false;toast('已停止 · 这一场照常进行');INV_RENDER();break}
@@ -2429,6 +2429,7 @@ function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,s
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
 function ngPublish(){if(NG.edit){geSave();return}ngKeep();const f=NG;if(!f.venue_id){toast('选一个场地吧');return}if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return}
+  if(NBQ_NET){nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o)});return}   // 真实模式：先调接口，读入后再显示结果页
   const id=api.create({venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,ntrp_min:f.mn,ntrp_max:f.mx,note:f.note.trim().slice(0,60)});
   const g=GAMES.find(x=>x.id===id);g.tags=[...f.tags];g.hide_done=!!f.hide;g.created_at=Date.now();g.join_mode=ugMode(f);if(f.type==='doubles')g.filled=3-f.miss;if(f.rep)makeSeries(id);CREATE_DONE(id,f.o)}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(!el||!NG||NG.o==null)return;e.stopPropagation();const a=el.dataset.ng,v=el.dataset.v,f=NG;ngKeep();
@@ -3011,7 +3012,8 @@ function ugToggleHTML(f){if(!ugShow(f))return'';
   return `<div class="tgl ngrep" data-ng="instant"><span>不用我确认<small>水平在范围内的球友可以直接加入，临时约球更快凑齐</small></span><span class="sw${f.instant?' on':''}"></span></div>`}
 
 // ---------- 申请超时 ----------
-function ugExpire(){const now=ugNow();let n=0;
+function ugExpire(){if(typeof NBQ_NET!=='undefined'&&NBQ_NET)return;   /* 真实模式：失效由服务器判断 */
+  const now=ugNow();let n=0;
   PARTS.forEach(p=>{if(p.status!=='pending')return;const g=GAMES.find(x=>x.id===p.game_id);if(!g||g.status==='cancelled')return;
     const dl=ugDeadline(p,g);if(now<dl)return;p.status='rejected';p.reason='timeout';p.expired_at=dl;n++;
     if(now-dl<30*6e4&&ugStart(g)>now-30*6e4)notify(p.user_id,'expired',g.id,g.host_id)});   // 很久以前就该失效的（离线补算）只改状态，不再打扰
@@ -3070,6 +3072,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ug]');if(!
     if(c.mine==='approved'){UF_CLOSE();UF_RENDER();return}
     if(c.spots<=0){UF_CLOSE();toast('刚刚满员了，看看附近其他球局');UF_RENDER();return}
     if(!ugInstant(c)||!ugFits(c,ME)){UF_CLOSE();toast('发起人改成了需要确认，请发送申请');setTimeout(()=>openApply(id),200);return}
+    if(NBQ_NET){nbqJoin(id).then(r=>{if(r){UF_RENDER();ugJoined(id)}else{UF_CLOSE();UF_RENDER()}});return}
     api.join(id);UF_RENDER();ugJoined(id)}},true);
 // 等待确认的提示条带上失效时间；超时失效的显示原因
 const _ugPass=passHTML0;passHTML0=function(c){let h=_ugPass(c);const p=c.mineP;if(!p||c.isHost)return h;
@@ -3911,7 +3914,9 @@ function pactGate(next){if(!ME||ME.pact_at){next();return}PACT_NEXT=next;
     <button class="btn btn-p w100" data-pact="ok" style="margin-top:14px">同意并继续</button><button class="btn btn-s w100" data-pact="close" style="margin-top:8px">再想想</button></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pact]');if(!b)return;e.stopPropagation();e.preventDefault();const k=b.dataset.pact;
   if(k==='1'){pactOpen();return}
-  if(k==='ok'&&ME){ME.pact_at=Date.now();const n=PACT_NEXT;PACT_NEXT=null;UF_CLOSE();if(n)setTimeout(n,260);return}
+  if(k==='ok'&&ME){const n=PACT_NEXT;PACT_NEXT=null;
+    if(typeof NBQ_NET!=='undefined'&&NBQ_NET){NBQ_NET.post('/api/me/pact').then(r=>{if(r.ok){ME.pact_at=Date.now();UF_CLOSE();if(n)setTimeout(n,260)}else toast(apiErrText(r.code))});return}   // 真实模式：同意约定要先记到数据库
+    ME.pact_at=Date.now();UF_CLOSE();if(n)setTimeout(n,260);return}
   PACT_NEXT=null;UF_CLOSE()},true);
 if(typeof gateApply==='function'){const _pgA=gateApply;gateApply=function(id,next){pactGate(()=>_pgA(id,next))}}
 {const _pgC=openCreate;openCreate=function(){if(ME&&!ME.pact_at){pactGate(()=>openCreate());return}return _pgC.apply(this,arguments)}}
@@ -4860,7 +4865,7 @@ const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
     avatar_kind:u.avatar_kind||'letter',animal:u.avatar_animal||'tiger',color:u.avatar_color,card_theme:u.card_theme,seal_roll:u.seal_roll,
-    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
+    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
 function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
@@ -4948,6 +4953,30 @@ async function nbqNpDone(n){
   if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok)toast(apiErrText(g.code))}
   const e=await nbqEnter();if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
   toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
+
+/* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */
+// 重新读入（保持登录；读不到就保留现有数据）
+async function nbqRefresh(){const r=await nbqLoadAll(NBQ_NET);if(r.ok&&r.registered){nbqApply(r);return true}return false}
+const NBQ_BUSY=new Set();   // 同一个操作进行中不重复提交（连点）
+// call: net => Promise<{ok,data,code,...}>；返回成功时的 data，失败返回 null（已提示）
+async function nbqWrite(key,call){
+  if(NBQ_BUSY.has(key))return null;NBQ_BUSY.add(key);
+  try{const r=await call(NBQ_NET);
+    if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
+    await nbqRefresh();return r.data||{}}
+  finally{NBQ_BUSY.delete(key)}}
+const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
+const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
+const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
+const nbqCancel=id=>nbqWrite('cancel'+id,n=>n.post('/api/games/'+id+'/cancel'));
+const nbqApprove=(id,uid)=>nbqWrite('dec'+id+uid,n=>n.post('/api/games/'+id+'/requests/'+uid+'/approve'));
+// 婉拒原因：前台的 full / friends → known，level → level，next / 其他 → pass（后端只有 known | level | pass）
+const nbqReason=r=>({full:'known',friends:'known',known:'known',level:'level'})[r]||'pass';
+const nbqDecline=(id,uid,reason,note)=>nbqWrite('dec'+id+uid,n=>n.post('/api/games/'+id+'/requests/'+uid+'/decline',{reason:nbqReason(reason),note:(note||'').slice(0,30)}));
+// 发局：前台表单 → 接口参数。每周重复（rep）和「约满后不再公开」（hide）后端还没有，真实模式先不带
+function nbqCreateBody(f){return{venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,utr_min:f.mn,utr_max:f.mx,
+  note:(f.note||'').trim().slice(0,60),tags:[...f.tags],join_mode:ugMode(f),filled:f.type==='doubles'?3-f.miss:0}}
+async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
@@ -5197,13 +5226,13 @@ DEV.addEventListener('click',e=>{
       if(NBQ_NET){nbqNpDone(n);break}
       api.login({name:n,last:($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',ntrp:NP.ntrp,home_club_ids:[...NP.clubs],gender:NP.gender==='f'||NP.gender==='m'?NP.gender:null,adult_confirmed_at:new Date().toISOString(),terms_version:LEGAL_V.terms,privacy_version:LEGAL_V.privacy});/* = api_consent_accept(true) */sbaSaveProf();toast('账号已创建 · 以后打开链接自动登录');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};closeSheet();render();if(nx)setTimeout(nx,380);break}
     case'apply':need(()=>gateApply(g,()=>openApply(g)),'发送申请前，先用手机号验证一下');break;
-    case'doApply':api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
+    case'doApply':if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim()).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
     case'leave':openLeave(g);break;
-    case'doLeave':{const was=api.get(g).mine;api.leave(g);closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
-    case'approve':if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();break;
-    case'reject':api.decide(a.dataset.g,a.dataset.u,false);;render();break;
+    case'doLeave':{const was=api.get(g).mine;if(NBQ_NET){nbqLeave(g).then(d=>{if(d){closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render()}});break}api.leave(g);closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
+    case'approve':if(NBQ_NET){const nm=U(a.dataset.u).name;nbqApprove(a.dataset.g,a.dataset.u).then(d=>{if(d)toast(`已接受 ${nm}`);render()});break}if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();break;
+    case'reject':if(NBQ_NET){nbqDecline(a.dataset.g,a.dataset.u,'pass').then(()=>render());break}api.decide(a.dataset.g,a.dataset.u,false);;render();break;
     case'cancelGame':openCancelGame(g);break;
-    case'doCancelGame':api.cancelGame(g);closeSheet();toast('球局已取消，已通知球友');render();break;
+    case'doCancelGame':if(NBQ_NET){nbqCancel(g).then(d=>{if(d){closeSheet();toast('球局已取消，已通知球友');render()}});break}api.cancelGame(g);closeSheet();toast('球局已取消，已通知球友');render();break;
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
