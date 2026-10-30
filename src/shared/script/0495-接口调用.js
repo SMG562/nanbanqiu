@@ -34,14 +34,15 @@ const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
     avatar_kind:u.avatar_kind||'letter',animal:u.avatar_animal||'tiger',color:u.avatar_color,card_theme:u.card_theme,seal_roll:u.seal_roll,
-    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,home_club_ids:u.card_venue_id?[u.card_venue_id]:[],
+    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
 function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
   surface:Array.isArray(v.surfaces)&&v.surfaces[0]||'hard',courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
-// 球局卡片 → GAMES 条目（字段名后端与前台一致；时间转毫秒数，与演示数据一致）
-function nbqFromGame(g){return{...g,starts_at:nbqMs(g.starts_at),original_start:nbqMs(g.original_start),postponed_at:nbqMs(g.postponed_at),time_set_at:nbqMs(g.time_set_at),
-  filled:g.filled||0,tags:g.tags||[]}}
+// 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
+const nbqIso=t=>t==null?null:new Date(t).toISOString();
+function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
+  ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[]}}
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
   created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
@@ -62,13 +63,43 @@ async function nbqLoadAll(net){
     parts:(mine.data.participants||[]).map(nbqFromPart),invites:(inv.data.invites||[]).map(nbqFromInvite)}}
 
 /* ---- 页面接线 ---- */
-// 真实模式 = 登录模块已启用（SB_CFG 有配置 = 正式域名）。演示模式 NBQ_NET 为 null，其余代码照旧
-const NBQ_NET=(typeof SBA!=='undefined'&&SBA.on())?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
+// 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
+// 演示模式 NBQ_NET 为 null，其余代码照旧。
+const NBQ_REAL=typeof location!=='undefined'&&/^(www\.)?nanbanqiu\.app$/.test(location.hostname)&&typeof SBA!=='undefined'&&SBA.on();
+const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
-  onAuthLost:()=>{if(typeof sbaLogout==='function')sbaLogout()}}):null;
+  onAuthLost:()=>{sbaLogout();render()}}):null;
+// 清掉内存里的演示数据（真实模式启动时、退出登录时）。固定球局会在每次 housekeep 里自动补下一场，所以 SERIES 也要清；对话、邀约、点赞同理
+function nbqClear(){Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
+  SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
 function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
   ME=USERS[r.me];return true}
+// 启动（两端 seed() 之后调用）：真实模式先清掉演示数据，球场是公开的，先读进来（新用户选 Home Club 要用）
+async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
+  const v=await NBQ_NET.get('/api/venues',null,{anon:true});
+  if(v.ok&&!ME){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
+  render()}
+// 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code}
+async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
+  if(!r.ok)return{st:'error',code:r.code};
+  if(!r.registered)return{st:'new'};
+  nbqApply(r);return{st:'ok'}}
+// 验证码通过之后（sbaOtpDone 调用）
+async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
+  if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
+  if(e.st==='new'){openNewProfile();return}
+  toast('欢迎回来');const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
+// 新号码填完资料（两端 npDone 调用）：注册 → 常去球场 → 性别 → 读入
+async function nbqNpDone(n){
+  const last=($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',btn=document.querySelector('[data-a="npDone"]'),err=m=>{const e=$('#npErr');if(e)e.textContent=m;if(btn)btn.disabled=false};
+  if(btn){if(btn.disabled)return;btn.disabled=true}
+  const reg=await NBQ_NET.post('/api/me/register',{nickname:n,last_initial:last||null,utr:NP.ntrp,utr_estimated:!!NP.est,adult:true});
+  if(!reg.ok)return err(apiErrText(reg.code));
+  if(NP.clubs&&NP.clubs.length){const c=await NBQ_NET.put('/api/me/clubs',{venue_ids:[...NP.clubs].slice(0,3)});if(!c.ok)toast(apiErrText(c.code))}
+  if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok)toast(apiErrText(g.code))}
+  const e=await nbqEnter();if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
+  toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}

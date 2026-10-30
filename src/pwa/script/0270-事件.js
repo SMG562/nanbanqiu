@@ -51,6 +51,7 @@ DEV.addEventListener('click',e=>{
     case'login':openAuth(null);break;
     case'sendCode':{const p=$('#ph');if(p){const e=phoneE164($('#cc').value,p.value);if(!e){const k=phoneCountry($('#cc').value);p.focus();p.style.borderColor='var(--red)';toast('请输入'+k.zh+'手机号，如 '+k.hint);return}AUTH.phone=p.value;AUTH.cc=$('#cc').value;AUTH.e164=e}sbaSendThen(openOtp);break}
     case'npDone':{const n=$('#npName').value.trim();if(!n){$('#npErr').textContent='请填写昵称';return}{const bad=NICK_BAD(n);if(bad){$('#npErr').textContent=bad;return}}if(!$('#npAdult')||!$('#npAdult').checked){$('#npErr').textContent=apiErrText('adult_required');return}
+      if(NBQ_NET){nbqNpDone(n);break}
       api.login({name:n,last:($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',ntrp:NP.ntrp,home_club_ids:[...NP.clubs],gender:NP.gender==='f'||NP.gender==='m'?NP.gender:null,adult_confirmed_at:new Date().toISOString(),terms_version:LEGAL_V.terms,privacy_version:LEGAL_V.privacy});/* = api_consent_accept(true) */sbaSaveProf();toast('账号已创建 · 以后打开链接自动登录');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};closeSheet();render();if(nx)setTimeout(nx,380);break}
     case'apply':need(()=>gateApply(g,()=>openApply(g)),'发送申请前，先用手机号验证一下');break;
     case'doApply':api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;

@@ -3,7 +3,8 @@ function detectEnv(){const ua=navigator.userAgent;if(/MicroMessenger/i.test(ua))
 function setEnv(e){ENV=e;DEV.classList.toggle('env-wechat',e==='wechat');if(e==='wechat')PUSH.enabled=false;render()}
 function setWho(id,quiet){ME=id?USERS[id]:null;UI.pastShown=20;if(ME&&!quiet)toast('当前身份：'+ME.name);
   if(ME&&LOC.source==='default'&&myClubIds().length){const v=VEN[myClubIds()[0]];LOC={...LOC,lat:v.lat,lng:v.lng,label:v.short,source:'club',asked:true}}render()}
-function renderPanel(){$$('#envSeg button').forEach(b=>b.classList.toggle('on',b.dataset.env===ENV));
+function renderPanel(){if(typeof NBQ_NET!=='undefined'&&NBQ_NET)return;   /* 真实数据下没有演示球局，演示面板不画 */
+  $$('#envSeg button').forEach(b=>b.classList.toggle('on',b.dataset.env===ENV));
   $$('#whoSeg button').forEach(b=>b.classList.toggle('on',b.dataset.who===(ME&&['jason','han'].includes(ME.id)?ME.id:'')));
   const c=api.get('g1');$('#wxPrev').innerHTML=wxPreviewHTML(c)+`<pre style="white-space:pre-wrap;font:12px/1.5 inherit;background:var(--bg);border-radius:10px;padding:10px;margin-top:10px;color:var(--ink2)">${esc(shareText(c))}</pre>`;$('#ogPrev').innerHTML=ogLHTML(c)}
 $('#envSeg').onclick=e=>{const b=e.target.closest('[data-env]');if(b)setEnv(b.dataset.env)};

@@ -11,6 +11,8 @@ const GAME_COLS = 'g.id, g.share_code, g.host_id, g.host_nickname, g.host_utr, g
 // api_game_cards 是早期建的视图，后来加的列（加入方式、城市、顺延时间…）不在里面，所以再关联 games 取（games 的行级权限同样生效）
 const GAME_FROM = 'api_game_cards g join games gg on gg.id = g.id';
 const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme, created_at';
+// 「我」的完整资料：基本列 + 性别 + 常去球场（user_clubs）。注册返回、GET /api/me 都用这个
+const ME_SEL = `${ME_COLS}, gender, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
 async function whoIs(request, { verify, db }) {
@@ -106,7 +108,7 @@ const ROUTES = {
   'GET /api/me': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err;
     if (!w.uid) return send(200, { registered: false });
-    const user = await d.db.asUser(w.uid, async q => (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0] || null);
+    const user = await d.db.asUser(w.uid, async q => (await q(`select ${ME_SEL} from users where id = nbq_uid()`)).rows[0] || null);
     return send(200, user ? { registered: true, user } : { registered: false });
   },
   // ---- 第 2 步：只读接口（球场 / 球局 / 球友公开资料）----
@@ -283,7 +285,7 @@ const ROUTES = {
     const r = await readBody(req); if (r.err) return r.err; const b = r.body;
     const phone = w.phone && '+' + w.phone.replace(/^\+/, ''); if (!/^\+614\d{8}$/.test(phone || '')) return send(422, { error: 'invalid', detail: 'phone' });
     const utr = Number(b.utr), nick = str(b.nickname), li = str(b.last_initial);
-    if (w.uid) return send(200, { registered: true, user: await d.db.asUser(w.uid, async q => (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0]) });
+    if (w.uid) return send(200, { registered: true, user: await d.db.asUser(w.uid, async q => (await q(`select ${ME_SEL} from users where id = nbq_uid()`)).rows[0]) });
     if (!nick || nick.length < 1 || nick.length > 20) return send(422, { error: 'invalid', detail: 'nickname' });
     if (!(utr >= 1 && utr <= 16.5)) return send(422, { error: 'invalid', detail: 'utr' });
     if (li !== null && !/^[A-Za-z]$/.test(li)) return send(422, { error: 'invalid', detail: 'last_initial' });
@@ -295,7 +297,7 @@ const ROUTES = {
         values ($1,$2,$3,$4,$5,$6,coalesce($7,'letter'),$8,coalesce($9,'paper'),coalesce($10,'court')) returning id`,
         [w.sub, phone, nick, li ? li.toUpperCase() : null, utr, b.utr_estimated === true, str(b.avatar_kind), str(b.avatar_animal), str(b.avatar_color), str(b.card_theme)])).rows[0].id) }
     catch (e) { if (e.code === '23505') { const ex = await d.db.asService(async q => (await q('select id from users where auth_id = $1', [w.sub])).rows[0]?.id); if (!ex) return send(409, { error: 'phone_taken' }); id = ex } else throw e }
-    const user = await d.db.asUser(id, async q => { await q('select api_consent_accept(true)'); return (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0] });
+    const user = await d.db.asUser(id, async q => { await q('select api_consent_accept(true)'); return (await q(`select ${ME_SEL} from users where id = nbq_uid()`)).rows[0] });
     return send(200, { registered: true, user });
   },
 };

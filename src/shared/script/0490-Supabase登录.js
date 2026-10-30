@@ -61,14 +61,17 @@ function sbaOtpDone(code){
   if(SBA_BUSY)return;SBA_BUSY=true;const o=$('#otp');if(o)o.readOnly=true;
   SBA.verify(AUTH.e164,code).then(r=>{SBA_BUSY=false;
     if(!r.ok){const x=$('#otp');if(x){x.readOnly=false;x.value='';x.focus()}toast(sbaMsg(r.code));return}
-    clearInterval(AUTH.t);const p=SBA.prof(r.uid);
+    clearInterval(AUTH.t);
+    if(typeof NBQ_NET!=='undefined'&&NBQ_NET){nbqAfterLogin();return}   // 真实数据：资料在数据库里
+    const p=SBA.prof(r.uid);
     if(!p){openNewProfile();return}   // 新号码：照旧填资料
     api.login(Object.assign({sb_uid:r.uid},p));toast('欢迎回来');   // 老用户：直接进
     const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)})}
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
-function sbaLogout(){if(SBA.on())SBA.logout()}
+function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqClear()}
 // 打开页面：有登录态又有资料 → 自动登录
 function sbaRestore(){if(!SBA.on()||ME)return;
+  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(!s||ME)return;return nbqEnter().then(e=>{if(e.st==='ok')render()})});return}
   SBA.fresh().then(s=>{if(!s||ME)return;const p=SBA.prof(s.uid);if(!p)return;api.login(Object.assign({sb_uid:s.uid},p));render()})}
 setTimeout(sbaRestore,0);

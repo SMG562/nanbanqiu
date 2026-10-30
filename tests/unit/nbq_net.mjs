@@ -48,8 +48,9 @@ T('球友：没填的给默认（字母头像、空姓）', (x => x.avatar_kind 
 T('球友：null → null', X.nbqFromUser(null) === null);
 const v = X.nbqFromVenue({ id: 'v1', name: 'Albert Park Tennis', short_name: null, suburb: 'Albert Park', surfaces: ['clay', 'hard'], lat: -37.84, lng: 144.97, lights: true });
 T('球场：简称缺省取全名，场地取第一个', v.short === 'Albert Park Tennis' && v.surface === 'clay' && v.lights === true && v.lat === -37.84);
-const g = X.nbqFromGame({ id: 'g1', starts_at: '2026-11-01T01:00:00.000Z', original_start: null, filled: null, tags: null });
-T('球局：时间转毫秒、空值给默认', g.starts_at === Date.parse('2026-11-01T01:00:00.000Z') && g.original_start === null && g.filled === 0 && Array.isArray(g.tags));
+const g = X.nbqFromGame({ id: 'g1', starts_at: '2026-11-01T01:00:00Z', original_start: null, filled: null, tags: null, utr_min: 3.5, utr_max: 5 });
+T('球局：时间保持 ISO 字符串（和演示数据一致）、空值给默认', g.starts_at === '2026-11-01T01:00:00.000Z' && g.original_start === null && g.filled === 0 && Array.isArray(g.tags), g);
+T('球局：utr_min / utr_max 同时给 ntrp_min / ntrp_max（前台用后者）', g.ntrp_min === 3.5 && g.ntrp_max === 5 && g.utr_min === 3.5);
 const p = X.nbqFromPart({ game_id: 'g1', user_id: 'u1', role: 'player', status: 'rejected', message: null, decline_reason: 'level', decline_note: 'x', created_at: '2026-10-30T00:00:00Z' });
 T('参与记录：婉拒原因 → reason / note，留言缺省为空串', p.reason === 'level' && p.note === 'x' && p.message === '' && typeof p.created_at === 'number');
 T('参与记录：没有婉拒原因时 reason 不存在', X.nbqFromPart({ game_id: 'g', user_id: 'u', role: 'host', status: 'approved' }).reason === undefined);
