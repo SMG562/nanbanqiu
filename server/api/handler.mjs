@@ -230,13 +230,16 @@ const ROUTES = {
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
   'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
   'POST /api/me/restore': (req, d, p) => act(req, d, p, async q => { await q('select api_account_restore()'); return { ok: true } }, { body: false }),
+  // 推送订阅写在 user_devices（发送程序读这里）：同一个 endpoint 更新密钥；否则占用这一端（手机 / 电脑）还没开推送的设备行；再没有就新建
   'POST /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => {
-    const ep = str(b.endpoint), k = b.keys || {}, pf = str(b.platform);
-    if (!ep || ep.length > 1000 || !/^https:\/\//.test(ep) || !str(k.p256dh) || !str(k.auth) || (pf && !['ios_pwa', 'android', 'desktop'].includes(pf))) throw bad();
-    await q(`insert into push_subscriptions(user_id, endpoint, p256dh, auth, platform) values (nbq_uid(), $1, $2, $3, $4)
-             on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, platform = excluded.platform, disabled_at = null`, [ep, k.p256dh, k.auth, pf]);
+    const ep = str(b.endpoint), k = b.keys || {}, pf = { mobile: 'mobile', ios_pwa: 'mobile', android: 'mobile', desktop: 'desktop' }[str(b.platform)];
+    if (!ep || ep.length > 1000 || !/^https:\/\//.test(ep) || !str(k.p256dh) || !str(k.auth) || !pf) throw bad();
+    const set = `push_endpoint = $1, push_p256dh = $2, push_auth = $3, last_active_at = now()`;
+    let r = await q(`update user_devices set ${set} where user_id = nbq_uid() and push_endpoint = $1`, [ep, k.p256dh, k.auth]);
+    if (!r.rowCount) r = await q(`update user_devices set ${set} where id = (select id from user_devices where user_id = nbq_uid() and platform = $4 and push_endpoint is null order by created_at limit 1)`, [ep, k.p256dh, k.auth, pf]);
+    if (!r.rowCount) await q(`insert into user_devices(user_id, platform, push_endpoint, push_p256dh, push_auth, last_active_at) values (nbq_uid(), $4, $1, $2, $3, now())`, [ep, k.p256dh, k.auth, pf]);
     return { ok: true } }),
-  'DELETE /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => { await q('delete from push_subscriptions where user_id = nbq_uid() and endpoint = $1', [str(b.endpoint)]); return { ok: true } }),
+  'DELETE /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => { await q('update user_devices set push_endpoint = null, push_p256dh = null, push_auth = null where user_id = nbq_uid() and push_endpoint = $1', [str(b.endpoint)]); return { ok: true } }),
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
@@ -252,5 +255,5 @@ export async function handleApi(request, deps) {
   if (!h) { const m = matchPattern(request.method, path); if (m) { h = m.h; params = m.params; name = m.key } }
   if (!h) return pathExists(path) ? send(405, { error: 'method_not_allowed' }) : send(404, { error: 'not_found' });
   try { return await h(request, deps, params) }
-  catch (e) { const r = dbError(e); if (r) return r; console.error('api_error', name, e && (e.code || e.message)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看日志
+  catch (e) { const r = dbError(e); if (r) return r; console.error('api_error', name, e && (e.code || e.name)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看日志
 }

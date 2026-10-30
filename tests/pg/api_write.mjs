@@ -224,13 +224,17 @@ try {
   r = await call('DELETE', `/api/sideline/posts/${SP}`, tH); T('场边：删别人的发布 → 404', r.s === 404, r);
   r = await call('DELETE', `/api/sideline/posts/${SP}`, tP); T('场边：删自己的发布 → 200', r.s === 200, r);
 
-  const sub = { endpoint: 'https://push.example/abc123', keys: { p256dh: 'BPk', auth: 'au' }, platform: 'android' };
-  r = await call('POST', '/api/push/subscriptions', tP, sub); T('推送订阅：→ 200', r.s === 200, r);
-  r = await call('POST', '/api/push/subscriptions', tP, sub); T('推送订阅：重复订阅同一个 endpoint 不报错', r.s === 200, r);
-  T('推送订阅：库里只有一条', (await admin.query('select count(*)::int n from push_subscriptions where user_id = $1', [P])).rows[0].n === 1);
+  const sub = { endpoint: 'https://push.example/abc123', keys: { p256dh: 'BPk', auth: 'au' }, platform: 'mobile' };
+  const devs = async () => (await admin.query('select platform, push_endpoint, push_p256dh, push_auth from user_devices where user_id = $1 order by created_at', [P])).rows;
+  r = await call('POST', '/api/push/subscriptions', tP, sub); T('推送订阅：→ 200，写进 user_devices（发送程序读这里）', r.s === 200 && (await devs()).length === 1 && (await devs())[0].push_endpoint === sub.endpoint && (await devs())[0].platform === 'mobile', await devs());
+  r = await call('POST', '/api/push/subscriptions', tP, { ...sub, keys: { p256dh: 'BPk2', auth: 'au2' } }); T('推送订阅：同一个 endpoint 再订阅 = 更新密钥，不新增', r.s === 200 && (await devs()).length === 1 && (await devs())[0].push_p256dh === 'BPk2', await devs());
+  r = await call('POST', '/api/push/subscriptions', tP, { ...sub, endpoint: 'https://push.example/desk', platform: 'desktop' }); T('推送订阅：电脑是另一台设备', r.s === 200 && (await devs()).length === 2, await devs());
+  r = await call('POST', '/api/push/subscriptions', tP, { ...sub, platform: 'android' }); T('推送订阅：platform 写 android / ios_pwa 按手机算', r.s === 200 && (await devs()).length === 2, await devs());
   r = await call('POST', '/api/push/subscriptions', tP, { ...sub, endpoint: 'http://insecure.example/x' }); T('推送订阅：不是 https → 422', r.s === 422);
   r = await call('POST', '/api/push/subscriptions', tP, { endpoint: sub.endpoint }); T('推送订阅：缺 keys → 422', r.s === 422);
-  r = await call('DELETE', '/api/push/subscriptions', tP, { endpoint: sub.endpoint }); T('推送订阅：取消 → 200 且库里没了', r.s === 200 && (await admin.query('select count(*)::int n from push_subscriptions where user_id = $1', [P])).rows[0].n === 0);
+  r = await call('POST', '/api/push/subscriptions', tP, { ...sub, platform: 'tv' }); T('推送订阅：platform 不认识 → 422', r.s === 422);
+  r = await call('DELETE', '/api/push/subscriptions', tP, { endpoint: sub.endpoint }); T('推送订阅：取消 → 200，这台设备的订阅清空（设备行保留）', r.s === 200 && (await devs()).filter(x => x.push_endpoint === sub.endpoint).length === 0 && (await devs()).length === 2, await devs());
+  r = await call('POST', '/api/push/subscriptions', tH, { ...sub, endpoint: 'https://push.example/h' }); { const o = (await admin.query('select count(*)::int n from user_devices where user_id = $1', [P])).rows[0].n; T('推送订阅：别人的订阅不影响我的', r.s === 200 && o === 2, o); }
 
   r = await call('POST', '/api/me/restore', tQ); T('恢复账号：没注销的 → 409 state_changed', r.s === 409 && r.j.error === 'state_changed', r);
   r = await call('DELETE', '/api/me', tQ); T('注销账号：→ 200 返回影响的球局数', r.s === 200 && r.j.upcoming_left === 0 && r.j.hosted_cancelled >= 0, r);
