@@ -6,7 +6,10 @@ const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Contr
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 
 // 球局卡片对外的列（不含发起设备、系列 id 等内部列）
-const GAME_COLS = 'id, share_code, host_id, host_nickname, host_utr, venue_id, venue_name, short_name, starts_at, duration_min, game_type, capacity, utr_min, utr_max, note, status, tags, visibility, approved_count::int as approved_count, pending_count::int as pending_count, spots_left::int as spots_left';
+const GAME_COLS = 'g.id, g.share_code, g.host_id, g.host_nickname, g.host_utr, g.venue_id, g.venue_name, g.short_name, g.starts_at, g.duration_min, g.game_type, g.capacity, g.utr_min, g.utr_max, g.note, g.status, g.tags, g.visibility, g.filled::int as filled, '
+  + 'gg.join_mode, gg.city, gg.postponed_at, gg.original_start, gg.time_set_at, g.approved_count::int as approved_count, g.pending_count::int as pending_count, g.spots_left::int as spots_left';
+// api_game_cards 是早期建的视图，后来加的列（加入方式、城市、顺延时间…）不在里面，所以再关联 games 取（games 的行级权限同样生效）
+const GAME_FROM = 'api_game_cards g join games gg on gg.id = g.id';
 const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme, created_at';
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
@@ -77,6 +80,21 @@ const bad = () => Object.assign(new Error('invalid'), { code: '22023' });
 const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'utr', 'utr_estimated', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
 const one = async (q, sql, args) => (await q(sql, args)).rows[0];
 
+
+// 球友公开卡片（球员卡上本来就公开的列 + 打过几场 / 发起几场 / 好评数）。传一组 id，返回按 id 索引的对象
+const CARD_SQL = `select pc.user_id as id, pc.member_no, pc.nickname, pc.last_initial, pc.utr, pc.avatar_kind, pc.avatar_animal, pc.avatar_color, pc.seal_roll, pc.card_theme,
+    pc.card_venue_id, pc.played::int as played, pc.hosted::int as hosted, pc.kudos::int as kudos, pc.level, pp.gone
+  from player_cards pc join public_profiles pp on pp.id = pc.user_id where pc.user_id = any($1::uuid[])`;
+const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))]; if (!u.length) return {};
+  return Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r])) };
+// 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
+const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
+    case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.message end as message,
+    case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.decline_reason end as decline_reason,
+    case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.decline_note end as decline_note,
+    case when gp.user_id = nbq_uid() then gp.change_ack::text end as change_ack
+  from game_participants gp where gp.game_id = any($1::uuid[]) order by gp.created_at`;
+
 const ROUTES = {
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
@@ -101,14 +119,14 @@ const ROUTES = {
   // 球局列表：只要还没开打的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断
   'GET /api/games': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
-    const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from api_game_cards where status in ('open','full') and starts_at > now() order by starts_at limit 100`)).rows);
+    const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.status in ('open','full') and g.starts_at > now() order by g.starts_at limit 100`)).rows);
     return send(200, { games: rows });
   },
   // 单个球局（分享码），打开分享链接用
   'GET /api/game': async (req, d) => {
     const code = new URL(req.url).searchParams.get('code') || ''; if (!/^[A-Za-z0-9]{3,16}$/.test(code)) return send(400, { error: 'bad_code' });
     const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
-    const g = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from api_game_cards where share_code = $1`, [code])).rows[0] || null);
+    const g = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.share_code = $1`, [code])).rows[0] || null);
     return g ? send(200, { game: g }) : send(404, { error: 'not_found' });   // 看不见的球局（私人 / 被屏蔽）和不存在的一样返回 404
   },
   // 别人的资料：只给球员卡上本来就公开的列（public_profiles）
@@ -240,6 +258,25 @@ const ROUTES = {
     if (!r.rowCount) await q(`insert into user_devices(user_id, platform, push_endpoint, push_p256dh, push_auth, last_active_at) values (nbq_uid(), $4, $1, $2, $3, now())`, [ep, k.p256dh, k.auth, pf]);
     return { ok: true } }),
   'DELETE /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => { await q('update user_devices set push_endpoint = null, push_p256dh = null, push_auth = null where user_id = nbq_uid() and push_endpoint = $1', [str(b.endpoint)]); return { ok: true } }),
+  // ---- 第 2 轮（前台接入）：我的球局 / 邀约 / 球友卡片 ----
+  // 我发起的、我申请过的、我参加的球局（近 60 天起，含已取消 / 已结束），连同这些球局里我看得到的参与记录和相关球友卡片
+  'GET /api/games/mine': (req, d, p) => act(req, d, p, async q => {
+    const games = (await q(`select ${GAME_COLS} from ${GAME_FROM} where (g.host_id = nbq_uid() or exists (select 1 from game_participants x where x.game_id = g.id and x.user_id = nbq_uid()))
+      and g.starts_at > now() - interval '60 days' order by g.starts_at desc limit 200`)).rows;
+    const ids = games.map(g => g.id), participants = ids.length ? (await q(PART_SQL, [ids])).rows : [];
+    const profiles = await cardsOf(q, [...games.map(g => g.host_id), ...participants.map(x => x.user_id)]);
+    return { games, participants, profiles } }, { body: false }),
+  'GET /api/invites': (req, d, p) => act(req, d, p, async q => {
+    const invites = (await q(`select id, from_user, to_user, starts_at, ends_at, venue_id, venue_name, game_type, note, status::text as status, counter_starts_at, counter_ends_at,
+        counter_venue_id, counter_venue_name, countered_at, game_id, created_at, expires_at, responded_at from invites
+      where status in ('pending','counter') or created_at > now() - interval '30 days' order by created_at desc limit 100`)).rows;
+    return { invites, profiles: await cardsOf(q, invites.flatMap(i => [i.from_user, i.to_user])) } }, { body: false }),
+  'GET /api/profiles': (req, d, p) => act(req, d, p, async q => {
+    const ids = (new URL(req.url).searchParams.get('ids') || '').split(',').filter(Boolean);
+    if (!ids.length || ids.length > 50 || !ids.every(i => UUID.test(i))) throw bad();
+    return { profiles: await cardsOf(q, ids) } }, { body: false }),
+  'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
