@@ -5,7 +5,7 @@
 import { connectFromEnv } from '../api/connect.mjs';
 import { dispatch, flushEmail } from './sender.mjs';
 import { webPush } from './webpush.mjs';
-import { resend } from './adapters.mjs';
+import { resend } from './resend.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

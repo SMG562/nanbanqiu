@@ -20,6 +20,14 @@ const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' 
 const VAPID = { VAPID_PUBLIC: Buffer.from(await crypto.subtle.exportKey('raw', kp.publicKey)).toString('base64url'), VAPID_PRIVATE: (await crypto.subtle.exportKey('jwk', kp.privateKey)).d, VAPID_SUBJECT: 'mailto:t@nanbanqiu.app' };
 const quiet = { error() { }, info() { } };
 
+
+// 定时 Worker 打包守卫：从入口顺着相对引用走一遍，不能碰到 Node 专用的包（web-push 在 Workers 里打不进去），也不能引 adapters.mjs
+{ const fs = await import('fs'), seen = new Set(), bad = []; const walk = f => { if (seen.has(f)) return; seen.add(f); const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)) { const spec = m[1];
+      if (spec === 'web-push' || spec.startsWith('node:') && !['node:buffer', 'node:crypto'].includes(spec)) bad.push(path.basename(f) + ' → ' + spec);
+      if (spec.startsWith('.')) { if (/adapters\.mjs$/.test(spec)) bad.push(path.basename(f) + ' → ' + spec); walk(path.resolve(path.dirname(f), spec)) } } };
+  walk(path.join(DIR, 'worker/notify.mjs')); T('定时 Worker 的引用链里没有 web-push / adapters.mjs（共 ' + seen.size + ' 个文件）', !bad.length && seen.size >= 5, bad); }
+
 // 没配的渠道
 let r = await runNotify({}, { log: quiet }); T('没有数据库连接 → 全部跳过', r.skipped_all === 'db_not_configured' && r.passes === 0, r);
 r = await runNotify({ DB_URL: 'postgres://x' }, { connect: async () => { throw new Error('should not connect') }, log: quiet }); T('有数据库但推送和邮件都没配 → 不连库、全部跳过', r.skipped_all === 'push_and_mail_not_configured', r);

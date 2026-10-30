@@ -19,19 +19,9 @@ export async function webPush({ publicKey, privateKey, subject }) {
   };
 }
 
-// Resend：带一键退订头（Gmail / Apple Mail 显示「退订」按钮）
-export function resend({ apiKey, from }) {
-  return {
-    async send({ to, subject, text, unsubscribe }) {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to, subject, text, headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } }),
-      });
-      if (!r.ok) throw new Error('resend ' + r.status + ' ' + (await r.text()).slice(0, 200));
-      return { id: (await r.json()).id };
-    },
-  };
-}
+// Resend 邮件在 resend.mjs（定时 Worker 也用），这里转出去，原来的引用不变
+import { resend } from './resend.mjs';
+export { resend };
 
 // Resend 回调（webhook，需先用 svix 签名校验）→ onEmailEvent 的参数；其他事件返回 null
 export function resendEvent(body) {
