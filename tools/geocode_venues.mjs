@@ -3,9 +3,10 @@
 // 约 290 家 × 1.1 秒 ≈ 6 分钟；中断后重跑会接着做（读已有 json）。
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 const src = fs.readFileSync(new URL('../src/shared/script/0080-数据.js', import.meta.url), 'utf8');
 const list = JSON.parse(src.match(/\[\["v1"[\s\S]*?\]\](?=\.forEach)/)[0]);
-const out = new URL('./out/', import.meta.url).pathname;
+const out = fileURLToPath(new URL('./out/', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
 const jf = path.join(out, 'venues_geo.json');
 const done = fs.existsSync(jf) ? JSON.parse(fs.readFileSync(jf, 'utf8')) : {};
