@@ -42,6 +42,7 @@ try {
   const q = (s, p) => admin.query(s, p), one = async (s, p) => (await q(s, p)).rows[0];
   const U1 = (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at) values ('+61400000011','收件人',5,now()) returning id`)).id;
   const U2 = (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at) values ('+61400000012','发起人',5,now()) returning id`)).id;
+  await q(`update cities set quiet_start = '12:00', quiet_end = '12:00'`);   // 开始 = 结束 → 永远不在免打扰里；否则测试会随跑的钟点（墨尔本 22:00–08:00）时好时坏
   await q(`update notifications set pushed_at = now() where pushed_at is null`);
   const R = recipient(), requests = [];
   const fakeFetch = status => async (url, init) => { requests.push({ url, init }); return { status: typeof status === 'function' ? status(url) : status } };
