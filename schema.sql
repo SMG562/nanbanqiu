@@ -920,7 +920,8 @@ $$;
 -- 印色与前端 AVC 对齐（珊瑚 / 琥珀 / 樱粉 / 酒红 / 紫罗兰 / 天蓝 / 湖青 / 石墨）
 alter table users drop constraint if exists users_avatar_color_check;
 alter table users alter column avatar_color set default 'coral';
-alter table users add constraint users_avatar_color_check check (avatar_color in ('coral','amber','rose','wine','violet','sky','teal','slate'));
+-- 前台有两套：头像字母底色 AVC（coral…slate，8 种）和印色 ZAVC（paper 宣纸白、red…cocoa，12 种，新用户默认 paper）；库里存两套的并集，否则「宣纸白」存不进去（前台接入第 3 轮发现）
+alter table users add constraint users_avatar_color_check check (avatar_color in ('coral','amber','rose','wine','violet','sky','teal','slate','paper','red','orange','olive','green','navy','cocoa'));
 
 -- 球员卡偏好（当前快照）：哪个动物 / 印样 / 印色 / 卡面用得最多
 create view v_card_preferences as
@@ -4016,6 +4017,8 @@ begin
 end $$;
 drop trigger if exists trg_users_nickname_check on users;
 create trigger trg_users_nickname_check before insert or update of nickname on users for each row execute function users_nickname_check();
+-- 接口层注册新号码时（服务身份插入，触发器只管前台身份）要先查同一套昵称规则
+grant execute on function nbq_nickname_problem(text), nbq_has_contact(text) to nbq_service;
 
 -- 新号私信留联系方式 → 记信号（消息照常发出）；申请中撤回 → 记信号
 create or replace function messages_risk() returns trigger language plpgsql security definer set search_path = public as $$

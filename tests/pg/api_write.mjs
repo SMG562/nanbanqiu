@@ -19,7 +19,7 @@ try {
   const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
   const jwk = { ...(await crypto.subtle.exportKey('jwk', kp.publicKey)), alg: 'ES256', kid: 'k1' }, U = 'https://t.supabase.co', ISS = U + '/auth/v1';
   const b64 = x => Buffer.from(x).toString('base64url');
-  const token = async sub => { const h = b64(JSON.stringify({ alg: 'ES256', kid: 'k1' })), p = b64(JSON.stringify({ iss: ISS, aud: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 600 }));
+  const token = async (sub, extra = {}) => { const h = b64(JSON.stringify({ alg: 'ES256', kid: 'k1' })), p = b64(JSON.stringify({ iss: ISS, aud: 'authenticated', sub, exp: Math.floor(Date.now() / 1000) + 600, ...extra }));
     return h + '.' + p + '.' + b64(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, new TextEncoder().encode(h + '.' + p))) };
   const verify = makeVerifier({ url: U, fetch: async () => ({ ok: true, json: async () => ({ keys: [jwk] }) }) });
   const connect = () => async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_api', database: 'nbq' }); await cl.connect(); return cl };
@@ -243,6 +243,27 @@ try {
   r = await call('POST', '/api/me/restore', tQ); T('30 天内恢复 → 200', r.s === 200, r);
   await admin.query(`update users set status = 'deleted', status_since = now() - interval '31 days' where id = $1`, [Q]);
   r = await call('POST', '/api/me/restore', tQ); T('超过 30 天恢复 → 410 restore_expired', r.s === 410 && r.j.error === 'restore_expired', r);
+
+
+  // ---- 新号码建资料 ----
+  const NEWU = '66666666-ffff-4fff-8fff-ffffffffffff', tNew = await token(NEWU, { phone: '61400000099' });
+  const REG = { nickname: '新球友', last_initial: 'w', utr: 6.5, utr_estimated: true, avatar_kind: 'animal', avatar_animal: 'tiger', avatar_color: 'paper', card_theme: 'clay', adult: true };
+  r = await call('POST', '/api/me/register', null, REG); T('注册：没登录 → 401', r.s === 401);
+  r = await call('POST', '/api/me/register', await token(NEWU), REG); T('注册：令牌里没有手机号 → 422', r.s === 422 && r.j.detail === 'phone', r);
+  r = await call('POST', '/api/me/register', await token(NEWU, { phone: '61300000000' }), REG); T('注册：不是澳洲手机号 → 422', r.s === 422 && r.j.detail === 'phone', r);
+  r = await call('POST', '/api/me/register', tNew, { ...REG, adult: false }); T('注册：没确认满 18 岁 → 422 adult_required', r.s === 422 && r.j.error === 'adult_required', r);
+  r = await call('POST', '/api/me/register', tNew, { ...REG, nickname: '' }); T('注册：昵称为空 → 422', r.s === 422 && r.j.detail === 'nickname');
+  r = await call('POST', '/api/me/register', tNew, { ...REG, nickname: 'x'.repeat(21) }); T('注册：昵称超过 20 字 → 422', r.s === 422);
+  r = await call('POST', '/api/me/register', tNew, { ...REG, utr: 17 }); T('注册：水平超出范围 → 422 utr', r.s === 422 && r.j.detail === 'utr');
+  r = await call('POST', '/api/me/register', tNew, { ...REG, last_initial: '12' }); T('注册：姓氏首字母不是一个字母 → 422', r.s === 422);
+  r = await call('POST', '/api/me/register', tNew, { ...REG, nickname: '微信 vx12345678' }); T('注册：昵称带联系方式 → 422 nickname_not_allowed', r.s === 422 && r.j.error === 'nickname_not_allowed', r);
+  T('注册：上面失败的都没留下半截资料', (await admin.query(`select count(*)::int n from users where auth_id = $1`, [NEWU])).rows[0].n === 0);
+  r = await call('POST', '/api/me/register', tNew, REG); T('注册：成功 → 返回资料（首字母大写、水平、主题）', r.s === 200 && r.j.registered === true && r.j.user.nickname === '新球友' && r.j.user.last_initial === 'W' && Number(r.j.user.utr) === 6.5 && r.j.user.utr_estimated === true && r.j.user.card_theme === 'clay', r);
+  { const row = (await admin.query(`select phone_e164, adult_confirmed_at, terms_version from users where auth_id = $1`, [NEWU])).rows[0]; T('注册：手机号取自令牌（+61…），记了满 18 岁和协议版本', row.phone_e164 === '+61400000099' && row.adult_confirmed_at && row.terms_version >= 1, row); }
+  T('注册：返回里没有手机号 / 登录 id', !/phone|auth_id|\+61/.test(JSON.stringify(r.j)));
+  r = await call('POST', '/api/me/register', tNew, { ...REG, nickname: '改名想蒙混' }); T('注册：同一个号码再提交 → 返回已有资料，不改、不重复建', r.s === 200 && r.j.user.nickname === '新球友' && (await admin.query(`select count(*)::int n from users where auth_id = $1`, [NEWU])).rows[0].n === 1, r);
+  r = await call('GET', '/api/me', tNew); T('注册后 /api/me 认得出来', r.j.registered === true && r.j.user.nickname === '新球友', r.j);
+  r = await call('POST', '/api/me/register', await token('77777777-aaaa-4aaa-8aaa-aaaaaaaaaaaa', { phone: '61400000099' }), REG); T('注册：别的登录账号用同一个手机号 → 409 phone_taken', r.s === 409 && r.j.error === 'phone_taken', r);
 
   // 路由
   r = await call('GET', '/api/games/' + G + '/cancel', tH); T('方法不对 → 405', r.s === 405 && r.j.error === 'method_not_allowed', r);

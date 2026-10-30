@@ -19,7 +19,7 @@ async function whoIs(request, { verify, db }) {
   const v = await verify(m[1]);
   if (!v.ok) return { err: send(401, { error: 'unauthorized' }, { 'X-Auth-Reason': v.code }) };
   const uid = await db.asService(async q => (await q('select id from users where auth_id = $1', [v.sub])).rows[0]?.id || null);
-  return { sub: v.sub, uid };
+  return { sub: v.sub, uid, phone: typeof v.claims?.phone === 'string' ? v.claims.phone : null };
 }
 
 // 数据库连不上时只给一个粗略的类别（排查用，不含地址 / 用户名 / 报错原文）
@@ -49,7 +49,7 @@ function dbError(e) {
   }
   if (e.code === '42501') return send(403, { error: 'forbidden' });                    // 改了不允许改的列（列权限）
   if (e.constraint === 'reports_one_open') return send(409, { error: 'report_duplicate' });
-  if (/^(22|23)/.test(String(e.code || ''))) return send(422, { error: 'invalid' });    // 格式不对 / 约束不满足：不外露数据库原文
+  if (/^(22|23)/.test(String(e.code || ''))) { console.error('api_db', e.code, e.constraint || e.column || ''); return send(422, { error: 'invalid' }) }    // 格式不对 / 约束不满足：不外露数据库原文
   return null;
 }
 async function readBody(req) {
@@ -277,6 +277,27 @@ const ROUTES = {
     return { profiles: await cardsOf(q, ids) } }, { body: false }),
   'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
+  // 新号码第一次登录后建资料：手机号取自登录令牌里的 phone（不信请求里写的）；同一个号码重复提交 = 返回已有资料
+  'POST /api/me/register': async (req, d) => {
+    const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' });
+    const r = await readBody(req); if (r.err) return r.err; const b = r.body;
+    const phone = w.phone && '+' + w.phone.replace(/^\+/, ''); if (!/^\+614\d{8}$/.test(phone || '')) return send(422, { error: 'invalid', detail: 'phone' });
+    const utr = Number(b.utr), nick = str(b.nickname), li = str(b.last_initial);
+    if (w.uid) return send(200, { registered: true, user: await d.db.asUser(w.uid, async q => (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0]) });
+    if (!nick || nick.length < 1 || nick.length > 20) return send(422, { error: 'invalid', detail: 'nickname' });
+    if (!(utr >= 1 && utr <= 16.5)) return send(422, { error: 'invalid', detail: 'utr' });
+    if (li !== null && !/^[A-Za-z]$/.test(li)) return send(422, { error: 'invalid', detail: 'last_initial' });
+    if (b.adult !== true) return send(422, { error: 'adult_required' });
+    const bad = await d.db.asService(async q => (await q('select nbq_nickname_problem($1) as why', [nick])).rows[0].why);   // 触发器只管前台身份（这里是服务身份插入），所以注册时显式查同一套昵称规则
+    if (bad) return send(422, { error: 'nickname_not_allowed', detail: bad });
+    let id;
+    try { id = await d.db.asService(async q => (await q(`insert into users(auth_id, phone_e164, nickname, last_initial, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme)
+        values ($1,$2,$3,$4,$5,$6,coalesce($7,'letter'),$8,coalesce($9,'paper'),coalesce($10,'court')) returning id`,
+        [w.sub, phone, nick, li ? li.toUpperCase() : null, utr, b.utr_estimated === true, str(b.avatar_kind), str(b.avatar_animal), str(b.avatar_color), str(b.card_theme)])).rows[0].id) }
+    catch (e) { if (e.code === '23505') { const ex = await d.db.asService(async q => (await q('select id from users where auth_id = $1', [w.sub])).rows[0]?.id); if (!ex) return send(409, { error: 'phone_taken' }); id = ex } else throw e }
+    const user = await d.db.asUser(id, async q => { await q('select api_consent_accept(true)'); return (await q(`select ${ME_COLS} from users where id = nbq_uid()`)).rows[0] });
+    return send(200, { registered: true, user });
+  },
 };
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
