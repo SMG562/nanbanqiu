@@ -14,7 +14,7 @@ function renderNav(){
   const n=ME?NOTIFS.filter(x=>x.user_id===ME.id&&!x.read).length:0;$('#nBadge').hidden=!n;$('#nBadge').textContent=n;{const k=ME?chatUnread():0;$('#cBadge').hidden=!k;$('#cBadge').textContent=k}
   const p=ME?api.mine().filter(c=>!c.past&&c.status!=='cancelled'&&(c.mine==='pending'||(c.isHost&&c.pend.length))).length:0;
   // 右上角只显示头像 + 名字
-  $('#meSlot').innerHTML=ME?`<button class="me" data-a="umenu">${av(ME,'sm')}</button>`:`<button class="btn btn-o btn-sm" data-a="login">登录</button>`;
+  $('#meSlot').innerHTML=ME?`<button class="me" data-a="umenu">${av(ME,'sm')}</button>`:(typeof sbaWaiting==='function'&&sbaWaiting())?`<span style="display:inline-block;width:32px;height:32px;border-radius:50%;background:var(--line,#ddd);opacity:.6" data-wait="1"></span>`:`<button class="btn btn-o btn-sm" data-a="login">登录</button>`;
 }
 
 /* ---------- 左栏 ---------- */

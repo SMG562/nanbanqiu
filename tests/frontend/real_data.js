@@ -101,8 +101,11 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('埋点：已登录时带令牌发到 /api/events（服务端才认 user_id）'), S.evAuth && /^Bearer /.test(S.evAuth) && S.evBody.v === 2 && S.evBody.events.some(e => e.ev === 'filter_open' && e.uid), [S.evAuth, S.evBody && S.evBody.events.map(e => e.ev)]);
     T(tag('推送：服务器没配公钥（404）→ 安静跳过，不报错'), await pg.evaluate(() => nbqPushSub()) === false);
     // ⑤ 刷新自动恢复
+    // 刷新过程中右上角不能闪出「登录」（11-03）：从页面一开始就记录槽位每次变化
+    await pg.addInitScript(() => { window.__hdr = []; const rec = () => { const m = document.querySelector('#meSlot'); if (m) window.__hdr.push(m.querySelector('[data-a="login"]') ? 'login' : m.querySelector('.me') ? 'me' : 'wait') }; new MutationObserver(rec).observe(document, { childList: true, subtree: true, characterData: true }) });
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
+    { const seq = await pg.evaluate(() => window.__hdr || []); T(tag('刷新过程中右上角没有闪出「登录」'), !seq.includes('login'), seq) }
     { const hdr = await pg.evaluate(() => { const m = document.querySelector('#meSlot'); return m ? { web: true, login: !!m.querySelector('[data-a="login"]'), me: !!m.querySelector('.me') } : { web: false } });
       T(tag('刷新后页面也画成已登录（网页端右上角是头像，不再是「登录」按钮）'), !hdr.web || (hdr.me && !hdr.login), hdr); }
     // ⑤b 令牌过期后重新打开（手机桌面应用隔一阵再开）
