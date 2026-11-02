@@ -80,6 +80,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     api.length = 0; await pg.evaluate(() => nbqNtfTick()); await pg.settle(400);
     T(tag('通知：没有新的就不重读球局'), !api.includes('GET /api/games/mine'), api);
     S.extraNotif = false; await pg.evaluate(() => nbqNtfTick()); await pg.settle(300);
+    api.length = 0; await pg.evaluate(() => { const n = NOTIFS.find(x => x.kind === 'request'); PARTS.splice(0, PARTS.length, ...PARTS.filter(p => !(p.game_id === n.game_id && p.user_id === n.from))); ntfOpen(n) }); await pg.settle(600);
+    T(tag('通知：点「申请加入」时内存里没有这条申请 → 先重读球局再打开'), api.includes('GET /api/games/mine'), api);
     T(tag('通知：真实模式下前台不再自己造通知'), loc[0] === loc[1], loc);
     await pg.evaluate(() => { NOTIFS.find(x => x.id === 9).read = true; return nbqFlushReads() }); await pg.settle(300);
     T(tag('通知：本地点开（已读）会回写服务器，且只写一次'), S.readBody && S.readBody.ids.join() === '9', S.readBody);

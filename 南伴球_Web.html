@@ -5092,6 +5092,7 @@ async function nbqPullNotifs(){if(!NBQ_NET||!ME||NBQ_NTF_BUSY)return false;NBQ_N
     const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)));
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
+    if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
     if(typeof nrBadge==='function')nrBadge();return fresh}
   finally{NBQ_NTF_BUSY=false}}
 // 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
@@ -5101,7 +5102,7 @@ async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedRead
 let NBQ_NTF_T=null;
 // 每 45 秒 / 页面重新可见 / 网络恢复时跑一次：读通知；有新的未读 → 同时重新读入球局（对方同意 / 婉拒 / 取消后，这里的状态才跟着变）→ 刷新红点和页面（正在输入时不重画，免得打断）
 async function nbqNtfTick(){if(!NBQ_NET||!ME||document.visibilityState!=='visible')return;
-  if(await nbqPullNotifs()){await nbqRefresh();if(typeof nrBadge==='function')nrBadge();
+  if(await nbqPullNotifs()){if(typeof nrBadge==='function')nrBadge();
     const a=document.activeElement;if(!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render()}}
 function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
   NBQ_NTF_T=setInterval(nbqNtfTick,45000);setInterval(nbqFlushReads,5000);
@@ -5134,6 +5135,11 @@ function nbqEventsSend(batch){if(!NBQ_NET||!ME)return false;
 if(NBQ_NET){const _oa=openAuth;openAuth=function(next,why){
   if(!ME&&SBA.session()){AUTH.next=next||null;nbqEnter().then(e=>{if(e.st==='new')openNewProfile();else if(e.st==='ok'){render();if(next)setTimeout(next,380)}else _oa(next,why)});return}
   return _oa.apply(this,arguments)}}
+
+// 点「申请加入」通知：内存里没有这条申请（还是旧数据）就先重读一次，再打开球局并定位到申请人，避免只看到球局详情却没有同意 / 婉拒
+if(NBQ_NET&&typeof nrOpen==='function'){const _nbqNo=nrOpen;nrOpen=function(n){
+  if(n&&n.kind==='request'&&n.from&&!PARTS.some(p=>p.game_id===n.game_id&&p.user_id===n.from&&p.status==='pending')){const a=arguments,t=this;nbqRefresh().then(()=>_nbqNo.apply(t,a));return}
+  return _nbqNo.apply(this,arguments)};if(NR_PLAT==='mobile')ntfOpen=nrOpen}
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
