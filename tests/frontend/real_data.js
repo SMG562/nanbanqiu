@@ -51,6 +51,9 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const REF = { n: 0, mode: 'ok' };
     const state = () => pg.evaluate(() => ({ g: GAMES.length, u: Object.keys(USERS).length, v: Object.keys(VEN).length, me: ME && ME.name, net: !!NBQ_NET }));
+    // 页面和内存必须一致（11-03 教训）：网页端右上角槽位要和 ME 对得上；手机端没有这个槽位就只看内存
+    const uiHdr = () => pg.evaluate(() => { const m = document.querySelector('#meSlot'); return m ? { web: true, me: !!m.querySelector('.me'), login: !!m.querySelector('[data-a="login"]'), ME: !!ME } : { web: false, ME: !!ME } });
+    const uiOK = async want => { await pg.settle(300); const h = await uiHdr(); return !h.web || (want ? h.me && !h.login : h.login && !h.me) };
     const login = async () => { await pg.evaluate(() => { openAuth(null) }); await pg.settle(300); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456'); await pg.waitForFunction(() => ME || document.querySelector('#npName'), null, { timeout: 10000 }).catch(() => { }); await pg.settle(300) };
 
     // ① 预览站：数据仍是演示
@@ -64,6 +67,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('未登录也能在发现列表里看到公开球局：发起人、余位对得上（4 人局已确认 1 人 → 余 3）'), anon.n === 1 && anon.host === 'Host' && anon.spots === 3, anon);
     // ③ 老用户登录
     api.length = 0; await login(); s = await state();
+    T(tag('登录后页面也是已登录的样子（右上角头像）'), await uiOK(true), await uiHdr());
     T(tag('老用户：读入我 / 球局 / 球友'), s.me === 'Sam' && s.g === 1 && s.u === 2 && api.includes('GET /api/games') && api.includes('GET /api/games/mine') && api.includes('GET /api/invites'), [s, api]);
     const g = await pg.evaluate(() => { const c = V(GAMES[0]); return { ntrp: [c.ntrp_min, c.ntrp_max], iso: typeof GAMES[0].starts_at, venue: c.v && c.v.short, spots: c.spots, host: c.host && c.host.name, club: ME.home_club_ids, gender: ME.gender } });
     T(tag('球局字段对得上前台：水平范围、开始时间、球场、空位、发起人'), g.ntrp[0] === 4 && g.ntrp[1] === 6.5 && g.iso === 'string' && g.venue === 'Test TC' && g.spots === 3 && g.host === 'Host', g);
@@ -85,6 +89,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('通知：真实模式下前台不再自己造通知'), loc[0] === loc[1], loc);
     const both = await pg.evaluate(async () => { NOTIFS.length = 0; const a = nbqPullNotifs(), b = nbqPullNotifs(); await Promise.all([a, b]); return NOTIFS.length });
     T(tag('通知：两处同时读，后到的等先到的读完（不会拿到空列表）'), both > 0, both);
+    const rr = await pg.evaluate(async () => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); let n = 0; const o = render; render = function () { n++; return o.apply(this, arguments) }; await nbqRefresh(); await new Promise(r => setTimeout(r, 120)); render = o; return n });
+    T(tag('任何一次把数据读进内存（nbqRefresh / 登录 / 恢复）之后，页面一定重画'), rr >= 1, rr);
     const opened = await pg.evaluate(() => { UI.msgTab = 'chat'; nbqOpenFromPush(true); return NR_PLAT + ':' + UI.msgTab });
     T(tag('点推送（页面已开着）→ 手机端切到「消息 → 通知」页（网页端不动）'), opened === 'mobile:ntf' || opened === 'desktop:chat', opened);
     await pg.evaluate(() => { NOTIFS.find(x => x.id === 9).read = true; return nbqFlushReads() }); await pg.settle(300);
@@ -103,6 +109,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const expire = () => pg.evaluate(() => { const k = JSON.parse(localStorage.getItem('nbq_sb')); k.expires_at = Math.floor(Date.now() / 1000) - 7200; localStorage.setItem('nbq_sb', JSON.stringify(k)) });
     await expire(); REF.n = 0; REF.mode = 'ok'; await pg.reload(); await pg.settle(1500); s = await state();
     T(tag('令牌过期后重开：自动续期并登录，只刷新一次'), s.me === 'Sam' && REF.n === 1, [s, REF.n]);
+    T(tag('令牌过期后重开：页面也是已登录的样子'), await uiOK(true), await uiHdr());
     await expire(); REF.n = 0; REF.mode = 'busy_once'; await pg.reload(); await pg.settle(600); s = await state();
     T(tag('续期碰上服务端临时出错：先不登录，但登录态保留'), s.me === null && await pg.evaluate(() => !!localStorage.getItem('nbq_sb')), s);
     await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Sam', null, { timeout: 8000 }).catch(() => { }); s = await state();
@@ -113,6 +120,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     // ⑥ 退出
     await pg.evaluate(() => { sbaLogout(); ME = null; render() }); await pg.settle(700); s = await state();
     T(tag('退出：我的数据清空，回到公开球局'), s.me === null && s.g === 1 && s.u === 1, s);
+    T(tag('退出后页面也回到未登录的样子（右上角「登录」）'), await uiOK(false), await uiHdr());
     // ④ 新号码
     S.registered = false; api.length = 0; await pg.reload(); await pg.settle(600); await pg.evaluate(() => { localStorage.clear() }); await pg.reload(); await pg.settle(600);
     await login(); T(tag('新号码：进填资料页，Home Club 选项来自服务器球场'), await pg.$('#npName') !== null && (await pg.$$('[data-npc]')).length === 2, api);

@@ -4964,7 +4964,11 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];return true}
+  ME=USERS[r.me];nbqRenderSoon();return true}
+// 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
+// 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
+let NBQ_RT=0;
+function nbqRenderSoon(){if(NBQ_RT)return;NBQ_RT=setTimeout(()=>{NBQ_RT=0;const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;try{render()}catch(e){}},0)}
 // 启动（两端 seed() 之后调用）：真实模式先清掉演示数据；球场和公开球局不用登录，先读进来（新用户选 Home Club 要用球场）
 async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
   const [v,pub]=await Promise.all([NBQ_NET.get('/api/venues',null,{anon:true}),nbqLoadPublic(NBQ_NET)]);
