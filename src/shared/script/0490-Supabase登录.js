@@ -74,7 +74,7 @@ function sbaOtpDone(code){
     const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)})}
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
-function sbaLogout(){if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqPushOff();if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
+function sbaLogout(){if(typeof nbqSnapClear==='function')nbqSnapClear();NBQ_STALE=false;if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqPushOff();if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
 let SBA_TRY=0;
 // 打开页面：有登录态又有资料 → 自动登录；碰上网络没准备好（手机从后台冷启动常见）会重试，页面重新可见 / 网络恢复时也再试
 // 本机有登录记录、正在把「我」读回来：页面右上角先画占位，不要闪一下「登录」（11-03）。读完、没有登录记录、或重试用完就不再等
@@ -83,10 +83,10 @@ function sbaWaiting(){return SBA_WAIT&&!ME&&typeof NBQ_NET!=='undefined'&&!!NBQ_
 function sbaWaitHTML(){return '<div class="empty"><b>正在恢复登录…</b></div>'}   // 恢复中各处「需要登录」的区域画这个，不要画登录按钮
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY);else{SBA_WAIT=false;render()}}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
-function sbaRestore(){if(!SBA.on()||ME)return;
-  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME)return;if(!s){if(SBA.session())sbaRetry();else{SBA_WAIT=false;render()}return}
+function sbaRestore(){if(!SBA.on()||(ME&&!NBQ_STALE))return;
+  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME&&!NBQ_STALE)return;if(!s){if(SBA.session())sbaRetry();else{SBA_WAIT=false;nbqSnapDrop();render()}return}
     return nbqEnter().then(e=>{if(e.st==='ok'){SBA_TRY=0;SBA_WAIT=false;sbaClosePrompt();render()}   // 读入成功一定要重画：此时「我」已经被读进来，不能再用 if(ME)return 跳过（11-03：刷新后内存里是登录的、页面却还画着「登录」按钮）
-      else if(!ME&&e.st==='error')sbaRetry();else{SBA_WAIT=false;render()}})});return}
+      else if((!ME||NBQ_STALE)&&e.st==='error')sbaRetry();else{SBA_WAIT=false;if(e.st==='new')nbqSnapDrop();render()}})});return}
   SBA.fresh().then(s=>{if(!s||ME)return;const p=SBA.prof(s.uid);if(!p)return;api.login(Object.assign({sb_uid:s.uid},p));render()})}
 function sbaWake(){if(!ME&&SBA.on()&&SBA.session()){SBA_TRY=0;sbaRestore()}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sbaWake()});

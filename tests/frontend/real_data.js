@@ -102,10 +102,10 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('推送：服务器没配公钥（404）→ 安静跳过，不报错'), await pg.evaluate(() => nbqPushSub()) === false);
     // ⑤ 刷新自动恢复
     // 刷新过程中右上角不能闪出「登录」（11-03）：从页面一开始就记录槽位每次变化
-    await pg.addInitScript(() => { window.__hdr = []; const rec = () => { const m = document.querySelector('#meSlot'); if (m) window.__hdr.push(m.querySelector('[data-a="login"]') ? 'login' : m.querySelector('.me') ? 'me' : 'wait') }; new MutationObserver(rec).observe(document, { childList: true, subtree: true, characterData: true }) });
+    await pg.addInitScript(() => { window.__hdr = []; const rec = () => { const m = document.querySelector('#meSlot'); if (m) window.__hdr.push(m.querySelector('[data-a="login"]') ? 'login' : m.querySelector('.me') ? 'me' : m.querySelector('[data-wait]') ? 'wait' : 'empty'); if (/正在恢复登录|还没有登录|登录后(查看|接收)/.test(document.body ? document.body.innerText : '')) window.__hdr.push('text') }; new MutationObserver(rec).observe(document, { childList: true, subtree: true, characterData: true }) });
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
-    { const seq = await pg.evaluate(() => window.__hdr || []); T(tag('刷新过程中右上角没有闪出「登录」'), !seq.includes('login'), seq) }
+    { const seq = await pg.evaluate(() => window.__hdr || []); T(tag('刷新过程中右上角没有闪出「登录」，也没有占位：一开始就是头像（用上次的快照）'), !seq.includes('login') && !seq.includes('wait') && !seq.includes('text'), seq) }
     // 「正在恢复登录」期间，所有需要登录的页面都不能画登录按钮 / 「登录后…」（11-03：全站排查）
     { const r = await pg.evaluate(async () => { const me = ME; const bad = []; ME = null; SBA_WAIT = true;
         const tabs = typeof go === 'function' ? ['mine', 'notif', 'me', 'home'] : ['mine', 'home']; 
@@ -120,17 +120,24 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await expire(); REF.n = 0; REF.mode = 'ok'; await pg.reload(); await pg.settle(1500); s = await state();
     T(tag('令牌过期后重开：自动续期并登录，只刷新一次'), s.me === 'Sam' && REF.n === 1, [s, REF.n]);
     T(tag('令牌过期后重开：页面也是已登录的样子'), await uiOK(true), await uiHdr());
-    await expire(); REF.n = 0; REF.mode = 'busy_once'; await pg.reload(); await pg.settle(600); s = await state();
-    T(tag('续期碰上服务端临时出错：先不登录，但登录态保留'), s.me === null && await pg.evaluate(() => !!localStorage.getItem('nbq_sb')), s);
-    await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Sam', null, { timeout: 8000 }).catch(() => { }); s = await state();
-    T(tag('自动重试后登录成功（不用重新输手机号）'), s.me === 'Sam' && REF.n >= 2, [s, REF.n]);
+    // 快照：别人的快照不用、并且删掉（换了账号不能看到上一个人的数据）
+    { const r = await pg.evaluate(() => { const t = JSON.parse(localStorage.getItem('nbq_snap')); t.uid = 'someone-else'; localStorage.setItem('nbq_snap', JSON.stringify(t)); NBQ_STALE = false; nbqClear(); const ok = nbqSnapLoad(); return [ok, !!localStorage.getItem('nbq_snap'), !!ME] });
+      T(tag('快照：属于别的账号 → 不用，并且删掉'), r[0] === false && r[1] === false && r[2] === false, r) }
+    await pg.reload(); await pg.settle(1800);   // 回到已登录、并重新存好快照
+    await expire(); REF.n = 0; REF.mode = 'busy_once'; api.length = 0; await pg.reload(); await pg.settle(600); s = await state();
+    T(tag('续期碰上服务端临时出错：先显示上次的快照（已登录样子），登录态保留'), s.me === 'Sam' && await pg.evaluate(() => !!localStorage.getItem('nbq_sb') && NBQ_STALE === true), s);
+    { const w = await pg.evaluate(() => nbqJoin('GX')); T(tag('快照期间（数据可能是旧的）：写操作不放行、不发请求'), w === null && !api.some(x => /\/api\/games\/GX\/join/.test(x)), [w, api]) }
+    await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Sam' && NBQ_STALE === false, null, { timeout: 8000 }).catch(() => { }); s = await state();
+    T(tag('自动重试后换上最新数据（不用重新输手机号），快照标记解除'), s.me === 'Sam' && REF.n >= 2 && await pg.evaluate(() => NBQ_STALE === false), [s, REF.n]);
     await expire(); REF.mode = 'revoked'; await pg.reload(); await pg.settle(1200); s = await state();
-    T(tag('令牌确实被撤销（400）：才清掉登录'), s.me === null && await pg.evaluate(() => !localStorage.getItem('nbq_sb')), s);
+    T(tag('令牌确实被撤销（400）：才清掉登录，快照也删掉'), s.me === null && await pg.evaluate(() => !localStorage.getItem('nbq_sb') && !localStorage.getItem('nbq_snap')), s);
+    T(tag('令牌被撤销后页面回到未登录样子'), await uiOK(false), await uiHdr());
     REF.mode = 'ok';
     // ⑥ 退出
     await pg.evaluate(() => { sbaLogout(); ME = null; render() }); await pg.settle(700); s = await state();
     T(tag('退出：我的数据清空，回到公开球局'), s.me === null && s.g === 1 && s.u === 1, s);
     T(tag('退出后页面也回到未登录的样子（右上角「登录」）'), await uiOK(false), await uiHdr());
+    T(tag('退出后快照已删'), await pg.evaluate(() => !localStorage.getItem('nbq_snap')));
     // ④ 新号码
     S.registered = false; api.length = 0; await pg.reload(); await pg.settle(600); await pg.evaluate(() => { localStorage.clear() }); await pg.reload(); await pg.settle(600);
     await login(); T(tag('新号码：进填资料页，Home Club 选项来自服务器球场'), await pg.$('#npName') !== null && (await pg.$$('[data-npc]')).length === 2, api);

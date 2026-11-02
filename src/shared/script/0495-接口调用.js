@@ -107,13 +107,33 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];nbqRenderSoon();return true}
+  ME=USERS[r.me];nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
 function nbqRenderSoon(){if(NBQ_RT)return;NBQ_RT=setTimeout(()=>{NBQ_RT=0;const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;try{render()}catch(e){}},0)}
+/* ---- 登录快照（先画上次的、后台再更新；Gmail 同款）----
+   刷新时本机有登录记录，就用上次读到的数据立刻画成登录状态，同时后台验证令牌、读最新数据，读完静默换上。
+   没有快照（第一次、退出后、换了账号）才走「正在恢复登录…」占位。快照只存这台设备、和令牌同处；退出登录 / 令牌失效必清。
+   快照里的数据可能是旧的：NBQ_STALE=true 期间写操作不放行（先等最新数据读回来）。 */
+const NBQ_SNAP_K='nbq_snap',NBQ_SNAP_V=1,NBQ_SNAP_AGE=7*864e5;
+let NBQ_STALE=false,NBQ_SS=0;
+const nbqSetJ=(k,v)=>v instanceof Set?{__set:[...v]}:v,nbqSetR=(k,v)=>v&&typeof v==='object'&&Array.isArray(v.__set)?new Set(v.__set):v;
+function nbqSnapSave(){try{const s=SBA.on()&&SBA.session();if(!s||!ME||NBQ_STALE)return;
+  const r={me:ME.id,users:USERS,venues:Object.values(VEN),games:GAMES,parts:PARTS};
+  const t=JSON.stringify({v:NBQ_SNAP_V,uid:s.uid,at:Date.now(),r,notifs:NOTIFS},nbqSetJ);if(t.length<1.5e6)localStorage.setItem(NBQ_SNAP_K,t)}catch(e){}}
+function nbqSnapSoon(){if(NBQ_SS)return;NBQ_SS=setTimeout(()=>{NBQ_SS=0;nbqSnapSave()},800)}
+function nbqSnapClear(){try{localStorage.removeItem(NBQ_SNAP_K)}catch(e){}}
+// 启动时同步读快照并画上；成功返回 true。快照和当前登录记录不是同一个人 / 太旧 / 版本不对，一律丢掉
+function nbqSnapLoad(){try{const s=SBA.on()&&SBA.session();const t=localStorage.getItem(NBQ_SNAP_K);if(!t)return false;
+  const o=JSON.parse(t,nbqSetR);if(!s||!o||o.v!==NBQ_SNAP_V||o.uid!==s.uid||Date.now()-o.at>NBQ_SNAP_AGE||!o.r||!o.r.users||!o.r.users[o.r.me]){nbqSnapClear();return false}
+  const r=Object.assign({ok:true,registered:true,venues:[],games:[],parts:[]},o.r);r.venues=r.venues.map(v=>v);
+  if(!nbqApply(r)){nbqSnapClear();return false}
+  if(Array.isArray(o.notifs))NOTIFS.splice(0,NOTIFS.length,...o.notifs);NBQ_STALE=true;return true}catch(e){nbqSnapClear();nbqClear();return false}}
+// 快照画出来之后发现登录其实已失效 / 退出：回到未登录
+function nbqSnapDrop(){nbqSnapClear();if(NBQ_STALE){NBQ_STALE=false;nbqClear();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}}
 // 启动（两端 seed() 之后调用）：真实模式先清掉演示数据；球场和公开球局不用登录，先读进来（新用户选 Home Club 要用球场）
-async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
+async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
   const [v,pub]=await Promise.all([NBQ_NET.get('/api/venues',null,{anon:true}),nbqLoadPublic(NBQ_NET)]);
   if(ME)return;   // 读的时候已经登录进来了，以登录后读入的为准
   if(v.ok){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
@@ -123,7 +143,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
+  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -142,10 +162,11 @@ async function nbqNpDone(n){
 
 /* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */
 // 重新读入（保持登录；读不到就保留现有数据）
-async function nbqRefresh(){const r=await nbqLoadAll(NBQ_NET);if(r.ok&&r.registered){nbqApply(r);return true}return false}
+async function nbqRefresh(){const r=await nbqLoadAll(NBQ_NET);if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
 const NBQ_BUSY=new Set();   // 同一个操作进行中不重复提交（连点）
 // call: net => Promise<{ok,data,code,...}>；返回成功时的 data，失败返回 null（已提示）
 async function nbqWrite(key,call){
+  if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');if(typeof sbaRestore==='function')sbaRestore();return null}   // 画的是上次的快照，不拿旧数据去写
   if(NBQ_BUSY.has(key))return null;NBQ_BUSY.add(key);
   try{const r=await call(NBQ_NET);
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
@@ -185,7 +206,7 @@ async function nbqPullNotifs(){if(!NBQ_NET||!ME)return false;
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
     if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
-    if(typeof nrBadge==='function')nrBadge();return fresh})();
+    nbqSnapSoon();if(typeof nrBadge==='function')nrBadge();return fresh})();
   try{return await NBQ_PULL_P}finally{NBQ_PULL_P=null}}
 // 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
 async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedReads(NOTIFS);
