@@ -70,9 +70,9 @@ try {
   // 还没到时间的不处理
   const nLater = await N(u3, 'approved', { g: gF, d: 10 * M });
   let s = await run(0);
-  T('② 手机正在用：只在页面里提醒，不推送', await D(n1) === 'in_app/active_device' && !push.calls.some(x => x.sub.endpoint === 'm1' || x.sub.endpoint === 'd1'), await D(n1));
+  T('② 手机正在用：页面里提醒，同时也推系统横幅（11-02 你定的：像短信一样）', await D(n1) === 'in_app/active_device,push_mobile/go_kind' && push.calls.some(x => x.sub.endpoint === 'm1') && !push.calls.some(x => x.sub.endpoint === 'd1'), await D(n1));
   T('④ 电脑正在用 + 改动：页面提醒并推手机；第一去向仍是页面', await D(n2) === 'in_app/active_device,push_mobile/go_kind' && (await NR(n2)).go_extra === true && (await NR(n2)).first_channel === 'in_app', await D(n2));
-  T('④ 非出发类不额外推手机', await D(n2b) === 'in_app/active_device');
+  T('④ 非出发类也推手机（不再区分种类）', await D(n2b) === 'in_app/active_device,push_mobile/go_kind', await D(n2b));
   T('③ 都没在用：推手机（不推电脑），记下送达时间', await D(n3) === 'push_mobile/mobile_first' && !push.calls.some(x => x.sub.endpoint === 'd3') && (await one(`select push_ok_at from user_devices where id=$1`, [u3m])).push_ok_at !== null, await D(n3));
   T('③ 没有手机推送：推电脑', await D(n4) === 'push_desktop/no_mobile_push', await D(n4));
   T('推送内容带球局时间和场地、点开的去处', push.calls.find(x => x.sub.endpoint === 'm3').p.body.includes('Brighton TC') && push.calls.find(x => x.sub.endpoint === 'm3').p.data.notif_id === String(n3));
@@ -137,13 +137,14 @@ try {
     q4 = await N(u11, 'game_cancelled', { g: gC, d: TN }), q5 = await N(u11, 'approved', { g: gSoon, d: TN });
   s = await run(TN);
   const at8 = Date.parse('2027-03-10T21:00:00Z');
-  T('⑤ 夜里不紧急的顺延到 8:00（send_after、deferred）', s.deferred === 3 && [q1, q2, q3].every(Boolean) && +(await NR(q1)).send_after === at8 && (await NR(q3)).deferred === true && (await NR(q3)).pushed_at === null, s);
+  T('⑤ 夜里不要紧的（徽章、赛后回顾）顺延到 8:00（send_after、deferred）', s.deferred === 2 && [q1, q2].every(Boolean) && +(await NR(q1)).send_after === at8 && (await NR(q2)).deferred === true && (await NR(q1)).pushed_at === null, s);
+  T('⑤ 申请 / 同意 / 婉拒这类人对人的提醒夜里也立刻推（11-02 你定的）', await D(q3) === 'push_mobile/mobile_first' && (await NR(q3)).deferred !== true, await D(q3));
   T('⑤ 紧急的（取消、12 小时内开打）夜里照常推', await D(q4) === 'push_mobile/mobile_first' && await D(q5) === 'push_mobile/mobile_first');
   s = await run(TN + H); T('⑤ 没到 8 点不推', s.delivered === 0 && await D(q1) === '', s);
   s = await run(at8 - T0);
-  const dq = [await D(q1), await D(q2), await D(q3)];
-  T('⑤ 8 点同一人只推一条（deferred_night），其余合并', dq.filter(x => x === 'push_mobile/deferred_night').length === 1 && dq.filter(x => x === 'none/merged').length === 2, dq);
-  T('⑤ 第一去向时间是 8 点', +(await NR(q1)).first_at === at8 && +(await NR(q3)).first_at === at8);
+  const dq = [await D(q1), await D(q2)];
+  T('⑤ 8 点同一人只推一条（deferred_night），其余合并', dq.filter(x => x === 'push_mobile/deferred_night').length === 1 && dq.filter(x => x === 'none/merged').length === 1, dq);
+  T('⑤ 第一去向时间是 8 点', +(await NR(q1)).first_at === at8);
 
   // ---------- 邮件「不发」的各种情况 ----------
   const E = 2 * H; const runE = d => run(E + d), flushE = d => flush(E + d);

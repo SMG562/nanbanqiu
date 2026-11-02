@@ -3981,11 +3981,11 @@ function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的
   return '会出现在「消息」里'+(typeof ENV!=='undefined'&&ENV==='wechat'?'':'，开启推送能第一时间知道')}
 function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
   const row=(ic,t,s,btn)=>`<div class="nrs-r"><span class="nrs-i">${ic}</span><div><b>${t}</b><small>${s}</small></div>${btn||''}</div>`;
-  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">同一条提醒只发到一个地方，不会重复打扰你</p>
-  ${row('📱','手机',d.mobile.push?'已开启 · 不在电脑前时，提醒都会发到这里':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
+  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">有人申请、同意、婉拒、取消或改时间，都会像短信一样推送到手机</p>
+  ${row('📱','手机',d.mobile.push?'已开启 · 提醒都会推送到这里，有横幅和声音':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
   ${row('💻','电脑',d.desktop.push?'已开启 · 手机没开推送时，才会推送到这里':'没开也没关系 · 打开南伴球网页时，页面里照样会提醒',!mob&&!d.desktop.push?'<button class="nrs-b" data-a="enablePush">开启</button>':'')}
   ${row('✉️','邮件',ME.email?esc(ME.email)+' · 推送没送达时补发重要的提醒':'未设置',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
-  <ul class="nrs-l"><li>正在用的设备上直接提醒，其他设备只亮红点</li><li>都没在用时，优先推送到手机</li><li>开打前 30 分钟、球局取消或改时间，总会推送到手机</li><li>22:00–08:00 不紧急的提醒，推迟到早上 8 点</li></ul></div>`}
+  <ul class="nrs-l"><li>手机开着南伴球时，也会弹系统横幅</li><li>申请、同意、婉拒、取消、改时间，夜里也立刻推送</li><li>开打前 30 分钟也会提醒你</li><li>只有赛后回顾、徽章、等级这类不要紧的，22:00–08:00 推迟到早上 8 点</li></ul></div>`}
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML())}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
@@ -5108,14 +5108,18 @@ function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nbqNtfTick();else nbqFlushReads()});
   addEventListener('online',nbqNtfTick)}
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
-async function nbqPushSub(){if(!NBQ_NET||!ME||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return false;
-  try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key)return false;
-    const reg=await navigator.serviceWorker.register('/sw.js');
+let NBQ_PUSH_WHY='';   // 最近一次推送订阅没成功的原因（提示给用户 / 排查用）：permission / unsupported / key / sw / subscribe / api
+async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){NBQ_PUSH_WHY='unsupported';return false}
+  if(Notification.permission!=='granted'){NBQ_PUSH_WHY='permission';return false}
+  let step='key';
+  try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key){NBQ_PUSH_WHY='key';return false}
+    step='sw';const reg=await navigator.serviceWorker.register('/sw.js');
     await Promise.race([navigator.serviceWorker.ready,new Promise((_,no)=>setTimeout(()=>no(new Error('sw_timeout')),10000))]);   // 装不上就别一直等
-    let sub=await reg.pushManager.getSubscription();
+    step='subscribe';let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:nbqKeyBytes(k.data.key)});
-    const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
-    if(r.ok)PUSH.enabled=true;return r.ok}catch(_){return false}}
+    step='api';const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
+    if(r.ok){PUSH.enabled=true;return true}NBQ_PUSH_WHY='api:'+r.code;return false}catch(_){NBQ_PUSH_WHY=step;return false}}
 // 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;
@@ -5223,7 +5227,7 @@ function renderPop(){const p=$('#pop');
     return `<div class="ntf${n.read?'':' unread'}" data-wn="${n.id}">${nrAv(n,f)||av(f)}<div class="nb"><b>${esc(t)}</b><p>${esc(b)}</p>${pp&&pp.message&&pp.status==='pending'?`<div class="quote">“${esc(pp.message)}”</div>`:''}${acts}</div><span class="tm">${ago(n.at)}</span></div>`}).join('')||'<div class="empty" style="padding:30px"><b>暂无通知</b><br>申请结果、新的申请都会出现在这里</div>'}`}
 function togglePop(force){const p=$('#pop'),show=force??!p.classList.contains('show');p.classList.toggle('show',show);if(show)renderPop()}
 function toggleUmenu(){const m=$('#umenu');m.innerHTML=`<button data-a="myCard"><svg><use href="#i-card"/></svg>我的球员卡</button><button data-tab="mine"><svg><use href="#i-cal"/></svg>我的球局</button><button data-a="sbAlbum"><svg><use href="#i-side"/></svg>场边相册</button><button data-a="blocklist"><svg><use href="#i-ban"/></svg>屏蔽名单</button><hr><button data-a="safety"><svg><use href="#i-shield"/></svg>安全须知</button><button data-a="contact"><svg><use href="#i-mail"/></svg>联系我们 / 举报</button><hr><button data-a="logout"><svg><use href="#i-out"/></svg>退出登录</button>`;m.classList.toggle('show')}
-function enablePush(){const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeModal();if(ok)nbqPushSub().then(r=>{toast(r?'桌面通知已开启':'浏览器已允许通知');render();if($('#pop').classList.contains('show'))renderPop()});else{toast('没有开启通知，可以在浏览器设置里打开');render()}return}PUSH.enabled=true;toast('桌面通知已开启');closeModal();render();if($('#pop').classList.contains('show'))renderPop()};
+function enablePush(){const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeModal();if(ok)nbqPushSub().then(r=>{toast(r?'桌面通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render();if($('#pop').classList.contains('show'))renderPop()});else{toast('没有开启通知，可以在浏览器设置里打开');render()}return}PUSH.enabled=true;toast('桌面通知已开启');closeModal();render();if($('#pop').classList.contains('show'))renderPop()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}
 
 /* 位置 */

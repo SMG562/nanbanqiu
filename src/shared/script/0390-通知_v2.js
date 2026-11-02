@@ -109,11 +109,11 @@ function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的
   return '会出现在「消息」里'+(typeof ENV!=='undefined'&&ENV==='wechat'?'':'，开启推送能第一时间知道')}
 function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
   const row=(ic,t,s,btn)=>`<div class="nrs-r"><span class="nrs-i">${ic}</span><div><b>${t}</b><small>${s}</small></div>${btn||''}</div>`;
-  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">同一条提醒只发到一个地方，不会重复打扰你</p>
-  ${row('📱','手机',d.mobile.push?'已开启 · 不在电脑前时，提醒都会发到这里':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
+  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">有人申请、同意、婉拒、取消或改时间，都会像短信一样推送到手机</p>
+  ${row('📱','手机',d.mobile.push?'已开启 · 提醒都会推送到这里，有横幅和声音':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
   ${row('💻','电脑',d.desktop.push?'已开启 · 手机没开推送时，才会推送到这里':'没开也没关系 · 打开南伴球网页时，页面里照样会提醒',!mob&&!d.desktop.push?'<button class="nrs-b" data-a="enablePush">开启</button>':'')}
   ${row('✉️','邮件',ME.email?esc(ME.email)+' · 推送没送达时补发重要的提醒':'未设置',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
-  <ul class="nrs-l"><li>正在用的设备上直接提醒，其他设备只亮红点</li><li>都没在用时，优先推送到手机</li><li>开打前 30 分钟、球局取消或改时间，总会推送到手机</li><li>22:00–08:00 不紧急的提醒，推迟到早上 8 点</li></ul></div>`}
+  <ul class="nrs-l"><li>手机开着南伴球时，也会弹系统横幅</li><li>申请、同意、婉拒、取消、改时间，夜里也立刻推送</li><li>开打前 30 分钟也会提醒你</li><li>只有赛后回顾、徽章、等级这类不要紧的，22:00–08:00 推迟到早上 8 点</li></ul></div>`}
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML())}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';

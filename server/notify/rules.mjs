@@ -4,7 +4,9 @@
 //   ④ 出发类在电脑上看到时也推手机；⑤ 夜间（按收件人常用城市，默认 22:00–08:00）不紧急的顺延到当地 8 点，8 点同时到期的合成一条；
 //   ⑥ 推送前再检查是否已过时；⑦ 同一局的申请 10 分钟内只推一次；⑧ 只推到电脑或推不到的，5 分钟后仍未读补发邮件。
 
-export const URGENT = new Set(['soon', 'game_cancelled', 'changed', 'postponed', 'unfilled', 'unfilled_end']);
+export const URGENT = new Set(['soon', 'game_cancelled', 'changed', 'postponed', 'unfilled', 'unfilled_end']);   // 推送的 Urgency: high（Web Push 头）+ 夜里照常发
+// 11-02 你定的：像短信一样，申请 / 同意 / 婉拒 / 邀约这类人对人的提醒夜里也立刻推（但不算 Urgency high）；只有 LOW（赛后回顾、徽章、等级…）夜里才顺延到 8 点
+export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined']);
 export const LOW = new Set(['recap', 'follow_game', 'badge', 'levelup', 'reopen', 'invite_expired', 'noshow', 'account_status', 'sb_ball', 'sb_reply', 'sb_reply_to']);   // 场边互动（第七批 S2b+）：夜里顺延到 8 点
 export const GO = new Set(['soon', 'game_cancelled', 'changed', 'postponed']);
 // 邮件只发三类
@@ -33,7 +35,7 @@ export function quietUntil(t, q = {}) {
 }
 // 0 = 紧急（照常发）· 1 = 普通 · 2 = 不紧急；12 小时内开打的球局相关提醒算紧急
 export function priority(n, game, now) {
-  if (URGENT.has(n.kind)) return 0; if (LOW.has(n.kind)) return 2;
+  if (URGENT.has(n.kind) || ANYTIME.has(n.kind)) return 0; if (LOW.has(n.kind)) return 2;
   if (game) { const d = +new Date(game.starts_at) - now; if (d > 0 && d < 12 * 36e5) return 0 } return 1;
 }
 // ⑥ 推送前再检查：返回过时原因，或 null
@@ -59,7 +61,7 @@ export function pickChannels(n, devices, now) {
   const pushM = devices.find(d => d.platform === 'mobile' && d.push_endpoint), pushD = devices.find(d => d.platform === 'desktop' && d.push_endpoint);
   if (active.length) {
     const a = active[0], out = [{ channel: 'in_app', device_id: a.id, reason: 'active_device' }];
-    if (GO.has(n.kind) && a.platform === 'desktop' && pushM) out.push({ channel: 'push_mobile', device_id: pushM.id, reason: 'go_kind' });
+    if (pushM) out.push({ channel: 'push_mobile', device_id: pushM.id, reason: 'go_kind' });   // 11-02 你定的：手机订阅了推送，不管哪台设备在用，手机都收到系统横幅（像短信）；reason 沿用 go_kind
     return out;
   }
   if (pushM) return [{ channel: 'push_mobile', device_id: pushM.id, reason: 'mobile_first' }];

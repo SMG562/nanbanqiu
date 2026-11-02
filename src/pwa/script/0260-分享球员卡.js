@@ -184,7 +184,7 @@ function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icon
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
   openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，再按提示允许通知（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
-  const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'浏览器已允许通知');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
+  const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}
 
 /* 发起球局 */

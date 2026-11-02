@@ -195,14 +195,18 @@ function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nbqNtfTick();else nbqFlushReads()});
   addEventListener('online',nbqNtfTick)}
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
-async function nbqPushSub(){if(!NBQ_NET||!ME||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return false;
-  try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key)return false;
-    const reg=await navigator.serviceWorker.register('/sw.js');
+let NBQ_PUSH_WHY='';   // 最近一次推送订阅没成功的原因（提示给用户 / 排查用）：permission / unsupported / key / sw / subscribe / api
+async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){NBQ_PUSH_WHY='unsupported';return false}
+  if(Notification.permission!=='granted'){NBQ_PUSH_WHY='permission';return false}
+  let step='key';
+  try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key){NBQ_PUSH_WHY='key';return false}
+    step='sw';const reg=await navigator.serviceWorker.register('/sw.js');
     await Promise.race([navigator.serviceWorker.ready,new Promise((_,no)=>setTimeout(()=>no(new Error('sw_timeout')),10000))]);   // 装不上就别一直等
-    let sub=await reg.pushManager.getSubscription();
+    step='subscribe';let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:nbqKeyBytes(k.data.key)});
-    const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
-    if(r.ok)PUSH.enabled=true;return r.ok}catch(_){return false}}
+    step='api';const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
+    if(r.ok){PUSH.enabled=true;return true}NBQ_PUSH_WHY='api:'+r.code;return false}catch(_){NBQ_PUSH_WHY=step;return false}}
 // 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;
