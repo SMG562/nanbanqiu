@@ -58,13 +58,15 @@ export function staleReason(n, ctx, now) {
 // ②③④ 选设备。devices: [{id, platform, push_endpoint, last_active_at}]；返回 [{channel, device_id, reason}]
 export function pickChannels(n, devices, now) {
   const active = devices.filter(d => d.last_active_at && now - +new Date(d.last_active_at) <= ACTIVE_MS).sort((a, b) => +new Date(b.last_active_at) - +new Date(a.last_active_at));
-  const pushM = devices.find(d => d.platform === 'mobile' && d.push_endpoint), pushD = devices.find(d => d.platform === 'desktop' && d.push_endpoint);
+  // 手机订阅可能不止一条（Safari 里开过一次、加到主屏幕后又开一次）：全部都推，最近用过的排前面，最多 3 条
+  const mob = devices.filter(d => d.platform === 'mobile' && d.push_endpoint).sort((x, y) => +new Date(y.last_active_at || 0) - +new Date(x.last_active_at || 0)).slice(0, 3);
+  const pushM = mob[0], pushD = devices.find(d => d.platform === 'desktop' && d.push_endpoint);
   if (active.length) {
     const a = active[0], out = [{ channel: 'in_app', device_id: a.id, reason: 'active_device' }];
-    if (pushM) out.push({ channel: 'push_mobile', device_id: pushM.id, reason: 'go_kind' });   // 11-02 你定的：手机订阅了推送，不管哪台设备在用，手机都收到系统横幅（像短信）；reason 沿用 go_kind
+    for (const m of mob) out.push({ channel: 'push_mobile', device_id: m.id, reason: 'go_kind' });   // 11-02 你定的：手机订阅了推送，不管哪台设备在用，手机都收到系统横幅（像短信）；reason 沿用 go_kind
     return out;
   }
-  if (pushM) return [{ channel: 'push_mobile', device_id: pushM.id, reason: 'mobile_first' }];
+  if (pushM) return mob.map(m => ({ channel: 'push_mobile', device_id: m.id, reason: 'mobile_first' }));
   if (pushD) return [{ channel: 'push_desktop', device_id: pushD.id, reason: 'no_mobile_push' }];
   return [];
 }

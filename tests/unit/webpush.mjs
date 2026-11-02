@@ -65,4 +65,10 @@ r = await mk(0, { throws: true }).send(sub, { title: 't' }); T('发送：网络�
 r = await mk(201).send({ ...sub, p256dh: 'bad' }, { title: 't' }); T('发送：订阅密钥坏了 → status 0，不抛出', r.status === 0 && /bad_subscription_keys/.test(r.error), r);
 { let e = null; try { webPush({ publicKey: pub }) } catch (x) { e = x.message } T('没配 VAPID → 创建时报 vapid_not_configured', e === 'vapid_not_configured', e); }
 
+// 同一人有多条手机订阅（Safari 一条、主屏幕 App 一条）：都推，别只推最旧的那条
+{ const { pickChannels } = await import(path.join(DIR, 'server/notify/rules.mjs')), now = Date.now(), iso = t => new Date(t).toISOString();
+  const dv = [{ id: 'old', platform: 'mobile', push_endpoint: 'e1', last_active_at: iso(now - 9e5) }, { id: 'new', platform: 'mobile', push_endpoint: 'e2', last_active_at: iso(now - 9e4) }, { id: 'gone', platform: 'mobile', push_endpoint: null, last_active_at: iso(now) }];
+  const c = pickChannels({ kind: 'request' }, dv, now).filter(x => x.channel === 'push_mobile').map(x => x.device_id);
+  T('多条手机订阅：全部都推（最近用过的在前），没有订阅地址的不推', c.join() === 'new,old', c); }
+
 console.log(`webpush: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
