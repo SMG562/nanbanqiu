@@ -83,6 +83,10 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     api.length = 0; await pg.evaluate(() => { const n = NOTIFS.find(x => x.kind === 'request'); PARTS.splice(0, PARTS.length, ...PARTS.filter(p => !(p.game_id === n.game_id && p.user_id === n.from))); ntfOpen(n) }); await pg.settle(600);
     T(tag('通知：点「申请加入」时内存里没有这条申请 → 先重读球局再打开'), api.includes('GET /api/games/mine'), api);
     T(tag('通知：真实模式下前台不再自己造通知'), loc[0] === loc[1], loc);
+    const both = await pg.evaluate(async () => { NOTIFS.length = 0; const a = nbqPullNotifs(), b = nbqPullNotifs(); await Promise.all([a, b]); return NOTIFS.length });
+    T(tag('通知：两处同时读，后到的等先到的读完（不会拿到空列表）'), both > 0, both);
+    const opened = await pg.evaluate(() => { UI.msgTab = 'chat'; nbqOpenFromPush(true); return NR_PLAT + ':' + UI.msgTab });
+    T(tag('点推送（页面已开着）→ 手机端切到「消息 → 通知」页（网页端不动）'), opened === 'mobile:ntf' || opened === 'desktop:chat', opened);
     await pg.evaluate(() => { NOTIFS.find(x => x.id === 9).read = true; return nbqFlushReads() }); await pg.settle(300);
     T(tag('通知：本地点开（已读）会回写服务器，且只写一次'), S.readBody && S.readBody.ids.join() === '9', S.readBody);
     S.readBody = null; await pg.evaluate(() => nbqFlushReads()); await pg.settle(200);

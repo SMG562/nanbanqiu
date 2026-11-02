@@ -5032,7 +5032,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  nbqApply(r);nbqNtfStart();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
+  nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -5084,17 +5084,18 @@ async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/game
 // 真实模式下通知由服务器生成（球局上的动作触发），前台不再自己造：本地的 notify / notifyInv 直接不动作
 if(NBQ_NET){notify=function(){};notifyInv=function(){}}
 // 读通知：整份换进 NOTIFS。有通知指向内存里没有的球局（别人刚发的 / 刚被同意的）→ 先重新读入球局再转换。返回有没有新的未读
-let NBQ_NTF_BUSY=false;
-async function nbqPullNotifs(){if(!NBQ_NET||!ME||NBQ_NTF_BUSY)return false;NBQ_NTF_BUSY=true;
-  try{await nbqFlushReads();
+let NBQ_PULL_P=null;   // 正在读的那一次；别处同时要读时等它读完，不要直接返回「没有新的」（点推送打开通知页时曾因此看到空列表）
+async function nbqPullNotifs(){if(!NBQ_NET||!ME)return false;
+  if(NBQ_PULL_P){try{await NBQ_PULL_P}catch(e){}return false}
+  NBQ_PULL_P=(async()=>{await nbqFlushReads();
     const r=await NBQ_NET.get('/api/notifications');if(!r.ok)return false;
     let rows=r.data.notifications||[];if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id))))await nbqRefresh();
     const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)));
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
     if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
-    if(typeof nrBadge==='function')nrBadge();return fresh}
-  finally{NBQ_NTF_BUSY=false}}
+    if(typeof nrBadge==='function')nrBadge();return fresh})();
+  try{return await NBQ_PULL_P}finally{NBQ_PULL_P=null}}
 // 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
 async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedReads(NOTIFS);
   for(let i=0;i<ids.length;i+=200){const part=ids.slice(i,i+200),r=await NBQ_NET.post('/api/notifications/read',{ids:part});
@@ -5121,6 +5122,10 @@ async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:nbqKeyBytes(k.data.key)});
     step='api';const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
     if(r.ok){PUSH.enabled=true;return true}NBQ_PUSH_WHY='api:'+r.code;return false}catch(_){NBQ_PUSH_WHY=step;return false}}
+// 重新打开页面时，先看这台设备是不是已经订阅过：是 → 马上显示「已开启」、不再露出「开启提醒」卡片（订阅 / 上报要等 Service Worker 就绪，慢）
+async function nbqPushState(){try{if(!NBQ_NET||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
+  const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
+  if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}}catch(e){}}
 // 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;
@@ -5145,8 +5150,10 @@ if(NBQ_NET&&typeof nrOpen==='function'){const _nbqNo=nrOpen;nrOpen=function(n){
 // 埋点那边会在启动时把 n / k 从地址栏去掉，所以这里在脚本加载时先记下
 const NBQ_PUSH_N=(()=>{try{return new URL(location.href).searchParams.get('n')}catch(e){return null}})();
 let NBQ_PUSH_DONE=false;
-function nbqOpenFromPush(){if(NBQ_PUSH_DONE||!NBQ_PUSH_N||!ME)return;NBQ_PUSH_DONE=true;
+function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))return;NBQ_PUSH_DONE=true;
   if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
+// 页面已经开着时点推送：Service Worker 不再让页面整个重新加载（会闪过入口页、发现页），而是发一条消息过来，这里读新通知再切到通知页
+if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='nbq_open_notif')nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;

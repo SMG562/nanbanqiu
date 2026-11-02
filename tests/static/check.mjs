@@ -96,6 +96,7 @@ if (man) {
   }
 }
 const sw = read('sw.js');
+T('sw.js 点开通知：窗口已开着就发消息让页面切到通知页（不整页重载），前台接收', /nbq_open_notif/.test(sw) && /nbq_open_notif/.test(read('src/shared/script/0495-接口调用.js')) && !/w\.navigate\(/.test(sw));
 T('sw.js 点开通知：认服务器放在 data 里的 url / kind / notif_id；前台读 ?n= 打开通知页', /d\.data/.test(sw) && /NBQ_PUSH_N/.test(read('src/shared/script/0495-接口调用.js')));
 T('sw.js 离线壳逐个缓存、失败不影响安装（否则 /melbourne/ 不存在的预览站装不上，推送订阅不了）', /allSettled/.test(sw) && !/addAll/.test(sw));
 T('sw.js 点通知打开时带 n / k 参数', /searchParams\.set\('n'/.test(sw) && /searchParams\.set\('k'/.test(sw));

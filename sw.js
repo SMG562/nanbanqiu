@@ -4,7 +4,7 @@
  *       → POST /push/subscriptions  { endpoint, keys: { p256dh, auth } }
  * iOS：只有“添加到主屏幕”后从主屏幕打开（iOS 16.4+），并由用户点击触发授权，才能订阅推送。
  */
-const VERSION = 'nbq-v6';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
+const VERSION = 'nbq-v7';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
 const SHELL = ['/melbourne/', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -80,8 +80,9 @@ self.addEventListener('notificationclick', e => {
       if (!('focus' in w)) continue;
       try {
         await w.focus();
-        if ('navigate' in w) { const r = await w.navigate(target); if (r) return r; }
-      } catch (_) { /* 未受控的窗口不能 navigate：退回新开窗口 */ }
+        w.postMessage({ type: 'nbq_open_notif', notif_id: (e.notification.data || {}).notif_id });   // 页面自己切到通知页，不整页重载
+        return;
+      } catch (_) { /* 窗口拿不到焦点：退回新开窗口 */ }
       break;
     }
     return clients.openWindow(target);
