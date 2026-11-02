@@ -33,6 +33,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === '/api/notifications' && m === 'GET') return J(200, { notifications: [
         { id: 9, kind: 'request', game_id: G1, actor_id: HOST, read_at: null, created_at: new Date(S.now - 3600e3).toISOString() },
         { id: 8, kind: 'approved', game_id: G1, actor_id: HOST, read_at: new Date(S.now - 1800e3).toISOString(), created_at: new Date(S.now - 7200e3).toISOString() },
+        ...(S.extraNotif ? [{ id: 10, kind: 'approved', game_id: G1, actor_id: HOST, read_at: null, created_at: new Date(S.now).toISOString() }] : []),
         { id: 7, kind: 'invite', game_id: null, actor_id: HOST, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() },
         { id: 6, kind: 'recap', game_id: G1, actor_id: null, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() }] });
       if (p === '/api/notifications/read') { S.readBody = JSON.parse(body); return J(200, { read: S.readBody.ids ? S.readBody.ids.length : 0 }) }
@@ -74,6 +75,11 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('通知：登录后读服务器列表，只显示有球局文案的种类（邀约 / 赛后先不显示）'), api.includes('GET /api/notifications') && nt.n === 'request:9:false,approved:8:true' && nt.mine, [nt, api]);
     T(tag('通知：红点按未读数算（1 条）'), nt.badge === 1, nt);
     const loc = await pg.evaluate(h => { const n0 = NOTIFS.length; notify(ME.id, 'soon', GAMES[0].id, null); notifyInv(ME.id, 'invite', { id: 'i1' }, h); return [n0, NOTIFS.length] }, HOST);
+    api.length = 0; S.extraNotif = true; await pg.evaluate(() => nbqNtfTick()); await pg.settle(600);
+    T(tag('通知：轮询到新通知 → 同时重新读入球局（对方同意 / 婉拒后状态跟着变）'), api.includes('GET /api/notifications') && api.includes('GET /api/games/mine') && await pg.evaluate(() => NOTIFS.some(x => x.id === 10)), api);
+    api.length = 0; await pg.evaluate(() => nbqNtfTick()); await pg.settle(400);
+    T(tag('通知：没有新的就不重读球局'), !api.includes('GET /api/games/mine'), api);
+    S.extraNotif = false; await pg.evaluate(() => nbqNtfTick()); await pg.settle(300);
     T(tag('通知：真实模式下前台不再自己造通知'), loc[0] === loc[1], loc);
     await pg.evaluate(() => { NOTIFS.find(x => x.id === 9).read = true; return nbqFlushReads() }); await pg.settle(300);
     T(tag('通知：本地点开（已读）会回写服务器，且只写一次'), S.readBody && S.readBody.ids.join() === '9', S.readBody);

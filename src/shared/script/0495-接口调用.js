@@ -186,12 +186,14 @@ async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedRead
   for(let i=0;i<ids.length;i+=200){const part=ids.slice(i,i+200),r=await NBQ_NET.post('/api/notifications/read',{ids:part});
     if(r.ok)NOTIFS.forEach(n=>{if(part.includes(n.id))n.synced=true})}}
 let NBQ_NTF_T=null;
+// 每 45 秒 / 页面重新可见 / 网络恢复时跑一次：读通知；有新的未读 → 同时重新读入球局（对方同意 / 婉拒 / 取消后，这里的状态才跟着变）→ 刷新红点和页面（正在输入时不重画，免得打断）
+async function nbqNtfTick(){if(!NBQ_NET||!ME||document.visibilityState!=='visible')return;
+  if(await nbqPullNotifs()){await nbqRefresh();if(typeof nrBadge==='function')nrBadge();
+    const a=document.activeElement;if(!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render()}}
 function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
-  const tick=async()=>{if(!ME||document.visibilityState!=='visible')return;
-    if(await nbqPullNotifs()){if(typeof nrBadge==='function')nrBadge();if(typeof UI!=='undefined'&&(UI.msgTab==='ntf'||UI.tab==='notif'))render()}};
-  NBQ_NTF_T=setInterval(tick,45000);setInterval(nbqFlushReads,5000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')tick();else nbqFlushReads()});
-  addEventListener('online',tick)}
+  NBQ_NTF_T=setInterval(nbqNtfTick,45000);setInterval(nbqFlushReads,5000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nbqNtfTick();else nbqFlushReads()});
+  addEventListener('online',nbqNtfTick)}
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
 async function nbqPushSub(){if(!NBQ_NET||!ME||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return false;
   try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key)return false;
