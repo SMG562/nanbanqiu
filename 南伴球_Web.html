@@ -5123,6 +5123,10 @@ async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
 function nbqEventsSend(batch){if(!NBQ_NET||!ME)return false;
   const s=SBA.session();if(!s||!(s.expires_at-Date.now()/1000>30))return false;
   try{fetch('/api/events',{method:'POST',keepalive:true,headers:{Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:JSON.stringify({v:2,events:batch})}).catch(()=>{});return true}catch(_){return false}}
+// 手机号已验证、但新号码还没填资料就把资料卡划掉了：再点「登录 / 注册」直接回到填资料，不再要一遍验证码
+if(NBQ_NET){const _oa=openAuth;openAuth=function(next,why){
+  if(!ME&&SBA.session()){AUTH.next=next||null;nbqEnter().then(e=>{if(e.st==='new')openNewProfile();else if(e.st==='ok'){render();if(next)setTimeout(next,380)}else _oa(next,why)});return}
+  return _oa.apply(this,arguments)}}
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;

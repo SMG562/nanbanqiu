@@ -102,6 +102,9 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     // ④ 新号码
     S.registered = false; api.length = 0; await pg.reload(); await pg.settle(600); await pg.evaluate(() => { localStorage.clear() }); await pg.reload(); await pg.settle(600);
     await login(); T(tag('新号码：进填资料页，Home Club 选项来自服务器球场'), await pg.$('#npName') !== null && (await pg.$$('[data-npc]')).length === 2, api);
+    await pg.evaluate(() => { typeof closeSheet === 'function' ? closeSheet() : closeModal() }); await pg.settle(500);
+    await pg.evaluate(() => { openAuth(null) }); await pg.settle(800);
+    T(tag('新号码划掉资料卡后再点登录：直接回到填资料，不再要手机号 / 验证码'), await pg.$('#npName') !== null && await pg.$('#ph') === null, await pg.evaluate(() => !!document.querySelector('#ph')));
     await pg.fill('#npName', 'Newbie'); await pg.fill('#npLast', 'z'); await pg.click(`[data-npc="${V2}"]`); await pg.settle(200); await pg.click('[data-sx="npg"][data-v="f"]'); await pg.settle(200);
     await pg.check('#npAdult'); await pg.click('[data-a="npDone"]'); await pg.settle(1200); s = await state();
     T(tag('新号码注册：昵称 / 姓 / UTR / 成年确认'), S.regBody && S.regBody.nickname === 'Newbie' && S.regBody.last_initial === 'Z' && S.regBody.adult === true && typeof S.regBody.utr === 'number', S.regBody);
