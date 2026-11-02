@@ -84,7 +84,9 @@ jobs:
       - name: 跑测试
         if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.mode }}" = "quick" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
+          elif [ "${{ inputs.mode }}" = "quick" ]; then
             node tests/run_all.mjs --quick --fast --jobs=2
           else
             node tests/run_all.mjs --jobs=2
