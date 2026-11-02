@@ -34,7 +34,7 @@
 |---|---|---|
 | 获取验证码 | 同一号码 60 秒 1 次、每天 5 次；同一 IP 每小时 10 次 | otp_too_fast / otp_daily_limit / rate_limited |
 | 输入验证码 | 连错 5 次锁 30 分钟（输对后清零） | otp_locked |
-| 发起球局 | 每天 5 个；进行中（未开打、未取消）最多 5 个 | game_daily_limit / game_open_limit |
+| 发起球局 | 每天 5 个（墨尔本自然日，0 点清零）；进行中（未开打、未取消）最多 5 个 | game_daily_limit / game_open_limit |
 | 申请 + 直接加入（合计） | 每小时 10 次、每天 30 次；同一局每天 3 次 | apply_hourly_limit / apply_daily_limit / apply_same_limit |
 | 发消息 | 每分钟 10 条 | message_too_fast |
 | 新账号私信 | 注册 7 天内，每天最多主动和 3 位没一起打过球的人开始聊天（对方先发的不算） | dm_new_limit |

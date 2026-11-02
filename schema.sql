@@ -3807,7 +3807,7 @@ create index if not exists notifications_due on notifications ((coalesce(send_af
 -- ⑭ 频率限制（第五批 5a-1，2026-10）：防刷、防骚扰。数值按「再严格一些」定，上线第一个月（5f）按真实数据回看
 --   · rate_rules：每条规则 = 哪类操作、多长时间内、最多几次、超了报哪个错误码；后台可看，改数值只改这张表
 --   · rate_hits：每次成功的操作记一条（操作失败整笔回滚，不占次数）；同一人同一类操作加锁排队，同时点也不会超
---   · 超限报错误码，detail = 还要等多少秒（接口层放进 Retry-After 头）；时间窗是滚动的（「今天」= 最近 24 小时，和邀约一致）
+--   · 超限报错误码，detail = 还要等多少秒（接口层放进 Retry-After 头）；时间窗是滚动的（最近 24 小时，和邀约一致）；发局例外：按墨尔本自然日，0 点清零（day_reset）
 --   · 登录验证码在后端调 auth_otp_send / auth_otp_verify（按手机号 + IP），只给内部服务用
 -- =====================================================================
 create table if not exists rate_rules (
@@ -3818,10 +3818,11 @@ create table if not exists rate_rules (
   per_key   boolean not null default false,-- true = 按对象分别计（同一局、同一个号码）
   code      text not null,                 -- 超了报的错误码
   enabled   boolean not null default true,
-  note      text
+  note      text,
+  day_reset boolean not null default false -- true = 按墨尔本自然日算（0 点清零），不是滚动窗口
 );
 insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
- ('game_day',     'game_create', '24 hours',   5, false, 'game_daily_limit',   '发局：每天 5 个'),
+ ('game_day',     'game_create', '24 hours',   5, false, 'game_daily_limit',   '发局：每天 5 个（墨尔本自然日，0 点清零）'),
  ('apply_hour',   'apply',       '1 hour',    10, false, 'apply_hourly_limit', '申请 + 直接加入：每小时 10 次'),
  ('apply_day',    'apply',       '24 hours',  30, false, 'apply_daily_limit',  '申请 + 直接加入：每天 30 次'),
  ('apply_same',   'apply',       '24 hours',   3, true,  'apply_same_limit',   '同一局每天最多申请 3 次（撤回后再申请 2 次）'),
@@ -3854,19 +3855,22 @@ grant all on rate_rules, rate_hits to nbq_service; grant select on rate_rules, r
 -- 检查并记一次。超了 → 报规则的错误码，detail = 还要等的秒数
 create or replace function nbq_rate(p_subject text, p_grp text, p_key text default null) returns void
 language plpgsql security definer set search_path = public as $$
-declare r record; n int; t timestamptz;
+declare r record; n int; t timestamptz; ws timestamptz;
 begin
   perform pg_advisory_xact_lock(hashtext('rate:' || p_subject || ':' || p_grp));
   for r in select * from rate_rules where grp = p_grp and enabled order by win loop
-    select count(*) into n from rate_hits h where h.subject = p_subject and h.grp = p_grp and h.at > now() - r.win and (not r.per_key or h.key is not distinct from p_key);
+    ws := case when r.day_reset then greatest(now() - r.win, mel_day_start(mel_today())) else now() - r.win end;
+    select count(*) into n from rate_hits h where h.subject = p_subject and h.grp = p_grp and h.at > ws and (not r.per_key or h.key is not distinct from p_key);
     if n >= r.max_hits then
-      select h.at into t from rate_hits h where h.subject = p_subject and h.grp = p_grp and h.at > now() - r.win and (not r.per_key or h.key is not distinct from p_key)
+      if r.day_reset then perform nbq_err(r.code, greatest(1, ceil(extract(epoch from mel_day_start(mel_today() + 1) - now())))::int::text); end if;
+      select h.at into t from rate_hits h where h.subject = p_subject and h.grp = p_grp and h.at > ws and (not r.per_key or h.key is not distinct from p_key)
        order by h.at offset n - r.max_hits limit 1;
       perform nbq_err(r.code, greatest(1, ceil(extract(epoch from t + r.win - now())))::int::text);
     end if;
   end loop;
   insert into rate_hits(subject, grp, key) values (p_subject, p_grp, p_key);
 end $$;
+update rate_rules set day_reset = true where rule = 'game_day';   -- 发局：按墨尔本自然日
 
 -- 举报：每天 5 次（同一对象未处理时重复举报由 reports_one_open 拦下，报 report_duplicate，不占次数）
 create or replace function reports_rate() returns trigger language plpgsql security definer set search_path = public as $$

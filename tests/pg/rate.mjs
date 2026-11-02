@@ -45,9 +45,13 @@ try {
   await q(`update games set status='cancelled' where host_id=$1`, [G1]);   // 取消了也照样算今天发的（进行中上限 5 不挡）
   r = await create(G1, 5);
   T('发局：5 个能发，取消后第 6 个 game_daily_limit', ok === 5 && is(r, 'game_daily_limit'), r);
-  T('等待秒数接近 24 小时', waitIn(r, 86000, 86400), r.detail);
+  T('发局：等到墨尔本次日 0 点（1 秒–24 小时）', waitIn(r, 1, 86400), r.detail);
   await back(G1, 'game_create', '24 hours 1 minute'); r = await create(G1, 6);
   T('24 小时后恢复', r.ok, r);
+  const GD = await user(); await q(`insert into rate_hits(subject, grp, at) select $1, 'game_create', mel_day_start(mel_today()) - interval '1 minute' from generate_series(1, 5)`, [GD]);
+  r = await create(GD, 0); T('发局按自然日：昨天 23:59 发的 5 个不算今天', r.ok, r);
+  await q(`insert into rate_hits(subject, grp, at) select $1, 'game_create', mel_day_start(mel_today()) + interval '1 second' from generate_series(1, 4)`, [GD]);
+  r = await create(GD, 1); T('发局按自然日：今天 0 点后已发 5 个（含刚发的）→ 第 6 个 game_daily_limit', is(r, 'game_daily_limit'), r);
   const G2 = await user(); for (let i = 0; i < 5; i++) await create(G2, i, true); ok = 0; for (let i = 0; i < 5; i++) if ((await create(G2, i)).ok) ok++;
   T('填错被拒的不占次数', ok === 5);
   const G3 = await user(); for (let i = 0; i < 5; i++) await game(G3);
