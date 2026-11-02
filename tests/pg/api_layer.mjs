@@ -42,6 +42,13 @@ try {
     T('坏内容（不是 JSON / 缺 msg / 太大）：照样 204，不记', await post('not json') === 204 && await post({ build: 'web' }) === 204 && await post({ msg: 'x'.repeat(5000) }) === 204 && (await rows()).length === n0);
     await post({ build: 'hack', device: 'tv', msg: 'E2', src: 's'.repeat(300), line: -5 }); const e2 = (await rows()).find(r => r.msg === 'E2'); T('字段不合规：build / device 回退、src 截断、line 归零', e2 && e2.build === 'web' && e2.device === null && e2.src.length === 80 && e2.line === 0, e2);
     let last = 204; for (let i = 0; i < 40; i++) await post({ msg: 'flood' + i }, '9.9.9.9'); const fl = (await rows()).filter(r => /^flood/.test(r.msg)).length; T('同一个 IP 每分钟最多 30 条：多的静默丢（仍 204）', fl === 30, fl) }
+  { const want = fs.readdirSync(path.join(DIR, 'server/migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).map(f => f.replace(/\.sql$/, '')).sort();
+    r = await call('GET', '/api/version'); T('version：带数据库迁移版本，和代码里的迁移文件一一对上（新库）', JSON.stringify(r.j.schema && r.j.schema.versions) === JSON.stringify(want) && r.j.schema.latest === want[want.length - 1], [r.j.schema, want]);
+    await admin.query(`drop table schema_migrations`); r = await call('GET', '/api/version'); T('旧库（还没有迁移记录表）：version 仍 200，schema 为空', r.s === 200 && r.j.schema === null, r);
+    // 迁移文件本身：在没有记录表的库上执行 → 建表并记自己；再执行一遍不报错（可重复运行）
+    const sqlf = f => fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8');
+    await admin.query(sqlf('20261103_schema_migrations.sql')); await admin.query(sqlf('20261103_schema_migrations.sql')); await admin.query(sqlf('20261102_apply_rate_loosen.sql'));
+    r = await call('GET', '/api/version'); T('迁移文件可重复执行，并在 schema_migrations 记下自己', r.j.schema && r.j.schema.versions.includes('20261102_apply_rate_loosen') && r.j.schema.versions.includes('20261103_schema_migrations'), r.j.schema) }
   r = await call('GET', '/api/health?db=1'); T('health?db=1：连得上 → db true', r.s === 200 && r.j.db === true, r);
   r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false、原因 not_configured', r.s === 503 && r.j.db === false && r.j.why === 'not_configured', r);
   { const mk = e => ({ verify, db: makeDb(async () => { throw e }) }), W = async e => (await call('GET', '/api/health?db=1', null, mk(e))).j.why;

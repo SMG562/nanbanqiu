@@ -113,7 +113,9 @@ const ROUTES = {
   'GET /api/version': async (req, d) => {
     const rows = await d.db.asService(async q => (await q(`select name, at, round(extract(epoch from now() - at))::int as age_s from ops_heartbeats where name = 'sender' or name like 'sender@%' order by at desc limit 5`)).rows);
     const hb = rows.find(r => r.name === 'sender'), v = rows.find(r => r.name.startsWith('sender@'));
-    return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null } }, { 'Cache-Control': 'no-store' });
+    // 数据库执行到哪一版迁移（schema_migrations 里最大的版本）；表还没建（旧库）→ null
+    let schema = null; try { schema = await d.db.asService(async q => { const r = (await q(`select max(version) as latest, coalesce(array_agg(version order by version), '{}') as versions from schema_migrations`)).rows[0]; return { latest: r.latest, versions: r.versions } }) } catch (_) { }
+    return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null }, schema }, { 'Cache-Control': 'no-store' });
   },
   // 页面报错上报（11-03 补：前台和数据库早就有，唯独这个路由漏了，报的错一直被丢）。sendBeacon 发来，不带令牌；
   // 只收 build / device / msg / src / line 五个字段，逐个截断；同一个 IP 每分钟最多 30 条（超了静默丢，不报错）；任何情况都返回 204，不让页面因为上报失败再出错。

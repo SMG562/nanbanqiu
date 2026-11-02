@@ -96,6 +96,15 @@ if (man) {
   }
 }
 const sw = read('sw.js');
+// 数据库迁移记录（11-03）：每个迁移文件结尾记一行自己；schema.sql（新库一步到位）里有全部版本；拼接文件是最新的
+{ const md = 'server/migrations'; if (fs.existsSync(path.join(DIR, md))) {
+    const fl = fs.readdirSync(path.join(DIR, md)).filter(f => f.endsWith('.sql') && !f.startsWith('_')).sort(), stems = fl.map(f => f.replace(/\.sql$/, '')), sch = read('schema.sql');
+    const noRec = fl.filter(f => !new RegExp(`insert into schema_migrations\\(version\\) values[^;]*'${f.replace(/\.sql$/, '')}'`).test(read(md + '/' + f)));
+    T('每个迁移文件结尾都在 schema_migrations 记了自己（没记 = 线上看不出有没有跑）', noRec.length === 0, noRec);
+    const noSch = stems.filter(x => !sch.includes(`('${x}')`)); T('schema.sql 的 schema_migrations 里有全部迁移版本（新库一步到位）', noSch.length === 0, noSch);
+    const files = fl.filter(f => f > '20261030_zzz').sort((a, b) => (a.includes('schema_migrations') ? -1 : 0) - (b.includes('schema_migrations') ? -1 : 0) || a.localeCompare(b));
+    const want = `-- 自动拼接，别手改：node tools/migrate_bundle.mjs\n` + files.map(f => `-- ===== ${f} =====\n${read(md + '/' + f)}`).join('\n');
+    T('server/migrations/_bundle.sql 是最新拼的（改了迁移后运行 node tools/migrate_bundle.mjs）', fs.existsSync(path.join(DIR, md, '_bundle.sql')) && read(md + '/_bundle.sql') === want) } }
 // 「需要登录」的区域必须走 authView（11-03：刷新时先闪「登录」就是各处各自判断 !ME 造成的）
 { const dirs = ['src/shared/script', 'src/pwa/script', 'src/web/script']; const bad = [];
   for (const d of dirs) { if (!fs.existsSync(path.join(DIR, d))) continue; for (const f of fs.readdirSync(path.join(DIR, d))) { if (!f.endsWith('.js')) continue;

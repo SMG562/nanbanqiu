@@ -26,6 +26,11 @@ if (SHA && !process.argv.includes('--no-wait')) {
 // ② 接口
 { const h = await get('/api/health').catch(() => ({ s: 0 })); T('/api/health 200', h.s === 200, h);
   const v = await get('/api/version').catch(() => ({ s: 0 })); T('/api/version 200', v.s === 200, v); }
+// 数据库迁移：代码里的每一个迁移，库里的 schema_migrations 都要有记录；缺哪个就报哪个（没跑的迁移）
+{ let code = null, db = null; try { code = JSON.parse((await get('/version.json')).t).migrations } catch { }
+  try { db = JSON.parse((await get('/api/version')).t).schema } catch { }
+  const missing = code && db ? code.filter(m => !(db.versions || []).includes(m)) : null;
+  T(`数据库迁移都已执行（代码里 ${code ? code.length : '?'} 个）${missing && missing.length ? '；没跑：' + missing.join('、') : ''}`, !!missing && missing.length === 0, { missing, db: db && db.latest }) }
 // ④ sw / manifest
 { const sw = await get('/sw.js').catch(() => ({ s: 0, t: '' })); T('/sw.js 可取', sw.s === 200 && /VERSION/.test(sw.t), sw.s);
   const m = await get('/manifest.webmanifest').catch(() => ({ s: 0 })); T('/manifest.webmanifest 可取', m.s === 200, m.s); }

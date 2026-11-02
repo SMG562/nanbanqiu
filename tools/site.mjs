@@ -39,6 +39,9 @@ for (const p of posters()) {
   FILES[`materials/img/${posterName(p)}.webp`] = `marketing/img/${posterName(p)}.webp`;
   FILES[`materials/thumb/${posterName(p)}.webp`] = `marketing/thumb/${posterName(p)}.webp`;
 }
+// 代码里最新的数据库迁移（文件名去掉 .sql）；线上库执行到的版本要等于它（/api/version 的 schema.latest）
+export function migrations() { try { return fs.readdirSync(path.join(ROOT, 'server', 'migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).sort().map(f => f.replace(/\.sql$/, '')) } catch { return [] } }
+export const latestMigration = () => migrations().pop() || null;
 export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json'];
 
 // 预览站的 manifest：仓库里的 manifest 是给正式站用的（根网址 / 就是应用）；预览站的根是入口页，
@@ -160,7 +163,7 @@ export function build(out = path.join(ROOT, 'site')) {
   fs.writeFileSync(path.join(out, 'materials.html'), materialsHTML(posters(), commit(), when + ' 墨尔本'));
   fs.writeFileSync(path.join(out, '_headers'), HEADERS);
   // 这次部署对应哪次提交（线上核对用：https://…/version.json 的 sha 要等于仓库 HEAD）
-  fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify({ sha: commit(), built: new Date().toISOString() }) + '\n');
+  fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify({ sha: commit(), schema: latestMigration(), migrations: migrations(), built: new Date().toISOString() }) + '\n');
   return out;
 }
 
