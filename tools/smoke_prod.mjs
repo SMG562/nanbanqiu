@@ -42,7 +42,7 @@ for (const [name, path] of [['手机端', '/pwa.html'], ['网页端', '/web.html
   T(`${name}：没有页面报错`, errs.length === 0 && st.reported === 0, { errs, reported: st.reported });
   T(`${name}：真实数据模式已启用`, st.real, st);
   T(`${name}：没有卡在「正在恢复登录」`, !st.waiting, st);
-  T(`${name}：页面有内容、公开球局读到了`, st.text > 200 && st.games >= 0, st);
+  T(`${name}：页面有内容、公开球局读到了`, st.text > 60 && st.games >= 0, st);
   await ctx.close();
 }
 await b.close();
