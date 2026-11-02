@@ -140,6 +140,7 @@ web/script/0250-分享球员卡.js
 shared/script/0480-分享球员卡.js
 shared/script/0490-Supabase登录.js
 shared/script/0495-接口调用.js
+shared/script/0497-测试环境横幅.js
 web/script/0260-分享球员卡.js
 web/script/0270-事件.js
 web/script/0280-演示.js

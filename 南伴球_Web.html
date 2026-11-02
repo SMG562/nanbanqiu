@@ -4844,9 +4844,17 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!
  * key 只能填公开的 publishable / anon key（可以放前端）；service_role 绝不能出现在这里。
  * 登录态存在本机 localStorage（nbq_sb）；后端上线后改成 httpOnly Cookie（api_spec §0.1）。
  * 纯逻辑部分 sbAuthMake 不碰页面变量（unit/sb_auth 在空沙盒里载入测试）。 */
-// 真配置只在正式域名（nanbanqiu.app、预览站 pages.dev）启用；本地文件、测试域名、localhost 仍是演示登录
+// 三套环境按域名选（11-03）：正式 nanbanqiu.app → 正式库；分支预览 <分支>.nanbanqiu-preview.pages.dev → 测试库（nanbanqiu-staging，Sydney）；
+//   预览站根 nanbanqiu-preview.pages.dev → 正式库的登录 + 演示数据（旧行为不变）；本地文件、localhost、测试域名 → 演示登录
 const SB_REAL={url:'https://xosrdkrkfxkdrwldfhac.supabase.co',key:'sb_publishable_zb-7Wwh8tc1Sd-JPSDvQiQ_ZQ9me97W'};
-const SB_CFG=(typeof location!=='undefined'&&/(^|\.)(nanbanqiu\.app|pages\.dev)$/.test(location.hostname))?SB_REAL:{url:'',key:''};
+const SB_STAGING={url:'https://nqgyhjtwbvuxmyxvegkf.supabase.co',key:'sb_publishable_rSXyr_Faz1VjOUYJXwYgHg_s4KeKkUz'};   // 公开 key，可以放前端
+function nbqEnvOf(h){h=String(h||'');
+  if(/^(www\.)?nanbanqiu\.app$/.test(h))return 'prod';
+  if(/^[a-z0-9-]+\.nanbanqiu-preview\.pages\.dev$/.test(h))return 'staging';
+  if(/(^|\.)pages\.dev$/.test(h))return 'preview';
+  return 'none'}
+const NBQ_ENV=nbqEnvOf(typeof location!=='undefined'?location.hostname:'');
+const SB_CFG=NBQ_ENV==='staging'?SB_STAGING:NBQ_ENV==='none'?{url:'',key:''}:SB_REAL;
 const SB_ERR_MAP={over_sms_send_rate_limit:'otp_too_fast',over_request_rate_limit:'rate_limited',otp_expired:'otp_wrong',otp_disabled:'sms_failed',sms_send_failed:'sms_failed',phone_provider_disabled:'sms_failed',validation_failed:'otp_wrong',invalid_credentials:'otp_wrong',user_banned:'account_banned'};
 // 只有登录这一步用得到的提示（不在后端接口的错误码表里）；其余沿用 apiErrText
 const SB_TXT={otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};
@@ -5031,7 +5039,7 @@ function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((Str
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
-const NBQ_REAL=typeof location!=='undefined'&&/^(www\.)?nanbanqiu\.app$/.test(location.hostname)&&typeof SBA!=='undefined'&&SBA.on();
+const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging')&&typeof SBA!=='undefined'&&SBA.on();   // 测试库（staging）与正式一样走真实数据，只是连的是测试库
 const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
@@ -5206,6 +5214,15 @@ function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))r
   if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
 // 页面已经开着时点推送：Service Worker 不再让页面整个重新加载（会闪过入口页、发现页），而是发一条消息过来，这里读新通知再切到通知页
 if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='nbq_open_notif')nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
+/* 测试环境横幅（11-03）：分支预览域名连的是测试库（nanbanqiu-staging），页面顶上固定一条细横幅，标签页标题加「【测试】」，
+ * 免得把测试数据当成正式数据，也免得在正式站上误以为是测试。正式站和演示模式不显示。 */
+(function(){if(typeof NBQ_ENV==='undefined'||NBQ_ENV!=='staging'||typeof document==='undefined')return;
+  try{document.title='【测试】'+document.title}catch(_){}
+  const add=()=>{if(document.getElementById('nbqEnvBar'))return;
+    const d=document.createElement('div');d.id='nbqEnvBar';d.setAttribute('role','status');d.textContent='测试环境 · 数据是测试数据，不会影响正式用户';
+    d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483000;height:18px;line-height:18px;font:600 11px/18px system-ui,sans-serif;text-align:center;color:#fff;background:#C2410C;pointer-events:none';
+    (document.body||document.documentElement).appendChild(d)};
+  if(document.body)add();else addEventListener('DOMContentLoaded',add)})();
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;

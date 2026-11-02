@@ -95,7 +95,7 @@ function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((Str
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
-const NBQ_REAL=typeof location!=='undefined'&&/^(www\.)?nanbanqiu\.app$/.test(location.hostname)&&typeof SBA!=='undefined'&&SBA.on();
+const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging')&&typeof SBA!=='undefined'&&SBA.on();   // 测试库（staging）与正式一样走真实数据，只是连的是测试库
 const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
