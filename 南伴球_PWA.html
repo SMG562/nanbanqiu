@@ -5051,7 +5051,8 @@ function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
 async function nbqPushSub(){if(!NBQ_NET||!ME||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return false;
   try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key)return false;
-    const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+    const reg=await navigator.serviceWorker.register('/sw.js');
+    await Promise.race([navigator.serviceWorker.ready,new Promise((_,no)=>setTimeout(()=>no(new Error('sw_timeout')),10000))]);   // 装不上就别一直等
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:nbqKeyBytes(k.data.key)});
     const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});

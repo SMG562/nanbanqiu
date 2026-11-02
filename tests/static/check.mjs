@@ -96,6 +96,7 @@ if (man) {
   }
 }
 const sw = read('sw.js');
+T('sw.js 离线壳逐个缓存、失败不影响安装（否则 /melbourne/ 不存在的预览站装不上，推送订阅不了）', /allSettled/.test(sw) && !/addAll/.test(sw));
 T('sw.js 点通知打开时带 n / k 参数', /searchParams\.set\('n'/.test(sw) && /searchParams\.set\('k'/.test(sw));
 for (const [k, h] of [['PWA', H.pwa], ['Web', H.web]]) T(`${k}：能解析推送打开的 n / k 参数`, /from:'push'/.test(h) && /searchParams\.delete\('n'\)/.test(h) && /searchParams\.delete\('k'\)/.test(h));
 

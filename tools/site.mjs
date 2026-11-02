@@ -24,6 +24,8 @@ export const FILES = {
   'admin.html': '南伴球_后台.html',
   'privacy.html': 'privacy.html',
   'terms.html': 'terms.html',
+  // Service Worker（推送订阅要用；根路径 /sw.js，范围整个网站）
+  'sw.js': 'sw.js',
   // 主屏幕图标（页面里写的是 /icons/…；没有这些文件时 iOS 会拿页面标题的第一个字「南」生成图标）
   'icons/icon-180.png': 'icons/icon-180.png',
   'icons/icon-192.png': 'icons/icon-192.png',
@@ -139,6 +141,10 @@ draw();fromHash();addEventListener('hashchange',fromHash);
 export const HEADERS = `/*
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
 `;
 
 export function build(out = path.join(ROOT, 'site')) {

@@ -4,11 +4,12 @@
  *       → POST /push/subscriptions  { endpoint, keys: { p256dh, auth } }
  * iOS：只有“添加到主屏幕”后从主屏幕打开（iOS 16.4+），并由用户点击触发授权，才能订阅推送。
  */
-const VERSION = 'nbq-v4';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
+const VERSION = 'nbq-v5';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
 const SHELL = ['/melbourne/', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // 离线壳逐个缓存、失败不影响安装（预览站没有 /melbourne/；一个文件缓存不上，整个 Service Worker 就装不上，推送也就订阅不了）
+  e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(SHELL.map(u => c.add(u)))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -29,7 +30,7 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(e.request).then(r => {
       if (shell && r.ok && !r.redirected) { const c = r.clone(); caches.open(VERSION).then(x => x.put(shell, c)).catch(() => { }) }
       return r;
-    }).catch(async () => (shell && await caches.match(shell)) || caches.match('/melbourne/')));
+    }).catch(async () => (shell && await caches.match(shell)) || (await caches.match('/melbourne/')) || Response.error()));
   }
 });
 
