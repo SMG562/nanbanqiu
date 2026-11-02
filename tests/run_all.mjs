@@ -7,6 +7,7 @@
  *   node tests/run_all.mjs --update-snapshots       确认改动无误后，用这次的输出更新回归快照
  *   node tests/run_all.mjs --list          只列出会跑哪些测试
  *   --grep=sb_,rate,api   只跑名字里含这些字的测试（每一小轮只跑相关的，10-26 定）
+ *   --skip=visual         不跑指定的套件（本地字体和 CI 不同，截图对比在本地必然不一致：本地一律 --changed --skip=visual，截图交给 CI）
  *   --fast                跳过最慢的几项（pg/perf@一年 约 9 分钟）；收尾时不加
  *   --jobs=N              同时跑 N 项（默认 = CPU 数，最多 4）；性能测试总是单独跑，不和别的抢 CPU
  *   --changed[=<ref>]     按改动的文件挑相关测试（规则在 tests/lib/select.mjs）：不带 ref = 没提交的改动 + 新文件；带 ref = 和它的差别（如 origin/main）。隐含 --quick（不含回归和全部时间点）；没有对应规则的文件会列出来
@@ -31,7 +32,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(process.env.NBQ_DIR || path.join(HERE, '..'));
 const CACHE = path.resolve(process.env.NBQ_CACHE || path.join(os.homedir(), '.cache', 'nbq-tests'));
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, v] = a.replace(/^--/, '').split('='); return [k, v ?? true] }));
-const QUICK = !!args.quick || !!args.changed, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null;
+const QUICK = !!args.quick || !!args.changed, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null, SKIP = args.skip ? String(args.skip).split(',') : null;
 const GREP = args.grep ? String(args.grep).split(',').filter(Boolean) : null, FAST = !!args.fast, JOBS = Math.max(1, Math.min(4, +args.jobs || os.cpus().length));
 const STAMP = new Date().toLocaleString('sv-SE', { timeZone: 'Australia/Melbourne' }).replace(' ', '_').replace(/:/g, '-');   // 墨尔本时间
 const OUT = path.join(HERE, 'reports', STAMP), LOGS = path.join(OUT, 'logs'), WORK = path.join(os.tmpdir(), 'nbq-work-' + STAMP);
@@ -165,7 +166,7 @@ if (args.changed) {
 if (args.failed) FAILED = readFailed();
 const SEL = !!(CHG || FAILED);
 const picked = t => (CHG && (CHG.all || matches(t.id, CHG.tokens))) || (FAILED && FAILED.includes(t.id));
-const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
 if (CHG) {
   console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`));
   if (CHG.unmatched.length) console.log(`  没有对应规则（只跑基础的 static + unit；该有规则就补进 tests/lib/select.mjs）：${CHG.unmatched.join(' ')}`);
