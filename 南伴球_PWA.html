@@ -3981,8 +3981,23 @@ function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
   ${row('📱','手机',d.mobile.push?'已开启 · 提醒都会推送到这里，有横幅和声音':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
   ${row('💻','电脑',d.desktop.push?'已开启 · 手机没开推送时，才会推送到这里':'没开也没关系 · 打开南伴球网页时，页面里照样会提醒',!mob&&!d.desktop.push?'<button class="nrs-b" data-a="enablePush">开启</button>':'')}
   ${row('✉️','邮件',ME.email?esc(ME.email)+' · 推送没送达时补发重要的提醒':'未设置',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
+  ${typeof NBQ_NET!=='undefined'&&NBQ_NET?'<div id="nrDiag"></div>':''}
   <ul class="nrs-l"><li>手机开着南伴球时，也会弹系统横幅</li><li>申请、同意、婉拒、取消、改时间，随时立刻推送，夜里也一样</li><li>开打前 30 分钟也会提醒你</li></ul></div>`}
-function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML())}
+// 推送自检（11-03）：设备订阅状态 + 最近提醒去向，来自 POST /api/me/push-diag（只在真实模式）。纯函数，单元测试直接测
+const NR_KIND_ZH={request:'有人申请',approved:'申请被同意',rejected:'申请被婉拒',full:'球局满员',player_left:'有人退出',game_cancelled:'球局取消',joined:'有人加入',expired:'申请过期',unfilled:'没凑齐',unfilled_end:'没凑齐',postponed:'顺延',changed:'改了时间',soon:'快开始了',reopen:'重新开放'};
+function nrAgo(t,now){if(!t)return'';const s=Math.max(0,Math.round((new Date(now)-new Date(t))/1000));return s<90?'刚刚':s<5400?Math.round(s/60)+' 分钟前':s<172800?Math.round(s/3600)+' 小时前':Math.round(s/86400)+' 天前'}
+function nrDeliveryZh(x){const r=x.reason||'';if(r.startsWith('stale:'))return/^(404|410)$/.test(r.slice(6))?'没发：这台设备的推送订阅已失效':'没发：'+r.slice(6);
+  if(x.channel==='push_mobile')return r==='go_kind'?'同时推送到手机（出发类提醒）':'推送到手机';
+  if(x.channel==='push_desktop')return'推送到电脑';if(x.channel==='email')return'补发了邮件';
+  if(x.channel==='none')return'没发送';
+  return({active_device:'只在页面里提醒（你当时正在用设备）',no_push:'只在应用内（没有开启推送的设备）',merged:'合并进另一条推送',deferred_night:'夜间顺延'})[r]||'应用内'}
+function nrDiagHTML(r){if(!r||!Array.isArray(r.devices))return'<small>读取失败，稍后再试</small>';
+  const dv=r.devices.length?r.devices.map(d=>`<div class="nrl"><b>${d.platform==='mobile'?'手机':'电脑'}${d.this?'（这台）':''}</b><span>${d.push?'已订阅推送':'没订阅推送'}${d.push?(d.push_ok_at?' · 最近送达 '+nrAgo(d.push_ok_at,r.now):' · 还没成功送达过'):''}${d.last_active_at?' · 最近在用 '+nrAgo(d.last_active_at,r.now):''}</span></div>`).join(''):'<div class="nrl"><span>还没有登记的设备</span></div>';
+  const tip=!r.devices.some(d=>d.push)?'<div class="nrl"><span>没有任何设备订阅了推送：先点上面的「开启提醒」</span></div>':(!r.devices.some(d=>d.this)?'<div class="nrl"><span>这台设备还没订阅推送（或订阅已失效）</span></div>':'');
+  const rc=(r.recent||[]).length?r.recent.map(n=>`<div class="nrl"><b>${esc(NR_KIND_ZH[n.kind]||n.kind)} · ${nrAgo(n.created_at,r.now)}</b><span>${(n.deliveries||[]).length?n.deliveries.map(x=>esc(nrDeliveryZh(x))).join('；'):'还没发送'}${n.read_at?' · 已读':''}</span></div>`).join(''):'<div class="nrl"><span>还没有提醒</span></div>';
+  return `<div class="nrs-h" style="margin-top:14px;font-size:14px">推送自检</div>${dv}${tip}<div class="nrs-h" style="margin-top:10px;font-size:14px">最近的提醒去了哪</div>${rc}`}
+async function nrDiagLoad(){const el=document.getElementById('nrDiag');if(!el||typeof nbqPushDiag!=='function')return;el.innerHTML='<small>正在读取…</small>';let r=null;try{r=await nbqPushDiag()}catch(e){}if(document.getElementById('nrDiag'))document.getElementById('nrDiag').innerHTML=nrDiagHTML(r)}
+function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML());nrDiagLoad()}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
   return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
@@ -5102,6 +5117,10 @@ async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
 async function nbqPushState(){try{if(!NBQ_NET||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
   const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
   if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}}catch(e){}}
+// 推送自检（11-03）：本人设备订阅状态 + 最近提醒去向；把本机推送地址放请求体里，让服务器标出「这台设备」
+async function nbqPushDiag(){if(!NBQ_NET||!ME)return null;let ep=null;
+  try{if('serviceWorker'in navigator&&'PushManager'in window){const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();ep=sub?sub.endpoint:null}}catch(_){}
+  const r=await NBQ_NET.post('/api/me/push-diag',{endpoint:ep});return r.ok?r.data:null}
 // 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;

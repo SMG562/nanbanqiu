@@ -238,6 +238,10 @@ async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
 async function nbqPushState(){try{if(!NBQ_NET||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
   const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
   if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}}catch(e){}}
+// 推送自检（11-03）：本人设备订阅状态 + 最近提醒去向；把本机推送地址放请求体里，让服务器标出「这台设备」
+async function nbqPushDiag(){if(!NBQ_NET||!ME)return null;let ep=null;
+  try{if('serviceWorker'in navigator&&'PushManager'in window){const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();ep=sub?sub.endpoint:null}}catch(_){}
+  const r=await NBQ_NET.post('/api/me/push-diag',{endpoint:ep});return r.ok?r.data:null}
 // 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;

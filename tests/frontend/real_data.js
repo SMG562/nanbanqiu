@@ -36,6 +36,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
         ...(S.extraNotif ? [{ id: 10, kind: 'approved', game_id: G1, actor_id: HOST, read_at: null, created_at: new Date(S.now).toISOString() }] : []),
         { id: 7, kind: 'invite', game_id: null, actor_id: HOST, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() },
         { id: 6, kind: 'recap', game_id: G1, actor_id: null, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() }] });
+      if (p === '/api/me/push-diag' && m === 'POST') { S.diagBody = JSON.parse(body); return J(200, { now: new Date().toISOString(), devices: [{ platform: 'mobile', push: true, this: false, push_ok_at: new Date(Date.now() - 300000).toISOString(), last_active_at: new Date(Date.now() - 7200000).toISOString() }], recent: [{ id: '5', kind: 'request', created_at: new Date(Date.now() - 180000).toISOString(), read_at: null, deliveries: [{ channel: 'in_app', reason: 'active_device' }, { channel: 'push_mobile', reason: 'mobile_first' }] }] }) }
       if (p === '/api/notifications/read') { S.readBody = JSON.parse(body); return J(200, { read: S.readBody.ids ? S.readBody.ids.length : 0 }) }
       if (p === '/api/events') { S.evAuth = r.request().headers()['authorization'] || null; S.evBody = JSON.parse(body); return J(200, { ok: true, n: S.evBody.events.length }) }
       if (p === '/api/push/key') return J(404, { error: 'push_unavailable' });
@@ -76,6 +77,12 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('发现列表（距离 / 水平 / 屏蔽过滤）能算出这局真实球局'), (await pg.evaluate(() => api.list().map(c => c.id))).includes('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), await pg.evaluate(() => api.list().length));
     // ③b 通知（第 5 轮）：列表来自服务器，已读回写，本地不再自造，埋点带令牌
     const nt = await pg.evaluate(() => ({ n: NOTIFS.map(x => x.kind + ':' + x.id + ':' + x.read).join(), badge: nrBadgeN(), mine: NOTIFS.every(x => x.user_id === ME.id && x.srv) }));
+    // 推送自检：提醒方式里能看到设备订阅状态和最近提醒去向（POST，地址放请求体）
+    await pg.evaluate(() => { nrSettings() }); await pg.settle(900);
+    { const tx = await pg.evaluate(() => (document.getElementById('nrDiag') || {}).innerText || '');
+      T(tag('提醒方式里有「推送自检」：设备订阅状态 + 最近提醒去向'), /推送自检/.test(tx) && /已订阅推送 · 最近送达 5 分钟前/.test(tx) && /有人申请/.test(tx) && /推送到手机/.test(tx), tx);
+      T(tag('推送自检：POST 请求体带 endpoint（无订阅时为 null），不在网址里'), S.diagBody && 'endpoint' in S.diagBody && api.includes('POST /api/me/push-diag'), [S.diagBody, api.filter(x => /push-diag/.test(x))]) }
+    await pg.evaluate(() => { typeof closeSheet === 'function' ? closeSheet() : closeModal() }); await pg.settle(300);
     T(tag('通知：登录后读服务器列表，只显示有球局文案的种类（邀约 / 赛后先不显示）'), api.includes('GET /api/notifications') && nt.n === 'request:9:false,approved:8:true' && nt.mine, [nt, api]);
     T(tag('通知：红点按未读数算（1 条）'), nt.badge === 1, nt);
     const loc = await pg.evaluate(h => { const n0 = NOTIFS.length; notify(ME.id, 'soon', GAMES[0].id, null); notifyInv(ME.id, 'invite', { id: 'i1' }, h); return [n0, NOTIFS.length] }, HOST);

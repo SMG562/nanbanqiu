@@ -65,6 +65,23 @@ try {
   T('A 的令牌 → registered，拿到 A 自己的资料', r.s === 200 && r.j.registered === true && r.j.user.nickname === '小明' && r.j.user.last_initial === 'W' && Number(r.j.user.utr) === 6.5, r);
   T('资料里没有手机号 / 登录 id / 邮箱', !/phone|auth_id|email|\+61/.test(JSON.stringify(r.j)), r.j);
   r = await call('GET', '/api/me', await token(B)); T('B 的令牌 → B 自己的资料（不会拿到 A 的）', r.j.user?.nickname === '小红');
+  // 推送自检：只看得到自己的设备和提醒；endpoint 只用来标出「这台设备」，不会返回
+  { const uid = async au => (await admin.query(`select id from users where auth_id = $1`, [au])).rows[0].id, ua = await uid(A), ub = await uid(B);
+    const dA = (await admin.query(`insert into user_devices(user_id, platform, push_endpoint, push_p256dh, push_auth, push_ok_at, last_active_at) values ($1,'mobile','https://push.example/ep-A','k','a', now() - interval '5 minutes', now() - interval '2 hours') returning id`, [ua])).rows[0].id;
+    await admin.query(`insert into user_devices(user_id, platform) values ($1,'desktop'), ($2,'mobile')`, [ua, ub]);
+    await admin.query(`update user_devices set push_endpoint = 'https://push.example/ep-B', push_p256dh = 'k', push_auth = 'a' where user_id = $1`, [ub]);
+    const nA = (await admin.query(`insert into notifications(user_id, kind) values ($1,'badge') returning id`, [ua])).rows[0].id;
+    await admin.query(`insert into notification_deliveries(notification_id, channel, device_id, reason) values ($1,'in_app',null,'active_device'), ($1,'push_mobile',$2,'mobile_first')`, [nA, dA]);
+    await admin.query(`insert into notifications(user_id, kind) values ($1,'badge')`, [ub]);
+    const diag = async (au, body) => { const x = await handleApi(new Request('https://x.test/api/me/push-diag', { method: 'POST', headers: { Authorization: 'Bearer ' + await token(au), 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), deps); return { s: x.status, j: await x.json().catch(() => null) } };
+    let d = await diag(A, { endpoint: 'https://push.example/ep-A' });
+    T('推送自检：200，返回自己的 2 台设备，订阅了推送的那台被标成「这台设备」', d.s === 200 && d.j.devices.length === 2 && d.j.devices.filter(x => x.this).length === 1 && d.j.devices.find(x => x.this).platform === 'mobile' && d.j.devices.find(x => x.this).push === true, d);
+    T('推送自检：电脑设备没开推送 → push false；返回里没有推送地址原文', d.j.devices.find(x => x.platform === 'desktop').push === false && !JSON.stringify(d.j).includes('push.example'), d.j);
+    const rn = d.j.recent.find(x => x.id === String(nA)); T('推送自检：最近提醒带每条的去向（应用内 + 推手机，及原因、设备）', rn && rn.deliveries.length === 2 && rn.deliveries[0].channel === 'in_app' && rn.deliveries[1].channel === 'push_mobile' && rn.deliveries[1].reason === 'mobile_first' && rn.deliveries[1].platform === 'mobile', rn);
+    d = await diag(A, {}); T('推送自检：不传 endpoint → 没有「这台设备」', d.s === 200 && d.j.devices.every(x => !x.this), d);
+    d = await diag(B, { endpoint: 'https://push.example/ep-A' }); T('推送自检：B 看不到 A 的设备和提醒，A 的地址在 B 这里标不出「这台」', d.j.devices.length === 1 && d.j.devices[0].this === false && d.j.recent.length === 1 && !d.j.recent.some(x => x.id === String(nA)), d.j);
+    const x0 = await handleApi(new Request('https://x.test/api/me/push-diag', { method: 'POST', body: '{}' }), deps); T('推送自检：没登录 → 401', x0.status === 401);
+    d = await diag(A, { endpoint: 'x'.repeat(2000) }); T('推送自检：过长的 endpoint 当没传，不报错', d.s === 200 && d.j.devices.every(x => !x.this), d.s) }
   r = await call('GET', '/api/me', await token(N)); T('令牌有效但还没注册 → registered false', r.s === 200 && r.j.registered === false, r);
   r = await call('GET', '/api/me', await token(G)); T('从没见过的 sub → registered false，不报错', r.s === 200 && r.j.registered === false);
   r = await call('GET', '/api/me', await token(A), { verify, db: makeDb(null) }); T('没配数据库 → 503 db_unavailable', r.s === 503 && r.j.error === 'db_unavailable', r);

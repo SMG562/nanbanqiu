@@ -221,6 +221,10 @@ const ROUTES = {
     const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' }); if (!w.uid) return send(401, { error: 'login_required' });
     const rows = await d.db.asUser(w.uid, async q => (await q(`select id::float8 as id, kind, game_id, actor_id, read_at, created_at from notifications where user_id = nbq_uid() order by created_at desc limit 100`)).rows);
     return send(200, { notifications: rows }) },
+  // 推送自检：本人设备订阅状态 + 最近提醒的去向（11-03）。用 POST 是为了把本机的推送地址放进请求体、不进网址；只读
+  'POST /api/me/push-diag': (req, d, p) => act(req, d, p, async (q, b) => {
+    const ep = typeof b.endpoint === 'string' && b.endpoint.length <= 1000 ? b.endpoint : null;
+    return (await one(q, 'select my_push_diag($1) as r', [ep])).r }),
   'POST /api/notifications/read': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.all === true ? null : Array.isArray(b.ids) && b.ids.length <= 200 && b.ids.every(n => Number.isInteger(n) && n > 0) ? b.ids : (() => { throw bad() })();
     return { read: (await one(q, 'select api_notif_read($1::bigint[]) as n', [ids])).n } }),
