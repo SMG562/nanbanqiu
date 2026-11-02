@@ -81,7 +81,8 @@ function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY)}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||ME)return;
   if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME)return;if(!s){if(SBA.session())sbaRetry();return}
-    return nbqEnter().then(e=>{if(ME)return;if(e.st==='ok'){SBA_TRY=0;sbaClosePrompt();render()}else if(e.st==='error')sbaRetry()})});return}
+    return nbqEnter().then(e=>{if(e.st==='ok'){SBA_TRY=0;sbaClosePrompt();render()}   // 读入成功一定要重画：此时「我」已经被读进来，不能再用 if(ME)return 跳过（11-03：刷新后内存里是登录的、页面却还画着「登录」按钮）
+      else if(!ME&&e.st==='error')sbaRetry()})});return}
   SBA.fresh().then(s=>{if(!s||ME)return;const p=SBA.prof(s.uid);if(!p)return;api.login(Object.assign({sb_uid:s.uid},p));render()})}
 function sbaWake(){if(!ME&&SBA.on()&&SBA.session()){SBA_TRY=0;sbaRestore()}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sbaWake()});

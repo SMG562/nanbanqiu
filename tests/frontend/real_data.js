@@ -97,6 +97,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     // ⑤ 刷新自动恢复
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
+    { const hdr = await pg.evaluate(() => { const m = document.querySelector('#meSlot'); return m ? { web: true, login: !!m.querySelector('[data-a="login"]'), me: !!m.querySelector('.me') } : { web: false } });
+      T(tag('刷新后页面也画成已登录（网页端右上角是头像，不再是「登录」按钮）'), !hdr.web || (hdr.me && !hdr.login), hdr); }
     // ⑤b 令牌过期后重新打开（手机桌面应用隔一阵再开）
     const expire = () => pg.evaluate(() => { const k = JSON.parse(localStorage.getItem('nbq_sb')); k.expires_at = Math.floor(Date.now() / 1000) - 7200; localStorage.setItem('nbq_sb', JSON.stringify(k)) });
     await expire(); REF.n = 0; REF.mode = 'ok'; await pg.reload(); await pg.settle(1500); s = await state();
