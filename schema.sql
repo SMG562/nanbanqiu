@@ -3822,8 +3822,8 @@ create table if not exists rate_rules (
 );
 insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
  ('game_day',     'game_create', '24 hours',   3, false, 'game_daily_limit',   '发局：每天 3 个'),
- ('apply_hour',   'apply',       '1 hour',     5, false, 'apply_hourly_limit', '申请 + 直接加入：每小时 5 次'),
- ('apply_day',    'apply',       '24 hours',  15, false, 'apply_daily_limit',  '申请 + 直接加入：每天 15 次'),
+ ('apply_hour',   'apply',       '1 hour',    10, false, 'apply_hourly_limit', '申请 + 直接加入：每小时 10 次'),
+ ('apply_day',    'apply',       '24 hours',  30, false, 'apply_daily_limit',  '申请 + 直接加入：每天 30 次'),
  ('apply_same',   'apply',       '24 hours',   3, true,  'apply_same_limit',   '同一局每天最多申请 3 次（撤回后再申请 2 次）'),
  ('msg_minute',   'message',     '1 minute',  10, false, 'message_too_fast',   '消息：每分钟 10 条'),
  ('dm_new_day',   'dm_new',      '24 hours',   3, false, 'dm_new_limit',       '注册 7 天内：每天最多和 3 位没一起打过球的人开始聊天'),

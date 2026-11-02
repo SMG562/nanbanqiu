@@ -56,21 +56,21 @@ try {
   const G4 = await user(); const res = await Promise.all(Array.from({ length: 10 }, (_, i) => create(G4, i)));
   T('同时点 10 次只成功 3 次', res.filter(x => x.ok).length === 3 && res.filter(x => is(x, 'game_daily_limit')).length === 7, res.map(x => x.err || 'ok'));
 
-  // ---------- 申请 + 直接加入：每小时 5、每天 15、同一局 3 次 ----------
-  const H = await user(); const GS = []; for (let i = 0; i < 22; i++) GS.push(await game(H));
+  // ---------- 申请 + 直接加入：每小时 10、每天 30、同一局 3 次 ----------
+  const H = await user(); const GS = []; for (let i = 0; i < 36; i++) GS.push(await game(H));
   const A = await user(); ok = 0;
-  for (let i = 0; i < 5; i++) if ((await call(A, `select api_apply($1)`, [GS[i]])).ok) ok++;
-  r = await call(A, `select api_apply($1)`, [GS[5]]);
-  T('申请：每小时 5 次，第 6 次 apply_hourly_limit', ok === 5 && is(r, 'apply_hourly_limit') && waitIn(r, 3500, 3600), r);
-  for (let k = 0; k < 2; k++) { await back(A, 'apply', '61 minutes'); for (let i = 0; i < 5; i++) { r = await call(A, `select api_apply($1)`, [GS[5 + k * 5 + i]]); if (!r.ok) break } }
-  await back(A, 'apply', '61 minutes'); r = await call(A, `select api_apply($1)`, [GS[15]]);
-  T('一天 15 次后 apply_daily_limit', is(r, 'apply_daily_limit'), r);
-  const B = await user(); const g0 = GS[20]; const seq = [];
+  for (let i = 0; i < 10; i++) if ((await call(A, `select api_apply($1)`, [GS[i]])).ok) ok++;
+  r = await call(A, `select api_apply($1)`, [GS[10]]);
+  T('申请：每小时 10 次，第 11 次 apply_hourly_limit', ok === 10 && is(r, 'apply_hourly_limit') && waitIn(r, 3500, 3600), r);
+  for (let k = 0; k < 2; k++) { await back(A, 'apply', '61 minutes'); for (let i = 0; i < 10; i++) { r = await call(A, `select api_apply($1)`, [GS[10 + k * 10 + i]]); if (!r.ok) break } }
+  await back(A, 'apply', '61 minutes'); r = await call(A, `select api_apply($1)`, [GS[30]]);
+  T('一天 30 次后 apply_daily_limit', is(r, 'apply_daily_limit'), r);
+  const B = await user(); const g0 = GS[34]; const seq = [];
   for (let i = 0; i < 4; i++) { seq.push((await call(B, `select api_apply($1)`, [g0])).err || 'ok'); await call(B, `select api_leave($1)`, [g0]) }
   T('同一局撤回再申请：3 次后 apply_same_limit', seq.join() === 'ok,ok,ok,apply_same_limit', seq);
   const C = await user(); const gi = await game(H, "now()+interval '1 hour'", { join_mode: 'instant' });
-  for (let i = 0; i < 4; i++) await call(C, `select api_apply($1)`, [GS[i]]);
-  r = await call(C, `select api_join($1)`, [gi]); const r2 = await call(C, `select api_apply($1)`, [GS[4]]);
+  for (let i = 0; i < 9; i++) await call(C, `select api_apply($1)`, [GS[i]]);
+  r = await call(C, `select api_join($1)`, [gi]); const r2 = await call(C, `select api_apply($1)`, [GS[9]]);
   T('直接加入和申请合计', r.ok && is(r2, 'apply_hourly_limit'), [r, r2]);
   r = await call(C, `select api_apply($1)`, [GS[0]]); T('已申请过的报原来的错误（already_applied），不报频率', is(r, 'already_applied'), r);
 
