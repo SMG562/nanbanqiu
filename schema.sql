@@ -3028,7 +3028,7 @@ begin
   if char_length(coalesce(p->>'note', '')) > 60 then perform nbq_err('invalid', 'note'); end if;
   if 'women' = any(tg) and (me.gender is distinct from 'f' or me.gender_review) then perform nbq_err('women_only'); end if;
   if jm not in ('approve','instant') or (jm = 'instant' and st - now() > interval '2 hours') then perform nbq_err('invalid', 'join_mode'); end if;
-  -- 频率（⑭）：进行中的球局最多 5 个；每天发 3 个
+  -- 频率（⑭）：进行中的球局最多 5 个；每天发 5 个
   if (select count(*) from games where host_id = u and status in ('open','full') and starts_at > now()) >= 5 then perform nbq_err('game_open_limit'); end if;
   perform nbq_rate(u::text, 'game_create');
   insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, note, created_device, visibility, filled, tags, join_mode, time_set_at)
@@ -3821,7 +3821,7 @@ create table if not exists rate_rules (
   note      text
 );
 insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
- ('game_day',     'game_create', '24 hours',   3, false, 'game_daily_limit',   '发局：每天 3 个'),
+ ('game_day',     'game_create', '24 hours',   5, false, 'game_daily_limit',   '发局：每天 5 个'),
  ('apply_hour',   'apply',       '1 hour',    10, false, 'apply_hourly_limit', '申请 + 直接加入：每小时 10 次'),
  ('apply_day',    'apply',       '24 hours',  30, false, 'apply_daily_limit',  '申请 + 直接加入：每天 30 次'),
  ('apply_same',   'apply',       '24 hours',   3, true,  'apply_same_limit',   '同一局每天最多申请 3 次（撤回后再申请 2 次）'),

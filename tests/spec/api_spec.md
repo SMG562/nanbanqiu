@@ -34,7 +34,7 @@
 |---|---|---|
 | 获取验证码 | 同一号码 60 秒 1 次、每天 5 次；同一 IP 每小时 10 次 | otp_too_fast / otp_daily_limit / rate_limited |
 | 输入验证码 | 连错 5 次锁 30 分钟（输对后清零） | otp_locked |
-| 发起球局 | 每天 3 个；进行中（未开打、未取消）最多 5 个 | game_daily_limit / game_open_limit |
+| 发起球局 | 每天 5 个；进行中（未开打、未取消）最多 5 个 | game_daily_limit / game_open_limit |
 | 申请 + 直接加入（合计） | 每小时 10 次、每天 30 次；同一局每天 3 次 | apply_hourly_limit / apply_daily_limit / apply_same_limit |
 | 发消息 | 每分钟 10 条 | message_too_fast |
 | 新账号私信 | 注册 7 天内，每天最多主动和 3 位没一起打过球的人开始聊天（对方先发的不算） | dm_new_limit |
@@ -149,7 +149,7 @@
 | gender_m2f_used | 409 | 已经改过一次，不能再改为女生 | 数据库 users_gender_guard |
 | restore_expired | 410 | 这个账号已注销超过 30 天，可以用手机号重新注册 | 后端 |
 | rate_limited | 429 | 操作太频繁，请稍后再试 | 数据库 nbq_rate（验证码同一 IP） |
-| game_daily_limit | 429 | 今天已经发了 3 个球局，明天再发吧 | 数据库 nbq_rate |
+| game_daily_limit | 429 | 今天已经发了 5 个球局，明天再发吧 | 数据库 nbq_rate |
 | game_open_limit | 409 | 进行中的球局已有 5 个，打完再发新的吧 | 数据库 |
 | apply_hourly_limit | 429 | 申请有点频繁，过一会儿再试吧 | 数据库 nbq_rate |
 | apply_daily_limit | 429 | 今天已经申请了 15 次，明天再来吧 | 数据库 nbq_rate |

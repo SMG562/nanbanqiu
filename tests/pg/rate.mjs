@@ -37,24 +37,25 @@ try {
   T('规则 19 条（5b-2 加了下载我的数据每天 1 次，R3-2 加了开放时通知我，第七批 S2a 加了场边发布 2 条、新建话题 1 条，S2b 加了回复、点网球各 1 条），错误码都在规格错误码表里', rules.length === 19 && rules.every(r => CODES.has(r.code)), rules.map(r => r.code).filter(c => !CODES.has(c)));
   for (const k of ['game_daily_limit', 'game_open_limit', 'apply_hourly_limit', 'apply_daily_limit', 'apply_same_limit', 'message_too_fast', 'dm_new_limit', 'report_daily_limit', 'nickname_limit', 'otp_too_fast', 'otp_daily_limit', 'otp_locked'])
     if (!CODES.has(k)) T('规格里有 ' + k, false);
-  T('规格 §0.4 列了限制表', /### 0\.4 频率限制/.test(SPEC) && SPEC.includes('| 发起球局 | 每天 3 个'));
+  T('规格 §0.4 列了限制表', /### 0\.4 频率限制/.test(SPEC) && SPEC.includes('| 发起球局 | 每天 5 个'));
 
-  // ---------- 发起球局：每天 3 个；进行中最多 5 个 ----------
+  // ---------- 发起球局：每天 5 个；进行中最多 5 个 ----------
   const G1 = await user(); let r, ok = 0;
-  for (let i = 0; i < 3; i++) if ((await create(G1, i)).ok) ok++;
-  r = await create(G1, 3);
-  T('发局：3 个能发，第 4 个 game_daily_limit', ok === 3 && is(r, 'game_daily_limit'), r);
+  for (let i = 0; i < 5; i++) if ((await create(G1, i)).ok) ok++;
+  await q(`update games set status='cancelled' where host_id=$1`, [G1]);   // 取消了也照样算今天发的（进行中上限 5 不挡）
+  r = await create(G1, 5);
+  T('发局：5 个能发，取消后第 6 个 game_daily_limit', ok === 5 && is(r, 'game_daily_limit'), r);
   T('等待秒数接近 24 小时', waitIn(r, 86000, 86400), r.detail);
-  await back(G1, 'game_create', '24 hours 1 minute'); r = await create(G1, 4);
+  await back(G1, 'game_create', '24 hours 1 minute'); r = await create(G1, 6);
   T('24 小时后恢复', r.ok, r);
-  const G2 = await user(); for (let i = 0; i < 3; i++) await create(G2, i, true); ok = 0; for (let i = 0; i < 3; i++) if ((await create(G2, i)).ok) ok++;
-  T('填错被拒的不占次数', ok === 3);
+  const G2 = await user(); for (let i = 0; i < 5; i++) await create(G2, i, true); ok = 0; for (let i = 0; i < 5; i++) if ((await create(G2, i)).ok) ok++;
+  T('填错被拒的不占次数', ok === 5);
   const G3 = await user(); for (let i = 0; i < 5; i++) await game(G3);
   r = await create(G3, 0); T('进行中 5 个 → game_open_limit', is(r, 'game_open_limit'), r);
   await q(`update games set status='cancelled' where id = (select id from games where host_id=$1 limit 1)`, [G3]);
   r = await create(G3, 0); T('取消一个后能发', r.ok, r);
   const G4 = await user(); const res = await Promise.all(Array.from({ length: 10 }, (_, i) => create(G4, i)));
-  T('同时点 10 次只成功 3 次', res.filter(x => x.ok).length === 3 && res.filter(x => is(x, 'game_daily_limit')).length === 7, res.map(x => x.err || 'ok'));
+  T('同时点 10 次只成功 5 次', res.filter(x => x.ok).length === 5 && res.filter(x => is(x, 'game_daily_limit')).length === 5, res.map(x => x.err || 'ok'));
 
   // ---------- 申请 + 直接加入：每小时 10、每天 30、同一局 3 次 ----------
   const H = await user(); const GS = []; for (let i = 0; i < 36; i++) GS.push(await game(H));
