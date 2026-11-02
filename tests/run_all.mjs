@@ -111,7 +111,7 @@ add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 // 第八批 T2：设计稿 v35 的 146 项场边测试（原来读 QA_FILE 设计稿），改测正式页面（手机端 / 网页端），tests/场边/lib.cjs 做转接
 for (const [n, nm] of [[1, '信息流'], [2, '网球点赞'], [3, '筛选'], [4, '详情回复菜单'], [5, '底栏'], [6, '发布页'], [7, '话题墙相册'], [8, '压力边界']])
   add('frontend', 'side_design/t' + n, ['node', '-r', PRELOAD, path.join(HERE, '场边/t' + n + '.cjs')], { pass: [/T\d+：通过 \d+，失败 0/], timeout: 300 });   // t1 信息流 · t2 网球点赞 · …
-add('pg', 'e2e/sb_publish', ['node', '-r', PRELOAD, path.join(HERE, 'e2e/sb_publish.mjs')], { pass: [/sb_publish: \d+ 通过, 0 失败/], timeout: 300 });   // 第八批 T1 后台发布 → 前台读到
+add('pg', 'e2e/sb_publish', ['node', '-r', PRELOAD, path.join(HERE, 'e2e/sb_publish.mjs')], { pass: [/sb_publish: \d+ 通过, 0 失败/], timeout: 300, slow: true });   // 第八批 T1 后台发布 → 前台读到
 add('frontend', 'frontend/site', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/site.js')], { pass: [/\d+ passed, 0 failed/], timeout: 200 });   // 预览网站 site/（Cloudflare Pages）
 add('frontend', 'frontend/softdelete', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/softdelete.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/account', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/account.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
