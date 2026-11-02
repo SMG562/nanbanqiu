@@ -13,7 +13,7 @@ if [ "${1:-}" = "--deploy" ]; then MODE=deploy; REF=""; else MODE=diff; REF="${1
 ACTION="${2:-verify}"; [ "${1:-}" = "--deploy" ] && ACTION="${2:-verify}"
 list() {
   if [ "$MODE" = deploy ]; then node tools/worker_version.mjs --list
-  else git diff --name-only -z --diff-filter=AM "$REF" HEAD | tr '\0' '\n'; fi
+  else git diff --name-only -z --diff-filter=AM "$REF" HEAD | tr '\0' '\n' | grep -v '^\.github/'; fi   # .github 是受保护文件，写不进电脑，不核对
 }
 if [ "$ACTION" = "--paths" ]; then
   list | python3 -c "
