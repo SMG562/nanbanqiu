@@ -7,6 +7,7 @@ function playerCard(uid){const u=U(uid),s=stats(uid),home=(u.home_club_ids||[])[
       <div><b class="num">${s.streak}</b><span>连续周</span></div><div><b class="num">${s.clubs}</b><span>CLUB</span></div><div><b class="num">${s.played?Math.round(s.att*100)+'%':'—'}</b><span>赴约率</span></div></div>
     <div class="pc-foot"><span class="pc-no">NO. ${fmtNo(u.no)}</span><span class="bdg">${top.map(b=>`<i title="${b.name}">${b.mini}</i>`).join('')}</span></div><div class="pc-qrw"><div class="t"><b>扫码约我打球</b></div><div class="pc-qr"></div></div></div>`}
 function renderMe(){
+  if(!ME&&sbaWaiting()){$('#meBody').innerHTML=sbaWaitHTML();return}
   if(!ME){$('#meBody').innerHTML=loginCTA('登录南伴球')+`<div class="group" style="margin-top:18px">${anPrivHTML('li')}</div>`+commHTML();return}
   const s=stats(ME.id),pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;
   const freq={};api.mine().filter(c=>c.past&&(c.mine==='approved'||c.isHost)).forEach(c=>freq[c.venue_id]=(freq[c.venue_id]||0)+1);

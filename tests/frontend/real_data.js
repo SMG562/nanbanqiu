@@ -106,6 +106,13 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);
     { const seq = await pg.evaluate(() => window.__hdr || []); T(tag('刷新过程中右上角没有闪出「登录」'), !seq.includes('login'), seq) }
+    // 「正在恢复登录」期间，所有需要登录的页面都不能画登录按钮 / 「登录后…」（11-03：全站排查）
+    { const r = await pg.evaluate(async () => { const me = ME; const bad = []; ME = null; SBA_WAIT = true;
+        const tabs = typeof go === 'function' ? ['mine', 'notif', 'me', 'home'] : ['mine', 'home']; 
+        for (const t of tabs) { try { if (typeof go === 'function') go(t); else { UI.tab = t; render() } } catch (e) { bad.push('err ' + t) } await new Promise(r => setTimeout(r, 150));
+          const body = document.body.innerText; if (document.querySelector('[data-a="login"]') || /还没有登录|登录后/.test(body)) bad.push(t) }
+        ME = me; SBA_WAIT = false; render(); return bad });
+      T(tag('恢复登录期间：我的球局 / 通知 / 我的 / 首页都不画「登录」'), r.length === 0, r) }
     { const hdr = await pg.evaluate(() => { const m = document.querySelector('#meSlot'); return m ? { web: true, login: !!m.querySelector('[data-a="login"]'), me: !!m.querySelector('.me') } : { web: false } });
       T(tag('刷新后页面也画成已登录（网页端右上角是头像，不再是「登录」按钮）'), !hdr.web || (hdr.me && !hdr.login), hdr); }
     // ⑤b 令牌过期后重新打开（手机桌面应用隔一阵再开）

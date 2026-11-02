@@ -80,6 +80,7 @@ let SBA_TRY=0;
 // 本机有登录记录、正在把「我」读回来：页面右上角先画占位，不要闪一下「登录」（11-03）。读完、没有登录记录、或重试用完就不再等
 let SBA_WAIT=true;
 function sbaWaiting(){return SBA_WAIT&&!ME&&typeof NBQ_NET!=='undefined'&&!!NBQ_NET&&SBA.on()&&!!SBA.session()}
+function sbaWaitHTML(){return '<div class="empty"><b>正在恢复登录…</b></div>'}   // 恢复中各处「需要登录」的区域画这个，不要画登录按钮
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY);else{SBA_WAIT=false;render()}}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||ME)return;

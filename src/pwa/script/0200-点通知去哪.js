@@ -81,6 +81,7 @@ function selectGame(id,scroll){UI.sel=id;const c=api.get(id);
 /* ---------- 我的球局：按月分组 + 滚动加载 ---------- */
 function renderMine(){
   const b=$('#mineBody');
+  if(!ME&&sbaWaiting()){b.innerHTML=sbaWaitHTML();return}
   if(!ME){b.innerHTML=loginCTA('登录后查看你的球局');return}
   const all=api.mine(),up=all.filter(c=>!c.past&&c.status!=='cancelled').sort((a,b)=>a.start-b.start),past=all.filter(c=>c.past||c.status==='cancelled').sort((a,b)=>b.start-a.start);
   if(!all.length){b.innerHTML=ivqHTML()+`<div class="empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b>去发现页申请一局，或者自己发起<br><br><button class="sbtn p" style="flex:none" data-tab="disc">去发现</button></div>`+commHTML();return}
@@ -103,6 +104,7 @@ function pushCardHTML(){if(PUSH.enabled)return'';
   const t=ENV==='wechat'?['换到浏览器，才收得到提醒','微信里收不到申请和通过的通知','怎么换','i-share']:ENV==='safari'?['有人申请，马上知道','放到主屏幕，像 App 一样收提醒','放到主屏幕','i-plus']:['有人申请，马上知道','申请、通过、开打前都会提醒你','开启提醒','i-bell'];
   return `<div class="pushcard"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${t[1]}</p></div><button class="pc-go" data-a="enablePush"><svg><use href="#${t[3]}"/></svg>${t[2]}</button></div>`}
 function renderNotif(){
+  if(!ME&&sbaWaiting()){$('#notifBody').innerHTML=sbaWaitHTML();return}
   if(!ME){$('#notifBody').innerHTML=`<div class="pad">${loginCTA('登录后接收通知')}</div>`;return}
   UI.msgTab=UI.msgTab||(chatUnread()?'chat':'ntf');const cu=chatUnread(),nu=nrBadgeN();
   const seg=`<div class="pad" style="padding-bottom:4px"><div class="seg2"><button data-cx2="chat" class="${UI.msgTab==='chat'?'on':''}">聊天${cu?`<i>${cu}</i>`:''}</button><button data-cx2="ntf" class="${UI.msgTab==='ntf'?'on':''}">通知${nu?`<i>${nu}</i>`:''}</button></div></div>`;

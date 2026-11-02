@@ -2260,7 +2260,7 @@ function womenLock0(c){if(!isW(c)||ME&&(womenOK(ME)||inGame(c,ME.id)))return'';
 function xActs(c,st){const X=SX_BTN;
   if(doneLock(c))return `<button class="${X.p}" data-a="explore">看看附近其他球局</button>`;
   if(!c.past&&c.start<=NOW&&!c.isHost&&!c.mine)return `<div class="cap" style="text-align:center;margin-bottom:8px">这局已经开打了</div><button class="${X.p}" data-a="explore">看看附近其他球局</button>`;
-  if(womenLock(c)){if(!ME)return `<button class="${X.p}" data-a="login">我是女生 · 登录查看</button>`;
+  if(womenLock(c)){if(!ME)return sbaWaiting()?'':`<button class="${X.p}" data-a="login">我是女生 · 登录查看</button>`;
     if(ME.gender==='m')return `<div class="cap">女生局只对女生开放</div>`;
     if(ME.gender==='f')return `<div class="cap">账号审核中，暂时看不到女生局</div>`;
     return `<button class="${X.p}" data-sx="gender">我是女生 · 确认后查看</button>`}
@@ -4550,6 +4550,7 @@ function playerCard(uid,cls=''){const u=U(uid),s=stats(uid),home=(u.home_club_id
       <div><b class="num">${s.streak}</b><span>连续周</span></div><div><b class="num">${s.clubs}</b><span>CLUB</span></div><div><b class="num">${s.played?Math.round(s.att*100)+'%':'—'}</b><span>赴约率</span></div></div>
     <div class="pc-foot"><span class="pc-no">NO. ${fmtNo(u.no)}</span><span class="bdg">${top.map(b=>`<i title="${b.name}">${b.mini}</i>`).join('')}</span></div><div class="pc-qrw"><div class="t"><b>扫码约我打球</b></div><div class="pc-qr"></div></div></div>`}
 function profileHTML(){
+  if(!ME&&sbaWaiting())return sbaWaitHTML();
   if(!ME)return `<div class="card" style="padding:20px"><b style="font-size:16px">还没有登录</b><p class="pm" style="margin:4px 0 12px">登录后查看你的球局和球员卡</p><button class="btn btn-p w100" data-a="login">登录 / 注册</button></div><div class="card" style="padding:4px 0">${anPrivHTML('set')}</div>`;
   const s=stats(ME.id),freq={};api.mine().filter(c=>c.past&&(c.mine==='approved'||c.isHost)).forEach(c=>freq[c.venue_id]=(freq[c.venue_id]||0)+1);
   const often=Object.entries(freq).filter(([id])=>!myClubIds().includes(id)).sort((a,b)=>b[1]-a[1]).slice(0,2);
@@ -4678,7 +4679,8 @@ function renderMap(all){
 
 /* ---------- 中栏：我的球局（按月分组 + 滚动加载） ---------- */
 function renderMine(){
-  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'发起的和申请过的，都在这条时间轴上':'登录后查看'}</div></div></div>`;
+  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'发起的和申请过的，都在这条时间轴上':(sbaWaiting()?'':'登录后查看')}</div></div></div>`;
+  if(!ME&&sbaWaiting()){$('#colC').innerHTML=h+sbaWaitHTML();return}
   if(!ME){$('#colC').innerHTML=h+`<div class="card empty"><b>登录后查看你的球局</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`;return}
   const all=api.mine(),up=all.filter(c=>!c.past&&c.status!=='cancelled').sort((a,b)=>a.start-b.start),past=all.filter(c=>c.past||c.status==='cancelled').sort((a,b)=>b.start-a.start);
   const thisMonth=past.filter(c=>c.start.getMonth()===NOW.getMonth()&&c.start.getFullYear()===NOW.getFullYear()).length;
@@ -4741,7 +4743,7 @@ function renderLanding(){
   const near=api.list().filter(x=>x.id!==c.id&&!x.past&&stateOf(x)==='open').sort((a,b)=>a.dist-b.dist).slice(0,3),st=stateOf(c);
   $('#landRoot').innerHTML=`<div class="land"><div class="wxbanner">你正在微信内置浏览器中打开 · 点击右上角「···」选择「在默认浏览器中打开」，可接收通知</div>
   <div class="lnav"><a class="logo" href="#/" data-a="home"><svg><use href="#logo"/></svg>南伴球<small>${esc(CITY.zh)}网球约局</small></a><div class="sp"></div>
-    <button class="btn btn-o btn-sm" data-a="home">浏览全部球局</button>${ME?`<span class="me">${av(ME,'sm')}</span>`:`<button class="btn btn-p btn-sm" data-a="login">登录</button>`}</div>
+    <button class="btn btn-o btn-sm" data-a="home">浏览全部球局</button>${ME?`<span class="me">${av(ME,'sm')}</span>`:sbaWaiting()?'':`<button class="btn btn-p btn-sm" data-a="login">登录</button>`}</div>
   <div class="lwrap"><div>${womenLock(c)||passHTML(c)+requestsHTML(c)}</div>
     <aside class="lside">${st!=='past'||xActs(c,st)!=null?`<div class="card lcard"><div style="display:flex;flex-direction:column;gap:8px">${(ME?chatGameBtn(c,st):'')+(xActs(c,st)??actionsHTML(c)??'')+(ME?hostExtras(c,st):'')}</div>
       ${st==='open'&&!ME&&xActs(c,st)==null?`<div class="stepl"><div><i>1</i>发送申请，可以说一句</div><div><i>2</i>${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</div><div><i>3</i>按时到场</div></div>`:''}</div>`:''}
@@ -4904,6 +4906,7 @@ let SBA_TRY=0;
 // 本机有登录记录、正在把「我」读回来：页面右上角先画占位，不要闪一下「登录」（11-03）。读完、没有登录记录、或重试用完就不再等
 let SBA_WAIT=true;
 function sbaWaiting(){return SBA_WAIT&&!ME&&typeof NBQ_NET!=='undefined'&&!!NBQ_NET&&SBA.on()&&!!SBA.session()}
+function sbaWaitHTML(){return '<div class="empty"><b>正在恢复登录…</b></div>'}   // 恢复中各处「需要登录」的区域画这个，不要画登录按钮
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY);else{SBA_WAIT=false;render()}}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||ME)return;
@@ -5246,6 +5249,7 @@ function openCreate(){if(!ME){openAuth(openCreate,'登录后即可发起球局')
 
 /* 通知 / 用户菜单 */
 function renderPop(){const p=$('#pop');
+  if(!ME&&sbaWaiting()){p.innerHTML=`<div class="pop-h"><b>通知</b></div>${sbaWaitHTML()}`;return}
   if(!ME){p.innerHTML=`<div class="pop-h"><b>通知</b></div><div class="empty" style="padding:30px"><b>登录后接收通知</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`;return}
   const list=nrList();
   p.innerHTML=`<div class="pop-h"><b>通知</b><button class="btn-link" data-a="readAll">全部已读</button></div>
