@@ -4,6 +4,7 @@
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
+const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
 
 // 球局卡片对外的列（不含发起设备、系列 id 等内部列）
 const GAME_COLS = 'g.id, g.share_code, g.host_id, g.host_nickname, g.host_utr, g.venue_id, g.venue_name, g.short_name, g.starts_at, g.duration_min, g.game_type, g.capacity, g.utr_min, g.utr_max, g.note, g.status, g.tags, g.visibility, g.filled::int as filled, '
@@ -113,6 +114,20 @@ const ROUTES = {
     const rows = await d.db.asService(async q => (await q(`select name, at, round(extract(epoch from now() - at))::int as age_s from ops_heartbeats where name = 'sender' or name like 'sender@%' order by at desc limit 5`)).rows);
     const hb = rows.find(r => r.name === 'sender'), v = rows.find(r => r.name.startsWith('sender@'));
     return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null } }, { 'Cache-Control': 'no-store' });
+  },
+  // 页面报错上报（11-03 补：前台和数据库早就有，唯独这个路由漏了，报的错一直被丢）。sendBeacon 发来，不带令牌；
+  // 只收 build / device / msg / src / line 五个字段，逐个截断；同一个 IP 每分钟最多 30 条（超了静默丢，不报错）；任何情况都返回 204，不让页面因为上报失败再出错。
+  'POST /api/client-errors': async (req, d) => {
+    const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'x', now = Date.now();
+    const h = CE_HITS.get(ip); if (!h || now - h.t > 60000) CE_HITS.set(ip, { t: now, n: 1 }); else h.n++;
+    if (CE_HITS.size > 5000) CE_HITS.clear();
+    if (CE_HITS.get(ip).n > 30) return new Response(null, { status: 204 });
+    let b; try { const t = await req.text(); if (t.length > 2048) return new Response(null, { status: 204 }); b = JSON.parse(t) } catch (_) { return new Response(null, { status: 204 }) }
+    if (!b || typeof b !== 'object' || typeof b.msg !== 'string' || !b.msg) return new Response(null, { status: 204 });
+    const build = ['pwa', 'web', 'admin'].includes(b.build) ? b.build : 'web', device = ['mobile', 'desktop'].includes(b.device) ? b.device : '';
+    const src = typeof b.src === 'string' ? b.src.slice(0, 80) : '', line = Number.isInteger(b.line) && b.line >= 0 && b.line < 1e7 ? b.line : 0;
+    try { await d.db.asService(async q => { await q('select client_error_log($1,$2,$3,$4,$5)', [build, device, b.msg.slice(0, 200), src, line]) }) } catch (_) { }
+    return new Response(null, { status: 204 });
   },
   'GET /api/me': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err;

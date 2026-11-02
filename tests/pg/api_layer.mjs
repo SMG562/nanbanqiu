@@ -34,6 +34,14 @@ try {
   r = await call('GET', '/api/version'); T('version：没有发送程序心跳时也 200，版本为空', r.s === 200 && r.j.sender.version === null && r.j.sender.heartbeat_age_s === null, r);
   await admin.query(`insert into ops_heartbeats(name, at) values ('sender', now() - interval '20 seconds'), ('sender@abc123def0', now() - interval '20 seconds') on conflict (name) do update set at = excluded.at`);
   r = await call('GET', '/api/version'); T('version：读到心跳里的代码指纹和心跳年龄，不需要登录', r.s === 200 && r.j.sender.version === 'abc123def0' && r.j.sender.heartbeat_age_s >= 19 && r.j.sender.heartbeat_age_s < 60, r);
+  { const post = async (body, ip) => { const x = await handleApi(new Request('https://x.test/api/client-errors', { method: 'POST', headers: { 'cf-connecting-ip': ip || '1.1.1.1' }, body: typeof body === 'string' ? body : JSON.stringify(body) }), deps); return x.status };
+    const rows = async () => (await admin.query(`select build, device, msg, src, line, n from client_errors order by msg`)).rows;
+    T('页面报错：204，记进 client_errors', await post({ build: 'web', device: 'mobile', msg: 'TypeError: x', src: 'a.js', line: 7 }) === 204 && (await rows()).some(r => r.msg === 'TypeError: x' && r.build === 'web' && r.device === 'mobile' && r.line === 7));
+    await post({ build: 'web', device: 'mobile', msg: 'TypeError: x', src: 'a.js', line: 7 }); T('同一条再来：按小时合并计数（n=2）', (await rows()).find(r => r.msg === 'TypeError: x').n === 2);
+    const n0 = (await rows()).length;
+    T('坏内容（不是 JSON / 缺 msg / 太大）：照样 204，不记', await post('not json') === 204 && await post({ build: 'web' }) === 204 && await post({ msg: 'x'.repeat(5000) }) === 204 && (await rows()).length === n0);
+    await post({ build: 'hack', device: 'tv', msg: 'E2', src: 's'.repeat(300), line: -5 }); const e2 = (await rows()).find(r => r.msg === 'E2'); T('字段不合规：build / device 回退、src 截断、line 归零', e2 && e2.build === 'web' && e2.device === null && e2.src.length === 80 && e2.line === 0, e2);
+    let last = 204; for (let i = 0; i < 40; i++) await post({ msg: 'flood' + i }, '9.9.9.9'); const fl = (await rows()).filter(r => /^flood/.test(r.msg)).length; T('同一个 IP 每分钟最多 30 条：多的静默丢（仍 204）', fl === 30, fl) }
   r = await call('GET', '/api/health?db=1'); T('health?db=1：连得上 → db true', r.s === 200 && r.j.db === true, r);
   r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false、原因 not_configured', r.s === 503 && r.j.db === false && r.j.why === 'not_configured', r);
   { const mk = e => ({ verify, db: makeDb(async () => { throw e }) }), W = async e => (await call('GET', '/api/health?db=1', null, mk(e))).j.why;
