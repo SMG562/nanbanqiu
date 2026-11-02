@@ -201,6 +201,54 @@ const ROUTES = {
   'POST /api/notifications/read': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.all === true ? null : Array.isArray(b.ids) && b.ids.length <= 200 && b.ids.every(n => Number.isInteger(n) && n > 0) ? b.ids : (() => { throw bad() })();
     return { read: (await one(q, 'select api_notif_read($1::bigint[]) as n', [ids])).n } }),
+  // ---- 前台接入第 5 轮：埋点上报（POST /api/events）----
+  // 前台每 10 秒攒批发来（sendBeacon 不能带请求头；已登录时前台改用 fetch 带令牌）。令牌有效才记 user_id，且只记「前台自称的 uid = 令牌对应的人」那几条；
+  // 令牌坏了 / 没带 = 匿名记录（埋点不因登录问题丢）。只收字典里 source=client 且 active 的事件名；字段逐个检查，不合格的整条丢弃，从不返回错误细节。
+  'POST /api/events': async (req, d) => {
+    const t = await req.text(); if (t.length > 98304) return send(413, { error: 'too_large' });
+    let b; try { b = JSON.parse(t) } catch (_) { return send(400, { error: 'bad_json' }) }
+    const list = b && Array.isArray(b.events) ? b.events.slice(0, 100) : null; if (!list) return send(400, { error: 'bad_json' });
+    let uid = null;
+    if (req.headers.get('Authorization')) { const w = await whoIs(req, d); if (!w.err) uid = w.uid || null }
+    const now = Date.now(), tok = /^[A-Za-z0-9_-]{4,64}$/, lab = v => typeof v === 'string' && /^[a-z0-9_]{1,24}$/.test(v) ? v : null;
+    const rows = [];
+    for (const e of list) {
+      if (!e || typeof e !== 'object') continue;
+      if (typeof e.ev !== 'string' || !/^[a-z][a-z0-9_]{1,47}$/.test(e.ev) || !tok.test(e.anon || '') || !tok.test(e.sid || '')) continue;
+      if (e.build !== 'pwa' && e.build !== 'web') continue;
+      let at = typeof e.at === 'string' ? Date.parse(e.at) : NaN; if (!(at > now - 48 * 3600e3 && at < now + 600e3)) at = now;
+      let props = e.props && typeof e.props === 'object' && !Array.isArray(e.props) ? e.props : {}; if (JSON.stringify(props).length > 2000) props = {};
+      const id = k => typeof props[k] === 'string' && UUID.test(props[k]) ? props[k] : null;
+      rows.push({ at: new Date(at).toISOString(), user_id: uid && e.uid === uid ? uid : null, anon: e.anon, sid: e.sid, build: e.build, device: e.device === 'mobile' || e.device === 'desktop' ? e.device : null,
+        event: e.ev, scr: typeof e.scr === 'string' && e.scr.length <= 40 ? e.scr : null, game_id: id('game_id'), venue_id: id('venue_id'), env: lab(e.env), os: lab(e.os), city: lab(e.city), props });
+    }
+    if (!rows.length) return send(200, { ok: true, n: 0 });
+    const n = await d.db.asService(async q => {
+      if (uid && (await q('select analytics_opt_out from users where id = $1', [uid])).rows[0]?.analytics_opt_out) return 0;     // 「使用数据」关了：服务端也不记（数据库触发器是第二道）
+      const ok = new Set((await q(`select event from event_definitions where source = 'client' and status = 'active'`)).rows.map(r => r.event));
+      const use = rows.filter(r => ok.has(r.event)); if (!use.length) return 0;
+      const ses = new Map();
+      for (const r of use) { const s = ses.get(r.sid) || { sid: r.sid, anon: r.anon, user_id: null, build: r.build, device: r.device, env: r.env, city: r.city, at: r.at, n: 0, landing: null, referrer: null, utm_source: null, utm_medium: null, utm_campaign: null, standalone: null };
+        s.n++; if (r.user_id) s.user_id = r.user_id; if (r.at < s.at) s.at = r.at;
+        if (r.event === 'session_start') { const p = r.props, tx = (v, m) => typeof v === 'string' ? v.slice(0, m) : null; s.landing = tx(p.landing, 200); s.referrer = tx(p.ref, 100); s.utm_source = tx(p.utm_source, 60); s.utm_medium = tx(p.utm_medium, 60); s.utm_campaign = tx(p.utm_campaign, 60); s.standalone = typeof p.standalone === 'boolean' ? p.standalone : null }
+        ses.set(r.sid, s) }
+      const ins = await q(`insert into events(occurred_at, user_id, anon_id, session_id, build, event, screen, game_id, venue_id, device, props, env, os, city)
+        select x.at, x.user_id, x.anon, x.sid, x.build, x.event, x.scr, x.game_id, x.venue_id, x.device, x.props, x.env, x.os, coalesce((select key from cities where key = x.city), 'melb')
+        from jsonb_to_recordset($1::jsonb) as x(at timestamptz, user_id uuid, anon text, sid text, build text, event text, scr text, game_id uuid, venue_id uuid, device text, props jsonb, env text, os text, city text)`, [JSON.stringify(use)]);
+      await q(`insert into sessions(session_id, anon_id, user_id, build, device, env, city, started_at, last_event_at, landing, referrer, utm_source, utm_medium, utm_campaign, standalone, events_n)
+        select x.sid, x.anon, x.user_id, x.build, x.device, x.env, coalesce((select key from cities where key = x.city), 'melb'), x.at, now(), x.landing, x.referrer, x.utm_source, x.utm_medium, x.utm_campaign, x.standalone, x.n
+        from jsonb_to_recordset($1::jsonb) as x(sid text, anon text, user_id uuid, build text, device text, env text, city text, at timestamptz, landing text, referrer text, utm_source text, utm_medium text, utm_campaign text, standalone boolean, n int)
+        where x.user_id is null or not exists (select 1 from users u where u.id = x.user_id and u.analytics_opt_out)
+        on conflict (session_id) do update set last_event_at = now(), events_n = sessions.events_n + excluded.events_n, user_id = coalesce(sessions.user_id, excluded.user_id),
+          landing = coalesce(sessions.landing, excluded.landing), referrer = coalesce(sessions.referrer, excluded.referrer), utm_source = coalesce(sessions.utm_source, excluded.utm_source),
+          utm_medium = coalesce(sessions.utm_medium, excluded.utm_medium), utm_campaign = coalesce(sessions.utm_campaign, excluded.utm_campaign), standalone = coalesce(sessions.standalone, excluded.standalone)`, [JSON.stringify([...ses.values()])]);
+      // 设备匿名 ID ↔ 账号：收到本人的 login_success 才关联（多对多，不合并账号）
+      const lk = use.filter(r => r.event === 'login_success' && r.user_id);
+      if (lk.length) await q(`insert into identity_links(anon_id, user_id) select distinct x.anon, x.user_id from jsonb_to_recordset($1::jsonb) as x(anon text, user_id uuid) on conflict do nothing`, [JSON.stringify(lk)]);
+      return ins.rowCount;
+    });
+    return send(200, { ok: true, n });
+  },
   // ---- 第 3 步（续 2）：我的资料、球场/区、聊天记录 ----
   // 只放行资料类的列（和 schema 里 grant update 一致）；其余列 → 403 forbidden；昵称规则、改名频率、性别只能改一次等由数据库触发器判断
   'PATCH /api/me': (req, d, p) => act(req, d, p, async (q, b) => {
@@ -256,6 +304,8 @@ const ROUTES = {
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
   'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
   'POST /api/me/restore': (req, d, p) => act(req, d, p, async q => { await q('select api_account_restore()'); return { ok: true } }, { body: false }),
+  // 推送的公钥（VAPID_PUBLIC，本来就是公开的）：前台订阅推送时要用；没配 = 404，前台安静跳过。不需要登录
+  'GET /api/push/key': async (req, d) => d.vapid ? send(200, { key: d.vapid }, { 'Cache-Control': 'public, max-age=3600' }) : send(404, { error: 'push_unavailable' }),
   // 推送订阅写在 user_devices（发送程序读这里）：同一个 endpoint 更新密钥；否则占用这一端（手机 / 电脑）还没开推送的设备行；再没有就新建
   'POST /api/push/subscriptions': (req, d, p) => act(req, d, p, async (q, b) => {
     const ep = str(b.endpoint), k = b.keys || {}, pf = { mobile: 'mobile', ios_pwa: 'mobile', android: 'mobile', desktop: 'desktop' }[str(b.platform)];

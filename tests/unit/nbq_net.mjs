@@ -5,7 +5,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2]
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 600))) };
 const src = fs.readFileSync(path.join(DIR, 'src/shared/script/0495-接口调用.js'), 'utf8');
 const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent }); vm.runInContext(pure + '\n;globalThis.__x={nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -92,5 +92,20 @@ e = mk({ 'GET /api/games': { s: 503, d: { error: 'db_unavailable' } } }); L = aw
 T('匿名读失败：返回错误码', L.ok === false && L.code === 'db_unavailable');
 e = mk({}, null); r = await e.net.get('/api/games', null, { noauth: true });
 T('noauth：没令牌也发请求', e.calls.length === 1 && !r.ok && r.code === 'not_found');
+
+// ---- 通知（第 5 轮）----
+const NR = [{ id: '7', kind: 'request', game_id: 'g1', actor_id: 'u2', read_at: null, created_at: '2026-10-30T01:00:00Z' },
+  { id: '6', kind: 'approved', game_id: 'g1', actor_id: 'u2', read_at: '2026-10-30T02:00:00Z', created_at: '2026-10-29T01:00:00Z' },
+  { id: '5', kind: 'invite', game_id: null, actor_id: 'u3', read_at: null, created_at: '2026-10-28T01:00:00Z' },
+  { id: '4', kind: 'badge', game_id: null, actor_id: null, read_at: null, created_at: '2026-10-28T01:00:00Z' },
+  { id: '3', kind: 'recap', game_id: 'g1', actor_id: null, read_at: null, created_at: '2026-10-27T01:00:00Z' },
+  { id: '2', kind: 'full', game_id: 'gX', actor_id: 'u2', read_at: null, created_at: '2026-10-26T01:00:00Z' }];
+let nl = X.nbqNtfList(NR, 'me', new Set(['g1']));
+T('通知：只留有球局文案的种类，邀约 / 徽章 / 赛后（第 6 轮）和球局不在内存里的先不显示', nl.map(n => n.id).join() === '7,6', nl);
+T('通知：字段对上前台（from = 触发的人，at 毫秒，read 看 read_at，id 是数字）', nl[0].from === 'u2' && nl[0].user_id === 'me' && nl[0].at === Date.parse('2026-10-30T01:00:00Z') && nl[0].read === false && nl[1].read === true && typeof nl[0].id === 'number', nl);
+T('通知：服务器给的已读不用再同步，未读的本地点开后才要同步', X.nbqUnsyncedReads(nl).length === 0 && X.nbqUnsyncedReads([{ ...nl[0], read: true }, nl[1]]).join() === '7');
+T('通知：本地自造的（没有 srv）不参与同步', X.nbqUnsyncedReads([{ id: 101, read: true }]).length === 0);
+T('通知：有指向内存里没有的球局的 → 需要先补读球局；邀约 / 徽章不算', X.nbqNtfNeedGames(NR, new Set(['g1'])) === true && X.nbqNtfNeedGames(NR.slice(0, 5), new Set(['g1'])) === false);
+T('推送公钥 base64url → 字节', Array.from(X.nbqKeyBytes('AQID')).join() === '1,2,3' && Array.from(X.nbqKeyBytes('-_8')).join() === '251,255');
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -79,6 +79,19 @@ async function nbqLoadPublic(net){
   const games=(r.data.games||[]).map(nbqFromGame),parts=[],users={};nbqCompose(games,parts,users);
   return{ok:true,games,parts,users}}
 
+// 通知（第 5 轮）：后端一行 {id, kind, game_id, actor_id, read_at, created_at} → 前台 NOTIFS 条目。
+// 先接「由球局推出文案」的种类；邀约（要 invite_id）、赛后 / 徽章 / 等级 / 没到场（要附加内容）留给第 6 轮，读到也先不显示。
+const NBQ_NTF_KINDS=new Set(['request','approved','rejected','full','player_left','game_cancelled','joined','expired','unfilled','unfilled_end','postponed','changed','soon','reopen']);
+function nbqFromNotif(r,me){return{id:Number(r.id),user_id:me,kind:r.kind,game_id:r.game_id||null,from:r.actor_id||null,at:nbqMs(r.created_at),read:!!r.read_at,srv:true,synced:!!r.read_at}}
+// 过滤 + 转换（球局不在内存里的先不显示：文案要用球局的时间地点）。返回新到的在前，与前台 unshift 的顺序一致
+function nbqNtfList(rows,me,gameIds){return(rows||[]).filter(r=>NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id)).map(r=>nbqFromNotif(r,me))}
+// 需要先补读球局的通知（球局不在内存里）
+const nbqNtfNeedGames=(rows,gameIds)=>(rows||[]).some(r=>NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&!gameIds.has(r.game_id));
+// 还没告诉服务器的已读（本地点开 / 全部已读后 read=true，synced 还不是 true）
+const nbqUnsyncedReads=list=>(list||[]).filter(n=>n.srv&&n.read&&!n.synced).map(n=>n.id);
+// 推送公钥 base64url → Uint8Array（pushManager.subscribe 要这种形式）
+function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((String(k)+p).replace(/-/g,'+').replace(/_/g,'/')),o=new Uint8Array(b.length);for(let i=0;i<b.length;i++)o[i]=b.charCodeAt(i);return o}
+
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
@@ -106,7 +119,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  nbqApply(r);return{st:'ok'}}
+  nbqApply(r);nbqNtfStart();nbqPullNotifs();nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -153,3 +166,47 @@ const nbqEdit=(id,body)=>nbqWrite('edit'+id,n=>n.patch('/api/games/'+id,body));
 const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpone'));
 const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
 async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}
+
+/* ---- 通知（第 5 轮）：列表 / 未读 / 已读同步、推送订阅、埋点上报 ---- */
+// 真实模式下通知由服务器生成（球局上的动作触发），前台不再自己造：本地的 notify / notifyInv 直接不动作
+if(NBQ_NET){notify=function(){};notifyInv=function(){}}
+// 读通知：整份换进 NOTIFS。有通知指向内存里没有的球局（别人刚发的 / 刚被同意的）→ 先重新读入球局再转换。返回有没有新的未读
+let NBQ_NTF_BUSY=false;
+async function nbqPullNotifs(){if(!NBQ_NET||!ME||NBQ_NTF_BUSY)return false;NBQ_NTF_BUSY=true;
+  try{await nbqFlushReads();
+    const r=await NBQ_NET.get('/api/notifications');if(!r.ok)return false;
+    let rows=r.data.notifications||[];if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id))))await nbqRefresh();
+    const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)));
+    NOTIFS.splice(0,NOTIFS.length,...list);
+    const fresh=list.some(n=>!n.read&&!before.has(n.id));
+    if(typeof nrBadge==='function')nrBadge();return fresh}
+  finally{NBQ_NTF_BUSY=false}}
+// 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
+async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedReads(NOTIFS);
+  for(let i=0;i<ids.length;i+=200){const part=ids.slice(i,i+200),r=await NBQ_NET.post('/api/notifications/read',{ids:part});
+    if(r.ok)NOTIFS.forEach(n=>{if(part.includes(n.id))n.synced=true})}}
+let NBQ_NTF_T=null;
+function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
+  const tick=async()=>{if(!ME||document.visibilityState!=='visible')return;
+    if(await nbqPullNotifs()){if(typeof nrBadge==='function')nrBadge();if(typeof UI!=='undefined'&&(UI.msgTab==='ntf'||UI.tab==='notif'))render()}};
+  NBQ_NTF_T=setInterval(tick,45000);setInterval(nbqFlushReads,5000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')tick();else nbqFlushReads()});
+  addEventListener('online',tick)}
+// 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
+async function nbqPushSub(){if(!NBQ_NET||!ME||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return false;
+  try{const k=await NBQ_NET.get('/api/push/key',null,{anon:true});if(!k.ok||!k.data.key)return false;
+    const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:nbqKeyBytes(k.data.key)});
+    const j=sub.toJSON(),r=await NBQ_NET.post('/api/push/subscriptions',{endpoint:j.endpoint,keys:j.keys,platform:NR_PLAT==='mobile'?'mobile':'desktop'});
+    if(r.ok)PUSH.enabled=true;return r.ok}catch(_){return false}}
+// 退出登录前（令牌还在）：告诉服务器这台设备不再收推送，并取消浏览器里的订阅
+async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
+  const s=SBA.session(),tk=s&&s.access_token;
+  try{const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(!sub)return;
+    if(tk)await fetch('/api/push/subscriptions',{method:'DELETE',headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint}),keepalive:true});
+    await sub.unsubscribe()}catch(_){}}
+// 埋点：已登录且令牌还新鲜就带令牌发（服务端才认 user_id）；否则交回 sendBeacon（匿名，登录后靠 login_success 关联）。返回 true = 已发
+function nbqEventsSend(batch){if(!NBQ_NET||!ME)return false;
+  const s=SBA.session();if(!s||!(s.expires_at-Date.now()/1000>30))return false;
+  try{fetch('/api/events',{method:'POST',keepalive:true,headers:{Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:JSON.stringify({v:2,events:batch})}).catch(()=>{});return true}catch(_){return false}}

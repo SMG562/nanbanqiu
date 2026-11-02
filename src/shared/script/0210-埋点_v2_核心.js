@@ -31,6 +31,7 @@ function track(ev,props){if(AN.off)return;const now=Date.now();
   if(!AN.ready){AN.pre.push(e);return}anPush(e)}
 function anPush(e){AN.q.push(e);if(window.AN_LOG)window.AN_LOG.push(e);if(AN.q.length>=30)anFlush()}
 function anFlush(){if(!AN.q.length)return;const batch=AN.q.splice(0);AN.sent+=batch.length;
+  try{if(typeof nbqEventsSend==='function'&&nbqEventsSend(batch))return}catch(e){}   // 真实模式已登录：带令牌发
   try{if(/^https?:/.test(location.protocol)&&navigator.sendBeacon)navigator.sendBeacon('/api/events',new Blob([JSON.stringify({v:2,events:batch})],{type:'application/json'}));else if(window.AN_DEBUG)console.debug('[track]',batch)}catch(e){}}
 // 新会话：换 sid，先发 session_start（第一次带上进入方式、落地页和来源参数）
 function anSession(entry,first){AN.sid=anId('s_');anSS('nbq_sid',AN.sid);AN.last=Date.now();anSS('nbq_last',String(AN.last));if(entry)AN.entry=entry;if(AN.off)return;

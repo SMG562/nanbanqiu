@@ -7,5 +7,5 @@ import { connectFromEnv } from '../../server/api/connect.mjs';
 import { SUPABASE } from '../../server/headers.mjs';
 
 let deps;
-const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)) });
+const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null });
 export const onRequest = ({ request, env }) => handleApi(request, apiDeps(env));

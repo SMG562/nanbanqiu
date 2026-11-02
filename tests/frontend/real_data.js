@@ -30,6 +30,14 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === '/api/me/clubs') { S.clubsBody = JSON.parse(body); S.meUser.club_ids = S.clubsBody.venue_ids; return J(200, { ok: true }) }
       if (p === '/api/games') return J(200, { games: [GM()] });
       if (p === '/api/games/mine') return J(200, { games: [GM()], participants: [{ game_id: G1, user_id: HOST, role: 'host', status: 'approved', created_at: iso(-5), message: '' }], profiles: { [HOST]: card(HOST, 'Host', 1200) } });
+      if (p === '/api/notifications' && m === 'GET') return J(200, { notifications: [
+        { id: 9, kind: 'request', game_id: G1, actor_id: HOST, read_at: null, created_at: new Date(S.now - 3600e3).toISOString() },
+        { id: 8, kind: 'approved', game_id: G1, actor_id: HOST, read_at: new Date(S.now - 1800e3).toISOString(), created_at: new Date(S.now - 7200e3).toISOString() },
+        { id: 7, kind: 'invite', game_id: null, actor_id: HOST, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() },
+        { id: 6, kind: 'recap', game_id: G1, actor_id: null, read_at: null, created_at: new Date(S.now - 9000e3).toISOString() }] });
+      if (p === '/api/notifications/read') { S.readBody = JSON.parse(body); return J(200, { read: S.readBody.ids ? S.readBody.ids.length : 0 }) }
+      if (p === '/api/events') { S.evAuth = r.request().headers()['authorization'] || null; S.evBody = JSON.parse(body); return J(200, { ok: true, n: S.evBody.events.length }) }
+      if (p === '/api/push/key') return J(404, { error: 'push_unavailable' });
       if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
       return J(404, { error: 'not_found' }) });
     await pg.route('https://nanbanqiu-preview.pages.dev/**', r => { const u = new URL(r.request().url()); if (u.pathname.startsWith('/api/')) { api.push('PAGES ' + u.pathname); return r.fulfill({ status: 404, body: '{}' }) } html(r) });
@@ -61,6 +69,19 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('我的常去球场和性别来自数据库'), g.club[0] === V2 && g.gender === 'f', g);
     await pg.evaluate(() => { render() }); await pg.settle(400);
     T(tag('发现列表（距离 / 水平 / 屏蔽过滤）能算出这局真实球局'), (await pg.evaluate(() => api.list().map(c => c.id))).includes('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), await pg.evaluate(() => api.list().length));
+    // ③b 通知（第 5 轮）：列表来自服务器，已读回写，本地不再自造，埋点带令牌
+    const nt = await pg.evaluate(() => ({ n: NOTIFS.map(x => x.kind + ':' + x.id + ':' + x.read).join(), badge: nrBadgeN(), mine: NOTIFS.every(x => x.user_id === ME.id && x.srv) }));
+    T(tag('通知：登录后读服务器列表，只显示有球局文案的种类（邀约 / 赛后先不显示）'), api.includes('GET /api/notifications') && nt.n === 'request:9:false,approved:8:true' && nt.mine, [nt, api]);
+    T(tag('通知：红点按未读数算（1 条）'), nt.badge === 1, nt);
+    const loc = await pg.evaluate(h => { const n0 = NOTIFS.length; notify(ME.id, 'soon', GAMES[0].id, null); notifyInv(ME.id, 'invite', { id: 'i1' }, h); return [n0, NOTIFS.length] }, HOST);
+    T(tag('通知：真实模式下前台不再自己造通知'), loc[0] === loc[1], loc);
+    await pg.evaluate(() => { NOTIFS.find(x => x.id === 9).read = true; return nbqFlushReads() }); await pg.settle(300);
+    T(tag('通知：本地点开（已读）会回写服务器，且只写一次'), S.readBody && S.readBody.ids.join() === '9', S.readBody);
+    S.readBody = null; await pg.evaluate(() => nbqFlushReads()); await pg.settle(200);
+    T(tag('通知：已同步过的不再重复回写'), S.readBody === null);
+    await pg.evaluate(() => { track('filter_open'); anFlush() }); await pg.settle(400);
+    T(tag('埋点：已登录时带令牌发到 /api/events（服务端才认 user_id）'), S.evAuth && /^Bearer /.test(S.evAuth) && S.evBody.v === 2 && S.evBody.events.some(e => e.ev === 'filter_open' && e.uid), [S.evAuth, S.evBody && S.evBody.events.map(e => e.ev)]);
+    T(tag('推送：服务器没配公钥（404）→ 安静跳过，不报错'), await pg.evaluate(() => nbqPushSub()) === false);
     // ⑤ 刷新自动恢复
     api.length = 0; await pg.reload(); await pg.settle(1200); s = await state();
     T(tag('刷新后自动恢复登录并读入'), s.me === 'Sam' && s.g === 1 && api.includes('GET /api/games/mine'), [s, api]);

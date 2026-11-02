@@ -74,7 +74,7 @@ function sbaOtpDone(code){
     const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)})}
 // 资料填完后记下，下次直接进（接真后端后这份资料由数据库给）
 function sbaSaveProf(){const s=SBA.on()&&SBA.session();if(s&&ME)SBA.setProf(s.uid,ME)}
-function sbaLogout(){if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
+function sbaLogout(){if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqPushOff();if(SBA.on())SBA.logout();if(typeof NBQ_NET!=='undefined'&&NBQ_NET)nbqBoot()}   // 真实模式：清掉我的数据，重新读公开球局
 let SBA_TRY=0;
 // 打开页面：有登录态又有资料 → 自动登录；碰上网络没准备好（手机从后台冷启动常见）会重试，页面重新可见 / 网络恢复时也再试
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY)}

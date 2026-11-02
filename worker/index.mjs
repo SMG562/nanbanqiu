@@ -11,7 +11,7 @@ import { SUPABASE } from '../server/headers.mjs';
 
 // /api/*：令牌验证 + 连数据库（Hyperdrive 或密钥 DB_URL；都没配时 /api/health 正常、要数据库的接口返回 503 db_unavailable）
 let deps;
-const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)) });
+const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null });
 
 export default {
   async fetch(request, env) {
