@@ -4,7 +4,7 @@
  *       → POST /push/subscriptions  { endpoint, keys: { p256dh, auth } }
  * iOS：只有“添加到主屏幕”后从主屏幕打开（iOS 16.4+），并由用户点击触发授权，才能订阅推送。
  */
-const VERSION = 'nbq-v5';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
+const VERSION = 'nbq-v6';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
 const SHELL = ['/melbourne/', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -49,13 +49,14 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
+  const x = Object.assign({}, d, d.data && typeof d.data === 'object' ? d.data : {});   // 服务器把 kind / notif_id / url 放在 data 里；老格式放在最外层，两种都认
   e.waitUntil(self.registration.showNotification(d.title || '南伴球', {
     body: d.body || '',
-    tag: d.tag || ((d.kind || 'n') + '-' + (d.url || '')),
-    renotify: ['soon', 'game_cancelled', 'changed', 'postponed'].includes(d.kind),
+    tag: d.tag || ((x.kind || 'n') + '-' + (x.game_id || x.url || '')),
+    renotify: ['soon', 'game_cancelled', 'changed', 'postponed'].includes(x.kind),
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-72.png',
-    data: { url: d.url || '/', kind: d.kind || null, notif_id: d.notif_id != null ? d.notif_id : (d.id != null ? d.id : null) }
+    data: { url: x.url || '/', kind: x.kind || null, notif_id: x.notif_id != null ? x.notif_id : (x.id != null ? x.id : null) }
   }));
 });
 

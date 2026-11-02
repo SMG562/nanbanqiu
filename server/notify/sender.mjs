@@ -7,6 +7,8 @@
 import { priority, quietUntil, staleReason, pickChannels, emailPlan, pushText, emailSubject, EMAIL_RANK, EMAIL_MERGE_MS, EMAIL_DAILY_CAP, MERGE_REQ_MS, localDay } from './rules.mjs';
 
 const ts = t => new Date(t).toISOString();
+// 应用页地址：现在 nanbanqiu.app 由预览站项目提供，根网址是入口页，应用在 /pwa.html、/web.html；以后根网址直接是应用时改这里
+const PUSH_URL = { mobile: '/pwa.html', desktop: '/web.html' };
 
 // 读一条通知判断规则需要的全部信息
 async function loadCtx(db, n) {
@@ -38,6 +40,7 @@ const deliver = (db, nid, channel, reason, device, at) => db.query(`insert into 
 
 // 真正推送：成功记 push_ok_at；404 / 410 清掉这个订阅；返回是否送达
 async function pushTo(db, push, dev, payload, now) {
+  payload = { ...payload, data: { ...payload.data, url: dev.platform === 'desktop' ? PUSH_URL.desktop : PUSH_URL.mobile } };   // 点开通知去哪：手机端 / 网页端的应用页（前台读 ?n= 打开通知）
   let r; try { r = await push.send({ endpoint: dev.push_endpoint, p256dh: dev.push_p256dh, auth: dev.push_auth, platform: dev.platform }, payload) } catch (e) { r = { status: 0, error: String(e) } }
   if (r.status >= 200 && r.status < 300) { await db.query(`update user_devices set push_ok_at=$2 where id=$1`, [dev.id, ts(now)]); return true }
   if (r.status === 404 || r.status === 410) await db.query(`update user_devices set push_endpoint=null, push_p256dh=null, push_auth=null where id=$1`, [dev.id]);

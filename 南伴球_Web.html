@@ -5032,7 +5032,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  nbqApply(r);nbqNtfStart();nbqPullNotifs();nbqPushSub();return{st:'ok'}}
+  nbqApply(r);nbqNtfStart();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -5140,6 +5140,13 @@ if(NBQ_NET){const _oa=openAuth;openAuth=function(next,why){
 if(NBQ_NET&&typeof nrOpen==='function'){const _nbqNo=nrOpen;nrOpen=function(n){
   if(n&&n.kind==='request'&&n.from&&!PARTS.some(p=>p.game_id===n.game_id&&p.user_id===n.from&&p.status==='pending')){const a=arguments,t=this;nbqRefresh().then(()=>_nbqNo.apply(t,a));return}
   return _nbqNo.apply(this,arguments)};if(NR_PLAT==='mobile')ntfOpen=nrOpen}
+
+// 点推送通知打开：地址带 ?n=<通知 id>（sw.js 加的）。登录读入后，手机端直接打开「消息 → 通知」页（申请的接受 / 婉拒按钮就在那一行）；
+// 埋点那边会在启动时把 n / k 从地址栏去掉，所以这里在脚本加载时先记下
+const NBQ_PUSH_N=(()=>{try{return new URL(location.href).searchParams.get('n')}catch(e){return null}})();
+let NBQ_PUSH_DONE=false;
+function nbqOpenFromPush(){if(NBQ_PUSH_DONE||!NBQ_PUSH_N||!ME)return;NBQ_PUSH_DONE=true;
+  if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;

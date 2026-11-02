@@ -75,6 +75,7 @@ try {
   T('④ 非出发类也推手机（不再区分种类）', await D(n2b) === 'in_app/active_device,push_mobile/go_kind', await D(n2b));
   T('③ 都没在用：推手机（不推电脑），记下送达时间', await D(n3) === 'push_mobile/mobile_first' && !push.calls.some(x => x.sub.endpoint === 'd3') && (await one(`select push_ok_at from user_devices where id=$1`, [u3m])).push_ok_at !== null, await D(n3));
   T('③ 没有手机推送：推电脑', await D(n4) === 'push_desktop/no_mobile_push', await D(n4));
+  T('推送带应用页地址：手机 /pwa.html、电脑 /web.html（点开通知才进应用，不是入口页）', push.calls.find(x => x.sub.endpoint === 'm3').p.data.url === '/pwa.html' && push.calls.every(x => x.sub.endpoint.startsWith('d') ? x.p.data.url === '/web.html' : x.p.data.url === '/pwa.html'), push.calls.map(x => x.sub.endpoint + ':' + x.p.data.url));
   T('推送内容带球局时间和场地、点开的去处', push.calls.find(x => x.sub.endpoint === 'm3').p.body.includes('Brighton TC') && push.calls.find(x => x.sub.endpoint === 'm3').p.data.notif_id === String(n3));
   T('410：清掉手机订阅，改推电脑（mobile_failed）', await D(n7) === 'push_desktop/mobile_failed' && (await one(`select push_endpoint from user_devices where id=$1`, [u7m])).push_endpoint === null, await D(n7));
   T('404：清订阅；没别的设备 → 只进消息列表', await D(n7b) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7bm])).push_endpoint === null, await D(n7b));
