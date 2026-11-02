@@ -187,7 +187,7 @@ let NODE_PATH = [process.env.NODE_PATH, path.join(CACHE, 'node_modules')];
 try { NODE_PATH.push(execSync('npm root -g').toString().trim()) } catch (_) { }
 NODE_PATH = NODE_PATH.filter(Boolean).join(path.delimiter);
 const pwOk = (() => { try { execSync(`node -e "require('playwright')"`, { env: { ...process.env, NODE_PATH }, stdio: 'pipe' }); return true } catch (_) { return false } })();
-if (LIST.some(t => !['static', 'schema', 'unit'].includes(t.suite))) need(pwOk, '找不到 playwright。安装：npm i -g playwright && npx playwright install chromium');
+if (LIST.some(t => !['static', 'schema', 'unit', 'pg'].includes(t.suite))) need(pwOk, '找不到 playwright。安装：npm i -g playwright && npx playwright install chromium');
 if (LIST.some(t => t.suite === 'schema')) {
   try { execSync('python3 -c "import pglast"', { stdio: 'pipe' }) } catch (_) { need(false, '数据库测试需要 python3 和 pglast。安装：pip install pglast') }
   const sd = path.join(CACHE, 'schema');
