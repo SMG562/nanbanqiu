@@ -82,8 +82,7 @@ function openCreate(){if(!ME){openAuth(openCreate,'登录后即可发起球局')
 
 /* 通知 / 用户菜单 */
 function renderPop(){const p=$('#pop');
-  if(!ME&&sbaWaiting()){p.innerHTML=`<div class="pop-h"><b>通知</b></div>${sbaWaitHTML()}`;return}
-  if(!ME){p.innerHTML=`<div class="pop-h"><b>通知</b></div><div class="empty" style="padding:30px"><b>登录后接收通知</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`;return}
+  if(!ME){p.innerHTML=authView({wait:`<div class="pop-h"><b>通知</b></div>`+sbaWaitHTML(),out:()=>`<div class="pop-h"><b>通知</b></div><div class="empty" style="padding:30px"><b>登录后接收通知</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`});return}
   const list=nrList();
   p.innerHTML=`<div class="pop-h"><b>通知</b><button class="btn-link" data-a="readAll">全部已读</button></div>
   ${nrWebCard()}

@@ -5,7 +5,7 @@ function renderLanding(){
   const near=api.list().filter(x=>x.id!==c.id&&!x.past&&stateOf(x)==='open').sort((a,b)=>a.dist-b.dist).slice(0,3),st=stateOf(c);
   $('#landRoot').innerHTML=`<div class="land"><div class="wxbanner">你正在微信内置浏览器中打开 · 点击右上角「···」选择「在默认浏览器中打开」，可接收通知</div>
   <div class="lnav"><a class="logo" href="#/" data-a="home"><svg><use href="#logo"/></svg>南伴球<small>${esc(CITY.zh)}网球约局</small></a><div class="sp"></div>
-    <button class="btn btn-o btn-sm" data-a="home">浏览全部球局</button>${ME?`<span class="me">${av(ME,'sm')}</span>`:sbaWaiting()?'':`<button class="btn btn-p btn-sm" data-a="login">登录</button>`}</div>
+    <button class="btn btn-o btn-sm" data-a="home">浏览全部球局</button>${authView({in:()=>`<span class="me">${av(ME,'sm')}</span>`,wait:'',out:()=>`<button class="btn btn-p btn-sm" data-a="login">登录</button>`})}</div>
   <div class="lwrap"><div>${womenLock(c)||passHTML(c)+requestsHTML(c)}</div>
     <aside class="lside">${st!=='past'||xActs(c,st)!=null?`<div class="card lcard"><div style="display:flex;flex-direction:column;gap:8px">${(ME?chatGameBtn(c,st):'')+(xActs(c,st)??actionsHTML(c)??'')+(ME?hostExtras(c,st):'')}</div>
       ${st==='open'&&!ME&&xActs(c,st)==null?`<div class="stepl"><div><i>1</i>发送申请，可以说一句</div><div><i>2</i>${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</div><div><i>3</i>按时到场</div></div>`:''}</div>`:''}

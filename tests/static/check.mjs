@@ -96,6 +96,14 @@ if (man) {
   }
 }
 const sw = read('sw.js');
+// 「需要登录」的区域必须走 authView（11-03：刷新时先闪「登录」就是各处各自判断 !ME 造成的）
+{ const dirs = ['src/shared/script', 'src/pwa/script', 'src/web/script']; const bad = [];
+  for (const d of dirs) { if (!fs.existsSync(path.join(DIR, d))) continue; for (const f of fs.readdirSync(path.join(DIR, d))) { if (!f.endsWith('.js')) continue;
+    read(d + '/' + f).split('\n').forEach((l, n) => {
+      const login = /data-a="login"/.test(l) || /loginCTA\(/.test(l) && !/const loginCTA=/.test(l);
+      const okLine = /authView\(/.test(l) || /function openOtp\(/.test(l) || /const loginCTA=/.test(l);
+      if (login && !okLine) bad.push(d + '/' + f + ':' + (n + 1)) }) } }
+  T('登录按钮 / 登录入口只出现在 authView 里（新页面不能绕过「恢复登录中」状态）', bad.length === 0, bad) }
 T('sw.js 点开通知：窗口已开着就发消息让页面切到通知页（不整页重载），前台接收', /nbq_open_notif/.test(sw) && /nbq_open_notif/.test(read('src/shared/script/0495-接口调用.js')) && !/w\.navigate\(/.test(sw));
 T('sw.js 点开通知：认服务器放在 data 里的 url / kind / notif_id；前台读 ?n= 打开通知页', /d\.data/.test(sw) && /NBQ_PUSH_N/.test(read('src/shared/script/0495-接口调用.js')));
 T('sw.js 离线壳逐个缓存、失败不影响安装（否则 /melbourne/ 不存在的预览站装不上，推送订阅不了）', /allSettled/.test(sw) && !/addAll/.test(sw));

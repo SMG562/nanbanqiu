@@ -81,6 +81,9 @@ let SBA_TRY=0;
 let SBA_WAIT=true;
 function sbaWaiting(){return SBA_WAIT&&!ME&&typeof NBQ_NET!=='undefined'&&!!NBQ_NET&&SBA.on()&&!!SBA.session()}
 function sbaWaitHTML(){return '<div class="empty"><b>正在恢复登录…</b></div>'}   // 恢复中各处「需要登录」的区域画这个，不要画登录按钮
+// 「需要登录」的区域一律走这个：已登录 → in()；恢复登录中 → wait（默认「正在恢复登录…」）；确定没登录 → out()。
+// 新页面不要自己判断 !ME 去画登录按钮 / 「登录后…」——tests/static 会拦（11-03）
+function authView(o){if(ME)return o.in?o.in():'';if(sbaWaiting())return o.wait!==undefined?o.wait:sbaWaitHTML();return o.out?o.out():''}
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY);else{SBA_WAIT=false;render()}}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||(ME&&!NBQ_STALE))return;

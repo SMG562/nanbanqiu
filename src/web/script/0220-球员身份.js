@@ -7,8 +7,7 @@ function playerCard(uid,cls=''){const u=U(uid),s=stats(uid),home=(u.home_club_id
       <div><b class="num">${s.streak}</b><span>连续周</span></div><div><b class="num">${s.clubs}</b><span>CLUB</span></div><div><b class="num">${s.played?Math.round(s.att*100)+'%':'—'}</b><span>赴约率</span></div></div>
     <div class="pc-foot"><span class="pc-no">NO. ${fmtNo(u.no)}</span><span class="bdg">${top.map(b=>`<i title="${b.name}">${b.mini}</i>`).join('')}</span></div><div class="pc-qrw"><div class="t"><b>扫码约我打球</b></div><div class="pc-qr"></div></div></div>`}
 function profileHTML(){
-  if(!ME&&sbaWaiting())return sbaWaitHTML();
-  if(!ME)return `<div class="card" style="padding:20px"><b style="font-size:16px">还没有登录</b><p class="pm" style="margin:4px 0 12px">登录后查看你的球局和球员卡</p><button class="btn btn-p w100" data-a="login">登录 / 注册</button></div><div class="card" style="padding:4px 0">${anPrivHTML('set')}</div>`;
+  if(!ME)return authView({out:()=>`<div class="card" style="padding:20px"><b style="font-size:16px">还没有登录</b><p class="pm" style="margin:4px 0 12px">登录后查看你的球局和球员卡</p><button class="btn btn-p w100" data-a="login">登录 / 注册</button></div><div class="card" style="padding:4px 0">${anPrivHTML('set')}</div>`});
   const s=stats(ME.id),freq={};api.mine().filter(c=>c.past&&(c.mine==='approved'||c.isHost)).forEach(c=>freq[c.venue_id]=(freq[c.venue_id]||0)+1);
   const often=Object.entries(freq).filter(([id])=>!myClubIds().includes(id)).sort((a,b)=>b[1]-a[1]).slice(0,2);
   const pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;
@@ -136,9 +135,8 @@ function renderMap(all){
 
 /* ---------- 中栏：我的球局（按月分组 + 滚动加载） ---------- */
 function renderMine(){
-  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'发起的和申请过的，都在这条时间轴上':(sbaWaiting()?'':'登录后查看')}</div></div></div>`;
-  if(!ME&&sbaWaiting()){$('#colC').innerHTML=h+sbaWaitHTML();return}
-  if(!ME){$('#colC').innerHTML=h+`<div class="card empty"><b>登录后查看你的球局</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`;return}
+  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'发起的和申请过的，都在这条时间轴上':authView({wait:'',out:()=>'登录后查看'})}</div></div></div>`;
+  if(!ME){$('#colC').innerHTML=authView({wait:h+sbaWaitHTML(),out:()=>h+`<div class="card empty"><b>登录后查看你的球局</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`});return}
   const all=api.mine(),up=all.filter(c=>!c.past&&c.status!=='cancelled').sort((a,b)=>a.start-b.start),past=all.filter(c=>c.past||c.status==='cancelled').sort((a,b)=>b.start-a.start);
   const thisMonth=past.filter(c=>c.start.getMonth()===NOW.getMonth()&&c.start.getFullYear()===NOW.getFullYear()).length;
   h+=`<div class="tstat"><span><b>${up.length}</b>即将开始</span><span><b>${past.length}</b>已结束</span><span><b>${thisMonth}</b>本月</span></div>`;
