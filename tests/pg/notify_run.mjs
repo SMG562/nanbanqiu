@@ -50,7 +50,8 @@ try {
   const nid = (await one(`insert into notifications(user_id,kind,actor_id,created_at) values ($1,'joined',$2, now() - interval '1 minute') returning id`, [U1, U2])).id;
 
   // 一条通知推送出去
-  r = await runNotify(VAPID, { connect, fetch: fakeFetch(201), passes: 1, log: quiet });
+  r = await runNotify({ ...VAPID, NBQ_VERSION: 'v1fingerp1' }, { connect, fetch: fakeFetch(201), passes: 1, log: quiet });
+  T('发送程序每轮把代码指纹写进心跳（sender@指纹），/api/version 靠它回答线上是哪一版', !!(await one(`select 1 x from ops_heartbeats where name = 'sender@v1fingerp1'`)), r);
   T('推送：送达 1 条', r.delivered === 1 && r.passes === 1 && requests.length === 1, [r, requests.length]);
   T('推送：发到订阅地址，带 VAPID 和 aes128gcm', requests[0].url === 'https://push.example/ok' && /^vapid t=/.test(requests[0].init.headers.Authorization) && requests[0].init.headers['Content-Encoding'] === 'aes128gcm', requests[0].init.headers);
   { const p = JSON.parse(decrypt(Buffer.from(requests[0].init.body), R.priv, R.p256dh, R.auth)); T('推送：接收端解开后是这条通知的文字', typeof p.title === 'string' && p.title.length > 0 && /发起人/.test(JSON.stringify(p)), p); }

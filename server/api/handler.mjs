@@ -108,6 +108,12 @@ const ROUTES = {
     }
     return send(out.ok ? 200 : 503, out);
   },
+  // 线上跑的发送程序是哪一版：部署时写进 Worker 的代码指纹，Worker 每分钟写进心跳表。和仓库里 `node tools/worker_version.mjs` 对得上 = 已是最新
+  'GET /api/version': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select name, at, round(extract(epoch from now() - at))::int as age_s from ops_heartbeats where name = 'sender' or name like 'sender@%' order by at desc limit 5`)).rows);
+    const hb = rows.find(r => r.name === 'sender'), v = rows.find(r => r.name.startsWith('sender@'));
+    return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null } }, { 'Cache-Control': 'no-store' });
+  },
   'GET /api/me': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err;
     if (!w.uid) return send(200, { registered: false });

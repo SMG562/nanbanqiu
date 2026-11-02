@@ -13,3 +13,4 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - 预览网站 https://nanbanqiu-preview.pages.dev ：推送到 main 后 Cloudflare Pages 自动部署（`node tools/site.mjs` → site/），不用再手动发布预览页；要公开的新文件写进 site.mjs 的白名单。
 - **宣传物料 / 海报**：用户说做海报、朋友圈图、宣传图时，**只读 `.claude/skills/nanbanqiu-poster/SKILL.md`** 照流程做（marketing/ 里 84 张已有、一套出图脚本；不通读旧海报代码，省 token）；成品在预览站 /materials.html。
 - 不删除文件、不 `push --force`；每轮一次提交并推送，再把改过的文件同步到用户电脑的「文稿/南伴球」文件夹（10-27 用户说：往电脑存文件默认全部同意，不用问；只写改过的，不删任何东西）。
+- **同步必须回读核对**（11-03）：`device_commit_files` 写完后，用 `bash tools/sync_verify.sh HEAD~1 --paths` 得到路径 → `device_stage_files` 读回 → `bash tools/sync_verify.sh HEAD~1`，一致才算同步完成。**改了发送程序**（server/notify、worker/notify.mjs）：先 `sync_verify.sh --deploy` 核对，再让用户在自己电脑运行 `node tools/deploy_notify.mjs`（部署 + 核对线上指纹，输出 ✅ 才算上线）；我也可随时 WebFetch `https://nanbanqiu.app/api/version`（发送程序指纹，对照 `node tools/worker_version.mjs`）和 `/version.json`（网页提交，对照 git HEAD）确认线上是哪一版。不能只凭「写入成功」或「部署命令没报错」说已生效。

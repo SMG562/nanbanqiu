@@ -61,7 +61,7 @@ async function queueEmail(db, n, ctx, plan, now) {
 }
 
 // 处理到期的通知
-export async function dispatch(pool, { push, now = Date.now(), limit = 200 } = {}) {
+export async function dispatch(pool, { push, now = Date.now(), limit = 200, version = null } = {}) {
   const db = await pool.connect(); const stats = { delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0 };
   try {
     await db.query('begin'); await db.query('set local role nbq_service');
@@ -110,6 +110,7 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200 } = {
       stats.delivered++;
     }
     await db.query(`insert into ops_heartbeats(name, at) values ('sender', $1) on conflict (name) do update set at = excluded.at`, [ts(now)]);   // 5d：发送程序心跳
+    if (version) await db.query(`insert into ops_heartbeats(name, at) values ($1, $2) on conflict (name) do update set at = excluded.at`, ['sender@' + String(version).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40), ts(now)]);   // 线上跑的是哪一版代码（tools/worker_version.mjs 的指纹），/api/version 读它
     await db.query('commit');
   } catch (e) { await db.query('rollback').catch(() => { }); throw e } finally { db.release() }
   return stats;

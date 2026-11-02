@@ -19,7 +19,7 @@ export async function runNotify(env, { connect = connectFromEnv(env), fetch: f =
   if (!push && !mail) return { ...out, skipped_all: 'push_and_mail_not_configured' };
   if (push) for (let i = 0; i < passes; i++) {
     if (i) await sleep(gapMs);
-    try { const s = await dispatch(pool, { push, now: now() }); out.passes++; for (const k of ['delivered', 'deferred', 'stale', 'merged', 'emailQueued']) out[k] += s[k] || 0 }
+    try { const s = await dispatch(pool, { push, now: now(), version: env.NBQ_VERSION }); out.passes++; for (const k of ['delivered', 'deferred', 'stale', 'merged', 'emailQueued']) out[k] += s[k] || 0 }
     catch (e) { log.error?.('dispatch_error', e && (e.code || e.name)); break }          // 下一分钟再来；细节不外露
   }
   if (mail) try { const s = await flushEmail(pool, { mail, now: now(), baseUrl: env.BASE_URL || 'https://nanbanqiu.app' }); for (const k of ['sent', 'skipped', 'failed']) out[k] += s[k] || 0 }

@@ -430,6 +430,7 @@
 - 用 nbq_service 写入；关闭「使用数据」的用户由数据库丢弃；字段按 events_spec.md
 - **实现（第 5 轮，10-30 起）**：body `{v:2, events:[{ev, at, uid, anon, sid, device, build, env, os, city, scr, props}]}`，一批最多 100 条、整体不超过 96KB。没登录也能调（sendBeacon 带不了请求头）；带了有效令牌，且事件自称的 `uid` = 令牌对应的人，才记 `user_id`，其余按匿名；令牌坏了也记（匿名）。只收字典里 `source=client` 且 active 的事件名，字段不合格的整条丢弃，不返回错误细节。同时维护 `sessions`（首次建、之后累加 events_n / last_event_at；session_start 的落地页 / 来源参数补进去）；收到本人的 `login_success` 才写 `identity_links`。关了「使用数据」的人服务端直接不记。**还没做**：按 IP 限流（放 Workers 入口）。
 - **推送公钥** `GET /api/push/key` → `{key}`（环境变量 VAPID_PUBLIC，Pages / Workers 都要设；没配 404 `push_unavailable`，前台安静跳过）。
+- **发送程序版本** `GET /api/version`（不需要登录）→ `{sender:{version, at, heartbeat_age_s}}`：`version` = 部署时写进 Worker 的代码指纹（`node tools/worker_version.mjs`），Worker 每分钟写进心跳表 `ops_heartbeats`（名字 `sender@<指纹>`）；`heartbeat_age_s` = 距上次发送心跳的秒数。和仓库指纹对得上 = 线上是最新代码。
 
 ---
 
