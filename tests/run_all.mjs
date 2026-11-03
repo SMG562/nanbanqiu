@@ -26,7 +26,7 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { selectByChanged, matches, updateFailed, missingFrom } from './lib/select.mjs';
+import { selectByChanged, matches, updateFailed, missingFrom, touchedNames, regressionHits } from './lib/select.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(process.env.NBQ_DIR || path.join(HERE, '..'));
@@ -149,7 +149,7 @@ if (!QUICK) for (const t of ['2026-10-04T21:30:00+11:00', '2027-04-04T09:00:00+1
 // 后台在一天里不同时间（清早数字很小、深夜今天的局都已开打）也要自洽
 if (!QUICK) for (const t of ['2026-10-15T07:05:00+11:00', '2026-10-14T23:40:00+11:00']) add('admin', 'admin/consist@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/consist.js')], { env: { NBQ_TS: t }, pass: [/ALL PASS/], timeout: 900 });
 if (!QUICK) add('admin', 'admin/sweep', ['node', '-r', PRELOAD, path.join(HERE, 'admin/sweep.js')], { pass: [/checks=\d+ issues=0/], timeout: 2400 });
-if (!QUICK) for (const f of fs.readdirSync(path.join(HERE, 'regression')).filter(f => f.endsWith('.js')).sort())
+if (!QUICK || args.changed) for (const f of fs.readdirSync(path.join(HERE, 'regression')).filter(f => f.endsWith('.js')).sort())
   add('regression', 'regression/' + f.replace(/\.js$/, ''), ['node', '-r', PRELOAD, path.join(HERE, 'regression', f)], { snapshot: true, timeout: 400, needsExit0: true });
 
 // ---------- --changed / --failed：按改动或上次失败选测试（规则和说明见 tests/lib/select.mjs） ----------
@@ -164,14 +164,22 @@ if (args.changed) {
   try { files = ref ? git('diff --name-only ' + ref) : [...new Set([...git('diff --name-only HEAD'), ...git('ls-files -o --exclude-standard')])] }
   catch (e) { console.error('--changed 读不到 git 改动：' + String(e.message).split('\n')[0]); process.exit(2) }
   if (!files.length) { console.log('--changed：没有改动。' + (args.failed ? '' : '没有要跑的测试。')); if (!args.failed) process.exit(0) }
-  else { CHG = selectByChanged(files); CHG.n = files.length }
+  else {
+    CHG = selectByChanged(files); CHG.n = files.length;
+    // 回归测试也按改动挑（11-04，规则见 select.mjs 末尾）：改到的函数 / id 被哪个回归测试用到，就在快速档里也跑它
+    try {
+      const diff = execSync('git -c core.quotePath=false diff -U3 ' + (ref || 'HEAD') + ' -- src server', { cwd: DIR, encoding: 'utf8', maxBuffer: 1 << 28 });
+      const rd = path.join(HERE, 'regression'), srcs = Object.fromEntries(fs.readdirSync(rd).filter(f => f.endsWith('.js')).map(f => ['regression/' + f.replace(/\.js$/, ''), fs.readFileSync(path.join(rd, f), 'utf8')]));
+      CHG.reg = regressionHits(touchedNames(diff), srcs);
+    } catch { CHG.reg = [] }
+  }
 }
 if (args.failed) FAILED = readFailed();
 const SEL = !!(CHG || FAILED);
-const picked = t => (CHG && (CHG.all || matches(t.id, CHG.tokens))) || (FAILED && FAILED.includes(t.id));
+const picked = t => (CHG && (t.suite === 'regression' ? CHG.reg.includes(t.id) : (CHG.all || matches(t.id, CHG.tokens)))) || (FAILED && FAILED.includes(t.id));
 const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
 if (CHG) {
-  console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`));
+  console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`) + (CHG.reg.length ? `；回归（改到的函数 / id 被它们用到）：${CHG.reg.join(' ')}` : ''));
   if (CHG.unmatched.length) console.log(`  没有对应规则（只跑基础的 static + unit；该有规则就补进 tests/lib/select.mjs）：${CHG.unmatched.join(' ')}`);
   if (CHG.ignored.length) console.log(`  不对应测试（文档 / 图片 / 物料 / CI 配置）：${CHG.ignored.length} 个`);
 }

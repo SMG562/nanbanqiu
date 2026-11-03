@@ -71,3 +71,30 @@ export function updateFailed(prev, results) {
 
 // --failed 要重跑的名单里，有哪些在这一档里不存在（比如完整档才有的项，却加了 --quick）
 export const missingFrom = (failed, allIds) => failed.filter(id => !allIds.includes(id));
+
+// ---------- 回归测试也按改动挑（11-04） ----------
+// 回归测试（tests/regression，22 个）平时只在完整档跑。11-03 改了「邮件默认不发、不问邮箱」，r40 / r57 还按旧规则断言，
+// 直到 11-04 跑完整档才发现。现在 --changed 读改动的 diff：改动行和 hunk 标题（git 自动带上所在函数那一行）里的标识符
+// ——函数名、变量名、元素 id、data-属性值——哪个回归测试的源码里出现了，就把它也选上（快速档里也跑）。
+// 只取「定义」类的名字：改动行和上下文行里定义的函数和常量（function X、const X=、X=function）、hunk 标题里所在的函数、元素 id、data-属性值。
+// 再去掉通用名字：在一半以上回归测试里都出现的（setWho、GAMES 这类每个测试都用），不然一改就全选。
+export function touchedNames(diff) {
+  const out = new Set(), add = x => { if (x && x.length >= 4) out.add(x) };
+  for (const line of String(diff).split('\n')) {
+    const h = line.match(/^@@[^@]*@@ ?(.*)$/);
+    const s = h ? h[1] : /^[+\- ](?![+-]{2})/.test(line) ? line.slice(1) : null;   // 改动行 + 紧挨着的上下文行（被改的往往是上一行定义的函数体）
+    if (!s) continue;
+    for (const m of s.matchAll(/(?:function\s+|(?:const|let|var)\s+)([A-Za-z_$][\w$]*)/g)) add(m[1]);
+    for (const m of s.matchAll(/(?:^|[;{,\s])([A-Za-z_$][\w$]*)\s*=\s*(?:\(|function|async)/g)) add(m[1]);
+    for (const m of s.matchAll(/\bid=["'`]([\w-]+)/g)) add(m[1]);
+    for (const m of s.matchAll(/\bdata-[\w-]+=["'`]([\w-]+)/g)) add(m[1]);
+  }
+  return [...out];
+}
+// 哪些回归测试用到了这些名字（整词匹配）。sources：{ 'regression/r40': 源码文本, ... }
+export function regressionHits(names, sources) {
+  const ids = Object.keys(sources); if (!names.length || !ids.length) return [];
+  const words = Object.fromEntries(ids.map(id => [id, new Set(sources[id].match(/[A-Za-z_$][\w$-]*/g) || [])]));
+  const keep = names.filter(n => ids.filter(id => words[id].has(n)).length <= Math.max(1, ids.length / 2));
+  return ids.filter(id => keep.some(n => words[id].has(n))).sort();
+}

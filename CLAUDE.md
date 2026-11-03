@@ -23,6 +23,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - **推 main 前**：`git diff --stat origin/main..HEAD` 只含预期文件；`.githooks/pre-push` 拦大量删除；不用 worktree 分支直推 main；在临时仓库跑 git 的测试必须去掉 `GIT_*` 变量。
 - **前台数据边界**：接口数据只走 `nbqFrom*` 转换，枚举用 `nbqEnum`（`enum_cover` 测试盯着）；用户能改的资料必须写服务器，测试「改 → 重读 → 还在」。
 - **前台状态看页面**：读入只走 `nbqApply`；测试断言 DOM / 像素，不只断言内存；异步后逐个查 `if(...)return`；刷新不准先闪「未登录」（快照 `nbq_snap`，`NBQ_STALE` 期间不写）。
+- **改规则 = 同时改旧规则的测试**（11-04）：改业务规则 / 默认值 / 去掉功能时，同一轮 grep 全部 tests/（含只在完整档跑的 regression）里断言旧行为的地方一起改；`--changed` 会自动带上用到被改函数 / id 的回归测试。
 - **用户明确说过的要求，先写成测试再改**（如纸白一致性 `paper_consistency` 按真实像素比对），避免同一个问题被反复提。
 - **测试环境要齐全**：正式有的部件（发送程序、推送公钥、密钥）测试环境都要有；能测 = `staging.nanbanqiu-preview.pages.dev` 的 `/api/push/key` 有值 + `/api/version` 有新鲜心跳；连接串一律 `nbq_api.<项目编号>`（细节见 开发规矩.md「11-03 晚」）。
 - **随做随写 + 接手先查过时**（11-04）：合并、部署、用户拍板、下一步变了 → 同一次回复里更新 进度记录.md 并推送（pre-push 会提醒）；新对话第一步跑 `bash tools/handoff_check.sh`，记录落后就先按 git / PR / CI 补全再动手。

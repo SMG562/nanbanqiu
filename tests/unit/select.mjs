@@ -1,6 +1,6 @@
 // 测试入口的 --changed / --failed（tests/lib/select.mjs + run_all.mjs）：选择规则、失败名单更新、规则里的名字没有过期、端到端用临时 git 仓库走一遍
 import fs from 'fs'; import os from 'os'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
-import { BASE, RULES, selectByChanged, matches, updateFailed, missingFrom } from '../lib/select.mjs';
+import { BASE, RULES, selectByChanged, matches, updateFailed, missingFrom, touchedNames, regressionHits } from '../lib/select.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), TESTS = path.join(HERE, '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 600))) };
 const has = (r, t) => r.tokens.includes(t);
@@ -85,5 +85,25 @@ T('端到端：名单里有这一档没有的项时说明', /这一档里没有.
 o = run(['--failed', '--changed=HEAD~1', '--list'], env, tmp); got = idsOf(o);
 T('端到端：--failed 和 --changed 一起用 = 并集', got.includes('pg/rls') && got.includes('frontend/side'), got.length);
 fs.rmSync(tmp, { recursive: true, force: true });
+
+// 回归测试按改动挑（11-04）：11-03 改了邮件规则，r40 / r57 按旧规则断言，只在完整档跑才发现
+{
+  const diff = `@@ -7,3 +7,3 @@ const EM_KIND={request:'request'}
+ function emAskHTML(host){return '<input id="emkIn">'}
+-const emNeedAsk=()=>!!ME&&!ME.email;
++const emNeedAsk=()=>false;
+ function emQueue(uid,kind){const u=U(uid);
+-  if(!u||!u.email)return null;
++  if(!u||!u.email||(u.emPrefs||{})[k]!==true)return null;`;
+  const n = touchedNames(diff);
+  T('改动和上下文里定义的函数、id 都取到（emNeedAsk、emQueue、emAskHTML、emkIn）', ['emNeedAsk', 'emQueue', 'emAskHTML', 'emkIn'].every(x => n.includes(x)), n);
+  T('普通调用、关键字不算（U、return、email）', !n.includes('return') && !n.includes('email'), n);
+  const g = 'setWho(1);GAMES;api.list()', src = { 'regression/r40': g + ";$('#emkIn')", 'regression/r57': g + ';emQueue(1)', 'regression/a': g, 'regression/b': g, 'regression/c': g };
+  T('用到被改函数 / id 的回归测试被选上，别的不选', JSON.stringify(regressionHits(n, src)) === '["regression/r40","regression/r57"]', regressionHits(n, src));
+  T('一半以上回归测试都用的通用名字（setWho）不算，不然一改就全选', JSON.stringify(regressionHits(['setWho'], src)) === '[]');
+  T('没有改动 → 一个都不选', regressionHits([], src).length === 0 && touchedNames('').length === 0);
+  const ra = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'run_all.mjs'), 'utf8');
+  T('run_all 接上：--changed 时也登记回归测试，按 regressionHits 选', /!QUICK \|\| args\.changed/.test(ra) && /regressionHits\(touchedNames\(/.test(ra) && /CHG\.reg\.includes\(t\.id\)/.test(ra));
+}
 
 console.log(`\nselect: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
