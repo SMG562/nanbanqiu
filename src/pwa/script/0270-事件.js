@@ -14,9 +14,9 @@ DEV.addEventListener('click',e=>{
   const flv=t.closest('[data-flv]');if(flv){const l=+flv.dataset.flv;F.levels.has(l)?F.levels.delete(l):F.levels.add(l);render();UI.redrawFilter();return}
   const fty=t.closest('[data-fty]');if(fty){const k=fty.dataset.fty;F.types.has(k)?F.types.delete(k):F.types.add(k);render();UI.redrawFilter();return}
   const nlv=t.closest('[data-nlv]');if(nlv){NP.ntrp=+nlv.dataset.nlv;NP.redraw();return}
-  const avcb=t.closest('[data-avc]');if(avcb&&ME){ME.color=avcb.dataset.avc;refreshCard();return}
-  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;refreshCard();return}
-  const cth=t.closest('[data-cth]');if(cth&&ME){ME.card_theme=cth.dataset.cth;refreshCard();return}
+  const avcb=t.closest('[data-avc]');if(avcb&&ME){if(nbqCardBlocked())return;ME.color=avcb.dataset.avc;nbqSaveCard();refreshCard();return}
+  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){if(nbqCardBlocked())return;const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;nbqSaveCard();refreshCard();return}
+  const cth=t.closest('[data-cth]');if(cth&&ME){if(nbqCardBlocked())return;ME.card_theme=cth.dataset.cth;nbqSaveCard();refreshCard();return}
   const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
   const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}

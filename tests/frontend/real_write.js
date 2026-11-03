@@ -13,7 +13,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
-    const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
+    const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const tag = s => `${f} ${s}`;
     const S = { now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
       my1: null, ack1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
@@ -29,6 +29,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
+      if (m === 'PATCH' && p === '/api/me') { Object.assign(S.me, body); return J(200, { user: S.me }) }   // 资料修改：服务器记下，下次读回就是新值
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
         if (p === '/api/me') return J(200, { registered: true, user: S.me });
@@ -134,6 +135,23 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.evaluate(() => document.querySelector('[data-a=saveClubs]').click()); await pg.settle(700);
     T(tag('Club：保存 → PUT /api/me/clubs，带 3 个球场'), S.log.includes('PUT /api/me/clubs') && S.bodies['PUT /api/me/clubs'].venue_ids.length === 3, [S.log, S.bodies['PUT /api/me/clubs']]);
     T(tag('Club：读回后我的 Club 来自服务器，且页面上的弹层已关'), JSON.stringify(await pg.evaluate(() => ME.home_club_ids)) === JSON.stringify(S.me.club_ids) && await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return !b || !b.getClientRects().length || b.getBoundingClientRect().top >= innerHeight }), await pg.evaluate(() => ME.home_club_ids));
+    // 资料类修改（11-03）：球员卡 / 头像 / 微信号 / 邀约限制 / 性别 / 邮箱要写到服务器，刷新（重读）后不丢。之前只改内存。
+    const clk = a => pg.evaluate(a => { const el = document.createElement('button'); for (const k in a) el.setAttribute(k, a[k]); (document.querySelector('.device') || document.body).appendChild(el); el.click(); el.remove() }, a);
+    S.log.length = 0; for (const c of ['#E3262B', '#F07D1A', '#2C98EC']) { await clk({ 'data-avc': c }); await pg.settle(60) } await pg.settle(900);
+    T(tag('印章颜色：连点 3 次只存一次，存的是最后选的色名 sky'), S.log.filter(x => x === 'PATCH /api/me').length === 1 && S.bodies['PATCH /api/me'].avatar_color === 'sky', [S.log, S.bodies['PATCH /api/me']]);
+    await pg.evaluate(() => nbqRefresh()); await pg.settle(500);
+    T(tag('印章颜色：重读后还是 sky（刷新不丢），页面头像画的也是这个色'), await pg.evaluate(() => ME.color === '#2C98EC' && /2C98EC/i.test((document.querySelector('#meSlot .av,.av') || { innerHTML: '' }).innerHTML)), await pg.evaluate(() => ME.color));
+    S.log.length = 0; await clk({ 'data-cth': 'clay' }); await clk({ 'data-an': 'lion' }); await clk({ 'data-roll': '1' }); await pg.settle(900);
+    await pg.evaluate(() => nbqRefresh()); await pg.settle(500);
+    T(tag('卡面主题 / 动物 / 换印：写到服务器，重读后还在'), await pg.evaluate(() => ME.card_theme === 'clay' && ME.animal === 'lion' && ME.avatar_kind === 'animal' && ME.seal_roll >= 1), [S.bodies['PATCH /api/me'], await pg.evaluate(() => [ME.card_theme, ME.animal, ME.seal_roll])]);
+    S.log.length = 0; await pg.evaluate(() => { ME.wechat = null }); await clk({ 'data-a': 'wxSave' }); await pg.settle(100);
+    await pg.evaluate(() => { nbqPatchMe('wx', { wechat_id: 'sam_wx' }) }); await pg.settle(700);
+    T(tag('微信号：PATCH 带 wechat_id，重读后有'), S.bodies['PATCH /api/me'].wechat_id === 'sam_wx' && await pg.evaluate(() => ME.wechat === 'sam_wx'), S.bodies['PATCH /api/me']);
+    await pg.evaluate(() => { setGender('f') }); await pg.settle(700);
+    T(tag('性别：改了会 PATCH，重读后是 f'), S.bodies['PATCH /api/me'].gender === 'f' && await pg.evaluate(() => ME.gender === 'f'), S.bodies['PATCH /api/me']);
+    S.log.length = 0; await clk({ 'data-ivset': 'played' }); await pg.settle(700);
+    T(tag('邀约限制：PATCH invite_from=played，重读后还在'), S.bodies['PATCH /api/me'].invite_from === 'played' && await pg.evaluate(() => ME.invite_from === 'played'), S.bodies['PATCH /api/me']);
+    S.fail = null; S.me.avatar_color = 'paper'; S.me.card_theme = 'court'; await pg.evaluate(() => nbqRefresh()); await pg.settle(400);
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();
   }

@@ -13,18 +13,18 @@ function emAskHTML(host){if(!emNeedAsk())return'';
 function emSettings(){const p=ME.emPrefs||{};
   UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">推送收不到的时候，才用邮件告诉你。同一局 1 小时内最多一封，每天最多 5 封，不发广告。</p>
     ${ME.emailStatus==='bounced'?'<div class="em-bad">这个邮箱收不到邮件，换一个吧</div>':''}
-    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email||'')}">
+    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email&&ME.email!==NBQ_EMAIL_SET?ME.email:'')}">
     <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===false?'':' on'}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
     <div class="uf-l" style="margin-top:14px"><button class="uf-r p" data-em="setSave"><b>保存</b></button>${ME.email?'<button class="uf-r d" data-em="off"><b>关闭邮件提醒</b></button>':''}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.em;
   if(k==='save'){const v=($('#emkIn')||{}).value.trim();if(!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
+    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};if(nbqOn())nbqPatchMe('em',{email:v,email_prefs:ME.emPrefs});$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
   if(k==='skip'){ME.emAskAt=Date.now();const x=$('#emk');if(x)x.remove();return}
   if(k==='settings'){emSettings();return}
   if(k==='tog'){b.classList.toggle('on');return}
-  if(k==='setSave'){const v=$('#emSet').value.trim();if(v&&!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
-  if(k==='off'){ME.email=null;UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
+  if(k==='setSave'){let v=$('#emSet').value.trim();const keep=!v&&ME.email===NBQ_EMAIL_SET;if(keep)v=NBQ_EMAIL_SET;if(v&&!keep&&!emOK(v)){toast('邮箱格式好像不对');return}
+    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));if(nbqOn())nbqPatchMe('em',keep?{email_prefs:ME.emPrefs}:{email:ME.email,email_prefs:ME.emPrefs});UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
+  if(k==='off'){ME.email=null;if(nbqOn())nbqPatchMe('em',{email:null});UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
 // ---------- 发送规则（原型里完整模拟一遍，和 schema.sql 的 ①–⑦ 一一对应；真实环境在后端执行） ----------
 const EM_DELAY=5*6e4,EM_MERGE=36e5,EM_CAP=5,EM_RANK={change:0,result:1,request:2};
 const emDay=t=>new Date(t).toLocaleDateString('en-AU',{timeZone:CITY.tz});

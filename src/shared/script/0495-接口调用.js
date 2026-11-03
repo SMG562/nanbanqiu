@@ -42,7 +42,7 @@ function nbqColor(k){if(typeof k==='string'&&/^#[0-9a-f]{3,8}$/i.test(k))return 
 // 球友（me 或球友卡片）→ USERS 条目。姓 = last_initial；ntrp 字段在前台就是 UTR 数值
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
-    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,
+    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,wechat:u.wechat_id||undefined,invite_from:u.invite_from||undefined,email:u.mail_set?NBQ_EMAIL_SET:null,emPrefs:u.mail_prefs||undefined,
     played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
@@ -183,6 +183,18 @@ async function nbqWrite(key,call){
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
 // 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+// 资料类修改（11-03）：前台先改内存（立刻看到），再写到服务器；之前只改内存，刷新就回到旧值（印章颜色 / 动物 / 卡面主题 / 微信号 / 邀约限制 / 性别 / 邮箱）
+const NBQ_EMAIL_SET='（已保存）';   // 接口出于隐私不返回邮箱本身，只告诉前台「设置过」
+const nbqOn=()=>typeof NBQ_NET!=='undefined'&&!!NBQ_NET;
+const nbqColorName=h=>{const z=ZAVC.find(c=>c[1].toLowerCase()===String(h).toLowerCase());return z?z[0]:'paper'};
+const nbqPatchMe=(key,body)=>nbqWrite('me'+key,n=>n.patch('/api/me',body));
+// 返回 true = 现在不能改（正在用旧快照）；调用处直接 return
+const nbqCardBlocked=()=>{if(nbqOn()&&NBQ_STALE){toast('正在更新数据，请稍等一下再试');return true}return false};
+let NBQ_CARD_T=0;
+// 球员卡 / 头像：连点换色时合并成一次保存（取点击当时的值，中途重读也不会丢）
+function nbqSaveCard(){if(!nbqOn()||!ME)return;
+  const body={avatar_kind:ME.avatar_kind||'letter',avatar_animal:ME.animal||null,avatar_color:nbqColorName(ME.color),seal_roll:ME.seal_roll||0,card_theme:ME.card_theme||'court'};
+  clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
 const CLUB_MAX=3;
 const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));

@@ -1,6 +1,6 @@
 /* ===================== 性别：只用于女生局 =====================
  * 第一次填写立即生效；女生改男生随时可以；男生改女生只能一次（注册时选了男生、之后再改也算这一次）。 */
-setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to};
+setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to;if(nbqOn())nbqPatchMe('gender',{gender:to})};
 const gLocked=()=>ME.gender==='m'&&!!ME.g_m2f;
 function gPick(v){if(v==='f'&&gLocked()){toast('已经改过一次，不能再改为女生');return true}
   if(!ME.gender&&v==='m'){setGender('m');GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');GNEXT=null;return true}return false}

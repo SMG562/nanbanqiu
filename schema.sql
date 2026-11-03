@@ -6952,6 +6952,7 @@ insert into schema_migrations(version) values
   ('20261102_apply_rate_loosen'),
   ('20261102_game_rate_loosen'),
   ('20261102_no_night_quiet'),
+  ('20261103_avatar_coral_to_paper'),
   ('20261103_avatar_default_paper'),
   ('20261103_game_rate_calendar_day'),
   ('20261103_my_push_diag'),

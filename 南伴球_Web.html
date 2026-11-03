@@ -1900,11 +1900,11 @@ const SEED_NO={han:1,jason:62,alex:7,sarah:12,david:23,chris:31,daniel:40,ryan:4
   NOTIFS.push({id:1,user_id:'han',kind:'request',game_id:'g8',from:'grace',at:Date.now()-26*6e4,read:false});
   NOTIFS.push({id:2,user_id:'jason',kind:'approved',game_id:'g6',from:'tom',at:Date.now()-3*36e5,read:true});
   seedSocial();
-  ME=null;LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};try{const s=JSON.parse(localStorage.getItem('nbq_loc')||'null');if(s&&isFinite(s.lat)&&isFinite(s.lng))LOC={label:String(s.label||CITY.center),lat:+s.lat,lng:+s.lng,source:s.source||'default',asked:true}}catch(e){}
+  ME=null;LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};try{const s=JSON.parse(localStorage.getItem('nbq_loc')||'null');if(s&&s.city===CITY.slug&&isFinite(s.lat)&&isFinite(s.lng))LOC={label:String(s.label||CITY.center),lat:+s.lat,lng:+s.lng,source:s.source||'default',asked:true}}catch(e){}
   UI.sel=null;UI.tab='disc';UI.page=0;UI.exp=new Set();UI.pastShown=20;
 }
 const U=id=>USERS[id];
-const myClubIds=()=>ME?ME.home_club_ids:[];
+const myClubIds=()=>ME?(ME.home_club_ids||[]).filter(id=>VEN[id]):[];   // 已下线 / 读不到的球场不画（否则个人页直接报错）
 /* 屏蔽是双向不可见：任意一方屏蔽，对方的球局互相看不到，也不能申请 */
 const blockedPair=(a,b)=>!!(a&&b&&((USERS[a]&&USERS[a].blocked.has(b))||(USERS[b]&&USERS[b].blocked.has(a))));
 function V(g){const v=VEN[g.venue_id],start=new Date(g.starts_at),end=new Date(+start+g.duration_min*6e4),ps=PARTS.filter(p=>p.game_id===g.id);
@@ -2176,7 +2176,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='view'){openInvite(el.dataset.i);return}
   if(a==='gameOf'){INV_CLOSE();INV_GAME(el.dataset.g);return}
   if(a==='wx'){wxToggle(el.dataset.g);return}
-  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){ME.wechat=v.trim();INV_RENDER()}return}
+  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
 document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
@@ -2187,7 +2187,7 @@ const invSetHTML=cls=>ME?`<button class="${cls}" data-ivset="open"><span class="
 function ivSetSheet(){INV_OPEN(`<div class="iv"><div class="iv-h"><div><b>谁可以约我打球</b><small>收到邀约后由你确认，才会生成球局</small></div></div>
   <div class="ivset">${IVSET.map(x=>`<button class="${(ME.invite_from||'all')===x[0]?'on':''}" data-ivset="${x[0]}"><b>${x[1]}</b><small>${x[2]}</small></button>`).join('')}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ivset]');if(!b)return;e.stopPropagation();const v=b.dataset.ivset;
-  if(v==='open'){ivSetSheet();return}ME.invite_from=v;INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
+  if(v==='open'){ivSetSheet();return}if(nbqCardBlocked())return;ME.invite_from=v;if(nbqOn())nbqPatchMe('inv',{invite_from:v});INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
 const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:++NID,from:'han',to:'jason',o,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'上次双打配合很好，想约你单挑一局',status:'pending',at:Date.now(),countered:false};INVITES.unshift(inv);return inv};
 
 
@@ -2917,18 +2917,18 @@ function emAskHTML(host){if(!emNeedAsk())return'';
 function emSettings(){const p=ME.emPrefs||{};
   UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">推送收不到的时候，才用邮件告诉你。同一局 1 小时内最多一封，每天最多 5 封，不发广告。</p>
     ${ME.emailStatus==='bounced'?'<div class="em-bad">这个邮箱收不到邮件，换一个吧</div>':''}
-    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email||'')}">
+    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email&&ME.email!==NBQ_EMAIL_SET?ME.email:'')}">
     <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===false?'':' on'}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
     <div class="uf-l" style="margin-top:14px"><button class="uf-r p" data-em="setSave"><b>保存</b></button>${ME.email?'<button class="uf-r d" data-em="off"><b>关闭邮件提醒</b></button>':''}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.em;
   if(k==='save'){const v=($('#emkIn')||{}).value.trim();if(!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
+    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};if(nbqOn())nbqPatchMe('em',{email:v,email_prefs:ME.emPrefs});$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
   if(k==='skip'){ME.emAskAt=Date.now();const x=$('#emk');if(x)x.remove();return}
   if(k==='settings'){emSettings();return}
   if(k==='tog'){b.classList.toggle('on');return}
-  if(k==='setSave'){const v=$('#emSet').value.trim();if(v&&!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
-  if(k==='off'){ME.email=null;UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
+  if(k==='setSave'){let v=$('#emSet').value.trim();const keep=!v&&ME.email===NBQ_EMAIL_SET;if(keep)v=NBQ_EMAIL_SET;if(v&&!keep&&!emOK(v)){toast('邮箱格式好像不对');return}
+    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));if(nbqOn())nbqPatchMe('em',keep?{email_prefs:ME.emPrefs}:{email:ME.email,email_prefs:ME.emPrefs});UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
+  if(k==='off'){ME.email=null;if(nbqOn())nbqPatchMe('em',{email:null});UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
 // ---------- 发送规则（原型里完整模拟一遍，和 schema.sql 的 ①–⑦ 一一对应；真实环境在后端执行） ----------
 const EM_DELAY=5*6e4,EM_MERGE=36e5,EM_CAP=5,EM_RANK={change:0,result:1,request:2};
 const emDay=t=>new Date(t).toLocaleDateString('en-AU',{timeZone:CITY.tz});
@@ -3746,7 +3746,7 @@ scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'
 
 /* ===================== 性别：只用于女生局 =====================
  * 第一次填写立即生效；女生改男生随时可以；男生改女生只能一次（注册时选了男生、之后再改也算这一次）。 */
-setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to};
+setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to;if(nbqOn())nbqPatchMe('gender',{gender:to})};
 const gLocked=()=>ME.gender==='m'&&!!ME.g_m2f;
 function gPick(v){if(v==='f'&&gLocked()){toast('已经改过一次，不能再改为女生');return true}
   if(!ME.gender&&v==='m'){setGender('m');GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');GNEXT=null;return true}return false}
@@ -4987,7 +4987,7 @@ function nbqColor(k){if(typeof k==='string'&&/^#[0-9a-f]{3,8}$/i.test(k))return 
 // 球友（me 或球友卡片）→ USERS 条目。姓 = last_initial；ntrp 字段在前台就是 UTR 数值
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
-    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,
+    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,wechat:u.wechat_id||undefined,invite_from:u.invite_from||undefined,email:u.mail_set?NBQ_EMAIL_SET:null,emPrefs:u.mail_prefs||undefined,
     played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
@@ -5128,6 +5128,18 @@ async function nbqWrite(key,call){
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
 // 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+// 资料类修改（11-03）：前台先改内存（立刻看到），再写到服务器；之前只改内存，刷新就回到旧值（印章颜色 / 动物 / 卡面主题 / 微信号 / 邀约限制 / 性别 / 邮箱）
+const NBQ_EMAIL_SET='（已保存）';   // 接口出于隐私不返回邮箱本身，只告诉前台「设置过」
+const nbqOn=()=>typeof NBQ_NET!=='undefined'&&!!NBQ_NET;
+const nbqColorName=h=>{const z=ZAVC.find(c=>c[1].toLowerCase()===String(h).toLowerCase());return z?z[0]:'paper'};
+const nbqPatchMe=(key,body)=>nbqWrite('me'+key,n=>n.patch('/api/me',body));
+// 返回 true = 现在不能改（正在用旧快照）；调用处直接 return
+const nbqCardBlocked=()=>{if(nbqOn()&&NBQ_STALE){toast('正在更新数据，请稍等一下再试');return true}return false};
+let NBQ_CARD_T=0;
+// 球员卡 / 头像：连点换色时合并成一次保存（取点击当时的值，中途重读也不会丢）
+function nbqSaveCard(){if(!nbqOn()||!ME)return;
+  const body={avatar_kind:ME.avatar_kind||'letter',avatar_animal:ME.animal||null,avatar_color:nbqColorName(ME.color),seal_roll:ME.seal_roll||0,card_theme:ME.card_theme||'court'};
+  clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
 const CLUB_MAX=3;
 const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
@@ -5334,7 +5346,7 @@ function enablePush(){const done=()=>{if(NBQ_NET){const ok='Notification'in wind
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}
 
 /* 位置 */
-const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
+const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
 function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
 function requestLocation(){closeModal();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}
@@ -5364,9 +5376,9 @@ document.addEventListener('click',e=>{
   const flv=t.closest('[data-flv]');if(flv){const l=+flv.dataset.flv;F.levels.has(l)?F.levels.delete(l):F.levels.add(l);refreshFilters();return}
   const fty=t.closest('[data-fty]');if(fty){const k=fty.dataset.fty;F.types.has(k)?F.types.delete(k):F.types.add(k);refreshFilters();return}
   const nlv=t.closest('[data-nlv]');if(nlv){NP.ntrp=+nlv.dataset.nlv;NP.redraw();return}
-  const avcb=t.closest('[data-avc]');if(avcb&&ME){ME.color=avcb.dataset.avc;openCard(ME.id);render();return}
-  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;openCard(ME.id);render();return}
-  const cth=t.closest('[data-cth]');if(cth&&ME){ME.card_theme=cth.dataset.cth;openCard(ME.id);render();return}
+  const avcb=t.closest('[data-avc]');if(avcb&&ME){if(nbqCardBlocked())return;ME.color=avcb.dataset.avc;nbqSaveCard();openCard(ME.id);render();return}
+  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){if(nbqCardBlocked())return;const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;nbqSaveCard();openCard(ME.id);render();return}
+  const cth=t.closest('[data-cth]');if(cth&&ME){if(nbqCardBlocked())return;ME.card_theme=cth.dataset.cth;nbqSaveCard();openCard(ME.id);render();return}
   const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
   const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}

@@ -95,7 +95,7 @@ function enablePush(){const done=()=>{if(NBQ_NET){const ok='Notification'in wind
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}
 
 /* 位置 */
-const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
+const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
 function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
 function requestLocation(){closeModal();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}

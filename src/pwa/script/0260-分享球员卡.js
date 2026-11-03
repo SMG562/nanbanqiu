@@ -29,7 +29,7 @@ function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(e
 function openLocSheet(){LOC.asked=true;nbqLocSave();
   openSheet(`<div class="center"><div class="bigic" style="background:#EAF2FE;color:var(--blue)"><svg><use href="#i-nav"/></svg></div><div class="sh-t">允许南伴球使用你的位置？</div><p class="sh-s">用来显示附近的球局和距离，不会公开你的位置。</p></div>
   <button class="btn btn-p" data-a="locAllow">允许</button><div style="height:8px"></div><button class="btn btn-s" data-a="locPick">暂不</button>`)}
-const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
+const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
 function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
 function requestLocation(){closeSheet();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}
