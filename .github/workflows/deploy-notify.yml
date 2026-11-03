@@ -26,4 +26,4 @@ jobs:
         if: steps.k.outputs.have == 'yes'
       - name: 部署并核对线上指纹
         if: steps.k.outputs.have == 'yes'
-        run: node tools/deploy_notify.mjs
+        run: node tools/deploy_notify.mjs --force-no-expect   # CI 里代码就是仓库本身，不存在「本机文件夹不是最新」

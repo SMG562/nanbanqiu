@@ -17,6 +17,11 @@ const ENV = (process.argv.find(a => a.startsWith('--env=')) || '').slice(6);   /
 const BASE = process.env.NBQ_BASE || (ENV === 'staging' ? 'https://staging.nanbanqiu-preview.pages.dev' : 'https://nanbanqiu.app');
 const local = senderVersion(ROOT);
 console.log(`本地代码指纹：${local}（${closure(ROOT).length} 个文件）`);
+// 部署前闸门（11-04）：Claude 给的命令带 --expect=<仓库最新代码的指纹>。本机文件夹不是最新（还没同步 / 同步写旧了）→ 指纹对不上 → 一个字节都不上传。
+// 11-02、11-04 两次「部署了旧代码」都是因为人和 Claude 都靠记性；这里改成程序强制。
+const EXPECT = (process.argv.find(a => a.startsWith('--expect=')) || '').slice(9);
+if (EXPECT && EXPECT !== local) { console.error(`\n❌ 没有部署：本机代码指纹是 ${local}，应该是 ${EXPECT}。本机「南伴球」文件夹里的发送程序文件不是最新的——让 Claude 重新同步并回读核对后再跑。`); process.exit(3) }
+if (!EXPECT && !process.argv.includes('--check') && !process.argv.includes('--force-no-expect')) { console.error('\n❌ 没有部署：命令要带 --expect=<指纹>（Claude 会给出完整命令）。确实要不核对就部署：加 --force-no-expect。'); process.exit(3) }
 
 export async function live() {
   const r = await fetch(BASE + '/api/version', { headers: { 'Cache-Control': 'no-cache' } });
