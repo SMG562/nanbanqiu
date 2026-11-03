@@ -1,6 +1,0 @@
-.cx-web{display:grid;grid-template-columns:300px 1fr;height:min(620px,80vh)}
-.cx-l{border-right:1px solid #EEF0EE;overflow-y:auto;background:#FAFBFA}.cx-lh{font-size:17px;font-weight:800;padding:18px 16px 10px}.cx-l .cx-list{border-radius:0;background:none}.cx-l .cx-item{background:none}
-.cx-l .empty{padding:24px 16px;font-size:12.5px}
-.cx-r{min-width:0}.cx-web>.cx-r{padding:18px 18px 14px;display:flex;flex-direction:column;align-items:stretch;gap:0}
-.cx-web .cx-hd{padding-right:34px}
-.cx-empty{margin:auto;color:#9AA29B;font-size:13px;text-align:center;padding:40px}

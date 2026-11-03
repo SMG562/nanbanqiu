@@ -1,6 +1,0 @@
-/* 社群卡片（列表底部，可关闭） */
-.comm{position:relative;margin:22px 0 4px;border-radius:20px;padding:16px 16px 14px;background:linear-gradient(135deg,#F1FBF4,#fff 60%);border:1px solid #D7EEDD}
-.comm .x{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--mut);font-size:18px}
-.comm h4{font-size:15.5px;font-weight:700;padding-right:26px}
-.comm p{font-size:13px;color:var(--ink2);margin:4px 0 12px;line-height:1.55}
-

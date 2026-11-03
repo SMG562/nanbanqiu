@@ -1,7 +1,0 @@
-/* 右上角消息：各页同一个位置——离顶 状态栏 + 7px、离右 8px（发现页那一行 52px 居中正好是 7px；大标题页、场边页对齐到它） */
-.big-t.wb{display:flex;align-items:center}.big-t.wb .tbell{margin-left:auto;align-self:flex-start;margin-top:-3px}
-#scr-side{--nbq-ink:var(--ink)}
-.seg+.tbell{margin-left:4px}
-.nback{display:inline-grid;place-items:center;width:34px;height:34px;margin:0 2px 0 -10px;color:var(--ink);vertical-align:-4px}
-.nback svg{width:22px;height:22px;transform:rotate(180deg)}
-.li .ico.sb{background:#1E5A44}

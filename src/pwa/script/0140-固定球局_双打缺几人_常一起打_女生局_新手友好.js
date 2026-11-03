@@ -1,1 +1,0 @@
-    case'dlPoster':{const el=document.querySelector('.xhs-pv .ogW,.shr .shr-pv');if(el&&window.html2canvas){html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)imgSave(bl,'nanbanqiu-'+d.g+'.png');else toast('保存失败，请截图保存')},'image/png')).catch(()=>toast('保存失败，请截图保存'))}else toast('图片生成中，请稍候');break}

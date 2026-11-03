@@ -1,9 +1,0 @@
-/* ============ 球员卡 Player Card ============ */
-.pc{--a:#0B3B2A;--b:#176B4D;--c:#C6EA3D;--t:#fff;position:relative;width:300px;aspect-ratio:300/430;border-radius:22px;overflow:hidden;color:var(--t);
-  background:linear-gradient(160deg,var(--b),var(--a) 72%);
-  box-shadow:0 24px 50px -18px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.18);font-family:inherit;flex:none}
-.pc.t1{--a:#3B2616;--b:#9A6B45;--c:#F1C9A0}
-.pc.t2{--a:#2E3A42;--b:#8E9CA6;--c:#EEF3F6}
-.pc.t3{--a:#0B3B2A;--b:#1E8A60;--c:#C6EA3D}
-.pc.t4{--a:#4A3306;--b:#C28E22;--c:#FFE7A3}
-.pc.t5{--a:#050505;--b:#2B2410;--c:#E6C46A}
