@@ -69,6 +69,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     // ③ 老用户登录
     api.length = 0; await login(); s = await state();
     T(tag('登录后页面也是已登录的样子（右上角头像）'), await uiOK(true), await uiHdr());
+    T(tag('头像印色：库里的色名 paper 换成纸白色值，页面上画的是纸白（不是黑色）'), await pg.evaluate(() => { const h = document.querySelector('#meSlot .av, .av'); return ME.color === '#F4EFE3' && !!h && /F4EFE3/i.test(h.innerHTML) && !/color:\s*paper/i.test(h.innerHTML) }), await pg.evaluate(() => ({ c: ME.color, h: (document.querySelector('.av') || {}).innerHTML?.slice(0, 160) })));
     T(tag('老用户：读入我 / 球局 / 球友'), s.me === 'Sam' && s.g === 1 && s.u === 2 && api.includes('GET /api/games') && api.includes('GET /api/games/mine') && api.includes('GET /api/invites'), [s, api]);
     const g = await pg.evaluate(() => { const c = V(GAMES[0]); return { ntrp: [c.ntrp_min, c.ntrp_max], iso: typeof GAMES[0].starts_at, venue: c.v && c.v.short, spots: c.spots, host: c.host && c.host.name, club: ME.home_club_ids, gender: ME.gender } });
     T(tag('球局字段对得上前台：水平范围、开始时间、球场、空位、发起人'), g.ntrp[0] === 4 && g.ntrp[1] === 6.5 && g.iso === 'string' && g.venue === 'Test TC' && g.spots === 3 && g.host === 'Host', g);

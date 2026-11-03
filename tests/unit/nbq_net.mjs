@@ -5,7 +5,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2]
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 600))) };
 const src = fs.readFileSync(path.join(DIR, 'src/shared/script/0495-接口调用.js'), 'utf8');
 const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
+// 印色名单（nbqColor 要用）：和页面里同一份，从源码取
+const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
+const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
