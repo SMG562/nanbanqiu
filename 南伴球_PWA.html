@@ -5069,6 +5069,9 @@ async function nbqWrite(key,call){
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
+// 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+const CLUB_MAX=3;
+const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
@@ -5250,7 +5253,7 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
-  <div class="lab">Home Club <span>可多选，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
+  <div class="lab">Home Club <span>最多选 3 个，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:14px"></div><button class="btn btn-p" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button>`,true);
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
@@ -5275,9 +5278,9 @@ function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
   <button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">保留</button>`)}
 let CL=[];
 function clubRows(){return Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">可多选 · ★ 主 Club 会显示在球员卡上</p>
+function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
   <div id="clList">${clubRows()}</div>
-  <div style="height:12px"></div><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button>`,true)}
+  <div style="position:sticky;bottom:calc(-18px - var(--hb));margin:12px -20px calc(-18px - var(--hb));padding:12px 20px calc(18px + var(--hb));background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,true)}
 
 /* 分享 */
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
@@ -5388,9 +5391,9 @@ DEV.addEventListener('click',e=>{
   const avcb=t.closest('[data-avc]');if(avcb&&ME){ME.color=avcb.dataset.avc;refreshCard();return}
   const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;refreshCard();return}
   const cth=t.closest('[data-cth]');if(cth&&ME){ME.card_theme=cth.dataset.cth;refreshCard();return}
-  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
+  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
-  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
+  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
   const q=t.closest('[data-q]');if(q){const a=$('#applyMsg');a.value=a.value.replace(/[。！!]?$/,'，')+q.dataset.q+'。';q.remove();return}
   const nd=t.closest('[data-ngdur]');if(nd){NG.dur=+nd.dataset.ngdur;NG.redraw();return}
   const nt=t.closest('[data-ngtype]');if(nt){NG.type=nt.dataset.ngtype;NG.redraw();return}
@@ -5440,8 +5443,8 @@ DEV.addEventListener('click',e=>{
     case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
-    case'saveClubs':api.setClubs(CL);closeSheet();toast('已更新我的 Club');render();break;
-    case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
+    case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
+    case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'enablePush':enablePush();break;
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;

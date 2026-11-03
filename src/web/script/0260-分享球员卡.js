@@ -39,7 +39,7 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
-  <div class="lab">Home Club <span>可多选，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
+  <div class="lab">Home Club <span>最多选 3 个，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:12px"></div><button class="btn btn-p w100" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button></div>`,'sm');
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
@@ -58,9 +58,9 @@ function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
   <div class="row2"><button class="btn btn-s" data-a="closeModal">保留</button><button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button></div></div>`,'sm')}
 let CL=[];
 function clubRows(){return Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openModal(`<div class="m-b"><div class="m-t">我的 Club</div><p class="m-s">可多选 · ★ 主 Club 会显示在球员卡上</p>
+function openClubs(){CL=[...myClubIds()];openModal(`<div class="m-b"><div class="m-t">我的 Club</div><p class="m-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
   <div id="clList">${clubRows()}</div>
-  <div style="height:12px"></div><button class="btn btn-p w100" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,'md')}
+  <div style="position:sticky;bottom:-26px;margin:12px -28px -26px;padding:12px 28px 26px;background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p w100" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div></div>`,'md')}
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
 const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;

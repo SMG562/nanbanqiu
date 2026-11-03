@@ -47,6 +47,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === `/api/games/${G3}/postpone`) return J(200, { starts_at: iso(34) });
       if (p === `/api/games/${G1}/change-ack`) { S.ack1 = body.choice; if (body.choice === 'out') S.my1 = null; return J(200, { status: body.choice }) }
       if (p === `/api/games/${G2}/cancel`) return (S.g2Cancelled = true, J(200, { ok: true }));
+      if (p === '/api/me/clubs') { S.me.club_ids = body.venue_ids; return J(200, { venue_ids: body.venue_ids }) }
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
@@ -124,6 +125,15 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('约定：没同意过就不直接继续，等同意'), await pg.evaluate(() => window.__pactNext === false && typeof PACT_NEXT !== 'undefined' && !!PACT_NEXT));
     await pg.evaluate(() => { const el = document.createElement('button'); el.setAttribute('data-pact', 'ok'); document.body.appendChild(el); el.click(); el.remove() }); await pg.settle(900);   // 约定弹窗里的「同意并继续」
     T(tag('约定：同意后先记到数据库（POST /api/me/pact），再继续原来的操作'), S.log.join() === 'POST /api/me/pact' && await pg.evaluate(() => window.__pactNext === true && !!ME.pact_at), S.log);
+    // 我的 Club（11-03）：最多 3 个、「完成」按钮在长列表里也看得到、保存走 PUT /api/me/clubs、读回后页面状态来自服务器
+    await pg.evaluate(ids => { const v = Object.values(VEN)[0]; ids.forEach((id, i) => { VEN[id] = { ...v, id, name: 'Club ' + (i + 2), short: 'C' + (i + 2) } }) }, [U('2'), U('3'), U('4')]);
+    S.log.length = 0; await pg.evaluate(() => openClubs()); await pg.settle(400);
+    for (const id of [V1, U('2'), U('3'), U('4')]) { await pg.evaluate(i => document.querySelector(`[data-cl="${i}"]`).click(), id); await pg.settle(60) }
+    T(tag('Club：最多选 3 个，第 4 个提示'), (await pg.evaluate(() => CL.length)) === 3 && /最多选 3/.test(await toasts() || ''), [await pg.evaluate(() => CL), await toasts()]);
+    T(tag('Club：「完成」按钮在屏幕里能看到（不用翻到长列表最下面）'), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 }), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return b && JSON.stringify(b.getBoundingClientRect()) + ' vh=' + innerHeight }));
+    await pg.evaluate(() => document.querySelector('[data-a=saveClubs]').click()); await pg.settle(700);
+    T(tag('Club：保存 → PUT /api/me/clubs，带 3 个球场'), S.log.includes('PUT /api/me/clubs') && S.bodies['PUT /api/me/clubs'].venue_ids.length === 3, [S.log, S.bodies['PUT /api/me/clubs']]);
+    T(tag('Club：读回后我的 Club 来自服务器，且页面上的弹层已关'), JSON.stringify(await pg.evaluate(() => ME.home_club_ids)) === JSON.stringify(S.me.club_ids) && await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return !b || !b.getClientRects().length || b.getBoundingClientRect().top >= innerHeight }), await pg.evaluate(() => ME.home_club_ids));
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();
   }

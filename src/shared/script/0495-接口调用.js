@@ -182,6 +182,9 @@ async function nbqWrite(key,call){
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
+// 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+const CLUB_MAX=3;
+const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
