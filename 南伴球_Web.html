@@ -4578,7 +4578,7 @@ function profileHTML(){
   ${partnersHTML()}
   <div class="card" style="padding:4px 0">
     <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
-    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'收不到通知时，用邮件告诉你'}</small></span></button>
+    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span></button>
     <button class="set" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span></button>
     ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
     <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
