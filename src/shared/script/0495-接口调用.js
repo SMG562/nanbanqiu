@@ -89,17 +89,18 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites')]);
+  const [pub,mine,inv,blk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
-  put(m.data.user);[mine.data.profiles,inv.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
+  put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
+  const blocked=blk.ok?(blk.data.blocks||[]).map(b=>b.user_id):[];blocked.forEach(id=>{if(!users[id])put({id,nickname:'已屏蔽的球友'})});   // 名片读不到时用占位，名单里不会缺人
   const gm={};[...(pub.data.games||[]),...(mine.data.games||[])].forEach(g=>{gm[g.id]=nbqFromGame(g)});   // 同一局两边都有时以「我的」为准（后写覆盖）
   const games=Object.values(gm),parts=(mine.data.participants||[]).map(nbqFromPart);
   // 公开球局的发起人：取完整球员卡（头像等）；取不到的用卡片上的昵称兜底，不算失败
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
 // 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
 async function nbqLoadPublic(net){
   const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
@@ -137,7 +138,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
@@ -257,6 +258,14 @@ async function nbqInviteWithdraw(i){
   const was=i.status==='counter'&&i.to===ME.id?'counter':'invite',d=await nbqWrite('invwd'+i.id,n=>n.post('/api/invites/'+i.id+'/withdraw'));if(!d)return nbqInvBack();
   track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
 
+
+/* ---- 屏蔽 / 举报（第 6 轮 6c）：先调接口，成功才改页面；屏蔽名单登录时读入，刷新不丢 ---- */
+async function nbqBlock(uid,on){const d=await nbqWrite('blk'+uid,n=>on?n.post('/api/blocks',{user_id:uid}):n.del('/api/blocks/'+uid));
+  if(!d)return false;track(on?'user_block':'user_unblock',{target_uid:uid});return true}
+async function nbqReportSend(c,reason,note){const k='rep'+c.type+c.id;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{const r=await NBQ_NET.post('/api/reports',{target_type:c.type,target_id:c.id,reason,note:note||'',via:c.via,...(c.ctx?{context_ref:String(c.ctx)}:{})});
+    if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));return false}return true}
+  finally{NBQ_BUSY.delete(k)}}
 
 /* ---- 聊天（第 6 轮 6b）：会话列表 / 消息读自服务器；发消息先调接口，成功才显示；每 45 秒（和通知一起）读会话列表，开着会话时每 8 秒读新消息 ---- */
 async function nbqMissingUsers(ids){const miss=[...new Set(ids.filter(id=>id&&!USERS[id]))];

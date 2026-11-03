@@ -216,6 +216,10 @@ const ROUTES = {
     await q(`insert into reports(reporter_id, target_type, target_id, reason, note, source, via, context_ref) values (nbq_uid(), $1, $2, $3, $4, 'in_app', $5, $6)`, [tt, tid, why, note || null, via, str(b.context_ref)]);
     return { ok: true } }),
   'POST /api/blocks': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.user_id) || '')) throw bad(); await q('select api_block($1)', [b.user_id]); return { ok: true } }),
+  // 我屏蔽的人（屏蔽名单；11-04 第 6 轮）：只返回我屏蔽的，不返回谁屏蔽了我
+  'GET /api/blocks': (req, d, p) => act(req, d, p, async q => {
+    const blocks = (await q('select blocked_id as user_id, created_at from blocks where blocker_id = nbq_uid() order by created_at desc limit 200')).rows;
+    return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   'GET /api/notifications': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' }); if (!w.uid) return send(401, { error: 'login_required' });

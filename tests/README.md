@@ -59,6 +59,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | frontend | `frontend/real_write.js` | 5g-3 第 4 轮（4b）球局写操作在真实模式（两端，有状态的假 /api，点击走真实 data-a 事件）：申请 · 撤回 · 失败提示错误码并同步 · 连点只发一次 · 同意 · 婉拒（原因映射）· 取消 · 发局参数映射 · 球友约定先写库再继续 |
 | frontend | `frontend/real_invite.js` | 第 6 轮（6a）邀约在真实模式（两端，有状态的假 /api，点击走真实 data-iv 事件）：读入（时间换成第几天 + 时:分）· 接受 · 婉拒（原因 + 一句话）· 换个时间 · 撤回 · 发邀约（含每天上限失败提示）· 邀约类通知读入 |
 | frontend | `frontend/real_chat.js` | 第 6 轮（6b）聊天在真实模式（两端）：会话列表读入（最后一句 / 未读）· 点开读消息并标已读 · 发消息（失败提示、输入框保留）· 新消息轮询 · 球局群聊首次点开才在服务器建 |
+| frontend | `frontend/real_safety.js` | 第 6 轮（6c）屏蔽 / 举报在真实模式（两端）：屏蔽名单登录时读入 · 屏蔽 / 解除屏蔽调接口（失败不假装成功）· 举报（点原因即提交、「其他」必须写说明、重复举报的提示） |
 | pg | `pg/venues_seed.mjs` | 5g-3 球场 + 区导入（server/seed/venues_seed.sql）：在真实 schema 上执行、数量与前台名录一致、区外键、坐标范围、可重复执行、核对标记、/api/venues 只给 active |
 | frontend | `frontend/sb_login.js` | 5g-1 两端用假 Supabase 接口跑完整登录：演示照旧、发码失败、验证码错、新号码填资料、刷新自动登录、退出、老用户直接进、续期被拒 |
 | frontend | `frontend/img_save.js` | 5e 保存图片（两端）：能分享走系统分享、取消不弹、被拒 / 不支持弹大图长按保存、不触发下载；小红书文案链接带 https:// |

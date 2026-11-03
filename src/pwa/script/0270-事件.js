@@ -43,8 +43,10 @@ DEV.addEventListener('click',e=>{
     case'saveCard':saveCard(a.dataset.u);break;
     case'doSaveCard':doSaveCard(a.dataset.u);break;
     case'block':openBlock(a.dataset.u);break;
-    case'doBlock':api.block(a.dataset.u);closeSheet();toast(`已屏蔽 ${U(a.dataset.u).name}`);render();break;
-    case'unblock':api.unblock(a.dataset.u);closeSheet();toast('已解除屏蔽');render();break;
+    case'doBlock':if(NBQ_NET){nbqBlock(a.dataset.u,true).then(ok=>{if(!ok)return;closeSheet();toast(`已屏蔽 ${U(a.dataset.u).name}`);render()});break}
+      api.block(a.dataset.u);closeSheet();toast(`已屏蔽 ${U(a.dataset.u).name}`);render();break;
+    case'unblock':if(NBQ_NET){nbqBlock(a.dataset.u,false).then(ok=>{if(!ok)return;closeSheet();toast('已解除屏蔽');render()});break}
+      api.unblock(a.dataset.u);closeSheet();toast('已解除屏蔽');render();break;
     case'blocklist':openBlocklist();break;
     case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.app');break;
     case'kudos':api.kudos(g);toast('👍 已为同场球友点赞');render();break;

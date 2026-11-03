@@ -404,6 +404,8 @@
 - 被举报人不知道是谁举报的
 - 事件：report_submit（前端，不含说明）
 
+### GET /api/blocks · 我屏蔽的人 `{blocks:[{user_id, created_at}], profiles}`（只返回我屏蔽的，不返回谁屏蔽了我；登录时读入前台屏蔽名单）
+
 ### POST /api/blocks `{user_id}` · DELETE /api/blocks/:user_id · `api_block(uid)` / `api_unblock(uid)`
 - 屏蔽：对方在我球局里的待确认申请自动婉拒（decline_reason = blocked），对方不收到通知；双方互相看不到对方发起的球局、不能申请、不能约、不能私信
 - 事件：user_block / user_unblock（前端）

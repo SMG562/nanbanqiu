@@ -51,8 +51,10 @@ document.addEventListener('click',e=>{
     case'doSaveCard':doSaveCard(a.dataset.u);break;
     case'copyCard':copy(profileUrl(ME),'球员卡链接已复制');break;
     case'block':openBlock(a.dataset.u);break;
-    case'doBlock':api.block(a.dataset.u);closeModal();toast(`已屏蔽 ${U(a.dataset.u).name}`);UI.sel=null;render();break;
-    case'unblock':api.unblock(a.dataset.u);toast('已解除屏蔽');closeModal();render();break;
+    case'doBlock':if(NBQ_NET){nbqBlock(a.dataset.u,true).then(ok=>{if(!ok)return;closeModal();toast(`已屏蔽 ${U(a.dataset.u).name}`);UI.sel=null;render()});break}
+      api.block(a.dataset.u);closeModal();toast(`已屏蔽 ${U(a.dataset.u).name}`);UI.sel=null;render();break;
+    case'unblock':if(NBQ_NET){nbqBlock(a.dataset.u,false).then(ok=>{if(!ok)return;toast('已解除屏蔽');closeModal();render()});break}
+      api.unblock(a.dataset.u);toast('已解除屏蔽');closeModal();render();break;
     case'blocklist':$('#umenu').classList.remove('show');openBlocklist();break;
     case'report':location.href=reportMail(a.dataset.u);toast('已打开邮件：safety@nanbanqiu.app');break;
     case'kudos':api.kudos(g);toast('👍 已为同场球友点赞');render();break;

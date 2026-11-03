@@ -15,8 +15,9 @@ function repOpen(type,id,via,ctx){if(!ME)return;
     <p class="sn-p">不会告诉对方是谁举报的，我们会在 24 小时内处理。</p>
     <input class="sn-note" id="repNote" maxlength="200" placeholder="补充说明（选填）">
     <div class="sn-list">${REP_REASONS.map(([k,a,b])=>`<button data-rp="${k}"><b>${a}</b><small>${b}</small></button>`).join('')}</div></div>`)}
-function repSubmit(reason){const c=REPCUR;if(!c||!ME)return;const el=document.getElementById('repNote'),note=(el&&el.value||'').trim().slice(0,200);
+async function repSubmit(reason){const c=REPCUR;if(!c||!ME)return;const el=document.getElementById('repNote'),note=(el&&el.value||'').trim().slice(0,200);
   if(reason==='other'&&!note){if(el){el.focus();el.placeholder='请简单说一下发生了什么'}return}
+  if(NBQ_NET&&!await nbqReportSend(c,reason,note))return;   // 真实模式：服务器收下才算（重复 / 超限会提示原因，面板留着）
   REPORTS.unshift({id:'r'+Date.now().toString(36)+REPORTS.length,reporter_id:ME.id,target_type:c.type,target_id:c.id,reason,note:note||null,via:c.via,ctx:c.ctx,source:'in_app',status:'open',created_at:Date.now()});
   track('report_submit',{target_type:c.type,reason,has_note:!!note,via:c.via});REPCUR=null;UF_CLOSE();toast('已收到，我们会在 24 小时内处理')}
 // 入口：球员卡「举报」（原来打开邮件）、聊天底部「举报」（原来只弹提示）
