@@ -17,6 +17,10 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
+      - '**.jsonc'              # 部署配置（wrangler）
+      - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
+      - '.githooks/**'          # 提交前 / 推送前检查
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   schedule:
     - cron: '0 16 * * 6'        # UTC 周六 16:00 = 墨尔本周日 02:00–03:00
