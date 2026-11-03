@@ -31,6 +31,7 @@ async function loadCtx(db, n) {
       if (n.actor_id) ctx.applicantStatus = (await db.query(`select status::text s from game_participants where game_id=$1 and user_id=$2`, [n.game_id, n.actor_id])).rows[0]?.s || null;
     }
   }
+  if (n.thread_id) ctx.chat = (await db.query(`select t.kind, (select m.body from messages m where m.thread_id = t.id and m.sender_id = $2 and not m.hidden order by m.id desc limit 1) body from threads t where t.id = $1`, [n.thread_id, n.actor_id])).rows[0] || null;   // 新消息：会话类型 + 发送人最后一条（11-04）
   if (n.invite_id) ctx.invite = (await db.query(`select status::text, expires_at from invites where id=$1`, [n.invite_id])).rows[0];
   if (n.sb_post_id) ctx.sb = (await db.query(`select p.body post_body, p.photo_count photos, r.body reply_body, sb_notif_stale($1) stale
       from sb_posts p left join sb_replies r on r.id=$3 where p.id=$2`, [n.id, n.sb_post_id, n.sb_reply_id])).rows[0] || { stale: 'removed' };   // 场边（第七批 S2b+）
@@ -40,7 +41,8 @@ const deliver = (db, nid, channel, reason, device, at) => db.query(`insert into 
 
 // 真正推送：成功记 push_ok_at；404 / 410 清掉这个订阅；返回是否送达
 async function pushTo(db, push, dev, payload, now) {
-  payload = { ...payload, data: { ...payload.data, url: dev.platform === 'desktop' ? PUSH_URL.desktop : PUSH_URL.mobile } };   // 点开通知去哪：手机端 / 网页端的应用页（前台读 ?n= 打开通知）
+  const base = dev.platform === 'desktop' ? PUSH_URL.desktop : PUSH_URL.mobile;
+  payload = { ...payload, data: { ...payload.data, url: payload.data.thread_id ? `${base}?t=${encodeURIComponent(payload.data.thread_id)}` : base } };   // 新消息：点开直接去那个会话（?t=）   // 点开通知去哪：手机端 / 网页端的应用页（前台读 ?n= 打开通知）
   let r; try { r = await push.send({ endpoint: dev.push_endpoint, p256dh: dev.push_p256dh, auth: dev.push_auth, platform: dev.platform }, payload) } catch (e) { r = { status: 0, error: String(e) } }
   if (r.status >= 200 && r.status < 300) { await db.query(`update user_devices set push_ok_at=$2 where id=$1`, [dev.id, ts(now)]); return true }
   if (r.status === 404 || r.status === 410) await db.query(`update user_devices set push_endpoint=null, push_p256dh=null, push_auth=null where id=$1`, [dev.id]);

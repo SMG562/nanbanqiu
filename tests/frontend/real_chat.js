@@ -81,6 +81,12 @@ let BASE = Date.now();
     await pg.evaluate(() => { try { CX_CLOSE() } catch (e) { } }); await pg.settle(500);
     S.log.length = 0; await pg.evaluate(g => openThread(gameThread(g, true).id), G1); await until(() => pg.evaluate(() => THREADS.length > 0 && !THREADS.some(t => t.tmp)));
     T(tag('球局群聊：POST /api/threads 带球局，建好后能打开'), S.log[0] === 'POST /api/threads' && S.bodies['POST /api/threads'].game_id === G1 && (await pg.evaluate(() => THREADS.some(t => t.type === 'game' && t.id !== undefined && !t.tmp && t.srv))), [S.log, await pg.evaluate(() => THREADS.map(t => [t.id, t.type, !!t.tmp]))]);
+    // 点新消息的推送（地址带 ?t=会话&n=通知&k=chat）：直接打开那个会话，不去通知页
+    await pg.evaluate(() => { try { CX_CLOSE() } catch (e) { } }); await pg.settle(400); S.log.length = 0;
+    await pg.goto('https://nanbanqiu.app/?t=' + T1 + '&n=9&k=chat'); await pg.settle(600);
+    if (!(await pg.evaluate(() => !!ME))) { await pg.evaluate(() => { openAuth(null) }); await pg.settle(300); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456') }
+    await until(() => pg.evaluate(() => !!document.getElementById('cxMsgs') && /周六见/.test(document.getElementById('cxMsgs').innerText)));
+    T(tag('点新消息的推送：直接打开那个会话（看到消息），不去通知页'), /周六见/.test(await msgsText()) && !(await pg.evaluate(() => UI.msgTab === 'ntf' && !document.getElementById('cxMsgs'))), await msgsText());
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();
   }

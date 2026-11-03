@@ -80,7 +80,7 @@ self.addEventListener('notificationclick', e => {
       if (!('focus' in w)) continue;
       try {
         await w.focus();
-        w.postMessage({ type: 'nbq_open_notif', notif_id: (e.notification.data || {}).notif_id });   // 页面自己切到通知页，不整页重载
+        w.postMessage({ type: 'nbq_open_notif', notif_id: (e.notification.data || {}).notif_id, kind: (e.notification.data || {}).kind, thread_id: (e.notification.data || {}).thread_id });   // 页面自己切到通知页，不整页重载
         return;
       } catch (_) { /* 窗口拿不到焦点：退回新开窗口 */ }
       break;

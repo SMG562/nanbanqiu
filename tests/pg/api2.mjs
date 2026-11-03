@@ -93,6 +93,28 @@ try {
   r = await call(U.X, `select api_thread_game($1)`, [GC]); T('不在这局 → forbidden', is(r, 'forbidden'), r);
   r = await call(U.B, `select api_thread_game($1)`, [GV]); const tgOld = r.v; r = await call(U.B, `select api_message_send($1,'hi')`, [tgOld]); T('开打 48 小时后群聊关闭 → chat_closed', is(r, 'chat_closed'), r);
 
+  // ---------- 新消息通知（11-04）：收到私信 / 群聊消息 → chat 通知（带 thread_id，不带 game_id），发送程序推到手机 ----------
+  const nc = async (uid, th) => +(await one(`select count(*) from notifications where user_id=$1 and kind='chat' and thread_id=$2`, [uid, th])).count;
+  T('私信：对方收到 chat 通知，且 5 分钟内同一会话（上一条还没读）只通知一次（前面发了 2 条）', await nc(U.B, dm) === 1, await nc(U.B, dm));
+  const cn = await one(`select actor_id, game_id, pushed_at from notifications where user_id=$1 and kind='chat' and thread_id=$2`, [U.B, dm]);
+  T('私信通知：actor = 发送人、不带 game_id、等待发送程序推送', cn.actor_id === U.A && cn.game_id === null && cn.pushed_at === null, cn);
+  T('发送人自己不收通知', await nc(U.A, dm) === 0);
+  r = await call(U.B, `select api_chat_notif_read($1)`, [dm]); T('打开会话 → 这个会话的 chat 通知标已读', r.ok && (await one(`select read_at from notifications where user_id=$1 and kind='chat' and thread_id=$2`, [U.B, dm])).read_at !== null, r);
+  r = await call(U.A, `select api_message_send($1,'到了')`, [dm]); T('已读之后再来新消息 → 再通知一次（不被 5 分钟挡住）', r.ok && await nc(U.B, dm) === 2, await nc(U.B, dm));
+  r = await call(U.A, `select api_chat_notif_read($1)`, [dm]); T('别人的会话通知不受影响（只标自己的）', r.ok && await nc(U.B, dm) === 2 && (await one(`select count(*)::int n from notifications where user_id=$1 and kind='chat' and thread_id=$2 and read_at is null`, [U.B, dm])).n === 1);
+  T('球局群聊：同局其他已加入的人都收到通知，发送人没有', await nc(U.A, tg) === 1 && await nc(U.H, tg) === 1 && await nc(U.B, tg) === 0, [await nc(U.A, tg), await nc(U.H, tg), await nc(U.B, tg)]);
+  T('球局群聊通知不带 game_id（开打后聊天还能继续，带了会被当成「已开打」不推）', +(await one(`select count(*) from notifications where kind='chat' and thread_id=$1 and game_id is not null`, [tg])).count === 0);
+  // 屏蔽 / 少遇到：直接用通知函数验证（线程直接建，避开「能不能私信」的门槛）
+  const mkdm = async (a, b) => (await one(`insert into threads(kind, user_a, user_b) values ('dm', least($1::uuid,$2::uuid), greatest($1::uuid,$2::uuid)) on conflict do nothing returning id`, [a, b]) || await one(`select id from threads where kind='dm' and user_a=least($1::uuid,$2::uuid) and user_b=greatest($1::uuid,$2::uuid)`, [a, b])).id;
+  const tXC = await mkdm(U.X, U.C);
+  await q(`insert into player_prefs(user_id, target_id, pref) values ($1,$2,'less') on conflict (user_id, target_id) do update set pref='less'`, [U.C, U.X]);
+  await q(`select nbq_chat_notify($1,$2)`, [tXC, U.X]); T('对方把我设成「少遇到」（没有同局）→ 不通知', await nc(U.C, tXC) === 0, await nc(U.C, tXC));
+  await q(`delete from player_prefs where user_id=$1 and target_id=$2`, [U.C, U.X]);
+  await q(`insert into blocks(blocker_id, blocked_id) values ($1,$2) on conflict do nothing`, [U.C, U.X]);
+  await q(`select nbq_chat_notify($1,$2)`, [tXC, U.X]); T('有屏蔽关系 → 不通知', await nc(U.C, tXC) === 0, await nc(U.C, tXC));
+  await q(`delete from blocks where blocker_id=$1 and blocked_id=$2`, [U.C, U.X]);
+  await q(`select nbq_chat_notify($1,$2)`, [tXC, U.X]); T('没有屏蔽 / 少遇到 → 通知', await nc(U.C, tXC) === 1, await nc(U.C, tXC));
+
   // ---------- 屏蔽 ----------
   r = await call(U.A, `select api_block($1)`, [U.C]); T('屏蔽', r.ok, r);
   T('对方在我球局里待确认的申请自动婉拒（blocked），对方不收到通知', (await one(`select status::text s, decline_reason d from game_participants where game_id=$1 and user_id=$2`, [GF, U.C])).d === 'blocked' && await nn(U.C, 'rejected') === 0);

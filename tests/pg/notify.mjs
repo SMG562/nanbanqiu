@@ -265,6 +265,32 @@ try {
   const sbD = (await asU(sD, `select api_sb_post($1::jsonb)`, [JSON.stringify({ body: 'D 的' })])).id;
   await asU(sB, `select api_sb_ball($1)`, [sbD]); await run(Z + 8 * M); await flush(Z + H);
   T('场边：推不到也不发邮件', (await OB(sD)).length === 0 && /none\/no_push/.test(await D((await SBN(sD, 'sb_ball'))[0].id)));
+  // ---------- 新消息（11-04）：私信 / 球局群聊的消息推到手机，点开去那个会话 ----------
+  const cA = await user('Cora'), cB = await user('Dan'); await dev(cB, 'mobile', { ep: 'chatB' }); await dev(cB, 'desktop', { ep: 'chatBd' });
+  const tCh = await asU(cA, `select api_thread_dm($1)`, [cB]);
+  await asU(cA, `select api_message_send($1,$2)`, [tCh, '明早 7 点老地方见，我带球']);
+  const cn = await one(`select * from notifications where user_id=$1 and kind='chat'`, [cB]);
+  T('新消息：私信发出后生成 chat 通知（带会话 id，不带球局）', cn && cn.thread_id === tCh && cn.game_id === null && cn.actor_id === cA, cn);
+  const Zc = 12 * H;   // 墨尔本 2027-03-10 02:00 之后的夜里：别的提醒会顺延，消息像短信一样照推
+  s = await run(Zc);
+  const cc = callsTo('chatB');
+  T('新消息：夜里也立刻推到手机（不顺延），电脑端不推', cc.length === 1 && callsTo('chatBd').length === 0 && cn && (await NR(cn.id)).pushed_at !== null, [cc.length, callsTo('chatBd').length]);
+  T('新消息：推送标题是发送人、正文是消息内容', cc[0] && cc[0].p.title === 'Cora' && cc[0].p.body === '明早 7 点老地方见，我带球', cc[0] && cc[0].p);
+  T('新消息：推送带会话 id 和类型，点开地址是 /melbourne/?t=会话', cc[0] && cc[0].p.data.kind === 'chat' && cc[0].p.data.thread_id === tCh && cc[0].p.data.url === `/melbourne/?t=${tCh}`, cc[0] && cc[0].p.data);
+  // 已经在应用里看过了（打开会话标已读）→ 推送前判为过时，不推
+  await asU(cA, `select api_message_send($1,$2)`, [tCh, '再确认一下场地']);
+  await q(`update notifications set created_at = created_at - interval '6 minutes' where user_id=$1 and kind='chat'`, [cB]);
+  await asU(cA, `select api_message_send($1,$2)`, [tCh, '第三条']);
+  await asU(cB, `select api_chat_notif_read($1)`, [tCh]);
+  const before3 = callsTo('chatB').length; await run(Zc + M);
+  T('新消息：对方已经点开会话（通知已读）→ 不再推', callsTo('chatB').length === before3, [callsTo('chatB').length, before3]);
+  // 球局群聊：标题带「球局聊天」
+  const gChat = await game(-H), cG = await user('Gus'); await apply(gChat, cA, 'approved'); await apply(gChat, cG, 'approved'); await dev(cG, 'mobile', { ep: 'chatG' });
+  const tG = await asU(cA, `select api_thread_game($1)`, [gChat]);
+  await asU(cA, `select api_message_send($1,$2)`, [tG, '谁带水？']);
+  await run(Zc + 2 * M);
+  const cg = callsTo('chatG');
+  T('新消息：球局群聊（球局已开打也照推）标题「发送人 · 球局聊天」，点开去群聊', cg.length === 1 && cg[0].p.title === 'Cora · 球局聊天' && cg[0].p.body === '谁带水？' && cg[0].p.data.url === `/melbourne/?t=${tG}`, cg[0] && cg[0].p);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`notify: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

@@ -312,7 +312,9 @@ const ROUTES = {
     return { messages: rows.reverse() } }, { ids: ['id'], body: false }),
   'POST /api/threads/:id/read': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const t = await q('select 1 from threads where id = $1', [x.id]); if (!t.rowCount) throw Object.assign(new Error('not_found'), { code: 'P0001' });   // 行级权限：不在对话里 = 看不到 = 404
-    await q(`insert into thread_reads(thread_id, user_id, last_read_at) values ($1, nbq_uid(), now()) on conflict (thread_id, user_id) do update set last_read_at = now()`, [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+    await q(`insert into thread_reads(thread_id, user_id, last_read_at) values ($1, nbq_uid(), now()) on conflict (thread_id, user_id) do update set last_read_at = now()`, [x.id]);
+    await q('select api_chat_notif_read($1)', [x.id]);   // 这个会话的新消息通知一起标已读（推送前发现已读就不推）
+    return { ok: true } }, { ids: ['id'], body: false }),
   // ---- 第 3 步（续 3）：场边、账号注销 / 恢复、推送订阅（对应 api_spec §14、§2、§3）----
   'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r),
   'DELETE /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_delete($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),

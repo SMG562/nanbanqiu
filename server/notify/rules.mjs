@@ -6,7 +6,7 @@
 
 export const URGENT = new Set(['soon', 'game_cancelled', 'changed', 'postponed', 'unfilled', 'unfilled_end']);   // 推送的 Urgency: high（Web Push 头）+ 夜里照常发
 // 11-02 你定的：像短信一样，申请 / 同意 / 婉拒 / 邀约这类人对人的提醒夜里也立刻推（但不算 Urgency high）；只有 LOW（赛后回顾、徽章、等级…）夜里才顺延到 8 点
-export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined']);
+export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined', 'chat']);   // chat = 新消息：像短信一样夜里也立刻推（11-04 你定的：消息要及时推送）
 export const LOW = new Set(['recap', 'follow_game', 'badge', 'levelup', 'reopen', 'invite_expired', 'noshow', 'account_status', 'sb_ball', 'sb_reply', 'sb_reply_to']);   // 场边互动（第七批 S2b+）：夜里顺延到 8 点
 export const GO = new Set(['soon', 'game_cancelled', 'changed', 'postponed']);
 // 邮件只发三类
@@ -91,13 +91,15 @@ export function pushText(n, ctx) {
     soon: ['30 分钟后开打', w], unfilled: ['还缺人', w], unfilled_end: ['这局没有凑齐', w], reopen: ['又有空位了', w], follow_game: [`${a} 发了新球局`, w], recap: ['打得怎么样？', w],
     invite: [`${a} 约你打球`, ''], invite_counter: [`${a} 想换个时间`, ''], invite_accepted: [`${a} 接受了你的邀约`, w], invite_declined: [`${a} 这次不方便`, ''], invite_expired: ['邀约已失效', ''],
     noshow: ['有球友反馈你没到场', '可以申诉'], badge: ['获得新徽章', ''], levelup: ['等级提升', ''], account_status: ['账号状态有变化', '点开查看'],
+    // 新消息（11-04）：私信标题是发送人，球局群聊标「某某 · 球局聊天」；正文是最后一条的前 40 个字
+    chat: [ctx.chat && ctx.chat.kind === 'game' ? `${a} · 球局聊天` : a, cut((ctx.chat && ctx.chat.body) || '发来一条新消息', 40)],
     // 场边（第七批 S2b+）：网球合并「Coco 和另外 4 人」；回复带内容，10 分钟内合并「Coco 等 3 人」
     sb_ball: [k > 1 ? `${a} 和另外 ${k - 1} 人给你点了网球 🎾` : `${a} 给你点了网球 🎾`, sb.post_body ? `「${cut(sb.post_body)}」` : sb.photos ? '你的照片' : ''],
     sb_reply: [k > 1 ? `${a} 等 ${k} 人回复了你` : `${a} 回复了你`, cut(sb.reply_body, 40)],
     sb_reply_to: [`${a} 回复了你`, cut(sb.reply_body, 40)],
   };
   const [title, body] = T[n.kind] || ['南伴球', ''];
-  return { title, body, data: { notif_id: String(n.id), kind: n.kind, game_id: n.game_id, invite_id: n.invite_id } };
+  return { title, body, data: { notif_id: String(n.id), kind: n.kind, game_id: n.game_id, invite_id: n.invite_id, ...(n.thread_id ? { thread_id: n.thread_id } : {}) } };
 }
 export function emailSubject(kind, items, ctx) {
   const w = when(ctx.game, ctx.userTz), n = items.length;

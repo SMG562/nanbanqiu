@@ -174,7 +174,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon()});nbqPushSub();return{st:'ok'}}
+  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -379,7 +379,17 @@ if(NBQ_NET&&typeof nrOpen==='function'){const _nbqNo=nrOpen;nrOpen=function(n){
 // 埋点那边会在启动时把 n / k 从地址栏去掉，所以这里在脚本加载时先记下
 const NBQ_PUSH_N=(()=>{try{return new URL(location.href).searchParams.get('n')}catch(e){return null}})();
 let NBQ_PUSH_DONE=false;
-function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))return;NBQ_PUSH_DONE=true;
+const NBQ_PUSH_T=(()=>{try{return new URL(location.href).searchParams.get('t')}catch(e){return null}})();   // 新消息推送：?t=<会话 id>，点开直接进那个会话
+// 打开推送指向的会话：先读会话列表（会话可能是刚建的），找不到就算了
+async function nbqOpenThreadFromPush(tid){if(!NBQ_NET||!ME||!tid)return false;
+  if(!THREADS.some(t=>t.id===tid))await nbqPullThreads();
+  if(!THREADS.some(t=>t.id===tid))return false;
+  try{closeSheet&&closeSheet()}catch(e){}try{UI.detail&&closeDetail&&closeDetail()}catch(e){}
+  openThread(tid);return true}
+let NBQ_PUSH_T_DONE=false;
+function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))return;
+  if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE){NBQ_PUSH_T_DONE=true;NBQ_PUSH_DONE=true;nbqOpenThreadFromPush(NBQ_PUSH_T);return}   // 新消息的推送：去会话，不去通知页
+  NBQ_PUSH_DONE=true;
   if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
 // 页面已经开着时点推送：Service Worker 不再让页面整个重新加载（会闪过入口页、发现页），而是发一条消息过来，这里读新通知再切到通知页
-if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='nbq_open_notif')nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
+if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(!e.data||e.data.type!=='nbq_open_notif')return;if(e.data.kind==='chat'&&e.data.thread_id){nbqOpenThreadFromPush(e.data.thread_id);return}nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
