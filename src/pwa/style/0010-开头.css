@@ -1,0 +1,16 @@
+:root{
+  --g:#176B4D;--g2:#0F5A3F;--gs:#E6F2EB;--gss:#F2F8F4;--lime:#C6EA3D;
+  --bg:#F2F4F2;--ink:#101828;--ink2:#475467;--mut:#8A919C;--line:#E7EAE7;
+  --amber:#8A5A00;--amberbg:#FFF4D6;--red:#D14343;--redbg:#FDECEC;--blue:#2F80ED;
+  --sb:0px;--hb:0px;--wx:0px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;color:var(--ink);background:#E4E8E4;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+a{color:inherit;text-decoration:none}
+[hidden]{display:none!important}
+::-webkit-scrollbar{display:none}
+.num{font-variant-numeric:tabular-nums}
+

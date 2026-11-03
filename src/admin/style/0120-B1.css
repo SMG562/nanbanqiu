@@ -1,0 +1,11 @@
+/* B1：表格在自己的容器里横向滚动，页面不出现横向滚动 */
+:root{--c5:#8a63d2;--c6:#9aa39d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--c5:#9d7fe3;--c6:#6f7a73}}
+:root[data-theme="dark"]{--c5:#9d7fe3;--c6:#6f7a73}
+.tw{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.tabs{overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs button{white-space:nowrap;flex:none}
+.lg2{flex-wrap:wrap}.pager{flex-wrap:wrap;gap:8px}.kpi .v{overflow-wrap:anywhere}
+.ud-g{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}.ud-g small{color:var(--mut)}
+.hm{grid-template-columns:28px repeat(17,minmax(0,1fr))}.search{max-width:100%}[style*="display:flex"]>.search{width:0;min-width:0}
+.pill.ev-sv{background:rgba(42,120,214,.1);color:var(--c1)}
+@media(max-width:600px){.fs{grid-template-columns:84px 1fr 92px!important;gap:8px}.lad{grid-template-columns:1fr}.ud-k{grid-template-columns:repeat(2,1fr)}.search{width:100%}.ch .r{margin-left:0;flex-wrap:wrap}}

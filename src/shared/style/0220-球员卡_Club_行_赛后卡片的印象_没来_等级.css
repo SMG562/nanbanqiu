@@ -1,0 +1,13 @@
+/* 球员卡 Club 行 · 赛后卡片的印象 / 没来 · 等级要求 · 等级提升 */
+.pc-club{display:flex;align-items:center;justify-content:center;gap:5px;padding:0 18px;line-height:16px}.pc-club span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-ci{width:9px;height:12.3px;flex:none;opacity:.95;transform:translateY(-.5px)}
+.rc-x{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.rc-xl,.rc-xr{border:0;background:none;padding:2px 0;font:inherit;font-size:12.5px;cursor:pointer}.rc-xl{color:var(--g);font-weight:600}.rc-xl.on{color:#3A5200}.rc-xr{color:#8A928A}
+.rc-imp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.rc-imp button{height:30px;padding:0 10px;border-radius:99px;border:1px solid #E3E7E3;background:#fff;font:inherit;font-size:12.5px;cursor:pointer;color:#3B443D}.rc-imp button.on{background:#F1F8D9;border-color:#D5EA8A;color:#3A5200;font-weight:600}
+.rc-ns{margin-top:8px;padding:10px 12px;border-radius:12px;background:#F7F4EE}.rc-ns p{margin:0;font-size:12.5px;color:#5D645D;line-height:1.5}.rc-ns div{display:flex;gap:8px;margin-top:8px}
+.rc-ns button{flex:1;height:34px;border-radius:10px;border:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:#3B443D}.rc-ns button:first-child{background:#5D645D;color:#fff}
+.lvc-req{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:12px}.lvc-req small{width:100%;font-size:11.5px;opacity:.6}
+.lvc-req span{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;opacity:.75}.lvc-req span i{width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;opacity:.5}
+.lvc-req span.ok{opacity:1}.lvc-req span.ok i{background:var(--g);border-color:var(--g);opacity:1;position:relative}.lvc-req span.ok i::after{content:"";position:absolute;left:3.5px;top:2px;width:3px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.lvx{width:120px;height:120px;margin:16px auto 14px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.22),rgba(255,255,255,.06));box-shadow:inset 0 0 0 4px #C6EA3D;animation:bfxPop .6s cubic-bezier(.2,.9,.3,1.3) both}.lvx span{font-size:56px}
+

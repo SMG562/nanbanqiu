@@ -1,0 +1,15 @@
+/* center toolbar */
+.ctool{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.ctool h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.ctool .sub{font-size:13px;color:var(--mut)}
+.pager{display:flex;align-items:center;gap:4px}
+.pager button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--ink2)}
+.pager button:disabled{opacity:.35;cursor:default}
+.pager button svg{width:16px;height:16px}
+.pager .today{width:auto;padding:0 12px;font-size:13px;font-weight:600}
+.seg{display:flex;background:#E4E8E4;border-radius:11px;padding:3px}
+.seg button{padding:6px 14px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.seg button svg{width:15px;height:15px}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.fbtn{display:none}
+

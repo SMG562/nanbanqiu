@@ -1,0 +1,6 @@
+.sbx-dd{max-height:380px}
+.sbx-az{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:2px 6px 8px}.sbx-az button{height:30px;border-radius:8px;background:#F3F5F3;font-size:12.5px;font-weight:700;color:#2A302C}.sbx-az button:hover{background:#E6ECE8}
+.sbx-regs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:2px 6px 8px}
+.sbx-regs button{height:34px;border-radius:10px;background:#F3F5F3;font-size:13px;font-weight:600;color:#2A302C}.sbx-regs button:hover{background:#E8EEEA}
+.sbx-back{display:flex;align-items:baseline;gap:8px;width:100%;padding:8px 10px;font-size:13.5px;font-weight:700;color:#176B4D;text-align:left;position:sticky;top:-6px;background:#fff;z-index:1}
+.sbx-back span{font-size:12px;font-weight:500;color:#9AA29B}

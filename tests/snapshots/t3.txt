@@ -1,0 +1,18 @@
+{"g":"g1","ntf":["这局没排上 🎾","今晚 18:00 · South Camberwell TC · 这局想找水平更接近一些的，下次合适的局再一起 · Han：「下周三还有一局」 ›"]}
+band 这局想找水平更接近一些的，下次合适的局再一起 · Han：「下周三还有一局」
+open: 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 暂不填写 || ME.gender=null
+pick m (first): 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 暂不填写 || ME.gender=m
+reopen: 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 关闭 || ME.gender=m
+pick f: 改为女生？ | 男生改为女生只能改一次 | 冒用女生身份，核实后永久封号 | 确认返回 || ME.gender=m
+confirm: 改为女生？ | 男生改为女生只能改一次 | 冒用女生身份，核实后永久封号 | 确认返回 || ME.gender=f
+reopen: 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 关闭 || ME.gender=f
+pick m: 改为男生？ | 改为男生后，不能再改回女生 | 确认返回 || ME.gender=f
+confirm: 改为男生？ | 改为男生后，不能再改回女生 | 确认返回 || ME.gender=m
+reopen: 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 已经改过一次，不能再改为女生 | 关闭 || ME.gender=m
+pick f locked: 性别 | 只用于女生局，不会显示在球员卡上 | 女生 | 男生 | 已经改过一次，不能再改为女生 | 关闭 || ME.gender=m
+womenOK false li 性别
+男生 · 只用于女生局
+btn 分享到朋友圈 disabled=false
+toast 文案已复制，截图即可分享
+web rows 0
+[]

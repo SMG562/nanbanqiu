@@ -1,0 +1,33 @@
+/* 徽章：获得 / 查看 / 分享 */
+.bfx{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:20px;background:rgba(8,20,14,.62);opacity:0;transition:opacity .22s;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.bfx.on{opacity:1}
+.bfx-c{position:relative;width:min(340px,100%);border-radius:28px;padding:30px 24px 22px;text-align:center;color:#fff;overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 0,#2BA878 0,#14714F 45%,#0A3B2A 100%);box-shadow:0 30px 80px -20px rgba(0,0,0,.5);transform:translateY(12px) scale(.96);transition:transform .32s cubic-bezier(.2,.9,.3,1.2)}
+.bfx.on .bfx-c{transform:none}
+.bfx-k{font-size:13px;font-weight:700;letter-spacing:.16em;color:#C6EA3D}
+.bfx-hx{position:relative;width:132px;height:146px;margin:16px auto 14px;padding:6px;box-sizing:border-box;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#C6EA3D}
+.bfx-hx .hx{width:100%;height:100%;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;background:linear-gradient(160deg,#2BA878,#0B3B2A)}
+.bfx-hx .hx .bg-n{font-size:52px;font-weight:900;color:#fff;letter-spacing:-1px}.bfx-hx .hx .bg-n.s{font-size:42px}.bfx-hx .hx .bg-e{font-size:62px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.3))}
+.bfx-hx.lock{background:rgba(255,255,255,.2)}.bfx-hx.lock .hx{background:#33463C}.bfx-hx.lock .hx>*{filter:grayscale(1) opacity(.45)}
+.bfx-sh{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 48%,transparent 62%);transform:translateX(-120%);pointer-events:none}
+.bfx.new .bfx-sh{animation:bfxSh 1.4s .35s ease-out}
+.bfx.new .bfx-hx{animation:bfxPop .6s cubic-bezier(.2,.9,.3,1.3) both}.bfx-wrap{filter:drop-shadow(0 14px 22px rgba(0,0,0,.3))}
+@keyframes bfxSh{to{transform:translateX(120%)}}@keyframes bfxPop{0%{transform:scale(.4) rotate(-12deg);opacity:0}100%{transform:none;opacity:1}}
+.bfx-n{font-size:26px;font-weight:800;letter-spacing:.02em}.bfx-d{margin-top:4px;font-size:14px;color:rgba(255,255,255,.82)}
+.bfx-m{margin-top:14px;font-size:12px;color:rgba(255,255,255,.62)}
+.bfx-nx{margin:12px auto 0;display:inline-block;font-size:12.5px;font-weight:600;color:#C6EA3D;background:rgba(198,234,61,.12);border-radius:99px;padding:5px 12px}
+.bfx-pg{height:6px;border-radius:99px;background:rgba(255,255,255,.15);margin:14px 30px 0;overflow:hidden}.bfx-pg i{display:block;height:100%;background:#C6EA3D;border-radius:99px}
+.bfx-b{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.bfx-b button{height:46px;border-radius:14px;border:0;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.bfx-p{background:#C6EA3D;color:#1F2A08}.bfx-s{background:rgba(255,255,255,.12);color:#fff}.bfx-l{background:none;color:rgba(255,255,255,.7);height:36px!important}
+.bfx-cf{position:absolute;inset:0;pointer-events:none}
+.bfx-cf i{position:absolute;top:-12px;left:var(--x);width:7px;height:12px;border-radius:2px;background:#C6EA3D;opacity:0;transform:rotate(var(--r));animation:bfxCf 1.8s var(--d) ease-in forwards}
+.bfx-cf i:nth-child(3n){background:#fff}.bfx-cf i:nth-child(4n){background:#7FD3A8}
+@keyframes bfxCf{0%{opacity:1;transform:translateY(0) rotate(var(--r))}100%{opacity:0;transform:translateY(420px) rotate(calc(var(--r) + 260deg))}}
+.bfx-c.poster{padding:16px 16px 14px}.bfx-img{display:block;width:100%;border-radius:16px}.bfx-tip{margin:10px 0 0;font-size:12px;color:rgba(255,255,255,.6)}
+@media (prefers-reduced-motion:reduce){.bfx,.bfx-c{transition:none}.bfx.new .bfx-hx,.bfx.new .bfx-sh,.bfx-cf i{animation:none}.bfx-cf{display:none}}
+.rc-bdg{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:6px 12px 6px 6px;border-radius:99px;border:0;background:#F1F8D9;color:#3A5200;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.rc-bdg .hx{width:26px;height:29px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;background:linear-gradient(160deg,#1E8A60,#0B3B2A)}
+.rc-bdg .hx .bg-n{font-size:11px;font-weight:900;color:#fff}.rc-bdg .hx .bg-e{font-size:13px}.rc-bdg svg{width:14px;height:14px}
+.bd[data-bdgd]{cursor:pointer}
+

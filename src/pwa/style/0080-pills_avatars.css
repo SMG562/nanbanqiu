@@ -1,0 +1,10 @@
+/* pills / avatars */
+.pill{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;display:inline-block}
+.p-green{background:var(--gs);color:var(--g)}.p-host{background:var(--g);color:#fff}.p-amber{background:var(--amberbg);color:var(--amber)}
+.p-gray{background:#EEF0EE;color:#6B726B}.p-red{background:var(--redbg);color:var(--red)}.p-lime{background:#EEF8C8;color:#3F5600}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;flex:none}
+.av.sm{width:26px;height:26px;font-size:11px}
+.av.ph{background:transparent!important;border:1.5px dashed #BFC6BF;color:#B3BAB3}
+.stack{display:flex}.stack .av{margin-left:-7px;border:2px solid #fff}.stack .av:first-child{margin-left:0}
+.lvchip{font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:6px;color:#fff;vertical-align:1px}
+

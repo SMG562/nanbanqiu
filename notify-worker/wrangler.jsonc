@@ -1,0 +1,8 @@
+{
+  "name": "nanbanqiu-notify",
+  "main": "../worker/notify.mjs",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": { "crons": ["* * * * *"] },
+  "workers_dev": false
+}

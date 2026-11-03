@@ -1,0 +1,4 @@
+/* 球局卡片 v3：一张完整的白卡，用留白和细线分层，不切块 */
+.pass{position:relative;background:#fff;border-radius:24px;border:1px solid rgba(16,24,40,.06);box-shadow:0 1px 2px rgba(16,24,40,.04),0 18px 40px -24px rgba(16,24,40,.28)}
+.pass{overflow:hidden}
+.pass>*{position:relative}
