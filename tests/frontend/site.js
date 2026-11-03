@@ -20,6 +20,8 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   T('manifest 里的图标文件都在 site/ 里', mf.icons.length >= 3 && mf.icons.every(i => files.includes(i.src.replace(/^\//, ''))), mf.icons);
   T('页面的 apple-touch-icon 指向 site/ 里的文件', (() => { const m = fs.readFileSync(path.join(out, 'pwa.html'), 'utf8').match(/rel="apple-touch-icon" href="([^"]+)"/); return !!m && files.includes(m[1].replace(/^\//, '')) })());
   T('预览站 manifest：从 /pwa.html 打开（不是入口页），快捷方式同', mf.start_url === '/pwa.html?source=pwa' && mf.id === '/pwa.html' && mf.shortcuts.every(x => x.url.startsWith('/pwa.html?')), mf);
+  const rt = JSON.parse(fs.readFileSync(path.join(out, '_routes.json'), 'utf8'));
+  T('_routes.json：首页、/api、/g、/p 经过函数，其余静态文件不经过', rt.version === 1 && ['/', '/api/*', '/g/*', '/p/*'].every(x => rt.include.includes(x)) && !rt.include.includes('/*'), rt);
   const hd = fs.readFileSync(path.join(out, '_headers'), 'utf8');
   T('_headers：全站不让搜索引擎收录、页面不缓存', /^\/\*\n/.test(hd) && /X-Robots-Tag: noindex/.test(hd) && /Cache-Control: no-cache/.test(hd), hd);
   const idx = fs.readFileSync(path.join(out, 'index.html'), 'utf8'), links = [...idx.matchAll(/href="([^"]+)"/g)].map(m => m[1]);

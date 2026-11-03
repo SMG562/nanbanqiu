@@ -4,7 +4,8 @@
  *   node tools/smoke_prod.mjs [--sha=<提交号，默认 git HEAD>] [--base=https://nanbanqiu.app] [--no-wait]
  * 步骤：① 轮询 /version.json 直到 sha = 本次提交（最多 8 分钟）；② /api/health、/api/version；
  *       ③ 用浏览器打开手机端 / 网页端：没有页面报错、没有一直卡在「正在恢复登录…」、真实数据模式已启用、公开球局读得到；
- *       ④ /sw.js、/manifest.webmanifest 可取。
+ *       ④ /sw.js、/manifest.webmanifest 可取；
+ *       ⑤ 正式首页不是入口页（不露后台、宣传物料）；/admin、/admin.html 被 Cloudflare Access 挡住（不跟着跳到登录页，只看第一跳的去向）。
  * 全部通过 exit 0，否则 exit 1 并写明哪一步。会话里的 shell 连不上正式站，所以由 GitHub Actions（.github/workflows/smoke.yml）跑，
  * 或在你电脑上运行。不登录、不写任何数据。
  */
@@ -34,6 +35,16 @@ if (SHA && !process.argv.includes('--no-wait')) {
 // ④ sw / manifest
 { const sw = await get('/sw.js').catch(() => ({ s: 0, t: '' })); T('/sw.js 可取', sw.s === 200 && /VERSION/.test(sw.t), sw.s);
   const m = await get('/manifest.webmanifest').catch(() => ({ s: 0 })); T('/manifest.webmanifest 可取', m.s === 200, m.s); }
+// ⑤ 正式首页与后台保护（11-03 第一轮）
+{ const home = await get('/').catch(() => ({ s: 0, t: '' }));
+  T('首页 / 不是入口页（没有后台、宣传物料链接、「演示数据」）', home.s === 200 && !/admin\.html|materials\.html|演示数据|管理后台/.test(home.t), home.s);
+  // 同站内跳转（如 /admin.html → /admin）跟着走，跳到 cloudflareaccess.com 就算挡住；拿到 200 的后台页面 = 没保护
+  const guard = async p => { let u = BASE + p;
+    for (let i = 0; i < 4; i++) { const r = await fetch(u, { redirect: 'manual' }); const loc = r.headers.get('location');
+      if ([301, 302, 303, 307, 308].includes(r.status) && loc) { const n = new URL(loc, u); if (/cloudflareaccess\.com$/.test(n.hostname)) return 'access'; if (n.origin !== new URL(BASE).origin) return 'away:' + n.hostname; u = n.href; continue }
+      if (r.status === 401 || r.status === 403) return 'denied'; const t = await r.text(); return r.status + (/演示身份|管理后台/.test(t) ? ':admin' : ':other') }
+    return 'loop' };
+  for (const p of ['/admin', '/admin.html']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } }
 // ③ 浏览器
 const require = createRequire(import.meta.url); let chromium;
 try { ({ chromium } = require('playwright')) } catch { try { ({ chromium } = require(execSync('npm root -g', { encoding: 'utf8' }).trim() + '/playwright')) } catch { } }

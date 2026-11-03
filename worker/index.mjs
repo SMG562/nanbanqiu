@@ -3,6 +3,7 @@
 // Pages 部署方式用的是 functions/ 目录（同一个处理函数 server/og/page.mjs）——两边都留着，哪种部署都生效。
 import data from '../server/og/demo_data.json';
 import { sharePage } from '../server/og/page.mjs';
+import { siteRoute } from '../server/site_route.mjs';
 import { handleApi } from '../server/api/handler.mjs';
 import { makeVerifier } from '../server/api/jwt.mjs';
 import { makeDb } from '../server/api/db.mjs';
@@ -18,6 +19,6 @@ export default {
     if (/^\/api(\/|$)/.test(new URL(request.url).pathname)) return handleApi(request, apiDeps(env));
     const m = new URL(request.url).pathname.match(/^\/(g|p)\/([A-Za-z0-9]+)\/?$/);
     if (m && (request.method === 'GET' || request.method === 'HEAD')) return sharePage(m[1], m[2], request, env, data);
-    return env.ASSETS.fetch(request);
+    return (await siteRoute(request)) || env.ASSETS.fetch(request);
   },
 };

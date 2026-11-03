@@ -1,0 +1,39 @@
+// 正式首页（server/site_route.mjs，11-03 第一轮）：nanbanqiu.app 打开不再是入口页，按屏幕宽度（不按设备型号）进手机版 / 网页版；
+// 预览站根仍是入口页；正式站不露宣传物料；Pages 中间件、Workers 入口接上；_routes.json 覆盖要经过函数的路径（漏了 /api 整个接口 404）。
+import fs from 'node:fs'; import path from 'node:path'; import vm from 'node:vm'; import { fileURLToPath } from 'node:url';
+import { siteRoute, isProd, PREVIEW_ROOT, NARROW } from '../../server/site_route.mjs';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
+const req = (u, method = 'GET') => new Request(u, { method });
+// 在假浏览器里跑选排版页的脚本：给定窗口宽度（和 iOS 一样，screen.width 横屏不变），看跳到哪
+async function goes(html, innerWidth, screenWidth, search = '', hash = '') {
+  const js = html.match(/<script>([\s\S]*?)<\/script>/)[1]; let to = null;
+  vm.runInNewContext(js, { innerWidth, screen: { width: screenWidth }, location: { search, hash, replace: u => { to = u } } }); return to;
+}
+
+T('isProd：nanbanqiu.app 和 www，别的不算', isProd('nanbanqiu.app') && isProd('www.nanbanqiu.app') && !isProd(PREVIEW_ROOT) && !isProd('staging.nanbanqiu-preview.pages.dev') && !isProd('evilnanbanqiu.app'));
+let r = await siteRoute(req('https://nanbanqiu.app/')), html = await r.text();
+T('正式站 /：200，不缓存，不是入口页（没有后台、宣传物料链接、「演示数据」）', r.status === 200 && /no-store/.test(r.headers.get('cache-control')) && !/admin|materials|演示数据|管理后台/.test(html), html.slice(0, 200));
+const cases = [['iPhone 竖屏', 390, 390, '/pwa.html'], ['iPhone 横屏', 844, 390, '/pwa.html'], ['iPad mini 竖屏', 744, 744, '/pwa.html'], ['iPad Air 竖屏', 820, 820, '/pwa.html'], ['iPad Pro 11 竖屏', 834, 834, '/pwa.html'],
+  ['iPad Air 横屏（screen.width 仍是竖屏宽）', 1180, 820, '/web.html'], ['iPad Pro 11 横屏', 1194, 834, '/web.html'], ['电脑', 1440, 1440, '/web.html'], ['电脑缩窄窗口', 600, 1440, '/pwa.html']];
+for (const [n, w, sw, want] of cases) { const to = await goes(html, w, sw); T(`按宽度：${n}（${w}）→ ${want}`, to === want, to) }
+T(`分界 ${NARROW}：899 手机版、900 网页版`, (await goes(html, NARROW - 1, 1440)) === '/pwa.html' && (await goes(html, NARROW, 1440)) === '/web.html');
+T('参数和 # 原样带上（主屏幕图标 ?source=pwa、#/g/码）', (await goes(html, 390, 390, '?source=pwa&n=3', '#/g/W2m5')) === '/pwa.html?source=pwa&n=3#/g/W2m5');
+T('页面带主屏幕图标和安装配置', /rel="manifest" href="\/manifest\.webmanifest"/.test(html) && /rel="apple-touch-icon" href="\/icons\/icon-180\.png"/.test(html));
+r = await siteRoute(req('https://nanbanqiu.app/', 'HEAD'));
+T('HEAD /：200、没有正文', r.status === 200 && (await r.text()) === '');
+T('预览站根：不管（交给静态入口页）', (await siteRoute(req(`https://${PREVIEW_ROOT}/`))) === null && (await siteRoute(req(`https://${PREVIEW_ROOT}/?x=1`))) === null);
+r = await siteRoute(req('https://staging.nanbanqiu-preview.pages.dev/'));
+T('分支预览根：和正式站一样直接进应用（合并前真机能测）', r && r.status === 200 && /location\.replace/.test(await r.text()));
+for (const p of ['/materials.html', '/materials']) { r = await siteRoute(req('https://nanbanqiu.app' + p)); T(`正式站 ${p} → 回首页`, r && r.status === 302 && r.headers.get('location') === '/') }
+T('预览站 /materials.html 照常（不管）', (await siteRoute(req(`https://${PREVIEW_ROOT}/materials.html`))) === null);
+T('其他路径不管：/api、/g、/pwa.html、/admin、静态文件、POST /', (await Promise.all(['/api/health', '/g/abc', '/pwa.html', '/web.html', '/admin', '/sw.js'].map(p => siteRoute(req('https://nanbanqiu.app' + p))))).every(x => x === null) && (await siteRoute(req('https://nanbanqiu.app/', 'POST'))) === null);
+
+// 接线
+const mw = fs.readFileSync(path.join(ROOT, 'functions', '_middleware.js'), 'utf8');
+T('functions/_middleware.js 用 siteRoute，不归它管时 next()', /siteRoute/.test(mw) && /ctx\.next\(\)/.test(mw));
+T('worker/index.mjs 也用 siteRoute', /siteRoute\(request\)/.test(fs.readFileSync(path.join(ROOT, 'worker', 'index.mjs'), 'utf8')));
+const S = await import(path.join(ROOT, 'tools', 'site.mjs')), inc = S.ROUTES.include;
+T('_routes.json：/、/materials、/api/*、/g/*、/p/* 经过函数；没有 /*（静态文件不算函数调用）', ['/', '/materials', '/materials.html', '/api/*', '/g/*', '/p/*'].every(x => inc.includes(x)) && !inc.includes('/*') && inc.length <= 100, inc);
+T('functions/ 下每个子目录入口都在 _routes.json 里（新加函数忘了登记会 404）', fs.readdirSync(path.join(ROOT, 'functions')).filter(d => fs.statSync(path.join(ROOT, 'functions', d)).isDirectory()).every(d => inc.includes(`/${d}/*`)));
+console.log(`site_route: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
