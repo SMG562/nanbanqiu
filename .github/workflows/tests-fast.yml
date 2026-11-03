@@ -15,6 +15,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '!marketing/icons/**'   # 11-04：小毛图标（svg + 出图脚本）没有任何测试或站点引用，只跑 icons-lint.yml；放在最后，否定规则只作用于它前面的规则
   workflow_dispatch:
 
 permissions:

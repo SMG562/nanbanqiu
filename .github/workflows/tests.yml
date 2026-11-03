@@ -17,6 +17,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   schedule:
     - cron: '0 16 * * 6'        # UTC 周六 16:00 = 墨尔本周日 02:00–03:00
   workflow_dispatch:
