@@ -54,7 +54,7 @@ export function cityPage(html, city, origin = 'https://nanbanqiu.app') {
 export function cityManifest(base, city) {
   const m = JSON.parse(base), s = `/${city.slug}/`;
   m.name = `南伴球 · ${city.name_zh}网球约局`; m.id = s; m.start_url = `${s}?source=pwa`; m.scope = s;
-  m.shortcuts = (m.shortcuts || []).map(x => ({ ...x, url: x.url.replace(/^\/\?/, `${s}?`) }));
+  m.shortcuts = (m.shortcuts || []).map(x => ({ ...x, url: x.url.replace(/^\/(melbourne\/)?\?/, `${s}?`) }));
   return JSON.stringify(m, null, 2);
 }
 
