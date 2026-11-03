@@ -1,1 +1,1 @@
-[] [ 'jason@gmail.com:result' ] {"request":true,"result":true,"change":false}
+[] [] {"request":false,"result":false,"change":true}

@@ -60,7 +60,9 @@ const T=(n,ok,x='')=>console.log((ok?'PASS ':'FAIL ')+n,x);
  r=await w.evaluate(()=>{const st=Date.now()+10*6e4;return ugDeadline({created_at:Date.now()},{starts_at:new Date(st).toISOString()})-st});T('deadline capped at start',r===0,r);
  r=await w.evaluate(()=>{const st=Date.now()+3*36e5;return (ugDeadline({created_at:Date.now()},{starts_at:new Date(st).toISOString()})-st)/6e4});T('deadline st-45 for early apply',r===-45,r);
  // 10 email
- r=await w.evaluate(a=>{const u=U(a.u2);u.email='x@y.com';u.pushOK=false;const m1=emQueue(a.u2,'approved',a.id,1);const m2=emQueue(a.u2,'game_cancelled',a.id,2);return {m1,m2:m2&&{after:Math.round((m2.after-Date.now())/1e3),urgent:m2.urgent}}},eg);
+ r=await w.evaluate(a=>{const u=U(a.u2);u.email='x@y.com';u.pushOK=false;u.emPrefs={};const m0=emQueue(a.u2,'game_cancelled',a.id,0);EMAIL_OUTBOX.length=0;return m0},eg);
+ T('email: 默认不发（11-03：有邮箱但没在「提醒方式 → 邮件」打开 → 不排邮件）',r===null,JSON.stringify(r));
+ r=await w.evaluate(a=>{const u=U(a.u2);u.emPrefs=Object.fromEntries(Object.values(EM_KIND).map(k=>[k,true]));const m1=emQueue(a.u2,'approved',a.id,1);const m2=emQueue(a.u2,'game_cancelled',a.id,2);return {m1,m2:m2&&{after:Math.round((m2.after-Date.now())/1e3),urgent:m2.urgent}}},eg);
  T('email: result within 1h skipped',r.m1===null,JSON.stringify(r));T('email: change immediate',r.m2&&r.m2.urgent&&Math.abs(r.m2.after)<1000);
  // 11 edit
  r=await w.evaluate(id=>{setWho('han');const g=GAMES.find(x=>x.id===id);g.status='open';PARTS=PARTS.filter(p=>!(p.game_id===id&&p.user_id!=='han'));geOpen(id);const a=NG.instant;NG.instant=false;const d=geDiff(api.get(id),NG);return {a,lite:d.lite}},gid);

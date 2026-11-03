@@ -21,6 +21,7 @@ PASS decide on expired refused
 PASS applicant band timeout text {"band":"Han 没来得及确认，申请已自动失效","ntf":"Han Liu 没来得及确认你的申请 / 今天 15:50 · Glendearg All Saints TC · 申请已自动失效 ›","pill":"rejected"}
 PASS deadline capped at start 0
 PASS deadline st-45 for early apply -45
+PASS email: 默认不发（11-03：有邮箱但没在「提醒方式 → 邮件」打开 → 不排邮件） null
 PASS email: result within 1h skipped {"m1":null,"m2":{"after":0,"urgent":true}}
 PASS email: change immediate
 PASS edit keeps instant & diff 加入方式 {"a":true,"lite":["加入方式"]}
