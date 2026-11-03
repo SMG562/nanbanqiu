@@ -4,7 +4,7 @@ name: tests-fast
 
 on:
   push:
-    branches: [main]
+    branches: ['**']   # 所有分支（11-03：之前只有 main，分支上的提交没有任何自动检查）
     paths:
       - '**.html'
       - '**.js'
