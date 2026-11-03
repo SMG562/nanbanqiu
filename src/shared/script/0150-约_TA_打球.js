@@ -6,7 +6,7 @@
  * 规则：每人每天最多 3 个；同一人 2 次「婉拒」后 30 天内不能再约；屏蔽双向生效；48 小时或开始时间已过即失效
  */
 var INVITES=[];
-const invOf=id=>INVITES.find(i=>i.id===+id);
+const invOf=id=>INVITES.find(i=>String(i.id)===String(id));   // 真实模式的邀约 id 是 UUID
 const invCur=i=>i.status==='counter'&&i.counter?i.counter:i;
 const invExpired=i=>['pending','counter'].includes(i.status)&&(Date.now()-i.at>48*36e5||dayAt(invCur(i).o,invCur(i).t)<=NOW);
 const invHome=u=>(u&&u.home_club_ids||[])[0]||null;
@@ -107,11 +107,13 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}
+const invSentHTML=(to,when,where)=>`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(to)))} 回复后会通知你<br>${esc(when)} · ${esc(where)}</p><button class="iv-go" data-iv="close">好的</button></div>`;
 function sendInvite(){keepForm();if(!formOK())return;const f=IVF;
+  if(NBQ_NET){nbqInviteSend(f,invSentHTML(f.to,`${dayTxt(f.o)} ${f.t}–${f.e}`,venTxt(f.venue_id)));return}   // 真实模式：先调接口
   const inv={id:++NID,from:ME.id,to:f.to,o:f.o,t:f.t,e:f.e,venue_id:f.venue_id,game_type:f.game_type,note:f.note.trim().slice(0,30),status:'pending',at:Date.now(),countered:false};
   if(lessHas(ME.id,f.to))setOpin(ME.id,f.to,'ok',null);   // 主动约 TA，说明不再想少遇到
   INVITES.unshift(inv);notifyInv(f.to,'invite',inv,ME.id);IVF=null;
-  INV_OPEN(`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(inv.to)))} 回复后会通知你<br>${esc(invWhen(inv))} · ${esc(invWhere(inv))}</p><button class="iv-go" data-iv="close">好的</button></div>`)}
+  INV_OPEN(invSentHTML(inv.to,invWhen(inv),invWhere(inv)))}
 function customVenue(name){name=name.trim().slice(0,40);if(!name)return null;
   const hit=Object.values(VEN).find(v=>v.name.toLowerCase()===name.toLowerCase());if(hit)return hit.id;
   const base=VEN[invHome(ME)]||VEN.v1,id='c'+(++NID);
@@ -160,16 +162,19 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
     case'send':sendInvite();break;
-    case'accept':finishAccept(i);break;
+    case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
     case'counter':IVF={kind:'counter',to:i.from,o:i.o,t:i.t,e:i.e,dur:toMin(i.e)-toMin(i.t),per:Math.max(0,perOf(i.t)),venue_id:i.venue_id,orig:i.venue_id,search:false,q:'',game_type:i.game_type,note:''};drawInviteForm();break;
     case'back':IVF=null;drawInvite();break;
     case'sendCounter':keepForm();if(!formOK())return;{const f=IVF;if(f.o===i.o&&f.t===i.t&&f.e===i.e&&f.venue_id===i.venue_id){toast('时间和地点都没变，直接接受就好');return}
+      if(NBQ_NET){nbqInviteCounter(i,f);return}
       i.counter={o:f.o,t:f.t,e:f.e,venue_id:f.venue_id};i.status='counter';i.countered=true;i.at=Date.now();IVF=null;notifyInv(i.from,'invite_counter',i,i.to);INV_CLOSE();toast('已发回给对方确认');INV_RENDER()}break;
     case'decline':drawInvNo(i);break;
     case'noBack':drawInvite();break;
-    case'noGo':{const oth=i.from===ME.id?i.to:i.from,nt=((document.getElementById('ivNote')||{}).value||'').trim().slice(0,30);i.status='declined';i.no=el.dataset.v;i.noNote=nt;notifyInv(oth,'invite_declined',i,ME.id);INV_CLOSE();toast('已婉拒');INV_RENDER()}break;
+    case'noGo':if(NBQ_NET){nbqInviteDecline(i,el.dataset.v,((document.getElementById('ivNote')||{}).value||'').trim().slice(0,30));break}
+    {const oth=i.from===ME.id?i.to:i.from,nt=((document.getElementById('ivNote')||{}).value||'').trim().slice(0,30);i.status='declined';i.no=el.dataset.v;i.noNote=nt;notifyInv(oth,'invite_declined',i,ME.id);INV_CLOSE();toast('已婉拒');INV_RENDER()}break;
     case'game':INV_CLOSE();INV_GAME(i.game_id);break;
-    case'withdraw':if(i.status==='counter'&&i.to===ME.id){i.status='pending';i.counter=null;toast('已撤回新时间');drawInvite()}else{i.status='withdrawn';toast('已撤回');INV_CLOSE()}INV_RENDER();break;
+    case'withdraw':if(NBQ_NET){nbqInviteWithdraw(i);break}
+      if(i.status==='counter'&&i.to===ME.id){i.status='pending';i.counter=null;toast('已撤回新时间');drawInvite()}else{i.status='withdrawn';toast('已撤回');INV_CLOSE()}INV_RENDER();break;
     case'again':{const to=i.from===ME.id?i.to:i.from;INV_CLOSE();setTimeout(()=>newInvite(to),120)}break;
   }}
 

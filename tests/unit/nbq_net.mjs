@@ -8,7 +8,7 @@ const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
 // 印色名单（nbqColor 要用）：和页面里同一份，从源码取
 const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
 const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqLoadAll,nbqLoadPublic}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqLoadAll,nbqLoadPublic}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -61,7 +61,7 @@ T('球局：utr_min / utr_max 同时给 ntrp_min / ntrp_max（前台用后者）
 const p = X.nbqFromPart({ game_id: 'g1', user_id: 'u1', role: 'player', status: 'rejected', message: null, decline_reason: 'level', decline_note: 'x', created_at: '2026-10-30T00:00:00Z' });
 T('参与记录：婉拒原因 → reason / note，留言缺省为空串', p.reason === 'level' && p.note === 'x' && p.message === '' && typeof p.created_at === 'number');
 T('参与记录：没有婉拒原因时 reason 不存在', X.nbqFromPart({ game_id: 'g', user_id: 'u', role: 'host', status: 'approved' }).reason === undefined);
-T('邀约：四个时间转毫秒', (i => typeof i.starts_at === 'number' && i.counter_starts_at === null && typeof i.expires_at === 'number')(X.nbqFromInvite({ id: 'i', starts_at: '2026-11-01T01:00:00Z', ends_at: '2026-11-01T02:00:00Z', expires_at: '2026-11-02T00:00:00Z' })));
+T('邀约：最少字段也能转（只有开始 / 结束 / 到期时间）：不报错、counter 为空、到期是毫秒', (i => i.counter === null && typeof i.expires_at === 'number' && typeof i.t === 'string' && i.note === '')(X.nbqFromInvite({ id: 'i', starts_at: '2026-11-01T01:00:00Z', ends_at: '2026-11-01T02:00:00Z', expires_at: '2026-11-02T00:00:00Z' })));
 
 // ---- 一次读入 ----
 const ME = { id: 'u1', member_no: 1, nickname: 'Me', utr: 5 }, HOST = { id: 'u2', member_no: 2, nickname: 'Host', utr: 6 };
@@ -114,5 +114,31 @@ T('通知：服务器给的已读不用再同步，未读的本地点开后才�
 T('通知：本地自造的（没有 srv）不参与同步', X.nbqUnsyncedReads([{ id: 101, read: true }]).length === 0);
 T('通知：有指向内存里没有的球局的 → 需要先补读球局；邀约 / 徽章不算', X.nbqNtfNeedGames(NR, new Set(['g1'])) === true && X.nbqNtfNeedGames(NR.slice(0, 5), new Set(['g1'])) === false);
 T('推送公钥 base64url → 字节', Array.from(X.nbqKeyBytes('AQID')).join() === '1,2,3' && Array.from(X.nbqKeyBytes('-_8')).join() === '251,255');
+
+
+// ---- 邀约（第 6 轮）：接口时间 → 前台「第几天 + 时:分」；换时间 / 婉拒原因 / 自填场地；邀约类通知 ----
+{ const day = (k, h, m = 0) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k); d.setHours(h, m); return d.toISOString() };
+  const I = { id: 'i-1', from_user: 'u1', to_user: 'u2', starts_at: day(2, 9, 30), ends_at: day(2, 11), venue_id: 'v1', venue_name: null, game_type: 'singles', note: 'hi', status: 'pending',
+    counter_starts_at: null, counter_ends_at: null, counter_venue_id: null, counter_venue_name: null, countered_at: null, game_id: null, created_at: new Date(Date.now() - 36e5).toISOString(), expires_at: new Date(Date.now() + 47 * 36e5).toISOString(), responded_at: null, decline_reason: null, decline_note: null };
+  const a = X.nbqFromInvite(I);
+  T('邀约：开始 / 结束时间换成 第几天 + 时:分', a.o === 2 && a.t === '09:30' && a.e === '11:00' && a.venue_id === 'v1' && a.from === 'u1' && a.to === 'u2' && a.status === 'pending' && a.counter === null && a.countered === false, a);
+  T('邀约：48 小时有效期跟服务器的 expires_at 对齐（at = 到期时间 - 48 小时）', Math.abs(a.at - (Date.parse(I.expires_at) - 48 * 36e5)) < 5, a.at);
+  const c = X.nbqFromInvite({ ...I, status: 'counter', counter_starts_at: day(3, 18), counter_ends_at: day(3, 19, 30), counter_venue_id: null, counter_venue_name: '我家后院', countered_at: day(0, 1) });
+  T('邀约：换个时间带上新的日期 / 时间 / 自填场地', c.counter.o === 3 && c.counter.t === '18:00' && c.counter.e === '19:30' && c.counter.venue_id === 'n:我家后院' && c.countered === true, c);
+  const c2 = X.nbqFromInvite({ ...I, status: 'counter', counter_starts_at: day(3, 18), counter_ends_at: day(3, 19, 30), countered_at: day(0, 1) });
+  T('邀约：换时间没改场地 → 沿用原场地', c2.counter.venue_id === 'v1', c2);
+  const d = X.nbqFromInvite({ ...I, status: 'declined', decline_reason: 'week', decline_note: '下次' });
+  T('邀约：婉拒原因和一句话', d.status === 'declined' && d.no === 'week' && d.noNote === '下次', d);
+  T('邀约：不认识的状态按已失效处理（不会出现死状态）', X.nbqFromInvite({ ...I, status: 'weird' }).status === 'expired');
+  const own = X.nbqFromInvite({ ...I, venue_id: null, venue_name: '公园球场' }), VENS = { v1: { id: 'v1', lat: 1, lng: 2 } };
+  X.nbqInvVenues(VENS, [own, c], 'v1');
+  T('邀约：自填场地放进场地表，显示名字，位置借用常去球场', VENS['n:公园球场'] && VENS['n:公园球场'].name === '公园球场' && VENS['n:公园球场'].custom === true && VENS['n:公园球场'].lat === 1 && VENS['n:我家后院'], VENS);
+  const NI = [{ id: '9', kind: 'invite', game_id: null, invite_id: 'i-1', actor_id: 'u1', read_at: null, created_at: '2026-10-30T01:00:00Z' },
+    { id: '8', kind: 'invite_accepted', game_id: 'g1', invite_id: 'i-1', actor_id: 'u2', read_at: null, created_at: '2026-10-30T00:00:00Z' },
+    { id: '7', kind: 'invite_declined', game_id: null, invite_id: 'i-zz', actor_id: 'u2', read_at: null, created_at: '2026-10-29T00:00:00Z' },
+    { id: '6', kind: 'invite', game_id: null, invite_id: null, actor_id: 'u2', read_at: null, created_at: '2026-10-29T00:00:00Z' }];
+  const nl2 = X.nbqNtfList(NI, 'me', new Set(), new Set(['i-1']));
+  T('通知：邀约类要带 invite_id 且邀约已读入才显示；不带 invIds 一律不显示', nl2.map(n => n.id).join() === '9,8' && nl2[0].invite_id === 'i-1' && X.nbqNtfList(NI, 'me', new Set(['g1'])).length === 0, nl2);
+  T('通知：邀约不在内存里 → 需要先重读；没有 invite_id 的坏数据不触发重读', X.nbqNtfNeedGames(NI, new Set(), new Set(['i-1'])) === true && X.nbqNtfNeedGames(NI.filter(n => n.id !== '7'), new Set(), new Set(['i-1'])) === false && X.nbqNtfNeedGames(NI, new Set()) === false); }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

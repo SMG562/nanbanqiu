@@ -410,6 +410,7 @@
 
 ### GET /api/notifications · POST /api/notifications/read `{ids[] | all}` · `api_notif_read(ids?)`
 - 只能标自己的通知已读；待处理的（待确认申请、待回复邀约）处理完之前保持未读
+- 列表每行 `{id, kind, game_id, invite_id, actor_id, read_at, created_at}`；邀约类（invite / invite_counter / invite_accepted / invite_declined / invite_expired）带 invite_id（11-04 起）
 - 事件：notif_open（前端）
 
 ---

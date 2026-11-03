@@ -56,8 +56,20 @@ function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
   created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
-function nbqFromInvite(i){return{...i,starts_at:nbqMs(i.starts_at),ends_at:nbqMs(i.ends_at),counter_starts_at:nbqMs(i.counter_starts_at),counter_ends_at:nbqMs(i.counter_ends_at),
-  created_at:nbqMs(i.created_at),expires_at:nbqMs(i.expires_at),responded_at:nbqMs(i.responded_at)}}
+// 邀约（第 6 轮）：接口给具体的开始 / 结束时间，前台用「第几天 + 时:分」（o / t / e）。自填场地（只有 venue_name）用 'n:名字' 当 id
+const nbqHM=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+function nbqInvSlot(s,e){const a=new Date(s),b=new Date(e),t0=new Date(typeof T0!=='undefined'?T0:Date.now());t0.setHours(0,0,0,0);   // 和页面的 dayAt 同一个「今天」(T0)
+ const d=new Date(a);d.setHours(0,0,0,0);return{o:Math.round((d-t0)/864e5),t:nbqHM(a),e:nbqHM(b)}}
+const nbqInvVid=(id,name)=>id||(name?'n:'+name:null);
+function nbqFromInvite(i){const v=nbqInvVid(i.venue_id,i.venue_name),c=i.counter_starts_at&&i.counter_ends_at;
+  return{id:i.id,from:i.from_user,to:i.to_user,...nbqInvSlot(i.starts_at,i.ends_at),venue_id:v,game_type:nbqEnum('game_type',i.game_type,['singles','rally','doubles'],'singles'),note:i.note||'',
+    status:nbqEnum('invite_status',i.status,['pending','counter','accepted','declined','withdrawn','expired'],'expired'),
+    counter:c?{...nbqInvSlot(i.counter_starts_at,i.counter_ends_at),venue_id:nbqInvVid(i.counter_venue_id,i.counter_venue_name)||v}:null,countered:!!i.countered_at,
+    game_id:i.game_id||null,no:i.decline_reason||null,noNote:i.decline_note||'',
+    at:i.expires_at?nbqMs(i.expires_at)-48*36e5:nbqMs(i.created_at),created_at:nbqMs(i.created_at),expires_at:nbqMs(i.expires_at),responded_at:nbqMs(i.responded_at)}}
+// 自填场地放进场地表（点开邀约要显示名字），位置借用我的常去球场
+function nbqInvVenues(VENS,invs,base){const put=id=>{if(id&&String(id).startsWith('n:')&&!VENS[id]){const b=VENS[base]||Object.values(VENS)[0]||{};VENS[id]={id,name:id.slice(2),short:id.slice(2),suburb:'自填场地',lat:b.lat,lng:b.lng,surface:'hard',surfaces:['hard'],custom:true}}};
+  (invs||[]).forEach(i=>{put(i.venue_id);if(i.counter)put(i.counter.venue_id)})}
 
 // 补全：别人的球局只有卡片，没有参与记录。给每局补上发起人（资料没有时用卡片上的昵称 / UTR）和发起人的参与行；
 // 其余已确认的人只知道人数，算进 filled（前台画成「已有球友」匿名头像），这样余位和接口的 spots_left 一致
@@ -91,12 +103,15 @@ async function nbqLoadPublic(net){
 
 // 通知（第 5 轮）：后端一行 {id, kind, game_id, actor_id, read_at, created_at} → 前台 NOTIFS 条目。
 // 先接「由球局推出文案」的种类；邀约（要 invite_id）、赛后 / 徽章 / 等级 / 没到场（要附加内容）留给第 6 轮，读到也先不显示。
+const NBQ_INV_KINDS=new Set(['invite','invite_counter','invite_accepted','invite_declined','invite_expired']);
 const NBQ_NTF_KINDS=new Set(['request','approved','rejected','full','player_left','game_cancelled','joined','expired','unfilled','unfilled_end','postponed','changed','soon','reopen']);
-function nbqFromNotif(r,me){return{id:Number(r.id),user_id:me,kind:r.kind,game_id:r.game_id||null,from:r.actor_id||null,at:nbqMs(r.created_at),read:!!r.read_at,srv:true,synced:!!r.read_at}}
+function nbqFromNotif(r,me){return{id:Number(r.id),user_id:me,kind:r.kind,game_id:r.game_id||null,from:r.actor_id||null,at:nbqMs(r.created_at),invite_id:r.invite_id||null,read:!!r.read_at,srv:true,synced:!!r.read_at}}
 // 过滤 + 转换（球局不在内存里的先不显示：文案要用球局的时间地点）。返回新到的在前，与前台 unshift 的顺序一致
-function nbqNtfList(rows,me,gameIds){return(rows||[]).filter(r=>NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id)).map(r=>nbqFromNotif(r,me))}
+// 邀约类通知要带 invite_id，且邀约已读入内存（invIds）；不传 invIds 就不显示邀约类
+const nbqNtfOk=(r,gameIds,invIds)=>NBQ_INV_KINDS.has(r.kind)?!!(r.invite_id&&invIds&&invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id));
+function nbqNtfList(rows,me,gameIds,invIds){return(rows||[]).filter(r=>nbqNtfOk(r,gameIds,invIds)).map(r=>nbqFromNotif(r,me))}
 // 需要先补读球局的通知（球局不在内存里）
-const nbqNtfNeedGames=(rows,gameIds)=>(rows||[]).some(r=>NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&!gameIds.has(r.game_id));
+const nbqNtfNeedGames=(rows,gameIds,invIds)=>(rows||[]).some(r=>NBQ_INV_KINDS.has(r.kind)?!!(invIds&&r.invite_id&&!invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&!gameIds.has(r.game_id)));
 // 还没告诉服务器的已读（本地点开 / 全部已读后 read=true，synced 还不是 true）
 const nbqUnsyncedReads=list=>(list||[]).filter(n=>n.srv&&n.read&&!n.synced).map(n=>n.id);
 // 推送公钥 base64url → Uint8Array（pushManager.subscribe 要这种形式）
@@ -117,7 +132,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
@@ -217,6 +232,26 @@ const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpo
 const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
 async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}
 
+/* ---- 邀约写操作（第 6 轮）：先调接口，成功后重读（以服务器为准）；失败提示错误码，邀约卡 / 表单留在原处 ---- */
+const nbqInvVen=id=>{const v=VEN[id];return v&&v.custom?{venue_name:v.name}:{venue_id:id}};   // 自填场地只传名字
+const nbqInvTimes=p=>({starts_at:dayAt(p.o,p.t).toISOString(),ends_at:dayAt(p.o,p.e).toISOString()});
+const nbqInvBack=()=>{if(IVP&&invOf(IVP.id))drawInvite();else INV_CLOSE()};
+async function nbqInviteSend(f,doneHTML){
+  const d=await nbqWrite('invsend'+f.to,n=>n.post('/api/invites',{to_user:f.to,...nbqInvTimes(f),...nbqInvVen(f.venue_id),game_type:f.game_type,note:(f.note||'').trim().slice(0,30)}));
+  if(!d)return;track('invite_send',{invite_id:d.id,target_uid:f.to,played_together:playedTogether(ME.id,f.to)});IVF=null;INV_OPEN(doneHTML);INV_RENDER()}
+async function nbqInviteAccept(i){
+  const d=await nbqWrite('invacc'+i.id,n=>n.post('/api/invites/'+i.id+'/accept'));if(!d)return nbqInvBack();
+  track('invite_accept',{invite_id:i.id});INV_CLOSE();toast('已生成私人球局 🎾');INV_RENDER();if(d.game_id)setTimeout(()=>INV_GAME(d.game_id),300)}
+async function nbqInviteCounter(i,f){
+  const d=await nbqWrite('invctr'+i.id,n=>n.post('/api/invites/'+i.id+'/counter',{...nbqInvTimes(f),...nbqInvVen(f.venue_id)}));if(!d)return;
+  track('invite_counter_send',{invite_id:i.id});IVF=null;INV_CLOSE();toast('已发回给对方确认');INV_RENDER()}
+async function nbqInviteDecline(i,why,note){
+  const d=await nbqWrite('invno'+i.id,n=>n.post('/api/invites/'+i.id+'/decline',{reason:['week','rest','pass'].includes(why)?why:'pass',note:note||''}));if(!d)return nbqInvBack();
+  track('invite_decline',{invite_id:i.id,reason:why||'pass',has_note:!!note});INV_CLOSE();toast('已婉拒');INV_RENDER()}
+async function nbqInviteWithdraw(i){
+  const was=i.status==='counter'&&i.to===ME.id?'counter':'invite',d=await nbqWrite('invwd'+i.id,n=>n.post('/api/invites/'+i.id+'/withdraw'));if(!d)return nbqInvBack();
+  track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
+
 /* ---- 通知（第 5 轮）：列表 / 未读 / 已读同步、推送订阅、埋点上报 ---- */
 // 真实模式下通知由服务器生成（球局上的动作触发），前台不再自己造：本地的 notify / notifyInv 直接不动作
 if(NBQ_NET){notify=function(){};notifyInv=function(){}}
@@ -226,8 +261,8 @@ async function nbqPullNotifs(){if(!NBQ_NET||!ME)return false;
   if(NBQ_PULL_P){try{await NBQ_PULL_P}catch(e){}return false}
   NBQ_PULL_P=(async()=>{await nbqFlushReads();
     const r=await NBQ_NET.get('/api/notifications');if(!r.ok)return false;
-    let rows=r.data.notifications||[];if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id))))await nbqRefresh();
-    const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)));
+    let rows=r.data.notifications||[];const invIds=()=>new Set(INVITES.map(i=>i.id));if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id)),invIds()))await nbqRefresh();
+    const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)),invIds());
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
     if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的

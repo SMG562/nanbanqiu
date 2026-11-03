@@ -219,7 +219,7 @@ const ROUTES = {
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   'GET /api/notifications': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' }); if (!w.uid) return send(401, { error: 'login_required' });
-    const rows = await d.db.asUser(w.uid, async q => (await q(`select id::float8 as id, kind, game_id, actor_id, read_at, created_at from notifications where user_id = nbq_uid() order by created_at desc limit 100`)).rows);
+    const rows = await d.db.asUser(w.uid, async q => (await q(`select id::float8 as id, kind, game_id, invite_id, actor_id, read_at, created_at from notifications where user_id = nbq_uid() order by created_at desc limit 100`)).rows);
     return send(200, { notifications: rows }) },
   // 推送自检：本人设备订阅状态 + 最近提醒的去向（11-03）。用 POST 是为了把本机的推送地址放进请求体、不进网址；只读
   'POST /api/me/push-diag': (req, d, p) => act(req, d, p, async (q, b) => {
@@ -353,7 +353,7 @@ const ROUTES = {
     return { games, participants, profiles } }, { body: false }),
   'GET /api/invites': (req, d, p) => act(req, d, p, async q => {
     const invites = (await q(`select id, from_user, to_user, starts_at, ends_at, venue_id, venue_name, game_type, note, status::text as status, counter_starts_at, counter_ends_at,
-        counter_venue_id, counter_venue_name, countered_at, game_id, created_at, expires_at, responded_at from invites
+        counter_venue_id, counter_venue_name, countered_at, game_id, created_at, expires_at, responded_at, decline_reason, decline_note from invites
       where status in ('pending','counter') or created_at > now() - interval '30 days' order by created_at desc limit 100`)).rows;
     return { invites, profiles: await cardsOf(q, invites.flatMap(i => [i.from_user, i.to_user])) } }, { body: false }),
   'GET /api/profiles': (req, d, p) => act(req, d, p, async q => {
