@@ -41,6 +41,27 @@ def face2(cx, cy, s, mood='smile', look=0, ink=INK, blush_c='#E8643C', blush_op=
     elif mood == 'sweat':
         g = (eye(-e) + eye(e) + f'<path d="M{f(-9*s)} {f(36*s)} Q{f(-4.5*s)} {f(30*s)} 0 {f(36*s)} Q{f(4.5*s)} {f(42*s)} {f(9*s)} {f(36*s)}" {st}/>'
              f'<path transform="translate({f(e+44*s)} {f(-34*s)}) scale({f(s*1.5)})" d="M0 -14 C7 -3 10 4 0 10 C-10 4 -7 -3 0 -14 Z" fill="#BFE6F2" stroke="#7FB8CF" stroke-width="1.5"/>')
+    elif mood == 'dead':   # 死鱼眼：半截眼皮 + 一字嘴（丧）
+        def lid(x): return (f'<path d="M{f(x-13*s)} {f(2*s)} H{f(x+13*s)}" stroke="{ink}" stroke-width="{f(5*s)}" stroke-linecap="round"/>'
+                            f'<path d="M{f(x-9*s)} {f(2*s)} a{f(9*s)} {f(9*s)} 0 0 0 {f(18*s)} 0Z" fill="{ink}"/>')
+        g = lid(-e) + lid(e) + f'<path d="M{f(-9*s)} {f(38*s)} H{f(9*s)}" {st}/>'
+    elif mood == 'cry':    # 闭眼 + 两道泪 + 抖嘴
+        g = (arc_dn(-e) + arc_dn(e) + f'<path d="M{f(-10*s)} {f(40*s)} q{f(5*s)} {f(-7*s)} {f(10*s)} 0 t{f(10*s)} 0" {st}/>'
+             + ''.join(f'<path d="M{f(x)} {f(8*s)} q{f(-3*s)} {f(18*s)} {f(-1*s)} {f(34*s)}" fill="none" stroke="#7FB8CF" stroke-width="{f(5*s)}" stroke-linecap="round"/>' for x in (-e - 6 * s, e + 6 * s)))
+    elif mood == 'smirk':  # 斜嘴坏笑 + 半眯眼
+        def half(x): return (f'<path d="M{f(x-12*s)} {f(-2*s)} H{f(x+12*s)}" stroke="{ink}" stroke-width="{f(4.5*s)}" stroke-linecap="round"/>'
+                             f'<circle cx="{f(x+look*3*s)}" cy="{f(5*s)}" r="{f(7*s)}" fill="{ink}"/>')
+        g = half(-e) + half(e) + f'<path d="M{f(-10*s)} {f(38*s)} Q{f(4*s)} {f(40*s)} {f(13*s)} {f(30*s)}" {st}/>'
+    elif mood == 'blank':  # 呆住：小点眼 + 小 o 嘴
+        g = (f'<circle cx="{f(-e)}" cy="0" r="{f(5*s)}" fill="{ink}"/><circle cx="{f(e)}" cy="0" r="{f(5*s)}" fill="{ink}"/>'
+             f'<ellipse cx="0" cy="{f(38*s)}" rx="{f(5*s)}" ry="{f(6*s)}" fill="none" stroke="{ink}" stroke-width="{f(4*s)}"/>')
+    elif mood == 'tired':  # 下垂眼 + 黑眼圈 + 歪嘴
+        def drop(x, sg): return (f'<path d="M{f(x-14*s)} {f(-3*s*sg)} L{f(x+14*s)} {f(3*s*sg)}" stroke="{ink}" stroke-width="{f(5*s)}" stroke-linecap="round"/>'
+                                 f'<path d="M{f(x-12*s)} {f(14*s)} q{f(12*s)} {f(7*s)} {f(24*s)} 0" fill="none" stroke="{ink}" stroke-width="{f(2.4*s)}" stroke-linecap="round" opacity=".45"/>')
+        g = drop(-e, -1) + drop(e, 1) + f'<path d="M{f(-10*s)} {f(38*s)} q{f(5*s)} {f(-6*s)} {f(10*s)} 0 t{f(10*s)} 0" {st}/>'
+    elif mood == 'mad':    # 瞪眼 + 撇嘴
+        g = (eye(-e, .9) + eye(e, .9) + f'<path d="M{f(-e-14*s)} {f(-20*s)} L{f(-e+12*s)} {f(-12*s)} M{f(e+14*s)} {f(-20*s)} L{f(e-12*s)} {f(-12*s)}" {st}/>'
+             f'<path d="M{f(-11*s)} {f(40*s)} Q0 {f(31*s)} {f(11*s)} {f(40*s)}" {st}/>')
     elif mood == 'sleep':
         g = arc_dn(-e) + arc_dn(e) + f'<path d="M{f(-7*s)} {f(34*s)} Q0 {f(40*s)} {f(7*s)} {f(34*s)}" {st}/>'
     else:
