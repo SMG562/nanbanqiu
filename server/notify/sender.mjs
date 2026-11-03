@@ -95,14 +95,10 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200, vers
       const payload = pushText(n, ctx);
       for (const c of chans) {
         if (c.channel === 'in_app') { await deliver(db, n.id, 'in_app', c.reason, c.device_id, now); first = first || 'in_app'; continue }   // 页面通过 Realtime 收到
-        const dev = ctx.devices.find(d => d.id === c.device_id); let ok = await pushTo(db, push, dev, payload, now);
-        if (!ok && c.reason !== 'go_kind' && c.channel === 'push_mobile') {   // 手机推送失败：试电脑
-          const pd = ctx.devices.find(d => d.platform === 'desktop' && d.push_endpoint);
-          if (pd && await pushTo(db, push, pd, payload, now)) { await deliver(db, n.id, 'push_desktop', 'mobile_failed', pd.id, now); first = first || 'push_desktop'; continue }
-        }
+        const dev = ctx.devices.find(d => d.id === c.device_id); const ok = await pushTo(db, push, dev, payload, now);
         if (ok) { await deliver(db, n.id, c.channel, n.deferred && c.reason !== 'go_kind' ? 'deferred_night' : c.reason, c.device_id, now); first = first || c.channel }
       }
-      // ⑧ 只推到电脑或推不到 → 排补发邮件（推不到的，第一去向等邮件发出时记为 email / no_push）；推不到又没有邮件 → 只进消息列表
+      // ⑧ 推不到手机 → 排补发邮件（用户自己打开了才发）（推不到的，第一去向等邮件发出时记为 email / no_push）；推不到又没有邮件 → 只进消息列表
       const plan = emailPlan(n, ctx.user, ctx.game, first, now);
       if (plan) { await queueEmail(db, n, ctx, plan, now); stats.emailQueued++ }
       else if (!first) await deliver(db, n.id, 'none', 'no_push', null, now);
@@ -132,7 +128,7 @@ export async function flushEmail(pool, { mail, now = Date.now(), baseUrl = 'http
             where n.id = any($1) and n.first_at is null`, [m.notification_ids, r === 'stale' ? 'stale:email' : r === 'seen' ? 'seen' : 'no_push', ts(now)]);
       };
       if (!m.email || m.email_status !== 'ok') { await skip('email_bad'); continue }
-      if ((m.email_prefs || {})[m.kind] === false) { await skip('pref_off'); continue }
+      if ((m.email_prefs || {})[m.kind] !== true) { await skip('pref_off'); continue }
       const ns = (await db.query(`select * from notifications where id = any($1)`, [m.notification_ids])).rows;
       // 期间手机推送送达了，或已经看过 → 不发
       if ((await db.query(`select 1 from notification_deliveries where notification_id = any($1) and channel in ('push_mobile','in_app') limit 1`, [m.notification_ids])).rows.length) { await skip('pushed'); continue }

@@ -60,21 +60,20 @@ export function pickChannels(n, devices, now) {
   const active = devices.filter(d => d.last_active_at && now - +new Date(d.last_active_at) <= ACTIVE_MS).sort((a, b) => +new Date(b.last_active_at) - +new Date(a.last_active_at));
   // 手机订阅可能不止一条（Safari 里开过一次、加到主屏幕后又开一次）：全部都推，最近用过的排前面，最多 3 条
   const mob = devices.filter(d => d.platform === 'mobile' && d.push_endpoint).sort((x, y) => +new Date(y.last_active_at || 0) - +new Date(x.last_active_at || 0)).slice(0, 3);
-  const pushM = mob[0], pushD = devices.find(d => d.platform === 'desktop' && d.push_endpoint);
+  const pushM = mob[0];   // 11-03 你定的：提醒只推手机；电脑端不推送（只在页面里提醒）
   if (active.length) {
     const a = active[0], out = [{ channel: 'in_app', device_id: a.id, reason: 'active_device' }];
     for (const m of mob) out.push({ channel: 'push_mobile', device_id: m.id, reason: 'go_kind' });   // 11-02 你定的：手机订阅了推送，不管哪台设备在用，手机都收到系统横幅（像短信）；reason 沿用 go_kind
     return out;
   }
   if (pushM) return mob.map(m => ({ channel: 'push_mobile', device_id: m.id, reason: 'mobile_first' }));
-  if (pushD) return [{ channel: 'push_desktop', device_id: pushD.id, reason: 'no_mobile_push' }];
   return [];
 }
-// ⑧ 要不要排一封补发邮件：只推到电脑 / 推不到、这一类可以发、邮箱可用且没关；开场前 1 小时内的申请 / 结果类不进邮件
+// ⑧ 要不要排一封补发邮件：推不到手机、用户自己打开了这一类、邮箱可用且没关；开场前 1 小时内的申请 / 结果类不进邮件
 export function emailPlan(n, user, game, firstChannel, now) {
   const k = EMAIL_KIND[n.kind]; if (!k) return null;
   if (['in_app', 'push_mobile'].includes(firstChannel)) return null;
-  if (!user.email || user.email_status !== 'ok' || (user.email_prefs || {})[k] === false) return null;
+  if (!user.email || user.email_status !== 'ok' || (user.email_prefs || {})[k] !== true) return null;   // 11-03 你定的：邮件默认不发，用户在「提醒方式 → 邮件」里自己打开才发
   if (game && k !== 'change' && +new Date(game.starts_at) - now < 36e5) return null;
   const soon = game && k === 'change' && +new Date(game.starts_at) - now < 2 * 36e5;   // 开场前 2 小时内的改动 / 取消：立刻发、不合并
   return { kind: k, mergeKey: `${n.user_id}:${n.game_id || ''}:${k}`, sendAfter: soon ? now : now + EMAIL_DELAY_MS, noMerge: !!soon };
