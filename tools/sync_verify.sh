@@ -22,12 +22,21 @@ fs=[x for x in sys.stdin.read().split('\n') if x]
 for i in range(0,len(fs),50): print(json.dumps(['$DEV/'+x for x in fs[i:i+50]],ensure_ascii=False))"
   exit 0
 fi
+# 指纹：PNG 去掉 caBX 块再算（11-03 发现：传到电脑的图片会被加上约 5.7KB 的「内容凭证」caBX 块，像素数据完全相同，不算不一致）
+h() { case "$1" in *.png) python3 -c "
+import sys,struct,hashlib
+b=open(sys.argv[1],'rb').read();i=8;o=[b[:8]]
+while i<len(b):
+    l=struct.unpack('>I',b[i:i+4])[0];t=b[i+4:i+8]
+    if t!=b'caBX':o.append(b[i:i+12+l])
+    i+=12+l
+print(hashlib.sha256(b''.join(o)).hexdigest())" "$1";; *) sha256sum "$1" | cut -d' ' -f1;; esac; }
 bad=(); n=0
 for round in 1 2 3 4; do
   bad=(); n=0
   while IFS= read -r f; do
     [ -z "$f" ] && continue; n=$((n+1))
-    a=$(sha256sum "$f" | cut -d' ' -f1); b=$(sha256sum "$UP/$f" 2>/dev/null | cut -d' ' -f1)
+    a=$(h "$f"); b=$(h "$UP/$f" 2>/dev/null)
     [ "$a" = "$b" ] || bad+=("$f")
   done < <(list)
   [ ${#bad[@]} -eq 0 ] && break
