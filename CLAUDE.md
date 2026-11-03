@@ -12,6 +12,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - **接上 GitHub 仓库（add_repo、clone）、提交、`git push` 到 main：用户 10-27 说默认全部同意，不用问，直接做**（.claude/settings.json 里也放行了这些操作；强推仍禁止）。
 - 预览网站 https://nanbanqiu-preview.pages.dev ：推送到 main 后 Cloudflare Pages 自动部署（`node tools/site.mjs` → site/），不用再手动发布预览页；要公开的新文件写进 site.mjs 的白名单。
 - **宣传物料 / 海报**：用户说做海报、朋友圈图、宣传图时，**只读 `.claude/skills/nanbanqiu-poster/SKILL.md`** 照流程做（marketing/ 里 84 张已有、一套出图脚本；不通读旧海报代码，省 token）；成品在预览站 /materials.html。
+- **空状态 / 报错 / 加载 / 通知提示的图标和文案**：先读 `marketing/icons/README.md` 和 SKILL.md 里「App 里的空状态」一节（小毛图标 36 个 + 自适应放宽规则），别从头想。
 - 不删除文件、不 `push --force`；每轮一次提交并推送，再把改过的文件同步到用户电脑的「文稿/南伴球」文件夹（10-27 用户说：往电脑存文件默认全部同意，不用问；只写改过的，不删任何东西）。
 ## 工程规矩（一行一条；来历、命令、例子见 `开发规矩.md`，做到相关的事再打开）
 - **同步到 Mac 必须回读核对**：`device_commit_files` → `sync_verify.sh HEAD~1 --paths` → `device_stage_files` → `sync_verify.sh HEAD~1`。改了发送程序另走 `deploy_notify.mjs`：**先** `sync_verify.sh --deploy` 回读核对一致，**再**给用户命令，命令必须带 `--expect=$(node tools/worker_version.mjs)` 的指纹（不带或对不上，脚本拒绝部署）；没核对一致不准让用户部署。线上是哪版只认 `/version.json`、`/api/version`。
