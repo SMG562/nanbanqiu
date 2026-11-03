@@ -128,6 +128,7 @@ add('frontend', 'frontend/sb_login', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/real_data', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_data.js')], { pass: [/real_data: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_write.js')], { pass: [/real_write: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_invite', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_invite.js')], { pass: [/real_invite: \d+ 通过, 0 失败/], timeout: 600 });
+add('frontend', 'frontend/real_chat', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_chat.js')], { pass: [/real_chat: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });

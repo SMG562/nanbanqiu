@@ -297,7 +297,7 @@ const ROUTES = {
     return { show_wechat: (await one(q, 'select api_show_wechat($1, $2) as v', [x.id, b.show_wechat])).v } }, { ids: ['id'] }),
   'GET /api/threads': (req, d, p) => act(req, d, p, async q => ({ threads: (await q(`
       select t.id, t.kind, t.game_id, case when t.kind = 'dm' then case when t.user_a = nbq_uid() then t.user_b else t.user_a end end as other_id,
-             lm.body as last_body, lm.created_at as last_at, coalesce(lm.sender_id <> nbq_uid() and (tr.last_read_at is null or lm.created_at > tr.last_read_at), false) as unread
+             lm.body as last_body, lm.created_at as last_at, lm.sender_id as last_sender, coalesce(lm.sender_id <> nbq_uid() and (tr.last_read_at is null or lm.created_at > tr.last_read_at), false) as unread
         from threads t
         left join lateral (select m.body, m.created_at, m.sender_id from messages m where m.thread_id = t.id and (not m.hidden or m.sender_id = nbq_uid()) order by m.id desc limit 1) lm on true
         left join thread_reads tr on tr.thread_id = t.id and tr.user_id = nbq_uid()

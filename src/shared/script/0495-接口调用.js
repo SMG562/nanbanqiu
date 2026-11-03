@@ -71,6 +71,11 @@ function nbqFromInvite(i){const v=nbqInvVid(i.venue_id,i.venue_name),c=i.counter
 function nbqInvVenues(VENS,invs,base){const put=id=>{if(id&&String(id).startsWith('n:')&&!VENS[id]){const b=VENS[base]||Object.values(VENS)[0]||{};VENS[id]={id,name:id.slice(2),short:id.slice(2),suburb:'自填场地',lat:b.lat,lng:b.lng,surface:'hard',surfaces:['hard'],custom:true}}};
   (invs||[]).forEach(i=>{put(i.venue_id);if(i.counter)put(i.counter.venue_id)})}
 
+// 聊天（第 6 轮 6b）：会话列表一行 → 前台会话 + 一条「最后一句」占位消息（ph，点开会话才拉全部）；消息一行 → 前台消息
+function nbqFromThread(t,me){return{id:t.id,type:t.kind==='dm'?'dm':'game',game_id:t.game_id||null,...(t.kind==='dm'?{members:[me,t.other_id]}:{}),srv:true}}
+function nbqThreadLast(t,me){if(t.last_body==null||!t.last_at)return null;return{tid:t.id,from:t.last_sender||(t.unread?(t.other_id||''):me),text:t.last_body,at:nbqMs(t.last_at),ph:true}}
+function nbqFromMsg(m,tid){return{tid,from:m.sender_id,text:m.body,at:nbqMs(m.created_at),id:Number(m.id)}}
+
 // 补全：别人的球局只有卡片，没有参与记录。给每局补上发起人（资料没有时用卡片上的昵称 / UTR）和发起人的参与行；
 // 其余已确认的人只知道人数，算进 filled（前台画成「已有球友」匿名头像），这样余位和接口的 spots_left 一致
 function nbqCompose(games,parts,users){
@@ -168,7 +173,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
 async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPushSub();return{st:'ok'}}
+  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon()});nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
@@ -252,6 +257,43 @@ async function nbqInviteWithdraw(i){
   const was=i.status==='counter'&&i.to===ME.id?'counter':'invite',d=await nbqWrite('invwd'+i.id,n=>n.post('/api/invites/'+i.id+'/withdraw'));if(!d)return nbqInvBack();
   track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
 
+
+/* ---- 聊天（第 6 轮 6b）：会话列表 / 消息读自服务器；发消息先调接口，成功才显示；每 45 秒（和通知一起）读会话列表，开着会话时每 8 秒读新消息 ---- */
+async function nbqMissingUsers(ids){const miss=[...new Set(ids.filter(id=>id&&!USERS[id]))];
+  for(let i=0;i<miss.length;i+=50){const pr=await NBQ_NET.get('/api/profiles',{ids:miss.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(u=>{if(u&&u.id)USERS[u.id]=nbqFromUser(u)})}}
+// 读会话列表。返回有没有变化（最后一句 / 未读 / 会话数）
+async function nbqPullThreads(){if(!NBQ_NET||!ME)return false;
+  const r=await NBQ_NET.get('/api/threads');if(!r.ok)return false;const rows=r.data.threads||[],me=ME.id;
+  await nbqMissingUsers(rows.flatMap(t=>[t.other_id,t.last_sender]));
+  const sig=()=>THREADS.filter(t=>t.srv).map(t=>{const m=lastMsg(t);return t.id+'|'+(m?m.at+m.text:'')+'|'+cxUnread(t)}).join(',');
+  const before=sig();
+  THREADS.splice(0,THREADS.length,...rows.map(t=>nbqFromThread(t,me)),...THREADS.filter(t=>t.tmp));
+  rows.forEach(t=>{const ph=nbqThreadLast(t,me);
+    for(let i=MSGS.length-1;i>=0;i--)if(MSGS[i].tid===t.id&&MSGS[i].ph)MSGS.splice(i,1);
+    if(ph&&!MSGS.some(m=>m.tid===t.id&&!m.ph&&m.at>=ph.at)){MSGS.push(ph);if(CXCUR!==t.id)LASTREAD[me+'|'+t.id]=t.unread?ph.at-1:ph.at}});
+  return before!==sig()}
+// 读一个会话的消息（最近 50 条），换掉占位；返回有没有新消息
+async function nbqLoadMsgs(t){const r=await NBQ_NET.get('/api/threads/'+t.id+'/messages');if(!r.ok)return false;
+  const list=r.data.messages||[];await nbqMissingUsers(list.map(m=>m.sender_id));
+  const had=MSGS.filter(m=>m.tid===t.id&&!m.ph).length;
+  for(let i=MSGS.length-1;i>=0;i--)if(MSGS[i].tid===t.id)MSGS.splice(i,1);
+  list.forEach(m=>MSGS.push(nbqFromMsg(m,t.id)));return list.length!==had}
+// 点开会话：本地临时会话先在服务器建好（私信 / 球局群聊），再读消息、标已读、画出来
+async function nbqThreadOpen(tid){let t=THREADS.find(x=>x.id===tid);if(!t)return;
+  if(t.tmp){const r=await NBQ_NET.post('/api/threads',t.type==='dm'?{user_id:cxOther(t)}:{game_id:t.game_id});
+    if(!r.ok){toast(apiErrText(r.code));return}
+    const ex=THREADS.find(x=>x.id===r.data.id&&x!==t);if(ex){THREADS.splice(THREADS.indexOf(t),1);t=ex}else{t.id=r.data.id;delete t.tmp;t.srv=true}}
+  await nbqLoadMsgs(t);NBQ_NET.post('/api/threads/'+t.id+'/read');cxDraw(t.id)}
+async function nbqSendMsg(t,text){const k='msg'+t.id;if(NBQ_BUSY.has(k))return;NBQ_BUSY.add(k);
+  try{const r=await NBQ_NET.post('/api/threads/'+t.id+'/messages',{body:text});
+    if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));return}   // 没发出去：输入框里的字留着
+    MSGS.push({tid:t.id,from:ME.id,text,at:Date.now(),id:r.data.id});LASTREAD[ME.id+'|'+t.id]=Date.now();cxDraw(t.id);track('chat_send',{type:t.type,quick:QUICK.includes(text)})}
+  finally{NBQ_BUSY.delete(k)}}
+// 开着会话时读新消息；有新的就重画（输入框里写了一半的字和光标保留）
+async function nbqChatLive(){if(!NBQ_NET||!ME||!CXCUR||document.visibilityState!=='visible')return;const t=THREADS.find(x=>x.id===CXCUR);if(!t||t.tmp||!document.getElementById('cxMsgs'))return;
+  if(!await nbqLoadMsgs(t))return;const i=document.getElementById('cxIn'),v=i?i.value:'',f=i&&document.activeElement===i;
+  NBQ_NET.post('/api/threads/'+t.id+'/read');cxDraw(t.id);const n=document.getElementById('cxIn');if(n&&v){n.value=v;if(f)n.focus()}}
+
 /* ---- 通知（第 5 轮）：列表 / 未读 / 已读同步、推送订阅、埋点上报 ---- */
 // 真实模式下通知由服务器生成（球局上的动作触发），前台不再自己造：本地的 notify / notifyInv 直接不动作
 if(NBQ_NET){notify=function(){};notifyInv=function(){}}
@@ -275,10 +317,11 @@ async function nbqFlushReads(){if(!NBQ_NET||!ME)return;const ids=nbqUnsyncedRead
 let NBQ_NTF_T=null;
 // 每 45 秒 / 页面重新可见 / 网络恢复时跑一次：读通知；有新的未读 → 同时重新读入球局（对方同意 / 婉拒 / 取消后，这里的状态才跟着变）→ 刷新红点和页面（正在输入时不重画，免得打断）
 async function nbqNtfTick(){if(!NBQ_NET||!ME||document.visibilityState!=='visible')return;
-  if(await nbqPullNotifs()){if(typeof nrBadge==='function')nrBadge();
+  const ch=await nbqPullThreads();
+  if(await nbqPullNotifs()||ch){if(typeof nrBadge==='function')nrBadge();
     const a=document.activeElement;if(!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render()}}
 function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
-  NBQ_NTF_T=setInterval(nbqNtfTick,45000);setInterval(nbqFlushReads,5000);
+  NBQ_NTF_T=setInterval(nbqNtfTick,45000);setInterval(nbqFlushReads,5000);setInterval(nbqChatLive,8000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nbqNtfTick();else nbqFlushReads()});
   addEventListener('online',nbqNtfTick)}
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）

@@ -8,7 +8,7 @@ const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
 // 印色名单（nbqColor 要用）：和页面里同一份，从源码取
 const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
 const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqLoadAll,nbqLoadPublic}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -140,5 +140,17 @@ T('推送公钥 base64url → 字节', Array.from(X.nbqKeyBytes('AQID')).join() 
   const nl2 = X.nbqNtfList(NI, 'me', new Set(), new Set(['i-1']));
   T('通知：邀约类要带 invite_id 且邀约已读入才显示；不带 invIds 一律不显示', nl2.map(n => n.id).join() === '9,8' && nl2[0].invite_id === 'i-1' && X.nbqNtfList(NI, 'me', new Set(['g1'])).length === 0, nl2);
   T('通知：邀约不在内存里 → 需要先重读；没有 invite_id 的坏数据不触发重读', X.nbqNtfNeedGames(NI, new Set(), new Set(['i-1'])) === true && X.nbqNtfNeedGames(NI.filter(n => n.id !== '7'), new Set(), new Set(['i-1'])) === false && X.nbqNtfNeedGames(NI, new Set()) === false); }
+
+
+// ---- 聊天（第 6 轮 6b）：会话 / 最后一句占位 / 消息的转换 ----
+{ const dm = { id: 't1', kind: 'dm', game_id: null, other_id: 'u2', last_body: '到了', last_at: '2026-11-01T01:00:00Z', last_sender: 'u2', unread: true };
+  const gm = { id: 't2', kind: 'game', game_id: 'g1', other_id: null, last_body: null, last_at: null, last_sender: null, unread: false };
+  const a = X.nbqFromThread(dm, 'me'), g = X.nbqFromThread(gm, 'me');
+  T('聊天：私信会话带双方；球局群聊带 game_id', a.type === 'dm' && a.members.join() === 'me,u2' && a.srv === true && g.type === 'game' && g.game_id === 'g1' && g.members === undefined, [a, g]);
+  const ph = X.nbqThreadLast(dm, 'me');
+  T('聊天：最后一句占位（谁发的、内容、毫秒时间）', ph.tid === 't1' && ph.from === 'u2' && ph.text === '到了' && ph.at === Date.parse(dm.last_at) && ph.ph === true, ph);
+  T('聊天：没有消息的会话没有占位；没给发送人时，未读 = 对方发的，已读 = 我发的', X.nbqThreadLast(gm, 'me') === null && X.nbqThreadLast({ ...dm, last_sender: null }, 'me').from === 'u2' && X.nbqThreadLast({ ...dm, last_sender: null, unread: false }, 'me').from === 'me');
+  const m = X.nbqFromMsg({ id: 12, sender_id: 'u2', body: 'hi', created_at: '2026-11-01T01:00:00Z' }, 't1');
+  T('聊天：消息字段对上前台（from / text / at 毫秒 / id 数字）', m.tid === 't1' && m.from === 'u2' && m.text === 'hi' && m.at === Date.parse('2026-11-01T01:00:00Z') && m.id === 12, m); }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

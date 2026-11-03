@@ -9,8 +9,8 @@ const cxOther=t=>t.members.find(x=>x!==ME.id);
 function cxMember(t,uid){return t.type==='game'?gMembers(t.game_id).includes(uid):t.members.includes(uid)}
 function canDM(uid){if(!ME||uid===ME.id||blockedPair(ME.id,uid))return false;
   return gamesTogether(ME.id,uid).length>0||INVITES.some(i=>[i.from,i.to].includes(uid)&&[i.from,i.to].includes(ME.id)&&['pending','counter','accepted'].includes(i.status))}
-function dmThread(uid,create){let t=THREADS.find(t=>t.type==='dm'&&t.members.includes(ME.id)&&t.members.includes(uid));if(!t&&create){t={id:'t'+(++NID),type:'dm',members:[ME.id,uid]};THREADS.push(t)}return t}
-function gameThread(gid,create){let t=THREADS.find(t=>t.type==='game'&&t.game_id===gid);if(!t&&create){t={id:'t'+(++NID),type:'game',game_id:gid};THREADS.push(t)}return t}
+function dmThread(uid,create){let t=THREADS.find(t=>t.type==='dm'&&t.members.includes(ME.id)&&t.members.includes(uid));if(!t&&create){t={id:'t'+(++NID),type:'dm',members:[ME.id,uid],...(NBQ_NET?{tmp:true}:{})};THREADS.push(t)}return t}
+function gameThread(gid,create){let t=THREADS.find(t=>t.type==='game'&&t.game_id===gid);if(!t&&create){t={id:'t'+(++NID),type:'game',game_id:gid,...(NBQ_NET?{tmp:true}:{})};THREADS.push(t)}return t}
 const tMsgs=t=>MSGS.filter(m=>m.tid===t.id&&!(ME&&blockedPair(ME.id,m.from)));
 const lastMsg=t=>{const l=tMsgs(t);return l[l.length-1]};
 function cxUnread(t){const lr=LASTREAD[ME.id+'|'+t.id]||0;return tMsgs(t).filter(m=>m.from!==ME.id&&m.at>lr).length}
@@ -33,12 +33,14 @@ function threadHTML(t){const ms=tMsgs(t),closed=gameClosed(t),other=t.type==='dm
     ${closed?`<div class="cx-closed">球局已结束，聊天已关闭</div>`:`<div class="cx-quick">${QUICK.map(q=>`<button data-cx="quick" data-v="${q}">${q}</button>`).join('')}</div>
     <div class="cx-in"><input id="cxIn" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
     <div class="cx-foot">不会显示你的手机号 · 只能发文字 · <a data-cx="report">举报</a></div>`}</div>`}
-function openThread(tid){CXCUR=tid;const t=THREADS.find(x=>x.id===tid);LASTREAD[ME.id+'|'+tid]=Date.now();CX_SHOW(t);INV_RENDER();
+function openThread(tid){if(NBQ_NET){nbqThreadOpen(tid);return}cxDraw(tid)}   // 真实模式：先在服务器建会话、读消息，再画
+function cxDraw(tid){CXCUR=tid;const t=THREADS.find(x=>x.id===tid);LASTREAD[ME.id+'|'+tid]=Date.now();CX_SHOW(t);INV_RENDER();
   setTimeout(()=>{const b=document.getElementById('cxMsgs');if(b)b.scrollTop=b.scrollHeight},30)}
 function cxSend(text){text=String(text||'').trim().slice(0,200);if(!text)return;if(/https?:\/\/|www\./i.test(text)){toast('暂不支持发送链接');return}
-  const t=THREADS.find(x=>x.id===CXCUR);MSGS.push({tid:t.id,from:ME.id,text,at:Date.now()});LASTREAD[ME.id+'|'+t.id]=Date.now();openThread(t.id);
+  const t=THREADS.find(x=>x.id===CXCUR);if(NBQ_NET){nbqSendMsg(t,text);return}
+  MSGS.push({tid:t.id,from:ME.id,text,at:Date.now()});LASTREAD[ME.id+'|'+t.id]=Date.now();cxDraw(t.id);
   if(t.type==='dm'){const o=cxOther(t);setTimeout(()=>{MSGS.push({tid:t.id,from:o,text:/晚到/.test(text)?'没事，慢慢来，我先热身 👌':/到了/.test(text)?'我也快到了！':'好的 👌',at:Date.now()});
-    if(CXCUR===t.id&&document.getElementById('cxMsgs'))openThread(t.id);else{INV_RENDER();nrChat(t,lastMsg(t),()=>INV_BANNER(U(o).name,lastMsg(t).text,()=>openThread(t.id)))}},1600)}}
+    if(CXCUR===t.id&&document.getElementById('cxMsgs'))cxDraw(t.id);else{INV_RENDER();nrChat(t,lastMsg(t),()=>INV_BANNER(U(o).name,lastMsg(t).text,()=>openThread(t.id)))}},1600)}}
 function chatBtnHTML(uid){if(!canDM(uid))return'';const t=dmThread(uid),n=t?cxUnread(t):0;return `<button class="kdb cxbtn" data-cx="dm" data-u="${uid}">💬 发消息${n?` · ${n} 条未读`:''}</button>`}
 function chatGameBtn(c,st){if(!ME||!['approved','host'].includes(st)||c.appr.length<2)return'';const t=gameThread(c.id),n=t?cxUnread(t):0;
   return `<button class="${SX_BTN.s} cxgame" data-cx="game" data-g="${c.id}">💬 球局聊天${n?` · ${n} 条未读`:''}</button>`}
