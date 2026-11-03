@@ -46,7 +46,10 @@ T('名单：没有上一次（undefined / null）也能用', updateFailed(undefi
 T('missingFrom：列出这一档里没有的名字', missingFrom(['a', 'b', 'c'], ['a', 'c']).join() === 'b');
 
 // ---- 规则里的名字没有过期（测试改名 / 删除后，这里会失败）----
-const run = (args, env = {}, cwd) => spawnSync('node', [path.join(TESTS, 'run_all.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, ...env }, cwd });
+// 11-03 事故：提交前检查（git hook）里跑这个测试时，环境里带着 GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE，临时仓库的 git 命令全落到真仓库上，
+// 两个测试提交（init 清空文件、x）被推上了 main。所有 git / 子进程一律去掉 GIT_* 变量，并在动手前确认临时目录真的是独立仓库。
+const cleanEnv = e => Object.fromEntries(Object.entries(e).filter(([k]) => !/^GIT_(DIR|WORK_TREE|INDEX_FILE|PREFIX|OBJECT_DIRECTORY|COMMON_DIR|NAMESPACE|ALTERNATE_OBJECT_DIRECTORIES|CEILING_DIRECTORIES)$/.test(k)));
+const run = (args, env = {}, cwd) => spawnSync('node', [path.join(TESTS, 'run_all.mjs'), ...args], { encoding: 'utf8', env: cleanEnv({ ...process.env, ...env }), cwd });
 const list = run(['--list']);
 const ids = list.stdout.split('\n').map(l => l.trim().split(/\s+/)[1]).filter(Boolean);
 T('--list 能列出完整档的测试（100 项以上）', ids.length > 100, ids.length);
@@ -56,8 +59,9 @@ T('规则和基础项里的每个名字都至少匹配一个真实测试', !stal
 
 // ---- 端到端：临时 git 仓库里走一遍 --changed / --failed ----
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-select-'));
-const g = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.quotePath=false', ...a], { cwd: tmp, encoding: 'utf8' });
-g('init', '-q'); fs.mkdirSync(path.join(tmp, 'src/shared/side'), { recursive: true }); fs.writeFileSync(path.join(tmp, 'README.md'), 'x'); g('add', '.'); g('commit', '-q', '-m', 'init');
+const g = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.quotePath=false', ...a], { cwd: tmp, encoding: 'utf8', env: cleanEnv(process.env) });
+g('init', '-q');
+if (path.resolve(g('rev-parse', '--show-toplevel').stdout.trim()) !== fs.realpathSync(tmp)) { console.log('FAIL 临时仓库不是独立仓库（git 环境变量泄漏？），为防止改到真仓库已停止'); process.exit(1) } fs.mkdirSync(path.join(tmp, 'src/shared/side'), { recursive: true }); fs.writeFileSync(path.join(tmp, 'README.md'), 'x'); g('add', '.'); g('commit', '-q', '-m', 'init');
 const idsOf = o => o.stdout.split('\n').map(l => l.trim().split(/\s+/)[1]).filter(l => l && /\//.test(l));
 const env = { NBQ_DIR: tmp, NBQ_FAILED_FILE: path.join(tmp, 'failed.json') };
 let o = run(['--changed', '--list'], env, tmp);
