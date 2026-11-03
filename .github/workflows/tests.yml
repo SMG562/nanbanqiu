@@ -6,7 +6,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging-env]   # 11-03：加上测试分支，合并前就能看到浏览器测试结果
     paths:
       - '**.html'
       - '**.js'

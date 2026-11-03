@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 推送前护栏（11-03 事故后加）：往 main 推的提交一次删掉 10 个以上文件 = 几乎一定是出错了（比如测试临时仓库的提交泄漏），直接拦下。
+# 确实要这么做：git push --no-verify，并在提交信息里写原因。
+while read -r lref lsha rref rsha; do
+  [ "$rref" = "refs/heads/main" ] || continue
+  [ "$lsha" = "0000000000000000000000000000000000000000" ] && continue
+  base="$rsha"; [ "$base" = "0000000000000000000000000000000000000000" ] && continue
+  git cat-file -e "$base^{commit}" 2>/dev/null || continue
+  n=$(git diff --diff-filter=D --name-only "$base" "$lsha" | wc -l)
+  if [ "$n" -ge 10 ]; then echo "推送被拦下：这次推到 main 会删掉 $n 个文件（前 5 个：$(git diff --diff-filter=D --name-only "$base" "$lsha" | head -5 | tr '\n' ' ')）。如果不是有意的，先查提交内容。"; exit 1; fi
+done
+exit 0

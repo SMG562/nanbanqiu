@@ -5,9 +5,17 @@
  * key 只能填公开的 publishable / anon key（可以放前端）；service_role 绝不能出现在这里。
  * 登录态存在本机 localStorage（nbq_sb）；后端上线后改成 httpOnly Cookie（api_spec §0.1）。
  * 纯逻辑部分 sbAuthMake 不碰页面变量（unit/sb_auth 在空沙盒里载入测试）。 */
-// 真配置只在正式域名（nanbanqiu.app、预览站 pages.dev）启用；本地文件、测试域名、localhost 仍是演示登录
+// 三套环境按域名选（11-03）：正式 nanbanqiu.app → 正式库；分支预览 <分支>.nanbanqiu-preview.pages.dev → 测试库（nanbanqiu-staging，Sydney）；
+//   预览站根 nanbanqiu-preview.pages.dev → 正式库的登录 + 演示数据（旧行为不变）；本地文件、localhost、测试域名 → 演示登录
 const SB_REAL={url:'https://xosrdkrkfxkdrwldfhac.supabase.co',key:'sb_publishable_zb-7Wwh8tc1Sd-JPSDvQiQ_ZQ9me97W'};
-const SB_CFG=(typeof location!=='undefined'&&/(^|\.)(nanbanqiu\.app|pages\.dev)$/.test(location.hostname))?SB_REAL:{url:'',key:''};
+const SB_STAGING={url:'https://nqgyhjtwbvuxmyxvegkf.supabase.co',key:'sb_publishable_rSXyr_Faz1VjOUYJXwYgHg_s4KeKkUz'};   // 公开 key，可以放前端
+function nbqEnvOf(h){h=String(h||'');
+  if(/^(www\.)?nanbanqiu\.app$/.test(h))return 'prod';
+  if(/^[a-z0-9-]+\.nanbanqiu-preview\.pages\.dev$/.test(h))return 'staging';
+  if(/(^|\.)pages\.dev$/.test(h))return 'preview';
+  return 'none'}
+const NBQ_ENV=nbqEnvOf(typeof location!=='undefined'?location.hostname:'');
+const SB_CFG=NBQ_ENV==='staging'?SB_STAGING:NBQ_ENV==='none'?{url:'',key:''}:SB_REAL;
 const SB_ERR_MAP={over_sms_send_rate_limit:'otp_too_fast',over_request_rate_limit:'rate_limited',otp_expired:'otp_wrong',otp_disabled:'sms_failed',sms_send_failed:'sms_failed',phone_provider_disabled:'sms_failed',validation_failed:'otp_wrong',invalid_credentials:'otp_wrong',user_banned:'account_banned'};
 // 只有登录这一步用得到的提示（不在后端接口的错误码表里）；其余沿用 apiErrText
 const SB_TXT={otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};

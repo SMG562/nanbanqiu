@@ -13,7 +13,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
-    const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
+    const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const tag = s => `${f} ${s}`;
     const S = { now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
       my1: null, ack1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
@@ -29,6 +29,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
+      if (m === 'PATCH' && p === '/api/me') { Object.assign(S.me, body); return J(200, { user: S.me }) }   // 资料修改：服务器记下，下次读回就是新值
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
         if (p === '/api/me') return J(200, { registered: true, user: S.me });
@@ -47,6 +48,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === `/api/games/${G3}/postpone`) return J(200, { starts_at: iso(34) });
       if (p === `/api/games/${G1}/change-ack`) { S.ack1 = body.choice; if (body.choice === 'out') S.my1 = null; return J(200, { status: body.choice }) }
       if (p === `/api/games/${G2}/cancel`) return (S.g2Cancelled = true, J(200, { ok: true }));
+      if (p === '/api/me/clubs') { S.me.club_ids = body.venue_ids; return J(200, { venue_ids: body.venue_ids }) }
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
@@ -124,6 +126,32 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('约定：没同意过就不直接继续，等同意'), await pg.evaluate(() => window.__pactNext === false && typeof PACT_NEXT !== 'undefined' && !!PACT_NEXT));
     await pg.evaluate(() => { const el = document.createElement('button'); el.setAttribute('data-pact', 'ok'); document.body.appendChild(el); el.click(); el.remove() }); await pg.settle(900);   // 约定弹窗里的「同意并继续」
     T(tag('约定：同意后先记到数据库（POST /api/me/pact），再继续原来的操作'), S.log.join() === 'POST /api/me/pact' && await pg.evaluate(() => window.__pactNext === true && !!ME.pact_at), S.log);
+    // 我的 Club（11-03）：最多 3 个、「完成」按钮在长列表里也看得到、保存走 PUT /api/me/clubs、读回后页面状态来自服务器
+    await pg.evaluate(ids => { const v = Object.values(VEN)[0]; ids.forEach((id, i) => { VEN[id] = { ...v, id, name: 'Club ' + (i + 2), short: 'C' + (i + 2) } }) }, [U('2'), U('3'), U('4')]);
+    S.log.length = 0; await pg.evaluate(() => openClubs()); await pg.settle(400);
+    for (const id of [V1, U('2'), U('3'), U('4')]) { await pg.evaluate(i => document.querySelector(`[data-cl="${i}"]`).click(), id); await pg.settle(60) }
+    T(tag('Club：最多选 3 个，第 4 个提示'), (await pg.evaluate(() => CL.length)) === 3 && /最多选 3/.test(await toasts() || ''), [await pg.evaluate(() => CL), await toasts()]);
+    T(tag('Club：「完成」按钮在屏幕里能看到（不用翻到长列表最下面）'), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 }), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return b && JSON.stringify(b.getBoundingClientRect()) + ' vh=' + innerHeight }));
+    await pg.evaluate(() => document.querySelector('[data-a=saveClubs]').click()); await pg.settle(700);
+    T(tag('Club：保存 → PUT /api/me/clubs，带 3 个球场'), S.log.includes('PUT /api/me/clubs') && S.bodies['PUT /api/me/clubs'].venue_ids.length === 3, [S.log, S.bodies['PUT /api/me/clubs']]);
+    T(tag('Club：读回后我的 Club 来自服务器，且页面上的弹层已关'), JSON.stringify(await pg.evaluate(() => ME.home_club_ids)) === JSON.stringify(S.me.club_ids) && await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return !b || !b.getClientRects().length || b.getBoundingClientRect().top >= innerHeight }), await pg.evaluate(() => ME.home_club_ids));
+    // 资料类修改（11-03）：球员卡 / 头像 / 微信号 / 邀约限制 / 性别 / 邮箱要写到服务器，刷新（重读）后不丢。之前只改内存。
+    const clk = a => pg.evaluate(a => { const el = document.createElement('button'); for (const k in a) el.setAttribute(k, a[k]); (document.querySelector('.device') || document.body).appendChild(el); el.click(); el.remove() }, a);
+    S.log.length = 0; for (const c of ['#E3262B', '#F07D1A', '#2C98EC']) { await clk({ 'data-avc': c }); await pg.settle(60) } await pg.settle(900);
+    T(tag('印章颜色：连点 3 次只存一次，存的是最后选的色名 sky'), S.log.filter(x => x === 'PATCH /api/me').length === 1 && S.bodies['PATCH /api/me'].avatar_color === 'sky', [S.log, S.bodies['PATCH /api/me']]);
+    await pg.evaluate(() => nbqRefresh()); await pg.settle(500);
+    T(tag('印章颜色：重读后还是 sky（刷新不丢），页面头像画的也是这个色'), await pg.evaluate(() => ME.color === '#2C98EC' && /2C98EC/i.test((document.querySelector('#meSlot .av,.av') || { innerHTML: '' }).innerHTML)), await pg.evaluate(() => ME.color));
+    S.log.length = 0; await clk({ 'data-cth': 'clay' }); await clk({ 'data-an': 'lion' }); await clk({ 'data-roll': '1' }); await pg.settle(900);
+    await pg.evaluate(() => nbqRefresh()); await pg.settle(500);
+    T(tag('卡面主题 / 动物 / 换印：写到服务器，重读后还在'), await pg.evaluate(() => ME.card_theme === 'clay' && ME.animal === 'lion' && ME.avatar_kind === 'animal' && ME.seal_roll >= 1), [S.bodies['PATCH /api/me'], await pg.evaluate(() => [ME.card_theme, ME.animal, ME.seal_roll])]);
+    S.log.length = 0; await pg.evaluate(() => { ME.wechat = null }); await clk({ 'data-a': 'wxSave' }); await pg.settle(100);
+    await pg.evaluate(() => { nbqPatchMe('wx', { wechat_id: 'sam_wx' }) }); await pg.settle(700);
+    T(tag('微信号：PATCH 带 wechat_id，重读后有'), S.bodies['PATCH /api/me'].wechat_id === 'sam_wx' && await pg.evaluate(() => ME.wechat === 'sam_wx'), S.bodies['PATCH /api/me']);
+    await pg.evaluate(() => { setGender('f') }); await pg.settle(700);
+    T(tag('性别：改了会 PATCH，重读后是 f'), S.bodies['PATCH /api/me'].gender === 'f' && await pg.evaluate(() => ME.gender === 'f'), S.bodies['PATCH /api/me']);
+    S.log.length = 0; await clk({ 'data-ivset': 'played' }); await pg.settle(700);
+    T(tag('邀约限制：PATCH invite_from=played，重读后还在'), S.bodies['PATCH /api/me'].invite_from === 'played' && await pg.evaluate(() => ME.invite_from === 'played'), S.bodies['PATCH /api/me']);
+    S.fail = null; S.me.avatar_color = 'paper'; S.me.card_theme = 'court'; await pg.evaluate(() => nbqRefresh()); await pg.settle(400);
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();
   }

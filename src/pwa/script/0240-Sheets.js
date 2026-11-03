@@ -2,6 +2,25 @@
 function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
+/* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
+   输入框、横向滑动不接管；弹层内容没滚到顶时不抢滚动。收起走 closeSheet()（弹层里有「返回上一层」时先返回，和点遮罩一致）。Esc 也能收起。 */
+(function(){const s=$('#sheet'),bg=$('#sbg');let g=null;
+  const shown=()=>s.classList.contains('show');
+  const settle=()=>{s.classList.remove('drag');s.style.transform='';bg.style.transition='';bg.style.opacity=''};
+  s.addEventListener('touchstart',e=>{if(!shown()||e.touches.length!==1){g=null;return}
+    const t=e.touches[0],top=s.getBoundingClientRect().top;
+    g={y:t.clientY,x:t.clientX,at:Date.now(),scrolled:s.scrollTop>0,grab:t.clientY-top<40,skip:!!e.target.closest('input,textarea,select,[contenteditable="true"],[data-nodrag]'),drag:false,dy:0}},{passive:true});
+  s.addEventListener('touchmove',e=>{if(!g||g.skip||e.touches.length!==1)return;const t=e.touches[0],dy=t.clientY-g.y,dx=t.clientX-g.x;
+    if(!g.drag){if(Math.abs(dx)>Math.abs(dy)){g=null;return}                      // 横着滑：不管
+      if(dy>8&&!g.scrolled&&(s.scrollTop<=0||g.grab)){g.drag=true;g.y=t.clientY;s.classList.add('drag');bg.style.transition='none'}else return}
+    e.preventDefault();g.dy=Math.max(0,t.clientY-g.y);
+    s.style.transform=`translateY(${g.dy}px)`;bg.style.opacity=String(Math.max(.15,1-g.dy/Math.max(240,s.offsetHeight)))},{passive:false});
+  const end=()=>{if(!g)return;const d=g;g=null;if(!d.drag)return;
+    const v=d.dy/Math.max(1,Date.now()-d.at);                                       // px/ms
+    const close=d.dy>110||(v>.5&&d.dy>40);
+    settle();if(close)closeSheet()};                                                // 清掉内联样式的同时改 class：动画从当前位置继续
+  s.addEventListener('touchend',end,{passive:true});s.addEventListener('touchcancel',end,{passive:true});
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&shown())closeSheet()})})();
 
 /* 球员卡：他人 → 屏蔽 / 举报；自己 → 等级 / 徽章 / 规则 / 保存 */
 function openCard(uid){const u=U(uid),s=stats(uid),self=ME&&uid===ME.id;

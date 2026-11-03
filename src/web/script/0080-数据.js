@@ -9,9 +9,9 @@
   NOTIFS.push({id:1,user_id:'han',kind:'request',game_id:'g8',from:'grace',at:Date.now()-26*6e4,read:false});
   NOTIFS.push({id:2,user_id:'jason',kind:'approved',game_id:'g6',from:'tom',at:Date.now()-3*36e5,read:true});
   seedSocial();
-  ME=null;LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};
+  ME=null;LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};try{const s=JSON.parse(localStorage.getItem('nbq_loc')||'null');if(s&&s.city===CITY.slug&&isFinite(s.lat)&&isFinite(s.lng))LOC={label:String(s.label||CITY.center),lat:+s.lat,lng:+s.lng,source:s.source||'default',asked:true}}catch(e){}
   UI.sel=null;UI.tab='disc';UI.page=0;UI.exp=new Set();UI.pastShown=20;
 }
 const U=id=>USERS[id];
-const myClubIds=()=>ME?ME.home_club_ids:[];
+const myClubIds=()=>ME?(ME.home_club_ids||[]).filter(id=>VEN[id]):[];   // 已下线 / 读不到的球场不画（否则个人页直接报错）
 /* 屏蔽是双向不可见：任意一方屏蔽，对方的球局互相看不到，也不能申请 */

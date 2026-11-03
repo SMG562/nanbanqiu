@@ -9,7 +9,7 @@
   NOTIFS.push({id:2,user_id:'jason',kind:'approved',game_id:'g6',from:'tom',at:Date.now()-3*36e5,read:true});
   seedSocial();
   ME=null;UI.day=0;UI.tab='disc';UI.mode='cal';UI.sel=null;UI.exp=new Set();UI.pastShown=20;
-  LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};
+  LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};try{const s=JSON.parse(localStorage.getItem('nbq_loc')||'null');if(s&&s.city===CITY.slug&&isFinite(s.lat)&&isFinite(s.lng))LOC={label:String(s.label||CITY.center),lat:+s.lat,lng:+s.lng,source:s.source||'default',asked:true}}catch(e){}
 }
 const U=id=>USERS[id];
-const myClubIds=()=>ME?ME.home_club_ids:[];
+const myClubIds=()=>ME?(ME.home_club_ids||[]).filter(id=>VEN[id]):[];   // 已下线 / 读不到的球场不画（否则个人页直接报错）

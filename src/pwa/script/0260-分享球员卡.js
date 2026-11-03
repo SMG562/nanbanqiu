@@ -26,14 +26,18 @@ function openCommunity(){openSheet(`<div class="center"><div class="bigic" style
 function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
-function openLocSheet(){LOC.asked=true;
+function openLocSheet(){LOC.asked=true;nbqLocSave();
   openSheet(`<div class="center"><div class="bigic" style="background:#EAF2FE;color:var(--blue)"><svg><use href="#i-nav"/></svg></div><div class="sh-t">允许南伴球使用你的位置？</div><p class="sh-s">用来显示附近的球局和距离，不会公开你的位置。</p></div>
   <button class="btn btn-p" data-a="locAllow">允许</button><div style="height:8px"></div><button class="btn btn-s" data-a="locPick">暂不</button>`)}
-function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
+const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
+function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
 function requestLocation(){closeSheet();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}
   navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5){fallbackLoc('你目前不在'+CITY.zh+'附近');return}
     let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps');toast('已定位到 '+b.name)},()=>fallbackLoc('未获得位置权限'),{timeout:8000,maximumAge:6e5})}
+/* 已授权过位置才在后台悄悄更新；没授权不弹任何提示（iPhone 桌面 App 每次启动都弹的根源） */
+function nbqLocQuiet(){try{if(LOC.source!=='gps'||!navigator.permissions||!navigator.geolocation)return;navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state!=='granted')return;navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return;let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps')},()=>{},{timeout:8000,maximumAge:6e5})}).catch(()=>{})}catch(e){}}
+setTimeout(nbqLocQuiet,1500);
 function openSuburbPicker(){SBS.q='';SBS.letter=null;openSheet(`<div class="sh-t">位置与距离</div><p class="sh-s">最远 50 km，只显示附近的球局</p>
   <button class="btn btn-s" data-a="locAllow" style="color:var(--blue);margin-bottom:6px"><svg><use href="#i-nav"/></svg>使用当前位置</button>
   <div class="lab">距离</div><div class="opt eq" style="--n:5">${RADII.map(r=>`<button class="${F.radius===r?'on':''}" data-radius="${r}">${r} km</button>`).join('')}</div>
@@ -72,7 +76,7 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
-  <div class="lab">Home Club <span>可多选，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
+  <div class="lab">Home Club <span>最多选 3 个，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:14px"></div><button class="btn btn-p" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button>`,true);
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
@@ -95,11 +99,11 @@ function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
 function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
   openSheet(`<div class="sh-t">取消这个球局？</div><p class="sh-s">${n?`${n} 位球友会收到通知。`:'还没有球友加入。'}</p>
   <button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">保留</button>`)}
-let CL=[];
-function clubRows(){return Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">可多选 · ★ 主 Club 会显示在球员卡上</p>
+let CL=[];const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
+function clubRows(){return Object.values(VEN).sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
+function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
   <div id="clList">${clubRows()}</div>
-  <div style="height:12px"></div><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button>`,true)}
+  <div style="position:sticky;bottom:calc(-18px - var(--hb));margin:12px -20px calc(-18px - var(--hb));padding:12px 20px calc(18px + var(--hb));background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,true)}
 
 /* 分享 */
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
@@ -182,7 +186,7 @@ function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icon
     main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
   else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
-  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，再按提示允许通知（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'建议先添加到主屏幕，再从桌面图标打开，在里面登录、允许位置和通知——iPhone 的网页和桌面图标不共用登录，在 Safari 里做过的要在桌面 App 里重做一次，只此一次（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}

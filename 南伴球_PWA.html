@@ -404,15 +404,19 @@ a{color:inherit;text-decoration:none}
 .ch{width:16px;height:16px;color:#C2C8C2;flex:none}
 
 /* ============ Sheet ============ */
-.sbg{position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.36);opacity:0;pointer-events:none;transition:opacity .25s}
+/* 弹层顶部到状态栏下沿至少留 --shgap：这一条露出的遮罩可以点一下收起（之前只留 12px，手指点不到）；往下拖把手 / 内容顶部也能收起（0240-Sheets.js） */
+.device{--shgap:60px}
+.sbg{position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.36);opacity:0;pointer-events:none;transition:opacity .25s;touch-action:none}
 .sbg.show{opacity:1;pointer-events:auto}
-.sheet{position:absolute;left:0;right:0;bottom:0;z-index:210;background:#fff;border-radius:24px 24px 0 0;padding:8px 20px calc(18px + var(--hb));transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.85,.25,1);max-height:calc(100% - var(--sb) - var(--wx) - 12px);overflow-y:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:210;background:#fff;border-radius:24px 24px 0 0;padding:8px 20px calc(18px + var(--hb));transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.85,.25,1);max-height:calc(100% - var(--sb) - var(--wx) - var(--shgap));overscroll-behavior:contain;overflow-y:auto}
 .sheet.show{transform:none}
-.sheet.tall{height:calc(100% - var(--sb) - var(--wx) - 12px)}
+.sheet.tall{height:calc(100% - var(--sb) - var(--wx) - var(--shgap))}
 .sheet.dark{background:#0F1512;color:#fff}
 .sheet.dark .grab{background:#3A443E}
 .sheet.dark .pm{color:#9BA79F}
-.grab{width:38px;height:5px;border-radius:3px;background:#D8DCD8;margin:0 auto 14px}
+.grab{width:38px;height:5px;border-radius:3px;background:#D8DCD8;margin:0 auto 14px;position:relative}
+.grab::before{content:'';position:absolute;left:-90px;right:-90px;top:-12px;bottom:-14px}   /* 把手的可点 / 可拖范围放大（手指够得着） */
+.sheet.drag{transition:none}
 .sh-t{font-size:22px;font-weight:800;letter-spacing:-.01em}
 .sh-s{font-size:14px;color:var(--mut);margin:4px 0 18px}
 .center{text-align:center}
@@ -597,7 +601,8 @@ select.inp{appearance:none;background:#F7F8F7 url("data:image/svg+xml,%3Csvg xml
 .zg button:hover{background:#F1F3F0}.zg button.on{background:#141814}.zg button.on svg{color:#fff!important}
 .rollb{display:block;margin:10px auto 0;height:34px;padding:0 18px;border-radius:99px;border:0;background:#F1F3F0;font:inherit;font-size:13px;font-weight:700;color:#1F2A23;cursor:pointer}
 .avc2{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px auto 0;max-width:340px}
-.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0}
+.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0;position:relative}
+.avc2 button::after{content:'';position:absolute;inset:-7px}   /* 可点范围扩到约 40px（圆点本身不变大） */
 .avc2 button.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #111}
 .lnk{margin-top:12px;background:none;border:0;font:inherit;font-size:12.5px;color:var(--mut);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 
@@ -904,7 +909,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .em-t i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
 .em-t.on i{background:#176B4D}.em-t.on i::after{transform:translateX(16px)}
 .sbq{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:12px;background:#F3F5F3;margin-bottom:4px}
-.sbq svg{width:17px;height:17px;color:var(--g);flex:none}.sbq input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:15px}
+.sbq svg{width:17px;height:17px;color:var(--g);flex:none}.sbq input{flex:1;align-self:stretch;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:15px}
 .sbh{font-size:12px;font-weight:600;color:var(--mut);margin:14px 2px 8px}
 .cchips button small{margin-left:5px;font-size:11px;color:var(--mut);font-weight:600}
 .sbaz{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.sbaz button{height:40px;border:0;border-radius:10px;background:#F3F5F3;font:inherit;font-size:15px;font-weight:700;color:#2A302C;cursor:pointer}
@@ -1511,7 +1516,8 @@ function avatarSVG(k,color,sz,seed){return `<span class="av wd" style="width:${s
 const ZAVC=[["paper","#F4EFE3"],["red", "#E3262B"], ["orange", "#F07D1A"], ["olive", "#6B8A2E"], ["green", "#1FA35C"], ["teal", "#11A394"], ["sky", "#2C98EC"], ["navy", "#24457F"], ["violet", "#7B68EE"], ["rose", "#E0548A"], ["cocoa", "#8A5A44"], ["slate", "#3A4252"]];
 
 // ===== 头像：字母或动物，均以“印”的形式呈现（卡片上可换印型） =====
-const onLight=c=>c==='#F4EFE3'?'#3A4252':c;
+const PAPER=ZAVC[0][1];   // 纸白 = 印色色板第一格，全站只认这一处（不要再写死色值）
+const onLight=c=>c===PAPER?'#3A4252':c;
 const ZCOL=ZAVC.map(c=>c[1]);
 const sealOf=u=>STYLES[(u.seal_roll||0)%STYLES.length];
 const avContent=(u,s)=>u.avatar_kind==='animal'&&LA[u.animal]?animalContent(u.animal,s):letterContent(esc((u.name||'?')[0].toUpperCase()));
@@ -1525,7 +1531,7 @@ const avcOf=id=>ZCOL[1+[...String(id)].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,
 const aniOf=id=>{const h=[...String(id)].reduce((h,c)=>(h*37+c.charCodeAt(0))>>>0,11);return h%3?LK[h%LK.length]:null};
 // 白文印的字是「镂空」的：在球员卡上透出卡面的颜色。小头像在圆印下垫一层同样的卡面色，看起来和卡片上一模一样
 const AV_INK={court:'#0B5844',hard:'#155EB0',clay:'#B33A18',grass:'#47782D',night:'#141B30'};
-const av=(u,cls='')=>`<span class="av st${u.color==='#F4EFE3'?' paper':''} ${cls}" style="--avk:${AV_INK[u.card_theme||'court']||AV_INK.court}">${avStamp(u,40)}</span>`;
+const av=(u,cls='')=>`<span class="av st${u.color===PAPER?' paper':''} ${cls}" style="--avk:${AV_INK[u.card_theme||'court']||AV_INK.court}">${avStamp(u,40)}</span>`;
 let rs=7;const rnd=()=>(rs=(rs*16807)%2147483647)/2147483647;
 
 /* ============================== 游戏化规则（与网页版一致） ============================== */
@@ -1888,10 +1894,10 @@ const SEED_NO={han:1,jason:62,alex:7,sarah:12,david:23,chris:31,daniel:40,ryan:4
   NOTIFS.push({id:2,user_id:'jason',kind:'approved',game_id:'g6',from:'tom',at:Date.now()-3*36e5,read:true});
   seedSocial();
   ME=null;UI.day=0;UI.tab='disc';UI.mode='cal';UI.sel=null;UI.exp=new Set();UI.pastShown=20;
-  LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};
+  LOC={label:CITY.center,lat:CITY.lat,lng:CITY.lng,source:'default',asked:false};PUSH={enabled:false};try{const s=JSON.parse(localStorage.getItem('nbq_loc')||'null');if(s&&s.city===CITY.slug&&isFinite(s.lat)&&isFinite(s.lng))LOC={label:String(s.label||CITY.center),lat:+s.lat,lng:+s.lng,source:s.source||'default',asked:true}}catch(e){}
 }
 const U=id=>USERS[id];
-const myClubIds=()=>ME?ME.home_club_ids:[];
+const myClubIds=()=>ME?(ME.home_club_ids||[]).filter(id=>VEN[id]):[];   // 已下线 / 读不到的球场不画（否则个人页直接报错）
 const blockedPair=(a,b)=>!!(a&&b&&((USERS[a]&&USERS[a].blocked.has(b))||(USERS[b]&&USERS[b].blocked.has(a))));
 function V(g){const v=VEN[g.venue_id],start=new Date(g.starts_at),end=new Date(+start+g.duration_min*6e4),ps=PARTS.filter(p=>p.game_id===g.id);
   const appr=ps.filter(p=>p.status==='approved').sort((a,b)=>(a.role==='host'?-1:0)-(b.role==='host'?-1:0)),pend=ps.filter(p=>p.status==='pending'&&!blockedPair(g.host_id,p.user_id)),mineP=ME?ps.find(p=>p.user_id===ME.id&&p.status!=='withdrawn'&&p.status!=='left'):null;
@@ -2168,7 +2174,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='view'){openInvite(el.dataset.i);return}
   if(a==='gameOf'){INV_CLOSE();INV_GAME(el.dataset.g);return}
   if(a==='wx'){wxToggle(el.dataset.g);return}
-  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){ME.wechat=v.trim();INV_RENDER()}return}
+  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
 document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
@@ -2179,7 +2185,7 @@ const invSetHTML=cls=>ME?`<button class="${cls}" data-ivset="open"><span class="
 function ivSetSheet(){INV_OPEN(`<div class="iv"><div class="iv-h"><div><b>谁可以约我打球</b><small>收到邀约后由你确认，才会生成球局</small></div></div>
   <div class="ivset">${IVSET.map(x=>`<button class="${(ME.invite_from||'all')===x[0]?'on':''}" data-ivset="${x[0]}"><b>${x[1]}</b><small>${x[2]}</small></button>`).join('')}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ivset]');if(!b)return;e.stopPropagation();const v=b.dataset.ivset;
-  if(v==='open'){ivSetSheet();return}ME.invite_from=v;INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
+  if(v==='open'){ivSetSheet();return}if(nbqCardBlocked())return;ME.invite_from=v;if(nbqOn())nbqPatchMe('inv',{invite_from:v});INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
 const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:++NID,from:'han',to:'jason',o,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'上次双打配合很好，想约你单挑一局',status:'pending',at:Date.now(),countered:false};INVITES.unshift(inv);return inv};
 
 
@@ -2908,18 +2914,18 @@ function emAskHTML(host){if(!emNeedAsk())return'';
 function emSettings(){const p=ME.emPrefs||{};
   UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">推送收不到的时候，才用邮件告诉你。同一局 1 小时内最多一封，每天最多 5 封，不发广告。</p>
     ${ME.emailStatus==='bounced'?'<div class="em-bad">这个邮箱收不到邮件，换一个吧</div>':''}
-    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email||'')}">
+    <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email&&ME.email!==NBQ_EMAIL_SET?ME.email:'')}">
     <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===false?'':' on'}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
     <div class="uf-l" style="margin-top:14px"><button class="uf-r p" data-em="setSave"><b>保存</b></button>${ME.email?'<button class="uf-r d" data-em="off"><b>关闭邮件提醒</b></button>':''}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.em;
   if(k==='save'){const v=($('#emkIn')||{}).value.trim();if(!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
+    ME.email=v;ME.emPrefs=ME.emPrefs||{request:true,result:true,change:true};if(nbqOn())nbqPatchMe('em',{email:v,email_prefs:ME.emPrefs});$('#emk').outerHTML=`<div class="emk ok">✓ ${b.dataset.k==='1'?'有人申请时':'结果出来'}会发到 ${esc(v)}</div>`;return}
   if(k==='skip'){ME.emAskAt=Date.now();const x=$('#emk');if(x)x.remove();return}
   if(k==='settings'){emSettings();return}
   if(k==='tog'){b.classList.toggle('on');return}
-  if(k==='setSave'){const v=$('#emSet').value.trim();if(v&&!emOK(v)){toast('邮箱格式好像不对');return}
-    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
-  if(k==='off'){ME.email=null;UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
+  if(k==='setSave'){let v=$('#emSet').value.trim();const keep=!v&&ME.email===NBQ_EMAIL_SET;if(keep)v=NBQ_EMAIL_SET;if(v&&!keep&&!emOK(v)){toast('邮箱格式好像不对');return}
+    ME.email=v||null;ME.emailStatus='ok';ME.emPrefs={};document.querySelectorAll('[data-em="tog"]').forEach(t=>ME.emPrefs[t.dataset.k]=t.classList.contains('on'));if(nbqOn())nbqPatchMe('em',keep?{email_prefs:ME.emPrefs}:{email:ME.email,email_prefs:ME.emPrefs});UF_CLOSE();toast(v?'已保存':'已关闭邮件提醒');render();return}
+  if(k==='off'){ME.email=null;if(nbqOn())nbqPatchMe('em',{email:null});UF_CLOSE();toast('已关闭邮件提醒');render()}},true);
 // ---------- 发送规则（原型里完整模拟一遍，和 schema.sql 的 ①–⑦ 一一对应；真实环境在后端执行） ----------
 const EM_DELAY=5*6e4,EM_MERGE=36e5,EM_CAP=5,EM_RANK={change:0,result:1,request:2};
 const emDay=t=>new Date(t).toLocaleDateString('en-AU',{timeZone:CITY.tz});
@@ -3737,7 +3743,7 @@ scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'
 
 /* ===================== 性别：只用于女生局 =====================
  * 第一次填写立即生效；女生改男生随时可以；男生改女生只能一次（注册时选了男生、之后再改也算这一次）。 */
-setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to};
+setGender=function(to){const from=ME.gender;if(from===to)return;if(from==='m'&&to==='f')ME.g_m2f=Date.now();if(from)ME.g_changes=(ME.g_changes||0)+1;ME.gender=to;if(nbqOn())nbqPatchMe('gender',{gender:to})};
 const gLocked=()=>ME.gender==='m'&&!!ME.g_m2f;
 function gPick(v){if(v==='f'&&gLocked()){toast('已经改过一次，不能再改为女生');return true}
   if(!ME.gender&&v==='m'){setGender('m');GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');GNEXT=null;return true}return false}
@@ -4717,6 +4723,25 @@ function renderDetail(){
 function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
+/* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
+   输入框、横向滑动不接管；弹层内容没滚到顶时不抢滚动。收起走 closeSheet()（弹层里有「返回上一层」时先返回，和点遮罩一致）。Esc 也能收起。 */
+(function(){const s=$('#sheet'),bg=$('#sbg');let g=null;
+  const shown=()=>s.classList.contains('show');
+  const settle=()=>{s.classList.remove('drag');s.style.transform='';bg.style.transition='';bg.style.opacity=''};
+  s.addEventListener('touchstart',e=>{if(!shown()||e.touches.length!==1){g=null;return}
+    const t=e.touches[0],top=s.getBoundingClientRect().top;
+    g={y:t.clientY,x:t.clientX,at:Date.now(),scrolled:s.scrollTop>0,grab:t.clientY-top<40,skip:!!e.target.closest('input,textarea,select,[contenteditable="true"],[data-nodrag]'),drag:false,dy:0}},{passive:true});
+  s.addEventListener('touchmove',e=>{if(!g||g.skip||e.touches.length!==1)return;const t=e.touches[0],dy=t.clientY-g.y,dx=t.clientX-g.x;
+    if(!g.drag){if(Math.abs(dx)>Math.abs(dy)){g=null;return}                      // 横着滑：不管
+      if(dy>8&&!g.scrolled&&(s.scrollTop<=0||g.grab)){g.drag=true;g.y=t.clientY;s.classList.add('drag');bg.style.transition='none'}else return}
+    e.preventDefault();g.dy=Math.max(0,t.clientY-g.y);
+    s.style.transform=`translateY(${g.dy}px)`;bg.style.opacity=String(Math.max(.15,1-g.dy/Math.max(240,s.offsetHeight)))},{passive:false});
+  const end=()=>{if(!g)return;const d=g;g=null;if(!d.drag)return;
+    const v=d.dy/Math.max(1,Date.now()-d.at);                                       // px/ms
+    const close=d.dy>110||(v>.5&&d.dy>40);
+    settle();if(close)closeSheet()};                                                // 清掉内联样式的同时改 class：动画从当前位置继续
+  s.addEventListener('touchend',end,{passive:true});s.addEventListener('touchcancel',end,{passive:true});
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&shown())closeSheet()})})();
 
 /* 球员卡：他人 → 屏蔽 / 举报；自己 → 等级 / 徽章 / 规则 / 保存 */
 function openCard(uid){const u=U(uid),s=stats(uid),self=ME&&uid===ME.id;
@@ -4787,9 +4812,17 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!
  * key 只能填公开的 publishable / anon key（可以放前端）；service_role 绝不能出现在这里。
  * 登录态存在本机 localStorage（nbq_sb）；后端上线后改成 httpOnly Cookie（api_spec §0.1）。
  * 纯逻辑部分 sbAuthMake 不碰页面变量（unit/sb_auth 在空沙盒里载入测试）。 */
-// 真配置只在正式域名（nanbanqiu.app、预览站 pages.dev）启用；本地文件、测试域名、localhost 仍是演示登录
+// 三套环境按域名选（11-03）：正式 nanbanqiu.app → 正式库；分支预览 <分支>.nanbanqiu-preview.pages.dev → 测试库（nanbanqiu-staging，Sydney）；
+//   预览站根 nanbanqiu-preview.pages.dev → 正式库的登录 + 演示数据（旧行为不变）；本地文件、localhost、测试域名 → 演示登录
 const SB_REAL={url:'https://xosrdkrkfxkdrwldfhac.supabase.co',key:'sb_publishable_zb-7Wwh8tc1Sd-JPSDvQiQ_ZQ9me97W'};
-const SB_CFG=(typeof location!=='undefined'&&/(^|\.)(nanbanqiu\.app|pages\.dev)$/.test(location.hostname))?SB_REAL:{url:'',key:''};
+const SB_STAGING={url:'https://nqgyhjtwbvuxmyxvegkf.supabase.co',key:'sb_publishable_rSXyr_Faz1VjOUYJXwYgHg_s4KeKkUz'};   // 公开 key，可以放前端
+function nbqEnvOf(h){h=String(h||'');
+  if(/^(www\.)?nanbanqiu\.app$/.test(h))return 'prod';
+  if(/^[a-z0-9-]+\.nanbanqiu-preview\.pages\.dev$/.test(h))return 'staging';
+  if(/(^|\.)pages\.dev$/.test(h))return 'preview';
+  return 'none'}
+const NBQ_ENV=nbqEnvOf(typeof location!=='undefined'?location.hostname:'');
+const SB_CFG=NBQ_ENV==='staging'?SB_STAGING:NBQ_ENV==='none'?{url:'',key:''}:SB_REAL;
 const SB_ERR_MAP={over_sms_send_rate_limit:'otp_too_fast',over_request_rate_limit:'rate_limited',otp_expired:'otp_wrong',otp_disabled:'sms_failed',sms_send_failed:'sms_failed',phone_provider_disabled:'sms_failed',validation_failed:'otp_wrong',invalid_credentials:'otp_wrong',user_banned:'account_banned'};
 // 只有登录这一步用得到的提示（不在后端接口的错误码表里）；其余沿用 apiErrText
 const SB_TXT={otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};
@@ -4909,15 +4942,25 @@ function nbqNetMake(io){
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
+// 枚举字段进前台的统一检查（11-03）：库里的值不在前台认得的名单里 → 用兜底值，同时上报一条「未知枚举值」（进后台报错列表、冒烟测试会变红），不再悄悄当成有效值往下传
+const NBQ_ENUM_SEEN=new Set();
+function nbqEnum(field,val,allowed,fallback){if(allowed.includes(val))return val;
+  if(val!=null&&!NBQ_ENUM_SEEN.has(field+'='+val)){NBQ_ENUM_SEEN.add(field+'='+val);
+    try{if(typeof dispatchEvent==='function'&&typeof ErrorEvent==='function')dispatchEvent(new ErrorEvent('error',{message:'未知枚举值 '+field+'='+String(val).slice(0,40)}))}catch(_){}}
+  return fallback}
+// 印色：库里存色名（paper / red / coral…），前台画印用色值（#F4EFE3…）。两套名单：ZAVC（印色，paper 为默认）+ AVC（字母底色）。认不出一律回到纸白，绝不把色名直接当 CSS 颜色用（会画成黑色，11-03 教训）
+function nbqColor(k){if(typeof k==='string'&&/^#[0-9a-f]{3,8}$/i.test(k))return k;
+  const z=ZAVC.find(c=>c[0]===k);if(z)return z[1];const a=AVC.find(c=>c[0]===k);if(a)return a[2];return ZAVC[0][1]}
 // 球友（me 或球友卡片）→ USERS 条目。姓 = last_initial；ntrp 字段在前台就是 UTR 数值
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
-    avatar_kind:u.avatar_kind||'letter',animal:u.avatar_animal||'tiger',color:u.avatar_color,card_theme:u.card_theme,seal_roll:u.seal_roll,
-    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
+    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,wechat:u.wechat_id||undefined,invite_from:u.invite_from||undefined,email:u.mail_set?NBQ_EMAIL_SET:null,emPrefs:u.mail_prefs||undefined,
+    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
-function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
-  surface:Array.isArray(v.surfaces)&&v.surfaces[0]||'hard',courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
+function nbqFromVenue(v){const sf=Array.isArray(v.surfaces)&&v.surfaces.length?v.surfaces.map(x=>nbqEnum('surface',x,['hard','clay','synclay','grass','synthetic'],'hard')):['hard'];   // 接口是多选 surfaces；前台显示「红土 / 硬地」用 surfaces，surface 只是第一个（11-03：之前只带了第一个，多场地球场少显示）
+  return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
+  surface:sf[0],surfaces:sf,courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
 // 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
 const nbqIso=t=>t==null?null:new Date(t).toISOString();
 function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
@@ -4974,7 +5017,7 @@ function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((Str
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
-const NBQ_REAL=typeof location!=='undefined'&&/^(www\.)?nanbanqiu\.app$/.test(location.hostname)&&typeof SBA!=='undefined'&&SBA.on();
+const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging')&&typeof SBA!=='undefined'&&SBA.on();   // 测试库（staging）与正式一样走真实数据，只是连的是测试库
 const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
@@ -5051,6 +5094,21 @@ async function nbqWrite(key,call){
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
+// 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+// 资料类修改（11-03）：前台先改内存（立刻看到），再写到服务器；之前只改内存，刷新就回到旧值（印章颜色 / 动物 / 卡面主题 / 微信号 / 邀约限制 / 性别 / 邮箱）
+const NBQ_EMAIL_SET='（已保存）';   // 接口出于隐私不返回邮箱本身，只告诉前台「设置过」
+const nbqOn=()=>typeof NBQ_NET!=='undefined'&&!!NBQ_NET;
+const nbqColorName=h=>{const z=ZAVC.find(c=>c[1].toLowerCase()===String(h).toLowerCase());return z?z[0]:'paper'};
+const nbqPatchMe=(key,body)=>nbqWrite('me'+key,n=>n.patch('/api/me',body));
+// 返回 true = 现在不能改（正在用旧快照）；调用处直接 return
+const nbqCardBlocked=()=>{if(nbqOn()&&NBQ_STALE){toast('正在更新数据，请稍等一下再试');return true}return false};
+let NBQ_CARD_T=0;
+// 球员卡 / 头像：连点换色时合并成一次保存（取点击当时的值，中途重读也不会丢）
+function nbqSaveCard(){if(!nbqOn()||!ME)return;
+  const body={avatar_kind:ME.avatar_kind||'letter',avatar_animal:ME.animal||null,avatar_color:nbqColorName(ME.color),seal_roll:ME.seal_roll||0,card_theme:ME.card_theme||'court'};
+  clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
+const CLUB_MAX=3;
+const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
@@ -5149,6 +5207,15 @@ function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))r
   if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
 // 页面已经开着时点推送：Service Worker 不再让页面整个重新加载（会闪过入口页、发现页），而是发一条消息过来，这里读新通知再切到通知页
 if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='nbq_open_notif')nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
+/* 测试环境横幅（11-03）：分支预览域名连的是测试库（nanbanqiu-staging），页面顶上固定一条细横幅，标签页标题加「【测试】」，
+ * 免得把测试数据当成正式数据，也免得在正式站上误以为是测试。正式站和演示模式不显示。 */
+(function(){if(typeof NBQ_ENV==='undefined'||NBQ_ENV!=='staging'||typeof document==='undefined')return;
+  try{document.title='【测试】'+document.title}catch(_){}
+  const add=()=>{if(document.getElementById('nbqEnvBar'))return;
+    const d=document.createElement('div');d.id='nbqEnvBar';d.setAttribute('role','status');d.textContent='测试环境 · 数据是测试数据，不会影响正式用户';
+    d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483000;height:18px;line-height:18px;font:600 11px/18px system-ui,sans-serif;text-align:center;color:#fff;background:#C2410C;pointer-events:none';
+    (document.body||document.documentElement).appendChild(d)};
+  if(document.body)add();else addEventListener('DOMContentLoaded',add)})();
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
@@ -5177,14 +5244,18 @@ function openCommunity(){openSheet(`<div class="center"><div class="bigic" style
 function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
-function openLocSheet(){LOC.asked=true;
+function openLocSheet(){LOC.asked=true;nbqLocSave();
   openSheet(`<div class="center"><div class="bigic" style="background:#EAF2FE;color:var(--blue)"><svg><use href="#i-nav"/></svg></div><div class="sh-t">允许南伴球使用你的位置？</div><p class="sh-s">用来显示附近的球局和距离，不会公开你的位置。</p></div>
   <button class="btn btn-p" data-a="locAllow">允许</button><div style="height:8px"></div><button class="btn btn-s" data-a="locPick">暂不</button>`)}
-function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
+const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
+function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
 function requestLocation(){closeSheet();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}
   navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5){fallbackLoc('你目前不在'+CITY.zh+'附近');return}
     let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps');toast('已定位到 '+b.name)},()=>fallbackLoc('未获得位置权限'),{timeout:8000,maximumAge:6e5})}
+/* 已授权过位置才在后台悄悄更新；没授权不弹任何提示（iPhone 桌面 App 每次启动都弹的根源） */
+function nbqLocQuiet(){try{if(LOC.source!=='gps'||!navigator.permissions||!navigator.geolocation)return;navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state!=='granted')return;navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return;let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps')},()=>{},{timeout:8000,maximumAge:6e5})}).catch(()=>{})}catch(e){}}
+setTimeout(nbqLocQuiet,1500);
 function openSuburbPicker(){SBS.q='';SBS.letter=null;openSheet(`<div class="sh-t">位置与距离</div><p class="sh-s">最远 50 km，只显示附近的球局</p>
   <button class="btn btn-s" data-a="locAllow" style="color:var(--blue);margin-bottom:6px"><svg><use href="#i-nav"/></svg>使用当前位置</button>
   <div class="lab">距离</div><div class="opt eq" style="--n:5">${RADII.map(r=>`<button class="${F.radius===r?'on':''}" data-radius="${r}">${r} km</button>`).join('')}</div>
@@ -5223,7 +5294,7 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
-  <div class="lab">Home Club <span>可多选，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
+  <div class="lab">Home Club <span>最多选 3 个，可跳过</span></div><div class="cchips">${near.map(v=>`<button data-npc="${v.id}" class="${NP.clubs.includes(v.id)?'on':''}">${esc(v.short)}</button>`).join('')}</div>
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:14px"></div><button class="btn btn-p" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button>`,true);
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
@@ -5246,11 +5317,11 @@ function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
 function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
   openSheet(`<div class="sh-t">取消这个球局？</div><p class="sh-s">${n?`${n} 位球友会收到通知。`:'还没有球友加入。'}</p>
   <button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">保留</button>`)}
-let CL=[];
-function clubRows(){return Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">可多选 · ★ 主 Club 会显示在球员卡上</p>
+let CL=[];const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
+function clubRows(){return Object.values(VEN).sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
+function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
   <div id="clList">${clubRows()}</div>
-  <div style="height:12px"></div><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button>`,true)}
+  <div style="position:sticky;bottom:calc(-18px - var(--hb));margin:12px -20px calc(-18px - var(--hb));padding:12px 20px calc(18px + var(--hb));background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,true)}
 
 /* 分享 */
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
@@ -5333,7 +5404,7 @@ function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icon
     main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
   else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
-  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，再按提示允许通知（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'建议先添加到主屏幕，再从桌面图标打开，在里面登录、允许位置和通知——iPhone 的网页和桌面图标不共用登录，在 Safari 里做过的要在桌面 App 里重做一次，只此一次（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}
@@ -5358,12 +5429,12 @@ DEV.addEventListener('click',e=>{
   const flv=t.closest('[data-flv]');if(flv){const l=+flv.dataset.flv;F.levels.has(l)?F.levels.delete(l):F.levels.add(l);render();UI.redrawFilter();return}
   const fty=t.closest('[data-fty]');if(fty){const k=fty.dataset.fty;F.types.has(k)?F.types.delete(k):F.types.add(k);render();UI.redrawFilter();return}
   const nlv=t.closest('[data-nlv]');if(nlv){NP.ntrp=+nlv.dataset.nlv;NP.redraw();return}
-  const avcb=t.closest('[data-avc]');if(avcb&&ME){ME.color=avcb.dataset.avc;refreshCard();return}
-  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;refreshCard();return}
-  const cth=t.closest('[data-cth]');if(cth&&ME){ME.card_theme=cth.dataset.cth;refreshCard();return}
-  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
+  const avcb=t.closest('[data-avc]');if(avcb&&ME){if(nbqCardBlocked())return;ME.color=avcb.dataset.avc;nbqSaveCard();refreshCard();return}
+  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){if(nbqCardBlocked())return;const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;nbqSaveCard();refreshCard();return}
+  const cth=t.closest('[data-cth]');if(cth&&ME){if(nbqCardBlocked())return;ME.card_theme=cth.dataset.cth;nbqSaveCard();refreshCard();return}
+  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
-  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
+  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
   const q=t.closest('[data-q]');if(q){const a=$('#applyMsg');a.value=a.value.replace(/[。！!]?$/,'，')+q.dataset.q+'。';q.remove();return}
   const nd=t.closest('[data-ngdur]');if(nd){NG.dur=+nd.dataset.ngdur;NG.redraw();return}
   const nt=t.closest('[data-ngtype]');if(nt){NG.type=nt.dataset.ngtype;NG.redraw();return}
@@ -5413,8 +5484,8 @@ DEV.addEventListener('click',e=>{
     case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
-    case'saveClubs':api.setClubs(CL);closeSheet();toast('已更新我的 Club');render();break;
-    case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
+    case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
+    case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'enablePush':enablePush();break;
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;

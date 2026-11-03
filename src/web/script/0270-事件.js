@@ -13,12 +13,12 @@ document.addEventListener('click',e=>{
   const flv=t.closest('[data-flv]');if(flv){const l=+flv.dataset.flv;F.levels.has(l)?F.levels.delete(l):F.levels.add(l);refreshFilters();return}
   const fty=t.closest('[data-fty]');if(fty){const k=fty.dataset.fty;F.types.has(k)?F.types.delete(k):F.types.add(k);refreshFilters();return}
   const nlv=t.closest('[data-nlv]');if(nlv){NP.ntrp=+nlv.dataset.nlv;NP.redraw();return}
-  const avcb=t.closest('[data-avc]');if(avcb&&ME){ME.color=avcb.dataset.avc;openCard(ME.id);render();return}
-  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;openCard(ME.id);render();return}
-  const cth=t.closest('[data-cth]');if(cth&&ME){ME.card_theme=cth.dataset.cth;openCard(ME.id);render();return}
-  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
+  const avcb=t.closest('[data-avc]');if(avcb&&ME){if(nbqCardBlocked())return;ME.color=avcb.dataset.avc;nbqSaveCard();openCard(ME.id);render();return}
+  const pz=t.closest('[data-akind],[data-an],[data-roll]');if(pz&&ME){if(nbqCardBlocked())return;const d=pz.dataset;if(d.akind)ME.avatar_kind=d.akind;if(d.an){ME.animal=d.an;ME.avatar_kind='animal'}if(d.roll)ME.seal_roll=(ME.seal_roll||0)+1;nbqSaveCard();openCard(ME.id);render();return}
+  const cth=t.closest('[data-cth]');if(cth&&ME){if(nbqCardBlocked())return;ME.card_theme=cth.dataset.cth;nbqSaveCard();openCard(ME.id);render();return}
+  const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
-  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
+  const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
   const q=t.closest('[data-q]');if(q){const a=$('#applyMsg');a.value=a.value.replace(/[。！!]?$/,'，')+q.dataset.q+'。';q.remove();return}
   const nd=t.closest('[data-ngdur]');if(nd){NG.dur=+nd.dataset.ngdur;NG.redraw();return}
   const nt=t.closest('[data-ngtype]');if(nt){NG.type=nt.dataset.ngtype;NG.redraw();return}
@@ -80,8 +80,8 @@ document.addEventListener('click',e=>{
     case'openLanding':UI.landing=api.get(g).share_code;history.replaceState(null,'','#/g/'+UI.landing);render();scrollTo(0,0);break;
     case'enablePush':enablePush();break;
     case'editClubs':openClubs();break;
-    case'saveClubs':api.setClubs(CL);closeModal();toast('已更新我的 Club');render();break;
-    case'addClub':api.setClubs([...myClubIds(),a.dataset.v]);toast('已加入我的 Club');render();break;
+    case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeModal();toast('已更新我的 Club');render()})();break;
+    case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'logout':sbaLogout();ME=null;UI.sel=null;$('#umenu').classList.remove('show');toast('已退出登录');render();break;
     case'create':if(UI.landing){UI.landing=null;history.replaceState(null,'','#/');render()}openCreate();break;
   }

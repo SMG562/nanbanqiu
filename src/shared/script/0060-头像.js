@@ -1,5 +1,6 @@
 // ===== 头像：字母或动物，均以“印”的形式呈现（卡片上可换印型） =====
-const onLight=c=>c==='#F4EFE3'?'#3A4252':c;
+const PAPER=ZAVC[0][1];   // 纸白 = 印色色板第一格，全站只认这一处（不要再写死色值）
+const onLight=c=>c===PAPER?'#3A4252':c;
 const ZCOL=ZAVC.map(c=>c[1]);
 const sealOf=u=>STYLES[(u.seal_roll||0)%STYLES.length];
 const avContent=(u,s)=>u.avatar_kind==='animal'&&LA[u.animal]?animalContent(u.animal,s):letterContent(esc((u.name||'?')[0].toUpperCase()));
@@ -13,4 +14,4 @@ const avcOf=id=>ZCOL[1+[...String(id)].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,
 const aniOf=id=>{const h=[...String(id)].reduce((h,c)=>(h*37+c.charCodeAt(0))>>>0,11);return h%3?LK[h%LK.length]:null};
 // 白文印的字是「镂空」的：在球员卡上透出卡面的颜色。小头像在圆印下垫一层同样的卡面色，看起来和卡片上一模一样
 const AV_INK={court:'#0B5844',hard:'#155EB0',clay:'#B33A18',grass:'#47782D',night:'#141B30'};
-const av=(u,cls='')=>`<span class="av st${u.color==='#F4EFE3'?' paper':''} ${cls}" style="--avk:${AV_INK[u.card_theme||'court']||AV_INK.court}">${avStamp(u,40)}</span>`;
+const av=(u,cls='')=>`<span class="av st${u.color===PAPER?' paper':''} ${cls}" style="--avk:${AV_INK[u.card_theme||'court']||AV_INK.court}">${avStamp(u,40)}</span>`;

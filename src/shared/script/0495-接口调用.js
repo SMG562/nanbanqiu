@@ -30,15 +30,25 @@ function nbqNetMake(io){
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
+// 枚举字段进前台的统一检查（11-03）：库里的值不在前台认得的名单里 → 用兜底值，同时上报一条「未知枚举值」（进后台报错列表、冒烟测试会变红），不再悄悄当成有效值往下传
+const NBQ_ENUM_SEEN=new Set();
+function nbqEnum(field,val,allowed,fallback){if(allowed.includes(val))return val;
+  if(val!=null&&!NBQ_ENUM_SEEN.has(field+'='+val)){NBQ_ENUM_SEEN.add(field+'='+val);
+    try{if(typeof dispatchEvent==='function'&&typeof ErrorEvent==='function')dispatchEvent(new ErrorEvent('error',{message:'未知枚举值 '+field+'='+String(val).slice(0,40)}))}catch(_){}}
+  return fallback}
+// 印色：库里存色名（paper / red / coral…），前台画印用色值（#F4EFE3…）。两套名单：ZAVC（印色，paper 为默认）+ AVC（字母底色）。认不出一律回到纸白，绝不把色名直接当 CSS 颜色用（会画成黑色，11-03 教训）
+function nbqColor(k){if(typeof k==='string'&&/^#[0-9a-f]{3,8}$/i.test(k))return k;
+  const z=ZAVC.find(c=>c[0]===k);if(z)return z[1];const a=AVC.find(c=>c[0]===k);if(a)return a[2];return ZAVC[0][1]}
 // 球友（me 或球友卡片）→ USERS 条目。姓 = last_initial；ntrp 字段在前台就是 UTR 数值
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
-    avatar_kind:u.avatar_kind||'letter',animal:u.avatar_animal||'tiger',color:u.avatar_color,card_theme:u.card_theme,seal_roll:u.seal_roll,
-    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
+    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,wechat:u.wechat_id||undefined,invite_from:u.invite_from||undefined,email:u.mail_set?NBQ_EMAIL_SET:null,emPrefs:u.mail_prefs||undefined,
+    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
-function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
-  surface:Array.isArray(v.surfaces)&&v.surfaces[0]||'hard',courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
+function nbqFromVenue(v){const sf=Array.isArray(v.surfaces)&&v.surfaces.length?v.surfaces.map(x=>nbqEnum('surface',x,['hard','clay','synclay','grass','synthetic'],'hard')):['hard'];   // 接口是多选 surfaces；前台显示「红土 / 硬地」用 surfaces，surface 只是第一个（11-03：之前只带了第一个，多场地球场少显示）
+  return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
+  surface:sf[0],surfaces:sf,courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
 // 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
 const nbqIso=t=>t==null?null:new Date(t).toISOString();
 function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
@@ -95,7 +105,7 @@ function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((Str
 /* ---- 页面接线 ---- */
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
-const NBQ_REAL=typeof location!=='undefined'&&/^(www\.)?nanbanqiu\.app$/.test(location.hostname)&&typeof SBA!=='undefined'&&SBA.on();
+const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging')&&typeof SBA!=='undefined'&&SBA.on();   // 测试库（staging）与正式一样走真实数据，只是连的是测试库
 const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
@@ -172,6 +182,21 @@ async function nbqWrite(key,call){
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));if(r.status>0&&r.code!=='login_required')await nbqRefresh();render();return null}
     await nbqRefresh();return r.data||{}}
   finally{NBQ_BUSY.delete(key)}}
+// 我的 Club：接口一次最多 3 个（PUT /api/me/clubs）；改完走 nbqWrite 重读，页面上的「我的 Club」以服务器为准（11-03：之前只改内存，刷新就丢，真实模式下也不会显示）
+// 资料类修改（11-03）：前台先改内存（立刻看到），再写到服务器；之前只改内存，刷新就回到旧值（印章颜色 / 动物 / 卡面主题 / 微信号 / 邀约限制 / 性别 / 邮箱）
+const NBQ_EMAIL_SET='（已保存）';   // 接口出于隐私不返回邮箱本身，只告诉前台「设置过」
+const nbqOn=()=>typeof NBQ_NET!=='undefined'&&!!NBQ_NET;
+const nbqColorName=h=>{const z=ZAVC.find(c=>c[1].toLowerCase()===String(h).toLowerCase());return z?z[0]:'paper'};
+const nbqPatchMe=(key,body)=>nbqWrite('me'+key,n=>n.patch('/api/me',body));
+// 返回 true = 现在不能改（正在用旧快照）；调用处直接 return
+const nbqCardBlocked=()=>{if(nbqOn()&&NBQ_STALE){toast('正在更新数据，请稍等一下再试');return true}return false};
+let NBQ_CARD_T=0;
+// 球员卡 / 头像：连点换色时合并成一次保存（取点击当时的值，中途重读也不会丢）
+function nbqSaveCard(){if(!nbqOn()||!ME)return;
+  const body={avatar_kind:ME.avatar_kind||'letter',avatar_animal:ME.animal||null,avatar_color:nbqColorName(ME.color),seal_roll:ME.seal_roll||0,card_theme:ME.card_theme||'court'};
+  clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
+const CLUB_MAX=3;
+const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
 const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));

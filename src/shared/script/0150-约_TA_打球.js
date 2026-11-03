@@ -197,7 +197,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='view'){openInvite(el.dataset.i);return}
   if(a==='gameOf'){INV_CLOSE();INV_GAME(el.dataset.g);return}
   if(a==='wx'){wxToggle(el.dataset.g);return}
-  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){ME.wechat=v.trim();INV_RENDER()}return}
+  if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
 document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
@@ -208,7 +208,7 @@ const invSetHTML=cls=>ME?`<button class="${cls}" data-ivset="open"><span class="
 function ivSetSheet(){INV_OPEN(`<div class="iv"><div class="iv-h"><div><b>谁可以约我打球</b><small>收到邀约后由你确认，才会生成球局</small></div></div>
   <div class="ivset">${IVSET.map(x=>`<button class="${(ME.invite_from||'all')===x[0]?'on':''}" data-ivset="${x[0]}"><b>${x[1]}</b><small>${x[2]}</small></button>`).join('')}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ivset]');if(!b)return;e.stopPropagation();const v=b.dataset.ivset;
-  if(v==='open'){ivSetSheet();return}ME.invite_from=v;INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
+  if(v==='open'){ivSetSheet();return}if(nbqCardBlocked())return;ME.invite_from=v;if(nbqOn())nbqPatchMe('inv',{invite_from:v});INV_CLOSE();INV_RENDER();toast('已更新：'+IVSET.find(x=>x[0]===v)[1])},true);
 const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:++NID,from:'han',to:'jason',o,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'上次双打配合很好，想约你单挑一局',status:'pending',at:Date.now(),countered:false};INVITES.unshift(inv);return inv};
 
 

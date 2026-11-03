@@ -4,12 +4,13 @@
 //   以后拆成独立 .js 文件后，把 'unsafe-inline' 换成 nonce，并给第三方库加 integrity（或直接放到本站）。
 export const SUPABASE = process.env.SUPABASE_URL || 'https://xosrdkrkfxkdrwldfhac.supabase.co';
 
+export const STAGING = 'https://nqgyhjtwbvuxmyxvegkf.supabase.co';   // 测试库（分支预览用）
 export const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",            // leaflet / html2canvas / qrcodejs（5g：改为本站托管 + integrity）
   "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
   "img-src 'self' data: blob: https://basemaps.cartocdn.com",                  // 地图瓦片；分享图 / 二维码是 data: / blob:
-  `connect-src 'self' ${SUPABASE} ${SUPABASE.replace(/^https/, 'wss')}`,        // 接口 + Realtime（页面里提醒）
+  `connect-src 'self' ${SUPABASE} ${SUPABASE.replace(/^https/, 'wss')} ${STAGING} ${STAGING.replace(/^https/, 'wss')}`,        // 接口 + Realtime（页面里提醒）
   "font-src 'self' data:",
   "worker-src 'self'", "manifest-src 'self'",
   "frame-ancestors 'none'",                                                     // 不允许被别的网站嵌入（防点击劫持）

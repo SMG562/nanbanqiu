@@ -919,7 +919,7 @@ $$;
 
 -- 印色与前端 AVC 对齐（珊瑚 / 琥珀 / 樱粉 / 酒红 / 紫罗兰 / 天蓝 / 湖青 / 石墨）
 alter table users drop constraint if exists users_avatar_color_check;
-alter table users alter column avatar_color set default 'coral';
+alter table users alter column avatar_color set default 'paper';   -- 新用户默认印色是纸白（11-03 改回：之前这里误写成 coral，和下面的说明、接口的 coalesce 都不一致）
 -- 前台有两套：头像字母底色 AVC（coral…slate，8 种）和印色 ZAVC（paper 宣纸白、red…cocoa，12 种，新用户默认 paper）；库里存两套的并集，否则「宣纸白」存不进去（前台接入第 3 轮发现）
 alter table users add constraint users_avatar_color_check check (avatar_color in ('coral','amber','rose','wine','violet','sky','teal','slate','paper','red','orange','olive','green','navy','cocoa'));
 
@@ -6952,6 +6952,8 @@ insert into schema_migrations(version) values
   ('20261102_apply_rate_loosen'),
   ('20261102_game_rate_loosen'),
   ('20261102_no_night_quiet'),
+  ('20261103_avatar_coral_to_paper'),
+  ('20261103_avatar_default_paper'),
   ('20261103_game_rate_calendar_day'),
   ('20261103_my_push_diag'),
   ('20261103_schema_migrations')
