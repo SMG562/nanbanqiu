@@ -33,6 +33,13 @@ snap() {  # $1 = 连接串
 
 if [[ "${1:-}" == "--diff" ]]; then
   : "${NBQ_DB_URL:?NBQ_DB_URL = 测试库}"; : "${NBQ_DB_URL_B:?NBQ_DB_URL_B = 正式库}"
+  # 先逐个试连：失败时说清是哪个库、用的什么用户名（不打印密码）
+  for pair in "测试库:$NBQ_DB_URL" "正式库:$NBQ_DB_URL_B"; do
+    nm="${pair%%:*}"; u="${pair#*:}"
+    who=$(printf '%s' "$u" | sed -E 's#^[a-z]+://([^:@/]*)[:@].*@([^:/?]*).*#用户名=\1 主机=\2#')
+    if ! err=$(psql "$u" -X -q -At -c 'select 1' 2>&1 >/dev/null); then echo "❌ $nm 连不上（$who）"; echo "$err" | head -3; echo "提示：Session pooler 的用户名必须是 postgres.<项目ref>；密码错也会报 password authentication failed"; exit 2; fi
+    echo "✓ $nm 连接正常（$who）"
+  done
   snap "$NBQ_DB_URL" >/tmp/nbq_parity_A.txt; snap "$NBQ_DB_URL_B" >/tmp/nbq_parity_B.txt
   # 数据行（枚举分布）本来就会不同，只比结构；结构部分在「## 数据里的枚举值分布」之前
   sed '/^## 数据里的枚举值分布/,$d' /tmp/nbq_parity_A.txt >/tmp/nbq_parity_A.s; sed '/^## 数据里的枚举值分布/,$d' /tmp/nbq_parity_B.txt >/tmp/nbq_parity_B.s
