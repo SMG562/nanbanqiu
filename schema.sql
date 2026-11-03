@@ -1288,7 +1288,7 @@ alter table game_participants add column if not exists change_ack text check (ch
 -- ============ 邮件提醒（推送的兜底） ============
 -- 注册只要手机号；邮箱在「收不到推送的人刚申请 / 刚发起后」选填一次，或在「我的 → 邮件提醒」里设置
 alter table users add column if not exists email          text check (email ~* '^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
-alter table users add column if not exists email_prefs    jsonb not null default '{"request":true,"result":true,"change":true}';
+alter table users add column if not exists email_prefs    jsonb not null default '{}';   -- 11-03：邮件默认不发，用户自己在「提醒方式 → 邮件」打开哪几类才发（缺省 = 关）
 alter table users add column if not exists email_status   text not null default 'ok' check (email_status in ('ok','bounced','complained'));  -- 退信 / 投诉后停发，设置页提示修改
 alter table users add column if not exists email_asked_at timestamptz;      -- 用户点了「不用了」：30 天内不再询问
 alter table users add column if not exists email_unsub_token text unique default encode(gen_random_bytes(16),'hex');   -- 邮件底部一键退订
@@ -6956,5 +6956,6 @@ insert into schema_migrations(version) values
   ('20261103_avatar_default_paper'),
   ('20261103_game_rate_calendar_day'),
   ('20261103_my_push_diag'),
+  ('20261103_mail_default_off'),
   ('20261103_schema_migrations')
 on conflict do nothing;

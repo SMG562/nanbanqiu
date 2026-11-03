@@ -67,6 +67,9 @@ try {
   let sleeps = 0; const t0 = Date.now(); r = await runNotify(VAPID, { connect, fetch: fakeFetch(201), passes: 3, gapMs: 20, log: quiet }); T('多轮：按 passes 跑，每轮之间等 gapMs', r.passes === 3 && Date.now() - t0 >= 40, r);
   let logged = ''; r = await runNotify(VAPID, { connect: async () => { throw new Error('connect ECONNREFUSED secret-host password=hunter2') }, fetch: fakeFetch(201), passes: 3, gapMs: 1, log: { error: (...a) => { logged += a.join(' ') } } });
   T('连不上数据库：不抛出、不继续后面几轮，日志里没有地址和密码', r.passes === 0 && !/secret-host|hunter2/.test(logged) && /dispatch_error/.test(logged), [r, logged]);
+  let logged2 = ''; const denied = Object.assign(new Error('permission denied for table invites'), { code: '42501' });
+  r = await runNotify(VAPID, { connect: async () => ({ query: async () => { throw denied }, end: async () => { } }), fetch: fakeFetch(201), passes: 1, log: { error: (...a) => { logged2 += a.join(' ') } } });
+  T('数据库报错（如没权限）：日志带代码和原文，能看出是哪张表', /dispatch_error 42501 permission denied for table invites/.test(logged2), logged2);
   const waits = []; const out = []; const env = { ...VAPID, DB_URL: 'x' };
   T('定时 Worker 入口：有 scheduled 和 fetch，fetch 一律 404', typeof worker.scheduled === 'function' && (await worker.fetch()).status === 404);
   await worker.scheduled({}, {}, { waitUntil: p => waits.push(p) }); await Promise.all(waits); T('定时 Worker：没配数据库时 scheduled 安静地结束（不抛出）', waits.length === 1);

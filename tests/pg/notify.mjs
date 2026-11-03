@@ -32,7 +32,9 @@ try {
   let mailFail = false; const mail = { sent: [], async send(m) { if (mailFail) throw new Error('down'); this.sent.push(m); return { id: 're_' + this.sent.length } } };
   const run = d => dispatch(pool, { push, now: T0 + d }), flush = d => flushEmail(pool, { mail, now: T0 + d });
 
-  let un = 0; const user = async (name, email = null) => (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at,wechat_id,email) values ($1,$2,5,now(),'wx'||$2,$3) returning id`, ['+6140000' + String(++un).padStart(4, '0'), name, email])).id;
+  let un = 0; const user = async (name, email = null, optin = true) => { const id = (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at,wechat_id,email) values ($1,$2,5,now(),'wx'||$2,$3) returning id`, ['+6140000' + String(++un).padStart(4, '0'), name, email])).id;
+    if (email && optin) await q(`update users set email_prefs='{"request":true,"result":true,"change":true}' where id=$1`, [id]);   // 11-03：邮件默认不发，有邮箱又要收邮件的人要自己打开（optin=false 就是没打开）
+    return id };
   const dev = async (u, platform, { ep = null, active = null } = {}) => (await one(`insert into user_devices(user_id,platform,push_endpoint,push_p256dh,push_auth,last_active_at) values ($1,$2,$3,$4,$5,$6) returning id`,
     [u, platform, ep, ep && 'p', ep && 'a', active === null ? null : at(-active)])).id;
   await q(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)')`);
@@ -55,14 +57,15 @@ try {
   // ④ 电脑上正在用 + 出发类 → 同时推手机
   const u2 = await user('U2'); await dev(u2, 'desktop', { active: 5e3 }); const u2m = await dev(u2, 'mobile', { ep: 'm2', active: 5 * M });
   const n2 = await N(u2, 'changed', { g: gF }), n2b = await N(u2, 'approved', { g: gF });
-  // ③ 都没在用 → 手机优先；没有手机推送才推电脑
+  // ③ 都没在用 → 推手机；电脑端不推送
   const u3 = await user('U3', 'u3@x.com'); const u3m = await dev(u3, 'mobile', { ep: 'm3', active: 2 * M }); await dev(u3, 'desktop', { ep: 'd3' });
   const n3 = await N(u3, 'approved', { g: gF });
   const u4 = await user('U4', 'u4@x.com'); await dev(u4, 'desktop', { ep: 'd4' });
   const n4 = await N(u4, 'approved', { g: gF });
   const u5 = await user('U5', 'u5@x.com'); const n5 = await N(u5, 'rejected', { g: gF });     // 推不到、有邮箱
   const u6 = await user('U6'); const n6 = await N(u6, 'approved', { g: gF });                  // 推不到、没邮箱
-  // 推送失败：410 → 清订阅并改推电脑；404 没别的设备 → 只进消息列表；500 → 订阅保留
+  const u4x = await user('U4x', 'u4x@x.com', false); await dev(u4x, 'desktop', { ep: 'd4x' }); const n4x = await N(u4x, 'approved', { g: gF });   // 有邮箱但没打开邮件提醒
+  // 推送失败：410 → 清订阅（不改推电脑）；404 清订阅；500 → 订阅保留
   const u7 = await user('U7'); const u7m = await dev(u7, 'mobile', { ep: 'gone' }); await dev(u7, 'desktop', { ep: 'd7' }); push.status.gone = 410;
   const n7 = await N(u7, 'approved', { g: gF });
   const u7b = await user('U7b'); const u7bm = await dev(u7b, 'mobile', { ep: 'nf' }); push.status.nf = 404; const n7b = await N(u7b, 'approved', { g: gF });
@@ -74,10 +77,11 @@ try {
   T('④ 电脑正在用 + 改动：页面提醒并推手机；第一去向仍是页面', await D(n2) === 'in_app/active_device,push_mobile/go_kind' && (await NR(n2)).go_extra === true && (await NR(n2)).first_channel === 'in_app', await D(n2));
   T('④ 非出发类也推手机（不再区分种类）', await D(n2b) === 'in_app/active_device,push_mobile/go_kind', await D(n2b));
   T('③ 都没在用：推手机（不推电脑），记下送达时间', await D(n3) === 'push_mobile/mobile_first' && !push.calls.some(x => x.sub.endpoint === 'd3') && (await one(`select push_ok_at from user_devices where id=$1`, [u3m])).push_ok_at !== null, await D(n3));
-  T('③ 没有手机推送：推电脑', await D(n4) === 'push_desktop/no_mobile_push', await D(n4));
-  T('推送带应用页地址：手机 /pwa.html、电脑 /web.html（点开通知才进应用，不是入口页）', push.calls.find(x => x.sub.endpoint === 'm3').p.data.url === '/pwa.html' && push.calls.every(x => x.sub.endpoint.startsWith('d') ? x.p.data.url === '/web.html' : x.p.data.url === '/pwa.html'), push.calls.map(x => x.sub.endpoint + ':' + x.p.data.url));
+  T('③ 电脑端不推送：只有电脑订阅的人不推（11-03 你定的）', await D(n4) === '' && !push.calls.some(x => x.sub.endpoint === 'd4'), await D(n4));
+  T('邮件默认不发：有邮箱但没打开 → 不排邮件，只进消息列表', (await OB(u4x)).length === 0 && await D(n4x) === 'none/no_push', await D(n4x));
+  T('推送带应用页地址：手机 /pwa.html、电脑 /web.html（点开通知才进应用，不是入口页）', push.calls.find(x => x.sub.endpoint === 'm3').p.data.url === '/pwa.html' && push.calls.every(x => x.p.data.url === '/pwa.html'), push.calls.map(x => x.sub.endpoint + ':' + x.p.data.url));
   T('推送内容带球局时间和场地、点开的去处', push.calls.find(x => x.sub.endpoint === 'm3').p.body.includes('Brighton TC') && push.calls.find(x => x.sub.endpoint === 'm3').p.data.notif_id === String(n3));
-  T('410：清掉手机订阅，改推电脑（mobile_failed）', await D(n7) === 'push_desktop/mobile_failed' && (await one(`select push_endpoint from user_devices where id=$1`, [u7m])).push_endpoint === null, await D(n7));
+  T('410：清掉手机订阅，不改推电脑', await D(n7) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7m])).push_endpoint === null, await D(n7));
   T('404：清订阅；没别的设备 → 只进消息列表', await D(n7b) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7bm])).push_endpoint === null, await D(n7b));
   T('500：这次没推到，订阅保留', await D(n7c) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7cm])).push_endpoint === 'busy');
   T('推不到又没邮箱：只进消息列表', await D(n6) === 'none/no_push');
@@ -86,13 +90,13 @@ try {
 
   // ---------- ⑧ 补发邮件 ----------
   let ob4 = await OB(u4), ob5 = await OB(u5);
-  T('⑧ 只推到电脑：排一封结果类邮件，5 分钟后发', ob4.length === 1 && ob4[0].kind === 'result' && +ob4[0].send_after === T0 + 5 * M && ob4[0].merge_key === `${u4}:${gF}:result`, ob4);
+  T('⑧ 推不到手机、已打开邮件：排一封结果类邮件，5 分钟后发', ob4.length === 1 && ob4[0].kind === 'result' && +ob4[0].send_after === T0 + 5 * M && ob4[0].merge_key === `${u4}:${gF}:result`, ob4);
   T('⑧ 推不到但有邮箱：先排邮件，第一去向等邮件发出再记', ob5.length === 1 && await D(n5) === '' && (await NR(n5)).pushed_at !== null);
   T('推到手机 / 页面里的不排邮件', (await OB(u3)).length === 0 && (await OB(u1)).length === 0);
   s = await flush(4 * M); T('不到 5 分钟不发', s.sent === 0 && mail.sent.length === 0, s);
   s = await flush(5 * M);
   T('5 分钟仍未读：发出', s.sent === 2 && (await OB(u4))[0].status === 'sent' && /^re_\d$/.test((await OB(u4))[0].provider_id), s);
-  T('邮件记为第二去向（推到电脑后 5 分钟未读）', await D(n4) === 'push_desktop/no_mobile_push,email/unread_5min', await D(n4));
+  T('没推送的邮件第一去向记为 email / no_push（电脑订阅不算）', await D(n4) === 'email/no_push', await D(n4));
   T('推不到的：第一去向记为 email / no_push', await D(n5) === 'email/no_push' && (await NR(n5)).first_channel === 'email', await D(n5));
   const m4 = mail.sent.find(m => m.to === 'u4@x.com');
   T('邮件标题、退订链接', m4.subject.startsWith('你的申请通过了') && m4.unsubscribe.includes('/unsub/') && m4.unsubscribe.endsWith('?k=result') && m4.text.includes(m4.unsubscribe), m4);
@@ -113,22 +117,23 @@ try {
 
   // ---------- ⑦ 同一局申请 10 分钟内只推一次；邮件合并 ----------
   const u10 = await user('U10', 'u10@x.com'); await dev(u10, 'desktop', { ep: 'd10' }); const gR = await game(2 * 24 * H, u10);
-  const ap = []; for (let i = 0; i < 4; i++) { ap.push(await user('A' + i)); await apply(gR, ap[i]) }
-  const r1 = await N(u10, 'request', { g: gR, actor: ap[0], d: 10 * M }); await run(10 * M);
-  const r2 = await N(u10, 'request', { g: gR, actor: ap[1], d: 13 * M }); await run(13 * M);
-  T('⑦ 第一条申请推出；10 分钟内第二条不推（merged）', await D(r1) === 'push_desktop/no_mobile_push' && await D(r2) === 'none/merged', [await D(r1), await D(r2)]);
+  const u10m = await user('U10m'); await dev(u10m, 'mobile', { ep: 'm10' }); const gRm = await game(2 * 24 * H, u10m);   // 同样的申请，发起人在手机上
+  const ap = []; for (let i = 0; i < 4; i++) { ap.push(await user('A' + i)); await apply(gR, ap[i]); await apply(gRm, ap[i]) }
+  const r1 = await N(u10, 'request', { g: gR, actor: ap[0], d: 10 * M }), rm1 = await N(u10m, 'request', { g: gRm, actor: ap[0], d: 10 * M }); await run(10 * M);
+  const r2 = await N(u10, 'request', { g: gR, actor: ap[1], d: 13 * M }), rm2 = await N(u10m, 'request', { g: gRm, actor: ap[1], d: 13 * M }); await run(13 * M);
+  T('⑦ 第一条申请推出；10 分钟内第二条不推（merged）', await D(rm1) === 'push_mobile/mobile_first' && await D(rm2) === 'none/merged', [await D(rm1), await D(rm2)]);
   let ob10 = await OB(u10); T('⑦ 第二条并进同一封申请邮件', ob10.length === 1 && ob10[0].notification_ids.length === 2 && ob10[0].kind === 'request', ob10);
   s = await flush(15 * M); const m10 = mail.sent.at(-1);
-  T('合并的邮件：「又有 2 位球友申请」，两条都记邮件', s.sent === 1 && m10.subject.startsWith('又有 2 位球友申请加入你') && await D(r1) === 'push_desktop/no_mobile_push,email/unread_5min' && (await D(r2)).endsWith('email/unread_5min'), [m10.subject, await D(r2)]);
-  const r3 = await N(u10, 'request', { g: gR, actor: ap[2], d: 30 * M }); await run(30 * M);
+  T('合并的邮件：「又有 2 位球友申请」，两条都记邮件', s.sent === 1 && m10.subject.startsWith('又有 2 位球友申请加入你') && await D(r1) === 'email/no_push' && await D(r2) === 'email/no_push', [m10.subject, await D(r1), await D(r2)]);
+  const r3 = await N(u10, 'request', { g: gR, actor: ap[2], d: 30 * M }), rm3 = await N(u10m, 'request', { g: gRm, actor: ap[2], d: 30 * M }); await run(30 * M);
   ob10 = await OB(u10);
-  T('⑦ 超过 10 分钟的新申请照常推', await D(r3) === 'push_desktop/no_mobile_push');
+  T('⑦ 超过 10 分钟的新申请照常推', await D(rm3) === 'push_mobile/mobile_first', await D(rm3));
   T('邮件 1 小时合并：上一封发出 1 小时后才发', ob10.length === 2 && +ob10[1].send_after === T0 + 75 * M, ob10.map(o => o.send_after));
   const r4 = await N(u10, 'request', { g: gR, actor: ap[3], d: 42 * M }); await run(42 * M);
   T('1 小时内再来的并进排队的那封', (await OB(u10)).length === 2 && (await OB(u10))[1].notification_ids.length === 2);
   await q(`update game_participants set status='approved' where game_id=$1 and user_id=$2`, [gR, ap[2]]);   // 其中一条申请已被处理
   s = await flush(75 * M); const m10b = mail.sent.at(-1);
-  T('发出时去掉已处理的申请', s.sent === 1 && m10b.subject.startsWith('A3 申请加入你') && await D(r3) === 'push_desktop/no_mobile_push' && (await D(r4)).endsWith('email/unread_5min'), [m10b.subject, await D(r3)]);
+  T('发出时去掉已处理的申请', s.sent === 1 && m10b.subject.startsWith('A3 申请加入你') && await D(r3) === 'none/stale:email' && await D(r4) === 'email/no_push', [m10b.subject, await D(r3), await D(r4)]);
 
   // ---------- ⑤ 夜间顺延 + 8 点合成一条 ----------
   const TN = Date.parse('2027-03-10T12:00:00Z') - T0;   // 墨尔本 3/10 23:00
@@ -185,7 +190,7 @@ try {
   const ob13 = await OB(u13);
   T('开场前 1 小时内的结果类不进邮件；2 小时内的改动立刻发', ob13.length === 1 && ob13[0].kind === 'change' && +ob13[0].send_after === T0 + E, ob13);
   mailFail = true; s = await flushE(0); mailFail = false;
-  T('邮件服务出错 → failed，不记送达', s.failed === 1 && (await OB(u13))[0].status === 'failed' && await D(c90) === 'push_desktop/no_mobile_push', s);
+  T('邮件服务出错 → failed，不记送达', s.failed === 1 && (await OB(u13))[0].status === 'failed' && await D(c90) === '', s);
   // 退信回调带 provider_id → 那封记 bounced
   const sentRow = (await OB(u12)).find(o => o.status === 'sent');
   await onEmailEvent(pool, { type: 'complained', email: 'e7@x.com', provider_id: sentRow.provider_id });

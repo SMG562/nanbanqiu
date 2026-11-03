@@ -35,7 +35,8 @@ for(const plat of ['PWA','Web']){const W=plat==='Web';
   const L=W?'#colL':'#meBody';
   await S('nr_settings',[['notif_settings_open',{}]],()=>click(`${L} [data-a="nrSet"]`));
   if(!W){await S('a2hs',[['a2hs_open',{env:x=>!!x}]],()=>click('[data-a="enablePush"]'));await close();await js(()=>{setEnv('pwa');go('me')});await click(`${L} [data-a="nrSet"]`);await wait(300)}
-  await S('push',[['push_enable',{env:x=>!!x,result:x=>['granted','denied','unsupported'].includes(x)}]],async()=>{await click('[data-a="enablePush"]');await pg.waitForFunction(()=>AN_LOG.some(e=>e.ev==='push_enable'),null,{timeout:5000,polling:50}).catch(()=>{})});   // 等权限回应（E2：原来固定等 2.5 秒）
+  if(W)T('网页端提醒方式页没有「开启推送」（11-03：提醒只推手机）',!(await pg.$('[data-a="enablePush"]')));
+  else await S('push',[['push_enable',{env:x=>!!x,result:x=>['granted','denied','unsupported'].includes(x)}]],async()=>{await click('[data-a="enablePush"]');await pg.waitForFunction(()=>AN_LOG.some(e=>e.ev==='push_enable'),null,{timeout:5000,polling:50}).catch(()=>{})});   // 等权限回应（E2：原来固定等 2.5 秒）
   OUT[plat].pushProps=all.filter(e=>e.ev==='push_enable').map(e=>e.props);await close();
   await S('email_bad',[],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','not-an-email');await click('[data-em="setSave"]')});await close();
   await S('email_ok',[['email_settings_save',{on:true}]],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','j@x.com');await click('[data-em="setSave"]')});

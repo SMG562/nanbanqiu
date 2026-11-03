@@ -105,16 +105,14 @@ function nrChat(t,m,show){if(!ME||!m||m.from===ME.id)return;if(typeof msgQuiet==
   const p=PARTS.find(p=>p.game_id===g.id&&p.user_id===ME.id),j=p&&p.approved_at;if(j){const k=ME.id+'|'+t.id;if((LASTREAD[k]||0)<j)return tMsgs(t).filter(m=>m.from!==ME.id&&m.at>j).length}}return _nrCxU(t)}}
 
 // ---------- 提醒方式（两端一样） ----------
-function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的手机';if(NR_PLAT==='mobile'&&d.desktop.push)return '会推送到你的电脑，开启手机推送更及时';if(NR_PLAT==='desktop')return d.desktop.push?'会弹出浏览器通知提醒你':'会在右上角的<svg class="ibell"><use href="#i-bell"/></svg>里提醒你';
+function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的手机';if(NR_PLAT==='desktop')return '会在右上角的<svg class="ibell"><use href="#i-bell"/></svg>里提醒你，用手机开启推送能第一时间知道';
   return '会出现在「消息」里'+(typeof ENV!=='undefined'&&ENV==='wechat'?'':'，开启推送能第一时间知道')}
 function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
   const row=(ic,t,s,btn)=>`<div class="nrs-r"><span class="nrs-i">${ic}</span><div><b>${t}</b><small>${s}</small></div>${btn||''}</div>`;
-  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">有人申请、同意、婉拒、取消或改时间，都会像短信一样推送到手机</p>
-  ${row('📱','手机',d.mobile.push?'已开启 · 提醒都会推送到这里，有横幅和声音':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
-  ${row('💻','电脑',d.desktop.push?'已开启 · 手机没开推送时，才会推送到这里':'没开也没关系 · 打开南伴球网页时，页面里照样会提醒',!mob&&!d.desktop.push?'<button class="nrs-b" data-a="enablePush">开启</button>':'')}
-  ${row('✉️','邮件',ME.email?esc(ME.email)+' · 推送没送达时补发重要的提醒':'未设置',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
-  ${typeof NBQ_NET!=='undefined'&&NBQ_NET?'<div id="nrDiag"></div>':''}
-  <ul class="nrs-l"><li>手机开着南伴球时，也会弹系统横幅</li><li>申请、同意、婉拒、取消、改时间，随时立刻推送，夜里也一样</li><li>开打前 30 分钟也会提醒你</li></ul></div>`}
+  return `<div class="nrs"><div class="nrs-h">提醒方式</div>
+  ${row('📱','手机',d.mobile.push?'已开启':mob?'未开启':'用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
+  ${row('✉️','邮件',ME.email?esc(ME.email):'默认不发',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
+  ${typeof NBQ_NET!=='undefined'&&NBQ_NET?'<div id="nrDiag"></div>':''}</div>`}
 // 推送自检（11-03）：设备订阅状态 + 最近提醒去向，来自 POST /api/me/push-diag（只在真实模式）。纯函数，单元测试直接测
 const NR_KIND_ZH={request:'有人申请',approved:'申请被同意',rejected:'申请被婉拒',full:'球局满员',player_left:'有人退出',game_cancelled:'球局取消',joined:'有人加入',expired:'申请过期',unfilled:'没凑齐',unfilled_end:'没凑齐',postponed:'顺延',changed:'改了时间',soon:'快开始了',reopen:'重新开放'};
 function nrAgo(t,now){if(!t)return'';const s=Math.max(0,Math.round((new Date(now)-new Date(t))/1000));return s<90?'刚刚':s<5400?Math.round(s/60)+' 分钟前':s<172800?Math.round(s/3600)+' 小时前':Math.round(s/86400)+' 天前'}
@@ -131,8 +129,8 @@ function nrDiagHTML(r){if(!r||!Array.isArray(r.devices))return'<small>读取失�
 async function nrDiagLoad(){const el=document.getElementById('nrDiag');if(!el||typeof nbqPushDiag!=='function')return;el.innerHTML='<small>正在读取…</small>';let r=null;try{r=await nbqPushDiag()}catch(e){}if(document.getElementById('nrDiag'))document.getElementById('nrDiag').innerHTML=nrDiagHTML(r)}
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML());nrDiagLoad()}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
-function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
-  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
+function nrWebCard(){const d=nrDev(ME);if(d.mobile.push)return'';
+  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，提醒都会推送到手机</p></div></div>`}
 
 // ---------- 演示：另一台设备 · 提醒去向 ----------
 function nrDevSet(v){if(!ME)return;const d=nrDev(ME)[NR_OTHER];d.push=v!=='off';d.active=v==='active';nrDemoDraw()}

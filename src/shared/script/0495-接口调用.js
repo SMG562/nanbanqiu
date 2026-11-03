@@ -249,6 +249,7 @@ function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
 let NBQ_PUSH_WHY='';   // 最近一次推送订阅没成功的原因（提示给用户 / 排查用）：permission / unsupported / key / sw / subscribe / api
 async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
+  if(NR_PLAT==='desktop'){NBQ_PUSH_WHY='desktop';return false}   // 11-03 你定的：电脑端不订阅推送，提醒只推手机
   if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){NBQ_PUSH_WHY='unsupported';return false}
   if(Notification.permission!=='granted'){NBQ_PUSH_WHY='permission';return false}
   let step='key';

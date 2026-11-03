@@ -7,14 +7,14 @@ const EM_KIND={request:'request',approved:'result',rejected:'result',full:'resul
 const EM_LAB=[['request','有人申请加入我的球局'],['result','我的申请有结果'],['change','我参加的球局改了时间、地点或被取消']];
 var EMAIL_OUTBOX=[];
 const emOK=v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
-const emNeedAsk=()=>!!ME&&!ME.email&&!PUSH.enabled&&!(ME.emAskAt&&Date.now()-ME.emAskAt<30*864e5);
+const emNeedAsk=()=>false;   // 11-03 你定的：邮件默认不发，不再主动问邮箱；想要的人在「提醒方式 → 邮件」自己设置
 function emAskHTML(host){if(!emNeedAsk())return'';
   return `<div class="emk" id="emk"><b>留个邮箱，${host?'有人申请时告诉你':'结果出来发给你'}</b><div class="emk-r"><input id="emkIn" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱"><button data-em="save" data-k="${host?1:0}">好</button></div><button class="emk-x" data-em="skip">不用了</button></div>`}
 function emSettings(){const p=ME.emPrefs||{};
-  UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">推送收不到的时候，才用邮件告诉你。同一局 1 小时内最多一封，每天最多 5 封，不发广告。</p>
+  UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">手机推送没送到时，才发邮件。</p>
     ${ME.emailStatus==='bounced'?'<div class="em-bad">这个邮箱收不到邮件，换一个吧</div>':''}
     <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email&&ME.email!==NBQ_EMAIL_SET?ME.email:'')}">
-    <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===false?'':' on'}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
+    <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===true?' on':''}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
     <div class="uf-l" style="margin-top:14px"><button class="uf-r p" data-em="setSave"><b>保存</b></button>${ME.email?'<button class="uf-r d" data-em="off"><b>关闭邮件提醒</b></button>':''}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.em;
   if(k==='save'){const v=($('#emkIn')||{}).value.trim();if(!emOK(v)){toast('邮箱格式好像不对');return}
@@ -30,7 +30,7 @@ const EM_DELAY=5*6e4,EM_MERGE=36e5,EM_CAP=5,EM_RANK={change:0,result:1,request:2
 const emDay=t=>new Date(t).toLocaleDateString('en-AU',{timeZone:CITY.tz});
 const emPushOK=u=>!!nrDev(u).mobile.push;            // ③ 原型：当前设备看 PUSH，其他人看 pushOK
 function emQueue(uid,kind,gid,nid,t=Date.now()){const u=U(uid),k=EM_KIND[kind];if(!k)return null;                       // ①
-  if(!u||!u.email||u.emailStatus&&u.emailStatus!=='ok'||(u.emPrefs||{})[k]===false)return null;                      // ②
+  if(!u||!u.email||u.emailStatus&&u.emailStatus!=='ok'||(u.emPrefs||{})[k]!==true)return null;                      // ②
   if(emPushOK(u))return null;                                                                                          // ③ 推送到了就不发
   const key=`${uid}:${gid}:${k}`,last=EMAIL_OUTBOX.filter(x=>x.key===key&&x.status!=='skipped').sort((a,b)=>b.created-a.created)[0];
   if(last&&last.status==='queued'){last.nids.push(nid);return last}                                                     // ④ 还没发出：并进同一封

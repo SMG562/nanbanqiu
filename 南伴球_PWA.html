@@ -2908,14 +2908,14 @@ const EM_KIND={request:'request',approved:'result',rejected:'result',full:'resul
 const EM_LAB=[['request','有人申请加入我的球局'],['result','我的申请有结果'],['change','我参加的球局改了时间、地点或被取消']];
 var EMAIL_OUTBOX=[];
 const emOK=v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
-const emNeedAsk=()=>!!ME&&!ME.email&&!PUSH.enabled&&!(ME.emAskAt&&Date.now()-ME.emAskAt<30*864e5);
+const emNeedAsk=()=>false;   // 11-03 你定的：邮件默认不发，不再主动问邮箱；想要的人在「提醒方式 → 邮件」自己设置
 function emAskHTML(host){if(!emNeedAsk())return'';
   return `<div class="emk" id="emk"><b>留个邮箱，${host?'有人申请时告诉你':'结果出来发给你'}</b><div class="emk-r"><input id="emkIn" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱"><button data-em="save" data-k="${host?1:0}">好</button></div><button class="emk-x" data-em="skip">不用了</button></div>`}
 function emSettings(){const p=ME.emPrefs||{};
-  UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">推送收不到的时候，才用邮件告诉你。同一局 1 小时内最多一封，每天最多 5 封，不发广告。</p>
+  UF_OPEN(`<div class="uf em"><div class="uf-h">邮件提醒</div><p class="uf-s">手机推送没送到时，才发邮件。</p>
     ${ME.emailStatus==='bounced'?'<div class="em-bad">这个邮箱收不到邮件，换一个吧</div>':''}
     <input id="emSet" class="em-in" type="email" inputmode="email" autocomplete="email" placeholder="你的邮箱" value="${esc(ME.email&&ME.email!==NBQ_EMAIL_SET?ME.email:'')}">
-    <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===false?'':' on'}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
+    <div class="em-l">${EM_LAB.map(([k,l])=>`<button class="em-t${p[k]===true?' on':''}" data-em="tog" data-k="${k}"><span>${l}</span><i></i></button>`).join('')}</div>
     <div class="uf-l" style="margin-top:14px"><button class="uf-r p" data-em="setSave"><b>保存</b></button>${ME.email?'<button class="uf-r d" data-em="off"><b>关闭邮件提醒</b></button>':''}</div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-em]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.em;
   if(k==='save'){const v=($('#emkIn')||{}).value.trim();if(!emOK(v)){toast('邮箱格式好像不对');return}
@@ -2931,7 +2931,7 @@ const EM_DELAY=5*6e4,EM_MERGE=36e5,EM_CAP=5,EM_RANK={change:0,result:1,request:2
 const emDay=t=>new Date(t).toLocaleDateString('en-AU',{timeZone:CITY.tz});
 const emPushOK=u=>!!nrDev(u).mobile.push;            // ③ 原型：当前设备看 PUSH，其他人看 pushOK
 function emQueue(uid,kind,gid,nid,t=Date.now()){const u=U(uid),k=EM_KIND[kind];if(!k)return null;                       // ①
-  if(!u||!u.email||u.emailStatus&&u.emailStatus!=='ok'||(u.emPrefs||{})[k]===false)return null;                      // ②
+  if(!u||!u.email||u.emailStatus&&u.emailStatus!=='ok'||(u.emPrefs||{})[k]!==true)return null;                      // ②
   if(emPushOK(u))return null;                                                                                          // ③ 推送到了就不发
   const key=`${uid}:${gid}:${k}`,last=EMAIL_OUTBOX.filter(x=>x.key===key&&x.status!=='skipped').sort((a,b)=>b.created-a.created)[0];
   if(last&&last.status==='queued'){last.nids.push(nid);return last}                                                     // ④ 还没发出：并进同一封
@@ -3979,16 +3979,14 @@ function nrChat(t,m,show){if(!ME||!m||m.from===ME.id)return;if(typeof msgQuiet==
   const p=PARTS.find(p=>p.game_id===g.id&&p.user_id===ME.id),j=p&&p.approved_at;if(j){const k=ME.id+'|'+t.id;if((LASTREAD[k]||0)<j)return tMsgs(t).filter(m=>m.from!==ME.id&&m.at>j).length}}return _nrCxU(t)}}
 
 // ---------- 提醒方式（两端一样） ----------
-function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的手机';if(NR_PLAT==='mobile'&&d.desktop.push)return '会推送到你的电脑，开启手机推送更及时';if(NR_PLAT==='desktop')return d.desktop.push?'会弹出浏览器通知提醒你':'会在右上角的<svg class="ibell"><use href="#i-bell"/></svg>里提醒你';
+function nrWhere(){const d=nrDev(ME);if(d.mobile.push)return '会推送到你的手机';if(NR_PLAT==='desktop')return '会在右上角的<svg class="ibell"><use href="#i-bell"/></svg>里提醒你，用手机开启推送能第一时间知道';
   return '会出现在「消息」里'+(typeof ENV!=='undefined'&&ENV==='wechat'?'':'，开启推送能第一时间知道')}
 function nrSetHTML(){const d=nrDev(ME),mob=NR_PLAT==='mobile';
   const row=(ic,t,s,btn)=>`<div class="nrs-r"><span class="nrs-i">${ic}</span><div><b>${t}</b><small>${s}</small></div>${btn||''}</div>`;
-  return `<div class="nrs"><div class="nrs-h">提醒方式</div><p class="nrs-s">有人申请、同意、婉拒、取消或改时间，都会像短信一样推送到手机</p>
-  ${row('📱','手机',d.mobile.push?'已开启 · 提醒都会推送到这里，有横幅和声音':mob?'未开启':'未开启 · 用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
-  ${row('💻','电脑',d.desktop.push?'已开启 · 手机没开推送时，才会推送到这里':'没开也没关系 · 打开南伴球网页时，页面里照样会提醒',!mob&&!d.desktop.push?'<button class="nrs-b" data-a="enablePush">开启</button>':'')}
-  ${row('✉️','邮件',ME.email?esc(ME.email)+' · 推送没送达时补发重要的提醒':'未设置',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
-  ${typeof NBQ_NET!=='undefined'&&NBQ_NET?'<div id="nrDiag"></div>':''}
-  <ul class="nrs-l"><li>手机开着南伴球时，也会弹系统横幅</li><li>申请、同意、婉拒、取消、改时间，随时立刻推送，夜里也一样</li><li>开打前 30 分钟也会提醒你</li></ul></div>`}
+  return `<div class="nrs"><div class="nrs-h">提醒方式</div>
+  ${row('📱','手机',d.mobile.push?'已开启':mob?'未开启':'用手机打开南伴球，添加到主屏幕后开启',mob&&!d.mobile.push?'<button class="nrs-b p" data-a="enablePush">开启</button>':'')}
+  ${row('✉️','邮件',ME.email?esc(ME.email):'默认不发',`<button class="nrs-b" data-em="settings">${ME.email?'修改':'设置'}</button>`)}
+  ${typeof NBQ_NET!=='undefined'&&NBQ_NET?'<div id="nrDiag"></div>':''}</div>`}
 // 推送自检（11-03）：设备订阅状态 + 最近提醒去向，来自 POST /api/me/push-diag（只在真实模式）。纯函数，单元测试直接测
 const NR_KIND_ZH={request:'有人申请',approved:'申请被同意',rejected:'申请被婉拒',full:'球局满员',player_left:'有人退出',game_cancelled:'球局取消',joined:'有人加入',expired:'申请过期',unfilled:'没凑齐',unfilled_end:'没凑齐',postponed:'顺延',changed:'改了时间',soon:'快开始了',reopen:'重新开放'};
 function nrAgo(t,now){if(!t)return'';const s=Math.max(0,Math.round((new Date(now)-new Date(t))/1000));return s<90?'刚刚':s<5400?Math.round(s/60)+' 分钟前':s<172800?Math.round(s/3600)+' 小时前':Math.round(s/86400)+' 天前'}
@@ -4005,8 +4003,8 @@ function nrDiagHTML(r){if(!r||!Array.isArray(r.devices))return'<small>读取失�
 async function nrDiagLoad(){const el=document.getElementById('nrDiag');if(!el||typeof nbqPushDiag!=='function')return;el.innerHTML='<small>正在读取…</small>';let r=null;try{r=await nbqPushDiag()}catch(e){}if(document.getElementById('nrDiag'))document.getElementById('nrDiag').innerHTML=nrDiagHTML(r)}
 function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML());nrDiagLoad()}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
-function nrWebCard(){const d=nrDev(ME);if(d.mobile.push||d.desktop.push)return'';
-  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，申请和开打前提醒都会推送到手机</p><button class="btn-link" data-a="enablePush" style="height:auto;padding:4px 0 0">也在这台电脑上提醒</button></div></div>`}
+function nrWebCard(){const d=nrDev(ME);if(d.mobile.push)return'';
+  return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，提醒都会推送到手机</p></div></div>`}
 
 // ---------- 演示：另一台设备 · 提醒去向 ----------
 function nrDevSet(v){if(!ME)return;const d=nrDev(ME)[NR_OTHER];d.push=v!=='off';d.active=v==='active';nrDemoDraw()}
@@ -4671,7 +4669,7 @@ function renderMe(){
   <div class="sec-t">设置</div><div class="group">
     <button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${PUSH.enabled?'已开启':ENV==='wechat'?'微信内不可用':'未开启'}</small></span>${PUSH.enabled?'<span class="pill p-green">已开启</span>':'<svg class="ch"><use href="#i-ch"/></svg>'}</button>
     ${ENV!=='pwa'?`<button class="li" data-a="${ENV==='wechat'?'wxguide':'a2hs'}"><span class="ico" style="background:var(--g)"><svg><use href="#i-home"/></svg></span><span class="v">添加到主屏幕<small>像 App 一样打开，接收通知</small></span><svg class="ch"><use href="#i-ch"/></svg></button>`:''}
-    <button class="li" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'收不到推送时，用邮件告诉你'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
+    <button class="li" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
     ${invSetHTML('li')}<button class="li" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>${anPrivHTML('li')}${pvExportHTML('li')}
     <button class="li" data-a="community"><span class="ico" style="background:#07C160"><svg><use href="#i-wx"/></svg></span><span class="v">微信约球群<small>球场优惠 · 线下约局</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
@@ -5161,6 +5159,7 @@ function nbqNtfStart(){if(!NBQ_NET||NBQ_NTF_T)return;
 // 推送订阅：登录后若已允许通知就（重新）订阅一次；用户点「开启通知」允许后也订阅。公钥由服务器给（没配 = 安静跳过）
 let NBQ_PUSH_WHY='';   // 最近一次推送订阅没成功的原因（提示给用户 / 排查用）：permission / unsupported / key / sw / subscribe / api
 async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
+  if(NR_PLAT==='desktop'){NBQ_PUSH_WHY='desktop';return false}   // 11-03 你定的：电脑端不订阅推送，提醒只推手机
   if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){NBQ_PUSH_WHY='unsupported';return false}
   if(Notification.permission!=='granted'){NBQ_PUSH_WHY='permission';return false}
   let step='key';
