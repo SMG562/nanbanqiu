@@ -1,59 +1,73 @@
-"""极简线稿风（试样）：平涂荧光黄绿球 + 粗线 + 两点一线的脸；情绪靠姿势，留白多，一个点缀色。"""
-import pathlib
+"""小毛·线稿版 v2：细线 + 平涂 + 一道平涂暗面；动作靠倾斜 / 压扁 / 弯曲的手脚 / 小道具。"""
+import pathlib, math
 HERE = pathlib.Path(__file__).parent
-INK, LIME, PINKF, ACC, GREYT = '#2E3138', '#D4EA62', '#FFC9DA', '#E8643C', '#8C919B'
-S = lambda w=5: f'stroke="{INK}" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"'
+INK, LIME, LIMES, PINKF, PINKS, ACC, GREYT = '#3B3F47', '#D8EC6B', '#BFD84F', '#FFCCDC', '#F2AFC6', '#E8643C', '#8C919B'
+LW = 3.2
+S = lambda w=LW: f'stroke="{INK}" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="round"'
 n = [0]
-def ball(cx, cy, rx, ry=None, fill=LIME, face=True, look=0, mouth='line', eyes='dot', fx=0, fy=0):
-    ry = ry or rx; n[0] += 1; i = n[0]; r = rx
-    out = (f'<clipPath id="lc{i}"><ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}"/></clipPath>'
-           f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{fill}"/>'
-           f'<g clip-path="url(#lc{i})" fill="none" stroke="#FFFFF2" stroke-width="4.5" stroke-linecap="round" opacity=".95">'
-           f'<path d="M{cx-r*.62} {cy-ry*1.2} Q{cx+r*.1} {cy} {cx-r*.62} {cy+ry*1.2}"/><path d="M{cx+r*.78} {cy-ry*1.2} Q{cx+r*.05} {cy} {cx+r*.78} {cy+ry*1.2}"/></g>'
-           f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="none" {S(5)}/>')
-    if face:
-        x, y = cx + fx + look * 4, cy + fy
-        e = {'dot': f'<circle cx="{x-r*.3:.1f}" cy="{y-ry*.02:.1f}" r="3.3" fill="{INK}"/><circle cx="{x+r*.3:.1f}" cy="{y-ry*.02:.1f}" r="3.3" fill="{INK}"/>',
-             'closed': ''.join(f'<path d="M{x+s*r*.3-6:.1f} {y-ry*.02:.1f} q6 5 12 0" fill="none" {S(3)}/>' for s in (-1, 1)),
-             'dead': ''.join(f'<path d="M{x+s*r*.3-6:.1f} {y:.1f} h12" {S(3.4)}/>' for s in (-1, 1))}[eyes]
-        m = {'line': f'<path d="M{x-5:.1f} {y+ry*.28:.1f} h10" {S(3)}/>', 'smile': f'<path d="M{x-6:.1f} {y+ry*.24:.1f} q6 6 12 0" fill="none" {S(3)}/>',
-             'frown': f'<path d="M{x-6:.1f} {y+ry*.34:.1f} q6 -6 12 0" fill="none" {S(3)}/>', 'o': f'<ellipse cx="{x:.1f}" cy="{y+ry*.3:.1f}" rx="3" ry="3.6" fill="none" {S(2.6)}/>'}[mouth]
-        out += e + m
-    return out
-foot = lambda x, y, rot=0: f'<ellipse cx="{x}" cy="{y}" rx="9" ry="5" transform="rotate({rot} {x} {y})" fill="#fff" {S(4)}/>'
-def line(d): return f'<path d="{d}" fill="none" {S(5)}/>'
-def shadow(cx, cy, rx): return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="6" fill="#000" opacity=".08"/>'
-def heart(x, y, k=1): return f'<path transform="translate({x} {y}) scale({k})" d="M0 5 C-9 -2 -5 -10 0 -5 C5 -10 9 -2 0 5Z" fill="none" stroke="#D9534F" stroke-width="2.4" stroke-linejoin="round"/>'
+def xm(cx, cy, r, tilt=0, sx=1, sy=1, fill=LIME, shade=LIMES, eyes='dot', mouth='line', look=0, L=None, R=None, legs=(), extra='', front='', blush=True, fx=0, fy=0, bow=False):
+    n[0] += 1; i = n[0]; u = lambda v: v * r
+    rx, ry = r * sx, r * sy
+    arm = lambda sg, a: (f'<path d="M{sg*rx*.92:.1f} {ry*.12:.1f} Q{u(a[0][0]):.1f} {u(a[0][1]):.1f} {u(a[1][0]):.1f} {u(a[1][1]):.1f}" fill="none" {S()}/>') if a else ''
+    hand = lambda a: f'<circle cx="{u(a[1][0]):.1f}" cy="{u(a[1][1]):.1f}" r="{r*.13:.1f}" fill="#fff" {S(2.8)}/>' if a else ''
+    leg = ''
+    for hx, ctrl, foot, rot in legs:
+        leg += (f'<path d="M{u(hx):.1f} {ry*.86:.1f} Q{u(ctrl[0]):.1f} {u(ctrl[1]):.1f} {u(foot[0]):.1f} {u(foot[1]):.1f}" fill="none" {S()}/>'
+                f'<ellipse cx="{u(foot[0]):.1f}" cy="{u(foot[1]):.1f}" rx="{r*.26:.1f}" ry="{r*.14:.1f}" transform="rotate({rot} {u(foot[0]):.1f} {u(foot[1]):.1f})" fill="#fff" {S(2.8)}/>')
+    x, y = fx + look * 3, fy
+    E = {'dot': ''.join(f'<circle cx="{x+s*r*.3:.1f}" cy="{y:.1f}" r="2.8" fill="{INK}"/>' for s in (-1, 1)),
+         'closed': ''.join(f'<path d="M{x+s*r*.3-5:.1f} {y:.1f} q5 4.4 10 0" fill="none" {S(2.4)}/>' for s in (-1, 1)),
+         'half': ''.join(f'<path d="M{x+s*r*.3-5:.1f} {y:.1f} h10" {S(2.6)}/><path d="M{x+s*r*.3-4.4:.1f} {y+1:.1f} a4.4 4.4 0 0 0 8.8 0Z" fill="{INK}"/>' for s in (-1, 1))}[eyes]
+    M = {'line': f'<path d="M{x-4.5:.1f} {y+ry*.3:.1f} h9" {S(2.6)}/>', 'smile': f'<path d="M{x-5.5:.1f} {y+ry*.26:.1f} q5.5 5.4 11 0" fill="none" {S(2.6)}/>',
+         'frown': f'<path d="M{x-5.5:.1f} {y+ry*.36:.1f} q5.5 -5.4 11 0" fill="none" {S(2.6)}/>', 'o': f'<ellipse cx="{x:.1f}" cy="{y+ry*.32:.1f}" rx="2.6" ry="3.2" fill="none" {S(2.4)}/>'}[mouth]
+    bl = ''.join(f'<ellipse cx="{x+s*r*.58:.1f}" cy="{y+ry*.2:.1f}" rx="{r*.15:.1f}" ry="{r*.09:.1f}" fill="#F6A98A" opacity=".55"/>' for s in (-1, 1)) if blush else ''
+    seam = (f'<g clip-path="url(#xc{i})" fill="none" stroke="#FFFFF2" stroke-width="3" stroke-linecap="round">'
+            f'<path d="M{-rx*.64:.1f} {-ry*1.2:.1f} Q{rx*.1:.1f} 0 {-rx*.64:.1f} {ry*1.2:.1f}"/><path d="M{rx*.8:.1f} {-ry*1.2:.1f} Q{rx*.05:.1f} 0 {rx*.8:.1f} {ry*1.2:.1f}"/></g>')
+    shd = f'<g clip-path="url(#xc{i})"><path d="M{rx*.3:.1f} {ry*1.1:.1f} Q{rx*.95:.1f} {ry*.2:.1f} {rx*.55:.1f} {-ry*.95:.1f} L{rx*1.3:.1f} {-ry*1.2:.1f} V{ry*1.3:.1f}Z" fill="{shade}"/></g>'
+    bw = ''
+    if bow:
+        bw = f'<path d="M{r*.28:.1f} {-ry*1.0:.1f} l{-r*.34:.1f} {-r*.22:.1f} v{r*.4:.1f}Z M{r*.28:.1f} {-ry*1.0:.1f} l{r*.34:.1f} {-r*.22:.1f} v{r*.4:.1f}Z" fill="#fff" {S(2.8)}/>'
+    return (f'<g transform="translate({cx} {cy}) rotate({tilt})">{arm(-1, L)}{arm(1, R)}{leg}<clipPath id="xc{i}"><ellipse cx="0" cy="0" rx="{rx}" ry="{ry}"/></clipPath>'
+            f'<ellipse cx="0" cy="0" rx="{rx}" ry="{ry}" fill="{fill}"/>{shd if fill == LIME else ""}{seam}<ellipse cx="0" cy="0" rx="{rx}" ry="{ry}" fill="none" {S(LW)}/>{bl}{E}{M}{bw}{hand(L)}{hand(R)}{front}</g>{extra}')
+def shadow(cx, cy, rx): return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="5.5" fill="#000" opacity=".07"/>'
+def heart(x, y, k=1): return f'<path transform="translate({x} {y}) scale({k})" d="M0 5 C-9 -2 -5 -10 0 -5 C5 -10 9 -2 0 5Z" fill="#FBE3E3" stroke="#D9534F" stroke-width="2" stroke-linejoin="round"/>'
+def spark(x, y, k=5): return f'<path d="M{x} {y-k} V{y+k} M{x-k} {y} H{x+k}" stroke="{ACC}" stroke-width="2.2" stroke-linecap="round"/>'
 cards = []
-def add(key, bg, cap, sub, body): cards.append((key, bg, cap, sub, body))
-def wrap(bg, cap, sub, body):
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300"><rect width="300" height="300" rx="26" fill="{bg}"/><g transform="translate(0 -16)">{body}</g>'
-            f'<text x="150" y="280" text-anchor="middle" font-size="14" fill="{GREYT}" font-family="Noto Sans CJK SC, PingFang SC, sans-serif">{cap}</text></svg>')
-# 1 趴着
-add('lying', '#EFE9EA', '今天没人发球。', '', shadow(150, 238, 62) + foot(206, 224, 10) + foot(214, 216, 20) + line('M104 218 q-10 6 -16 2') + ball(150, 212, 50, 36, mouth='line', fx=-14, fy=2))
-# 2 抱膝 + 火苗
-flame = f'<path d="M150 146 C140 134 150 126 148 114 C158 122 164 134 160 146Z" fill="#FFD9C4" stroke="{ACC}" stroke-width="3.4" stroke-linejoin="round"/>'
-add('sitting-fire', '#F3F2EE', '约不到，上火。', '', shadow(150, 238, 56) + ball(150, 190, 42, 44, mouth='frown', fy=6) + flame + line('M114 206 Q150 238 186 206') + foot(130, 236) + foot(170, 236))
-# 3 一个人颠球
-racket = f'<g {S(4.5)} fill="#fff"><ellipse cx="206" cy="132" rx="17" ry="22" transform="rotate(24 206 132)"/></g><path d="M198 152 L180 182" {S(5)}/><path d="M196 124 l16 16 M208 112 l-14 28" stroke="{INK}" stroke-width="1.6" opacity=".5"/>'
-add('solo', '#F4F1E6', '等人的时候，先颠会儿。', '', shadow(130, 238, 52) + ball(126, 190, 38, mouth='smile') + line('M92 196 q-12 12 -8 26') + line('M158 198 L180 182') + line('M114 226 v10') + line('M138 226 v10') + foot(112, 238) + foot(140, 238) + racket
-    + f'<circle cx="212" cy="76" r="9" fill="{LIME}" {S(3.6)}/><path d="M204 84 q-8 28 -2 36" stroke="{GREYT}" stroke-width="2.4" stroke-dasharray="1 7" stroke-linecap="round" fill="none"/>')
-# 4 球拍睡着了
-blanket = f'<path d="M60 230 Q58 196 90 194 L186 192 Q214 194 214 224 Q212 244 186 244 L90 246 Q62 246 60 230Z" fill="#CFE0F7" {S(5)}/>'
-rk = (f'<ellipse cx="108" cy="218" rx="26" ry="19" transform="rotate(-8 108 218)" fill="#fff" {S(4.5)}/><path d="M132 222 L184 232" {S(7)}/>'
-      f'<path d="M96 216 q4 4 8 0 M114 215 q4 4 8 0" fill="none" {S(2.6)}/><path d="M106 226 h6" {S(2.6)}/>'
-      f'<text x="128" y="190" font-size="13" font-weight="800" fill="#8AA4BC" font-family="Noto Sans CJK SC">z</text><text x="140" y="176" font-size="10" font-weight="800" fill="#8AA4BC" font-family="Noto Sans CJK SC">z</text>')
-add('racket-sleep', '#F3F3F1', '球拍在睡觉，小声点。', '', shadow(240, 244, 28) + blanket + rk + ball(240, 204, 30, look=-1, mouth='line') + line('M212 212 q-8 8 -4 20') + line('M268 212 q6 10 2 20') + foot(232, 244) + foot(250, 244))
-# 5 两个并排
-bow = f'<path d="M180 168 l-12 -8 v14Z M180 168 l12 -8 v14Z" fill="#fff" {S(3.4)}/>'
-add('pair', '#EFEDE3', '有人一起，就不丧了。', '', shadow(150, 240, 90) + ball(108, 196, 38, mouth='smile') + ball(190, 202, 33, fill=PINKF, mouth='smile') + bow + foot(94, 238) + foot(122, 238) + foot(178, 242) + foot(204, 242)
-    + heart(100, 136) + heart(116, 128, .9) + heart(186, 134) + heart(202, 128, .8) + line('M146 214 q6 4 14 0'))
+def add(key, bg, cap, body): cards.append((key, bg, cap, body))
+def wrap(bg, cap, body):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300"><rect width="300" height="300" rx="26" fill="{bg}"/>{body}'
+            f'<text x="150" y="278" text-anchor="middle" font-size="14" fill="{GREYT}" font-family="Noto Sans CJK SC, PingFang SC, sans-serif">{cap}</text></svg>')
+cloud = lambda x, y, k: f'<path transform="translate({x} {y}) scale({k})" d="M0 16 q-8 -2 -6 -10 q2 -8 12 -6 q4 -10 16 -6 q10 -2 12 8 q10 0 8 8 q0 6 -8 6Z" fill="#fff" stroke="#C9CDD4" stroke-width="2.2" stroke-linejoin="round"/>'
+# 1 摊成一张饼（躺平看云）
+add('starfish', '#EFE9EA', '今天没人发球。', shadow(150, 232, 74) + cloud(196, 118, 1) + f'<path d="M184 150 q-4 14 -14 20" stroke="#C9CDD4" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round" fill="none"/>'
+    + xm(140, 204, 38, tilt=-4, sy=.78, eyes='half', mouth='o', look=1, fy=-2, L=((-1.5, -.5), (-2.1, -.4)), R=((1.5, -.6), (2.0, -.9)), legs=((-.5, (-1.0, 1.1), (-1.25, 1.1), 20), (.5, (1.0, 1.15), (1.35, 1.2), -20))))
+# 2 抱膝上火
+flame = f'<g transform="translate(2 4) scale(.9)"><path d="M0 0 C-11 -12 -1 -20 -3 -32 C9 -24 14 -11 9 0Z" fill="#FFD9C4" stroke="{ACC}" stroke-width="2.8" stroke-linejoin="round"/><path d="M1 -3 C-3 -8 2 -12 1 -17 C6 -13 7 -8 5 -3Z" fill="#FFB38E"/></g>'
+add('sitting-fire', '#F3F2EE', '约不到，上火。', shadow(150, 236, 62) + xm(150, 188, 40, tilt=5, sy=.96, mouth='frown', fy=4, L=((-1.0, 1.05), (.15, .95)), R=((1.0, 1.0), (-.1, 1.05)), legs=((-.5, (-1.0, 1.3), (-1.35, 1.25), 14), (.5, (1.0, 1.3), (1.4, 1.25), -14)), extra=f'<g transform="translate(152 148)">{flame}</g>')
+    + f'<path transform="translate(204 150)" d="M0 -9 C5 -2 7 3 0 7 C-7 3 -5 -2 0 -9Z" fill="#CFEAF6" stroke="#7FB8CF" stroke-width="1.8"/>')
+# 3 颠球（踮脚挥拍）
+rkt = lambda: (f'<g transform="translate(175 134) rotate(24)"><path d="M0 0 V-24" {S(3.4)}/><ellipse cx="0" cy="-45" rx="15" ry="21" fill="#fff" {S(3)}/><path d="M-8 -55 q8 -6 16 0 M-9 -43 q9 -5 18 0" fill="none" stroke="{INK}" stroke-width="1.2" opacity=".35"/></g>')
+add('solo', '#F4F1E6', '等人的时候，先颠会儿。', shadow(124, 238, 40) + xm(124, 176, 36, tilt=-8, mouth='smile', fy=2, L=((-1.5, .2), (-1.95, .7)), R=((1.5, -.2), (1.55, -.95)), legs=((-.4, (-.9, 1.25), (-.75, 1.5), 24), (.4, (.5, 1.35), (.5, 1.7), 70)))
+    + rkt() + f'<circle cx="214" cy="44" r="8.5" fill="{LIME}" {S(2.8)}/><path d="M206 52 q-8 14 -4 26" stroke="{GREYT}" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round" fill="none"/>' + spark(80, 110) + spark(262, 90, 4))
+# 4 嘘——球拍在睡觉
+blanket = f'<path d="M44 232 Q42 202 74 200 L160 198 Q188 200 188 226 Q186 246 160 246 L74 248 Q46 248 44 232Z" fill="#D3E3F8" {S()}/><path d="M60 214 q10 -4 20 0 M52 232 q8 -3 16 0" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>'
+rk = (f'<ellipse cx="92" cy="222" rx="24" ry="17" transform="rotate(-8 92 222)" fill="#fff" {S()}/><path d="M114 226 L158 234" {S(5.5)}/>'
+      f'<path d="M81 220 q3.6 3.6 7.2 0 M97 219 q3.6 3.6 7.2 0" fill="none" {S(2.2)}/><path d="M91 229 h5" {S(2.2)}/>'
+      f'<text x="108" y="196" font-size="13" font-weight="800" fill="#8AA4BC" font-family="Noto Sans CJK SC">z</text><text x="120" y="182" font-size="10" font-weight="800" fill="#8AA4BC" font-family="Noto Sans CJK SC">z</text>')
+add('racket-sleep', '#F3F3F1', '球拍在睡觉，小声点。', shadow(238, 246, 36) + blanket + rk + xm(236, 192, 31, tilt=-10, look=-1, mouth='o', fy=1, L=((-1.0, .8), (-.2, .62)), R=((1.5, -.1), (1.95, -.55)), legs=((-.4, (-.8, 1.2), (-.7, 1.5), 40), (.4, (.6, 1.35), (.5, 1.62), 70)))
+    + f'<path d="M222 168 q-6 -6 -4 -14" stroke="{GREYT}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0"/>')
+# 5 靠在一起，牵手
+add('pair', '#EFEDE3', '有人一起，就不丧了。', shadow(150, 240, 96) + xm(108, 196, 37, tilt=7, mouth='smile', fy=2, L=((-1.3, .6), (-1.55, .95)), R=((1.35, .55), (1.62, .62)), legs=((-.4, (-.5, 1.3), (-.45, 1.5), 4), (.4, (.5, 1.3), (.45, 1.5), -4)))
+    + xm(190, 202, 32, tilt=-8, fill=PINKF, shade=PINKS, mouth='smile', fy=2, bow=True, L=((-1.1, .5), (-.85, .65)), R=((1.3, .6), (1.5, .95)), legs=((-.4, (-.5, 1.3), (-.45, 1.5), 4), (.4, (.5, 1.3), (.45, 1.5), -4)))
+    + heart(112, 134) + heart(130, 124, .8) + heart(184, 140, .9) + heart(202, 128, .7))
 # 6 夜里台灯
-lamp = (f'<ellipse cx="190" cy="236" rx="74" ry="9" fill="#BFC3CB" opacity=".45"/><ellipse cx="236" cy="232" rx="16" ry="5" fill="#fff" {S(4)}/>'
-        f'<path d="M236 228 Q242 188 222 164" fill="none" {S(5)}/><path d="M198 146 Q214 128 240 138 L226 168 Q206 166 198 146Z" fill="#E2E4E9" {S(4.5)}/>')
-add('night-lamp', '#F4F4F2', '夜深了，还在看球局。', '', lamp + ball(104, 192, 40, look=1, mouth='line', fy=2) + f'<rect x="136" y="214" width="26" height="40" rx="5" transform="rotate(-14 149 234)" fill="#fff" {S(4)}/>' + line('M120 214 L142 224') + f'<path d="M26 238 H274" {S(4.5)}/>')
+lamp = (f'<ellipse cx="196" cy="238" rx="72" ry="8" fill="#BFC3CB" opacity=".4"/><path d="M236 232 q-30 0 -30 -4" fill="none"/><ellipse cx="238" cy="232" rx="15" ry="4.5" fill="#fff" {S(2.8)}/>'
+        f'<path d="M238 228 Q246 190 224 166" fill="none" {S()}/><path d="M198 148 Q214 130 242 140 L228 170 Q206 168 198 148Z" fill="#E4E6EB" {S()}/><path d="M205 176 L186 238 H240 L224 176Z" fill="#FFF3C8" opacity=".35"/>')
+moon = f'<path d="M48 64 a14 14 0 1 0 18 20 a10 10 0 1 1 -18 -20Z" fill="#fff" stroke="#C9CDD4" stroke-width="2"/>' + spark(92, 60, 4).replace(ACC, '#C9CDD4') + spark(70, 110, 3).replace(ACC, '#C9CDD4')
+phone = f'<g transform="rotate(-12 160 224)"><rect x="146" y="204" width="24" height="38" rx="5" fill="#FFF3C8" {S(3)}/><path d="M152 214 h12 M152 221 h9" stroke="#E0B84A" stroke-width="2" stroke-linecap="round"/></g>'
+add('night-lamp', '#F1F2F4', '夜深了，还在看球局。', moon + lamp + xm(96, 198, 40, tilt=5, eyes='half', look=1, fy=2, mouth='line', L=((-1.1, .9), (-.3, 1.0)), R=((1.15, .9), (1.45, 1.0)), front='') + phone + f'<path d="M24 240 H276" {S(3.4)}/>')
 out = HERE / '线稿风'; out.mkdir(exist_ok=True)
-for k, bg, cap, sub, body in cards: (out / f'line-{k}.svg').write_text(wrap(bg, cap, sub, body))
+for k, bg, cap, body in cards: (out / f'line-{k}.svg').write_text(wrap(bg, cap, body))
 html = '<style>body{margin:0;padding:24px;background:#fff;display:grid;grid-template-columns:repeat(3,300px);gap:18px}</style>' + ''.join(wrap(*c[1:]) for c in cards)
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
