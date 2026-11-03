@@ -1,17 +1,24 @@
 name: db-parity
 # 手动触发：核对 测试库 和 正式库 的结构是否一致（只读 select，不改库）。结果写在运行页的 Summary 里。
 # 需要在 GitHub → Settings → Secrets and variables → Actions 里由你自己填两个 Secret（连接串不经过 Claude）：
-#   NBQ_DB_URL_STAGING  测试库 Session pooler 连接串（建议用只读账号）
-#   NBQ_DB_URL_PROD     正式库 Session pooler 连接串（建议用只读账号）
+#   NBQ_DB_URL_STAGING  仓库级 Secret：测试库 Session pooler 连接串
+#   NBQ_DB_URL_PROD     production 环境 Secret：正式库 Session pooler 连接串（免费版没有审批，靠上面的确认词拦截）
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: '这个流程会连正式库（只读）。输入 production 确认'
+        required: true
 permissions:
   contents: read
 jobs:
   parity:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: production   # 正式库连接串放在 production 环境的 Secret 里，只有 main 分支的工作流读得到
     steps:
+      - name: 确认词
+        run: '[ "${{ inputs.confirm }}" = "production" ] || { echo "::error::确认词不对（要输入 production），已停止"; exit 1; }'
       - uses: actions/checkout@v4
       - name: 缺 Secret 就明说
         env: { A: "${{ secrets.NBQ_DB_URL_STAGING }}", B: "${{ secrets.NBQ_DB_URL_PROD }}" }
