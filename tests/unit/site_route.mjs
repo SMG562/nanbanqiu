@@ -1,23 +1,30 @@
-// 正式首页（server/site_route.mjs，11-03 第一轮）：nanbanqiu.app 打开不再是入口页，按屏幕宽度（不按设备型号）进手机版 / 网页版；
+// 正式首页（server/site_route.mjs，11-03 第一轮）：nanbanqiu.app 打开不再是入口页；触屏设备（手机、iPad）横竖都是手机版，电脑按窗口宽度；
 // 预览站根仍是入口页；正式站不露宣传物料；Pages 中间件、Workers 入口接上；_routes.json 覆盖要经过函数的路径（漏了 /api 整个接口 404）。
 import fs from 'node:fs'; import path from 'node:path'; import vm from 'node:vm'; import { fileURLToPath } from 'node:url';
-import { siteRoute, isProd, PREVIEW_ROOT, NARROW } from '../../server/site_route.mjs';
+import { siteRoute, isProd, PREVIEW_ROOT, NARROW, TOUCH } from '../../server/site_route.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
 const req = (u, method = 'GET') => new Request(u, { method });
-// 在假浏览器里跑选排版页的脚本：给定窗口宽度（和 iOS 一样，screen.width 横屏不变），看跳到哪
-async function goes(html, innerWidth, screenWidth, search = '', hash = '') {
-  const js = html.match(/<script>([\s\S]*?)<\/script>/)[1]; let to = null;
-  vm.runInNewContext(js, { innerWidth, screen: { width: screenWidth }, location: { search, hash, replace: u => { to = u } } }); return to;
+// 在假浏览器里跑选排版页的脚本：给定窗口宽度、是不是触屏为主（和 iOS 一样，screen.width 横屏不变），看跳到哪
+async function goes(html, innerWidth, screenWidth, search = '', hash = '', touch = false, noMM = false) {
+  const js = html.match(/<script>([\s\S]*?)<\/script>/)[1]; let to = null, asked = null;
+  const matchMedia = q => { asked = q; return { matches: touch && q === TOUCH } };
+  const win = { innerWidth, screen: { width: screenWidth }, location: { search, hash, replace: u => { to = u } } };
+  if (!noMM) win.matchMedia = matchMedia; win.window = win;
+  vm.runInNewContext(js, win); return to;
 }
 
 T('isProd：nanbanqiu.app 和 www，别的不算', isProd('nanbanqiu.app') && isProd('www.nanbanqiu.app') && !isProd(PREVIEW_ROOT) && !isProd('staging.nanbanqiu-preview.pages.dev') && !isProd('evilnanbanqiu.app'));
 let r = await siteRoute(req('https://nanbanqiu.app/')), html = await r.text();
 T('正式站 /：200，不缓存，不是入口页（没有后台、宣传物料链接、「演示数据」）', r.status === 200 && /no-store/.test(r.headers.get('cache-control')) && !/admin|materials|演示数据|管理后台/.test(html), html.slice(0, 200));
-const cases = [['iPhone 竖屏', 390, 390, '/pwa.html'], ['iPhone 横屏', 844, 390, '/pwa.html'], ['iPad mini 竖屏', 744, 744, '/pwa.html'], ['iPad Air 竖屏', 820, 820, '/pwa.html'], ['iPad Pro 11 竖屏', 834, 834, '/pwa.html'],
-  ['iPad Air 横屏（screen.width 仍是竖屏宽）', 1180, 820, '/web.html'], ['iPad Pro 11 横屏', 1194, 834, '/web.html'], ['电脑', 1440, 1440, '/web.html'], ['电脑缩窄窗口', 600, 1440, '/pwa.html']];
-for (const [n, w, sw, want] of cases) { const to = await goes(html, w, sw); T(`按宽度：${n}（${w}）→ ${want}`, to === want, to) }
-T(`分界 ${NARROW}：899 手机版、900 网页版`, (await goes(html, NARROW - 1, 1440)) === '/pwa.html' && (await goes(html, NARROW, 1440)) === '/web.html');
+const cases = [['iPhone 竖屏', 390, 390, true, '/pwa.html'], ['iPhone 横屏', 844, 390, true, '/pwa.html'], ['iPhone Pro Max 横屏（932 宽）', 932, 430, true, '/pwa.html'],
+  ['iPad mini 竖屏', 744, 744, true, '/pwa.html'], ['iPad Pro 11 竖屏', 834, 834, true, '/pwa.html'], ['iPad Air 横屏', 1180, 820, true, '/pwa.html'], ['iPad Pro 12.9 横屏', 1366, 1024, true, '/pwa.html'],
+  ['电脑', 1440, 1440, false, '/web.html'], ['电脑缩窄窗口', 600, 1440, false, '/pwa.html']];
+for (const [n, w, sw, touch, want] of cases) { const to = await goes(html, w, sw, '', '', touch); T(`${touch ? '触屏' : '鼠标'}：${n}（${w}）→ ${want}`, to === want, to) }
+T('转屏不换样式：同一台 iPad 竖屏、横屏都是手机版', (await goes(html, 820, 820, '', '', true)) === (await goes(html, 1180, 820, '', '', true)));
+T('判断用的是「主要输入是手指」这条媒体查询', html.includes(TOUCH) && TOUCH === '(hover: none) and (pointer: coarse)');
+T('老浏览器没有 matchMedia：退回只看宽度，不报错', (await goes(html, 390, 390, '', '', false, true)) === '/pwa.html' && (await goes(html, 1440, 1440, '', '', false, true)) === '/web.html');
+T(`电脑分界 ${NARROW}：899 手机版、900 网页版`, (await goes(html, NARROW - 1, 1440)) === '/pwa.html' && (await goes(html, NARROW, 1440)) === '/web.html');
 T('参数和 # 原样带上（主屏幕图标 ?source=pwa、#/g/码）', (await goes(html, 390, 390, '?source=pwa&n=3', '#/g/W2m5')) === '/pwa.html?source=pwa&n=3#/g/W2m5');
 T('页面带主屏幕图标和安装配置', /rel="manifest" href="\/manifest\.webmanifest"/.test(html) && /rel="apple-touch-icon" href="\/icons\/icon-180\.png"/.test(html));
 r = await siteRoute(req('https://nanbanqiu.app/', 'HEAD'));
