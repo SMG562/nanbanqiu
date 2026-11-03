@@ -24,7 +24,7 @@ const at = (k, h, m = 0) => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); 
     const gameG3 = () => ({ id: G3, share_code: 'Pv01', host_id: HOST, host_nickname: 'Host', host_utr: 5.5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: at(1, 9), duration_min: 90, game_type: 'singles', capacity: 2, utr_min: 4, utr_max: 6.5, note: '', status: 'full', tags: [], visibility: 'private', filled: 0, join_mode: 'approve', city: 'melb', approved_count: 2, pending_count: 0, spots_left: 0 });
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
-      if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [I1]: 'I1', [I2]: 'I2', [I3]: 'I3', [I4]: 'I4', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body }
+      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [I1]: 'I1', [I2]: 'I2', [I3]: 'I3', [I4]: 'I4', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body }
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
         if (p === '/api/me') return J(200, { registered: true, user: S.me });

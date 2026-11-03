@@ -26,7 +26,7 @@ let BASE = Date.now();
         ...(S.t2 ? [{ id: T2, kind: 'game', game_id: G1, other_id: null, last_body: null, last_at: null, last_sender: null, unread: false }] : [])] };
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
-      if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [T1]: 'T1', [T2]: 'T2', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body }
+      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [T1]: 'T1', [T2]: 'T2', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body }
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
         if (p === '/api/me') return J(200, { registered: true, user: S.me });
@@ -79,7 +79,7 @@ let BASE = Date.now();
 
     // 球局群聊：第一次点开才在服务器建
     await pg.evaluate(() => { try { CX_CLOSE() } catch (e) { } }); await pg.settle(500);
-    S.log.length = 0; await pg.evaluate(g => openThread(gameThread(g, true).id), G1); await until(() => pg.evaluate(() => !!document.getElementById('cxMsgs')));
+    S.log.length = 0; await pg.evaluate(g => openThread(gameThread(g, true).id), G1); await until(() => pg.evaluate(() => THREADS.length > 0 && !THREADS.some(t => t.tmp)));
     T(tag('球局群聊：POST /api/threads 带球局，建好后能打开'), S.log[0] === 'POST /api/threads' && S.bodies['POST /api/threads'].game_id === G1 && (await pg.evaluate(() => THREADS.some(t => t.type === 'game' && t.id !== undefined && !t.tmp && t.srv))), [S.log, await pg.evaluate(() => THREADS.map(t => [t.id, t.type, !!t.tmp]))]);
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();

@@ -27,7 +27,7 @@ function inboxHTML(){const L=myThreads();
 function threadHTML(t){const ms=tMsgs(t),closed=gameClosed(t),other=t.type==='dm'?U(cxOther(t)):null;
   const sub=t.type==='dm'?`一起打过 ${playedCount(ME.id,other.id)} 场`:`${gMembers(t.game_id).length} 人 · 球局聊天`;
   let last=0,h='';ms.forEach(m=>{if(m.at-last>30*6e4)h+=`<div class="cx-ts">${cxTime(m.at)}${dOff(new Date(m.at))===0?'':' '+hm(new Date(m.at))}</div>`;last=m.at;const me=m.from===ME.id,u=U(m.from);
-    h+=`<div class="cx-m${me?' me':''}">${me?'':`<span data-user="${u.id}">${av(u,'sm')}</span>`}<div>${!me&&t.type==='game'?`<small>${esc(u.name.split(' ')[0])}</small>`:''}<p>${esc(m.text)}</p></div></div>`});
+    h+=`<div class="cx-m${me?' mine':''}">${me?'':`<span data-user="${u.id}">${av(u,'sm')}</span>`}<div>${!me&&t.type==='game'?`<small>${esc(u.name.split(' ')[0])}</small>`:''}<p>${esc(m.text)}</p></div></div>`});
   return `<div class="cx-th"><div class="cx-hd">${CX_BACK?`<button class="cx-back" data-cx="inbox">‹</button>`:''}${cxAv(t)}<div><b>${esc(cxTitle(t))}</b><small>${sub}</small></div>${t.type==='game'?`<button class="cx-link" data-cx="toGame" data-g="${t.game_id}">球局</button>`:`<button class="cx-link" data-user="${other.id}">球员卡</button>`}</div>
     <div class="cx-msgs" id="cxMsgs">${h||`<div class="cx-ts">${t.type==='game'?'和同局球友打个招呼吧':'说点什么吧'}</div>`}</div>
     ${closed?`<div class="cx-closed">球局已结束，聊天已关闭</div>`:`<div class="cx-quick">${QUICK.map(q=>`<button data-cx="quick" data-v="${q}">${q}</button>`).join('')}</div>

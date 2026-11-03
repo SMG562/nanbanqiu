@@ -8,8 +8,12 @@ const avContent=(u,s)=>u.avatar_kind==='animal'&&LA[u.animal]?animalContent(u.an
 // 球员卡上「换一枚印」的纹理（布纹、毛玻璃、飞白……）只在大卡片上出现，小尺寸看不清，也太耗性能。
 // 按「人 + 头像设置 + 尺寸」缓存生成好的 SVG：设置一改，键就变，所有地方下次渲染自动是新的。
 const AV_CACHE=new Map();
+// 缓存的 SVG 里滤镜 / 裁剪的 id 是固定的：同一个人的头像在页面上出现两次（例如一份在隐藏的弹层里），浏览器会按第一个 id 找，
+// 找到隐藏的那份就画成空白方块（11-04 网页端聊天里对方头像变成米色方块）。所以每次用都换一组新 id。
+let AV_UID=0;
+const avFresh=h=>{const m=/id="(s\d+)[a-z]*"/.exec(h);if(!m)return h;const to='sv'+(++AV_UID);return h.replace(new RegExp('(?<=["#(])'+m[1]+'(?=[a-z"\\)])','g'),to)};
 const avStamp=(u,sz)=>{const k=[u.id,u.avatar_kind,u.animal,u.color,(u.name||'?')[0],sz].join('|');let h=AV_CACHE.get(k);
-  if(!h){if(AV_CACHE.size>800)AV_CACHE.clear();h=stampSVG(s=>avContent(u,s),u.color,sz,String(u.id)+(u.animal||'')+u.color,'bw-rd');AV_CACHE.set(k,h)}return h};
+  if(!h){if(AV_CACHE.size>800)AV_CACHE.clear();h=stampSVG(s=>avContent(u,s),u.color,sz,String(u.id)+(u.animal||'')+u.color,'bw-rd');AV_CACHE.set(k,h)}return avFresh(h)};
 const avcOf=id=>ZCOL[1+[...String(id)].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7)%(ZCOL.length-1)];
 const aniOf=id=>{const h=[...String(id)].reduce((h,c)=>(h*37+c.charCodeAt(0))>>>0,11);return h%3?LK[h%LK.length]:null};
 // 白文印的字是「镂空」的：在球员卡上透出卡面的颜色。小头像在圆印下垫一层同样的卡面色，看起来和卡片上一模一样
