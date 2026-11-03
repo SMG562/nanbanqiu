@@ -5,7 +5,8 @@
  *   node tools/site.mjs            生成 site/（先清空 site/ 里上次生成的文件——只删 site/ 之内、本脚本建的）
  *
  * 只放可以公开的文件（白名单 FILES）；进度记录、数据库、测试、服务端代码一律不进。
- * 入口页 index.html：手机端 / 网页端 / 后台 / 宣传物料四个链接 + 这次部署对应的提交。
+ * 入口页 index.html：手机端 / 网页端 / 后台 / 宣传物料四个链接 + 这次部署对应的提交。只在预览站根 nanbanqiu-preview.pages.dev 出现；
+ *   正式站和分支预览打开 / 按屏幕宽度进应用（_routes.json + functions/_middleware.js → server/site_route.mjs，11-03）。
  * 宣传物料页 materials.html（10-29）：由 marketing/posters.json + marketing/img、thumb 里的 webp 生成；
  *   海报源文件和出图流程见 .claude/skills/nanbanqiu-poster/SKILL.md，新增海报不用改本文件。
  * _headers：不让搜索引擎收录；页面不缓存（每次打开都是最新部署）。
@@ -42,7 +43,10 @@ for (const p of posters()) {
 // 代码里最新的数据库迁移（文件名去掉 .sql）；线上库执行到的版本要等于它（/api/version 的 schema.latest）
 export function migrations() { try { return fs.readdirSync(path.join(ROOT, 'server', 'migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).sort().map(f => f.replace(/\.sql$/, '')) } catch { return [] } }
 export const latestMigration = () => migrations().pop() || null;
-export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json'];
+export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json'];
+// Pages Functions 只在这些路径上运行（其余静态文件直接给，不算函数调用次数）：
+//   /（正式首页按宽度进应用，server/site_route.mjs）· 正式站 /materials 回首页 · /api · 分享短链接 /g、/p
+export const ROUTES = { version: 1, include: ['/', '/materials', '/materials.html', '/api/*', '/g/*', '/p/*'], exclude: [] };
 
 // 预览站的 manifest：仓库里的 manifest 是给正式站用的（根网址 / 就是应用）；预览站的根是入口页，
 // 应用在 /pwa.html，所以「添加到主屏幕」后要从 /pwa.html 打开（不然会打开入口页）
@@ -159,7 +163,8 @@ export function build(out = path.join(ROOT, 'site')) {
   for (const [to, from] of Object.entries(FILES)) { fs.mkdirSync(path.dirname(path.join(out, to)), { recursive: true }); fs.copyFileSync(path.join(ROOT, from), path.join(out, to)) }
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), previewManifest(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8')));
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }).slice(0, -3);
-  fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));
+  fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));   // 只有预览站根用得到；正式站 / 由中间件给选排版页
+  fs.writeFileSync(path.join(out, '_routes.json'), JSON.stringify(ROUTES, null, 2) + '\n');
   fs.writeFileSync(path.join(out, 'materials.html'), materialsHTML(posters(), commit(), when + ' 墨尔本'));
   fs.writeFileSync(path.join(out, '_headers'), HEADERS);
   // 这次部署对应哪次提交（线上核对用：https://…/version.json 的 sha 要等于仓库 HEAD）
