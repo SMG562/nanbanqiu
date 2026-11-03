@@ -3521,7 +3521,7 @@ end $$;
 -- 规则：屏蔽的不通知；对方把我设成「少遇到」不通知（同局开打前 24 小时到结束后 2 小时除外）；同一会话里上一条还没读、且 5 分钟内已通知过 → 不再重复通知；
 --       打开会话（thread read）时把这个会话的 chat 通知标成已读（发送程序推送前发现已读就不推）。
 alter table notifications add column if not exists thread_id uuid references threads(id) on delete cascade;
-create index if not exists notif_chat_idx on notifications(user_id, thread_id, created_at desc) where kind = 'chat';
+create index if not exists notif_chat_idx on notifications(user_id, thread_id, created_at desc);   -- 不加 where kind='chat'：新枚举值在同一事务里不能用（Supabase SQL 编辑器整段是一个事务，报 55P04）
 create or replace function nbq_chat_notify(p_thread uuid, p_sender uuid) returns void language plpgsql security definer set search_path = public as $$
 declare th threads; r record;
 begin
@@ -3545,9 +3545,10 @@ begin
   end loop;
 end $$;
 revoke execute on function nbq_chat_notify(uuid, uuid) from public;
-create or replace function api_chat_notif_read(p_thread uuid) returns void language sql security definer set search_path = public as $$
-  update notifications set read_at = now() where user_id = nbq_me() and kind = 'chat' and thread_id = p_thread and read_at is null
-$$;
+create or replace function api_chat_notif_read(p_thread uuid) returns void language plpgsql security definer set search_path = public as $$   -- 必须 plpgsql：language sql 建函数时就解析 'chat'，新枚举值同一事务里不能用（55P04）
+begin
+  update notifications set read_at = now() where user_id = nbq_me() and kind = 'chat' and thread_id = p_thread and read_at is null;
+end $$;
 revoke execute on function api_chat_notif_read(uuid) from public;
 grant execute on function api_chat_notif_read(uuid) to nbq_user;
 

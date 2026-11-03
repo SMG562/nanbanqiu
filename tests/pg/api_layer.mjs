@@ -1,6 +1,6 @@
 // 5g-3 第 1 步：接口层（server/api）连真实数据库：令牌 → 球友 → 以 nbq_user 身份读自己；用真正的 nbq_api 账号登录；
 //   没登录 / 令牌错 / 没注册 / 已注销、健康检查、数据库连不上不泄露细节、连接用完即还。
-import fs from 'fs'; import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
+import fs from 'fs'; import os from 'os'; import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
 import { startCluster, loadSchema } from './cluster.mjs';
 const require = createRequire(import.meta.url); const pg = require('pg');
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
@@ -49,6 +49,14 @@ try {
     const sqlf = f => fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8');
     await admin.query(sqlf('20261103_schema_migrations.sql')); await admin.query(sqlf('20261103_schema_migrations.sql')); await admin.query(sqlf('20261102_apply_rate_loosen.sql'));
     r = await call('GET', '/api/version'); T('迁移文件可重复执行，并在 schema_migrations 记下自己', r.j.schema && r.j.schema.versions.includes('20261102_apply_rate_loosen') && r.j.schema.versions.includes('20261103_schema_migrations'), r.j.schema) }
+  { // 11-04：Supabase SQL 编辑器把整段当一个事务跑；新枚举值（chat）在同一事务里不能被用（55P04）。旧库没有 chat → 整个迁移放进一个事务里跑，必须成功，且可重复
+    c.createdb('nbq_old'); const oldSql = fs.readFileSync(path.join(DIR, 'schema.sql'), 'utf8').replace(",'reopen','chat');", ",'reopen');").replace("alter table notifications add column if not exists thread_id", "-- alter table notifications add column if not exists thread_id");
+    const oldF = path.join(os.tmpdir(), 'nbq_old_schema.sql'); fs.writeFileSync(oldF, oldSql); const e0 = loadSchema(c, 'nbq_old', oldF); const o = new pg.Client({ host: c.host, port: c.port, user: 'postgres', database: 'nbq_old' }); await o.connect();
+    let had = (await o.query(`select 1 from pg_enum where enumtypid='notif_kind'::regtype and enumlabel='chat'`)).rowCount;
+    let err = null; try { await o.query('begin'); await o.query(fs.readFileSync(path.join(DIR, 'server/migrations/20261104_chat_notify.sql'), 'utf8')); await o.query('commit') } catch (e) { err = e.code + ' ' + e.message; await o.query('rollback').catch(() => {}) }
+    T('旧库（无 chat）：chat_notify 迁移在单个事务里执行成功（不报 55P04）', had === 0 && !err, { had, err });
+    err = null; try { await o.query('begin'); await o.query(fs.readFileSync(path.join(DIR, 'server/migrations/20261104_chat_notify.sql'), 'utf8')); await o.query('commit') } catch (e) { err = e.message; await o.query('rollback').catch(() => {}) }
+    T('chat_notify 迁移可重复执行', !err, err); await o.end() }
   r = await call('GET', '/api/health?db=1'); T('health?db=1：连得上 → db true', r.s === 200 && r.j.db === true, r);
   r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false、原因 not_configured', r.s === 503 && r.j.db === false && r.j.why === 'not_configured', r);
   { const mk = e => ({ verify, db: makeDb(async () => { throw e }) }), W = async e => (await call('GET', '/api/health?db=1', null, mk(e))).j.why;
