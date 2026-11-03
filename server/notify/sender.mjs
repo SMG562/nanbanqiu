@@ -31,7 +31,7 @@ async function loadCtx(db, n) {
       if (n.actor_id) ctx.applicantStatus = (await db.query(`select status::text s from game_participants where game_id=$1 and user_id=$2`, [n.game_id, n.actor_id])).rows[0]?.s || null;
     }
   }
-  if (n.thread_id) ctx.chat = (await db.query(`select t.kind, (select m.body from messages m where m.thread_id = t.id and m.sender_id = $2 and not m.hidden order by m.id desc limit 1) body from threads t where t.id = $1`, [n.thread_id, n.actor_id])).rows[0] || null;   // 新消息：会话类型 + 发送人最后一条（11-04）
+  if (n.thread_id) ctx.chat = (await db.query(`select t.kind from threads t where t.id = $1`, [n.thread_id])).rows[0] || null;   // 新消息：只要会话类型（私信 / 球局群聊），推送文字不带发送人和内容（11-04 用户要求，也省一次查询）
   if (n.invite_id) ctx.invite = (await db.query(`select status::text, expires_at from invites where id=$1`, [n.invite_id])).rows[0];
   if (n.sb_post_id) ctx.sb = (await db.query(`select p.body post_body, p.photo_count photos, r.body reply_body, sb_notif_stale($1) stale
       from sb_posts p left join sb_replies r on r.id=$3 where p.id=$2`, [n.id, n.sb_post_id, n.sb_reply_id])).rows[0] || { stale: 'removed' };   // 场边（第七批 S2b+）

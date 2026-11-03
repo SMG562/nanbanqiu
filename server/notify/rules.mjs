@@ -91,8 +91,8 @@ export function pushText(n, ctx) {
     soon: ['30 分钟后开打', w], unfilled: ['还缺人', w], unfilled_end: ['这局没有凑齐', w], reopen: ['又有空位了', w], follow_game: [`${a} 发了新球局`, w], recap: ['打得怎么样？', w],
     invite: [`${a} 约你打球`, ''], invite_counter: [`${a} 想换个时间`, ''], invite_accepted: [`${a} 接受了你的邀约`, w], invite_declined: [`${a} 这次不方便`, ''], invite_expired: ['邀约已失效', ''],
     noshow: ['有球友反馈你没到场', '可以申诉'], badge: ['获得新徽章', ''], levelup: ['等级提升', ''], account_status: ['账号状态有变化', '点开查看'],
-    // 新消息（11-04）：私信标题是发送人，球局群聊标「某某 · 球局聊天」；正文是最后一条的前 40 个字
-    chat: [ctx.chat && ctx.chat.kind === 'game' ? `${a} · 球局聊天` : a, cut((ctx.chat && ctx.chat.body) || '发来一条新消息', 40)],
+    // 新消息（11-04，用户要求）：不写发送人和内容，文字直接说清楚是什么消息、去哪看
+    chat: [ctx.chat && ctx.chat.kind === 'game' ? '球局群聊有新消息' : '你收到一条新私信', '打开南伴球查看消息'],
     // 场边（第七批 S2b+）：网球合并「Coco 和另外 4 人」；回复带内容，10 分钟内合并「Coco 等 3 人」
     sb_ball: [k > 1 ? `${a} 和另外 ${k - 1} 人给你点了网球 🎾` : `${a} 给你点了网球 🎾`, sb.post_body ? `「${cut(sb.post_body)}」` : sb.photos ? '你的照片' : ''],
     sb_reply: [k > 1 ? `${a} 等 ${k} 人回复了你` : `${a} 回复了你`, cut(sb.reply_body, 40)],
