@@ -607,7 +607,8 @@ button.person:hover{background:var(--bg)}
 .zg button:hover{background:#F1F3F0}.zg button.on{background:#141814}.zg button.on svg{color:#fff!important}
 .rollb{display:block;margin:10px auto 0;height:34px;padding:0 18px;border-radius:99px;border:0;background:#F1F3F0;font:inherit;font-size:13px;font-weight:700;color:#1F2A23;cursor:pointer}
 .avc2{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px auto 0;max-width:340px}
-.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0}
+.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0;position:relative}
+.avc2 button::after{content:'';position:absolute;inset:-7px}   /* 可点范围扩到约 40px（圆点本身不变大） */
 .avc2 button.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #111}
 
 /* ===== 球员编号 + 分享图二维码 ===== */

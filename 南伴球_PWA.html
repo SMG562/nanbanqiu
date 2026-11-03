@@ -404,15 +404,19 @@ a{color:inherit;text-decoration:none}
 .ch{width:16px;height:16px;color:#C2C8C2;flex:none}
 
 /* ============ Sheet ============ */
-.sbg{position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.36);opacity:0;pointer-events:none;transition:opacity .25s}
+/* 弹层顶部到状态栏下沿至少留 --shgap：这一条露出的遮罩可以点一下收起（之前只留 12px，手指点不到）；往下拖把手 / 内容顶部也能收起（0240-Sheets.js） */
+.device{--shgap:60px}
+.sbg{position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.36);opacity:0;pointer-events:none;transition:opacity .25s;touch-action:none}
 .sbg.show{opacity:1;pointer-events:auto}
-.sheet{position:absolute;left:0;right:0;bottom:0;z-index:210;background:#fff;border-radius:24px 24px 0 0;padding:8px 20px calc(18px + var(--hb));transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.85,.25,1);max-height:calc(100% - var(--sb) - var(--wx) - 12px);overflow-y:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:210;background:#fff;border-radius:24px 24px 0 0;padding:8px 20px calc(18px + var(--hb));transform:translateY(105%);transition:transform .34s cubic-bezier(.2,.85,.25,1);max-height:calc(100% - var(--sb) - var(--wx) - var(--shgap));overscroll-behavior:contain;overflow-y:auto}
 .sheet.show{transform:none}
-.sheet.tall{height:calc(100% - var(--sb) - var(--wx) - 12px)}
+.sheet.tall{height:calc(100% - var(--sb) - var(--wx) - var(--shgap))}
 .sheet.dark{background:#0F1512;color:#fff}
 .sheet.dark .grab{background:#3A443E}
 .sheet.dark .pm{color:#9BA79F}
-.grab{width:38px;height:5px;border-radius:3px;background:#D8DCD8;margin:0 auto 14px}
+.grab{width:38px;height:5px;border-radius:3px;background:#D8DCD8;margin:0 auto 14px;position:relative}
+.grab::before{content:'';position:absolute;left:-90px;right:-90px;top:-12px;bottom:-14px}   /* 把手的可点 / 可拖范围放大（手指够得着） */
+.sheet.drag{transition:none}
 .sh-t{font-size:22px;font-weight:800;letter-spacing:-.01em}
 .sh-s{font-size:14px;color:var(--mut);margin:4px 0 18px}
 .center{text-align:center}
@@ -597,7 +601,8 @@ select.inp{appearance:none;background:#F7F8F7 url("data:image/svg+xml,%3Csvg xml
 .zg button:hover{background:#F1F3F0}.zg button.on{background:#141814}.zg button.on svg{color:#fff!important}
 .rollb{display:block;margin:10px auto 0;height:34px;padding:0 18px;border-radius:99px;border:0;background:#F1F3F0;font:inherit;font-size:13px;font-weight:700;color:#1F2A23;cursor:pointer}
 .avc2{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px auto 0;max-width:340px}
-.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0}
+.avc2 button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0;position:relative}
+.avc2 button::after{content:'';position:absolute;inset:-7px}   /* 可点范围扩到约 40px（圆点本身不变大） */
 .avc2 button.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #111}
 .lnk{margin-top:12px;background:none;border:0;font:inherit;font-size:12.5px;color:var(--mut);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 
@@ -904,7 +909,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .em-t i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
 .em-t.on i{background:#176B4D}.em-t.on i::after{transform:translateX(16px)}
 .sbq{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:12px;background:#F3F5F3;margin-bottom:4px}
-.sbq svg{width:17px;height:17px;color:var(--g);flex:none}.sbq input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:15px}
+.sbq svg{width:17px;height:17px;color:var(--g);flex:none}.sbq input{flex:1;align-self:stretch;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:15px}
 .sbh{font-size:12px;font-weight:600;color:var(--mut);margin:14px 2px 8px}
 .cchips button small{margin-left:5px;font-size:11px;color:var(--mut);font-weight:600}
 .sbaz{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.sbaz button{height:40px;border:0;border-radius:10px;background:#F3F5F3;font:inherit;font-size:15px;font-weight:700;color:#2A302C;cursor:pointer}
@@ -4717,6 +4722,25 @@ function renderDetail(){
 function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
+/* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
+   输入框、横向滑动不接管；弹层内容没滚到顶时不抢滚动。收起走 closeSheet()（弹层里有「返回上一层」时先返回，和点遮罩一致）。Esc 也能收起。 */
+(function(){const s=$('#sheet'),bg=$('#sbg');let g=null;
+  const shown=()=>s.classList.contains('show');
+  const settle=()=>{s.classList.remove('drag');s.style.transform='';bg.style.transition='';bg.style.opacity=''};
+  s.addEventListener('touchstart',e=>{if(!shown()||e.touches.length!==1){g=null;return}
+    const t=e.touches[0],top=s.getBoundingClientRect().top;
+    g={y:t.clientY,x:t.clientX,at:Date.now(),scrolled:s.scrollTop>0,grab:t.clientY-top<40,skip:!!e.target.closest('input,textarea,select,[contenteditable="true"],[data-nodrag]'),drag:false,dy:0}},{passive:true});
+  s.addEventListener('touchmove',e=>{if(!g||g.skip||e.touches.length!==1)return;const t=e.touches[0],dy=t.clientY-g.y,dx=t.clientX-g.x;
+    if(!g.drag){if(Math.abs(dx)>Math.abs(dy)){g=null;return}                      // 横着滑：不管
+      if(dy>8&&!g.scrolled&&(s.scrollTop<=0||g.grab)){g.drag=true;g.y=t.clientY;s.classList.add('drag');bg.style.transition='none'}else return}
+    e.preventDefault();g.dy=Math.max(0,t.clientY-g.y);
+    s.style.transform=`translateY(${g.dy}px)`;bg.style.opacity=String(Math.max(.15,1-g.dy/Math.max(240,s.offsetHeight)))},{passive:false});
+  const end=()=>{if(!g)return;const d=g;g=null;if(!d.drag)return;
+    const v=d.dy/Math.max(1,Date.now()-d.at);                                       // px/ms
+    const close=d.dy>110||(v>.5&&d.dy>40);
+    settle();if(close)closeSheet()};                                                // 清掉内联样式的同时改 class：动画从当前位置继续
+  s.addEventListener('touchend',end,{passive:true});s.addEventListener('touchcancel',end,{passive:true});
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&shown())closeSheet()})})();
 
 /* 球员卡：他人 → 屏蔽 / 举报；自己 → 等级 / 徽章 / 规则 / 保存 */
 function openCard(uid){const u=U(uid),s=stats(uid),self=ME&&uid===ME.id;
