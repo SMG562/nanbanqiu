@@ -51,6 +51,10 @@ T('球友：没填的给默认（字母头像、空姓）', (x => x.avatar_kind 
 T('球友：null → null', X.nbqFromUser(null) === null);
 const v = X.nbqFromVenue({ id: 'v1', name: 'Albert Park Tennis', short_name: null, suburb: 'Albert Park', surfaces: ['clay', 'hard'], lat: -37.84, lng: 144.97, lights: true });
 T('球场：简称缺省取全名，场地取第一个', v.short === 'Albert Park Tennis' && v.surface === 'clay' && v.lights === true && v.lat === -37.84);
+T('球场：多选场地全带上（surfaces），surface 是第一个（11-03：之前少显示场地）', JSON.stringify(v.surfaces) === '["clay","hard"]' && JSON.stringify(X.nbqFromVenue({ id: 'v2', name: 'X', surfaces: [] }).surfaces) === '["hard"]');
+T('枚举：库里有前台不认识的值 → 用兜底值（不原样传下去）', (u => u.avatar_kind === 'letter' && u.card_theme === 'court' && u.gender === null)(X.nbqFromUser({ id: 'u9', nickname: 'Z', avatar_kind: 'robot', card_theme: 'neon', gender: 'x' })) && X.nbqFromVenue({ id: 'v3', name: 'Y', surfaces: ['lava'] }).surfaces[0] === 'hard');
+T('枚举：认识的值原样保留', (u => u.avatar_kind === 'animal' && u.card_theme === 'night' && u.gender === 'f')(X.nbqFromUser({ id: 'u8', nickname: 'Z', avatar_kind: 'animal', card_theme: 'night', gender: 'f' })));
+T('印色：库里的色名换成色值（paper → #F4EFE3）', X.nbqFromUser({ id: 'u7', nickname: 'Q', avatar_color: 'paper' }).color === '#F4EFE3');
 const g = X.nbqFromGame({ id: 'g1', starts_at: '2026-11-01T01:00:00Z', original_start: null, filled: null, tags: null, utr_min: 3.5, utr_max: 5 });
 T('球局：时间保持 ISO 字符串（和演示数据一致）、空值给默认', g.starts_at === '2026-11-01T01:00:00.000Z' && g.original_start === null && g.filled === 0 && Array.isArray(g.tags), g);
 T('球局：utr_min / utr_max 同时给 ntrp_min / ntrp_max（前台用后者）', g.ntrp_min === 3.5 && g.ntrp_max === 5 && g.utr_min === 3.5);

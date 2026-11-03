@@ -4917,18 +4917,25 @@ function nbqNetMake(io){
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
+// 枚举字段进前台的统一检查（11-03）：库里的值不在前台认得的名单里 → 用兜底值，同时上报一条「未知枚举值」（进后台报错列表、冒烟测试会变红），不再悄悄当成有效值往下传
+const NBQ_ENUM_SEEN=new Set();
+function nbqEnum(field,val,allowed,fallback){if(allowed.includes(val))return val;
+  if(val!=null&&!NBQ_ENUM_SEEN.has(field+'='+val)){NBQ_ENUM_SEEN.add(field+'='+val);
+    try{if(typeof dispatchEvent==='function'&&typeof ErrorEvent==='function')dispatchEvent(new ErrorEvent('error',{message:'未知枚举值 '+field+'='+String(val).slice(0,40)}))}catch(_){}}
+  return fallback}
 // 印色：库里存色名（paper / red / coral…），前台画印用色值（#F4EFE3…）。两套名单：ZAVC（印色，paper 为默认）+ AVC（字母底色）。认不出一律回到纸白，绝不把色名直接当 CSS 颜色用（会画成黑色，11-03 教训）
 function nbqColor(k){if(typeof k==='string'&&/^#[0-9a-f]{3,8}$/i.test(k))return k;
   const z=ZAVC.find(c=>c[0]===k);if(z)return z[1];const a=AVC.find(c=>c[0]===k);if(a)return a[2];return ZAVC[0][1]}
 // 球友（me 或球友卡片）→ USERS 条目。姓 = last_initial；ntrp 字段在前台就是 UTR 数值
 function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
-    avatar_kind:u.avatar_kind||'letter',animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme,seal_roll:u.seal_roll,
-    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender||null,pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
+    avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,
+    played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
-function nbqFromVenue(v){return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
-  surface:Array.isArray(v.surfaces)&&v.surfaces[0]||'hard',courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
+function nbqFromVenue(v){const sf=Array.isArray(v.surfaces)&&v.surfaces.length?v.surfaces.map(x=>nbqEnum('surface',x,['hard','clay','synclay','grass','synthetic'],'hard')):['hard'];   // 接口是多选 surfaces；前台显示「红土 / 硬地」用 surfaces，surface 只是第一个（11-03：之前只带了第一个，多场地球场少显示）
+  return{id:v.id,name:v.name,short:v.short_name||v.name,suburb:v.suburb,lat:v.lat,lng:v.lng,
+  surface:sf[0],surfaces:sf,courts:v.courts,lights:!!v.lights,indoor:!!v.indoor,booking_url:v.booking_url||null}}
 // 球局卡片 → GAMES 条目。前台沿用演示数据的形状：开始时间是 ISO 字符串，水平范围叫 ntrp_min / ntrp_max（值就是 UTR）；接口的 utr_min / utr_max 两个名字都留着
 const nbqIso=t=>t==null?null:new Date(t).toISOString();
 function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start:nbqIso(g.original_start),postponed_at:nbqIso(g.postponed_at),time_set_at:nbqIso(g.time_set_at),
