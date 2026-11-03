@@ -79,7 +79,7 @@ try {
   T('③ 都没在用：推手机（不推电脑），记下送达时间', await D(n3) === 'push_mobile/mobile_first' && !push.calls.some(x => x.sub.endpoint === 'd3') && (await one(`select push_ok_at from user_devices where id=$1`, [u3m])).push_ok_at !== null, await D(n3));
   T('③ 电脑端不推送：只有电脑订阅的人不推（11-03 你定的）', await D(n4) === '' && !push.calls.some(x => x.sub.endpoint === 'd4'), await D(n4));
   T('邮件默认不发：有邮箱但没打开 → 不排邮件，只进消息列表', (await OB(u4x)).length === 0 && await D(n4x) === 'none/no_push', await D(n4x));
-  T('推送带应用页地址：手机 /pwa.html、电脑 /web.html（点开通知才进应用，不是入口页）', push.calls.find(x => x.sub.endpoint === 'm3').p.data.url === '/pwa.html' && push.calls.every(x => x.p.data.url === '/pwa.html'), push.calls.map(x => x.sub.endpoint + ':' + x.p.data.url));
+  T('推送带应用页地址：统一城市网址 /melbourne/（点开通知才进应用，不是入口页）', push.calls.find(x => x.sub.endpoint === 'm3').p.data.url === '/melbourne/' && push.calls.every(x => x.p.data.url === '/melbourne/'), push.calls.map(x => x.sub.endpoint + ':' + x.p.data.url));
   T('推送内容带球局时间和场地、点开的去处', push.calls.find(x => x.sub.endpoint === 'm3').p.body.includes('Brighton TC') && push.calls.find(x => x.sub.endpoint === 'm3').p.data.notif_id === String(n3));
   T('410：清掉手机订阅，不改推电脑', await D(n7) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7m])).push_endpoint === null, await D(n7));
   T('404：清订阅；没别的设备 → 只进消息列表', await D(n7b) === 'none/no_push' && (await one(`select push_endpoint from user_devices where id=$1`, [u7bm])).push_endpoint === null, await D(n7b));

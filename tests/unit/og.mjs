@@ -27,9 +27,9 @@ const env = { ASSETS: { fetch: async req => { const p = new URL(req.url).pathnam
 const req = (u, ua) => new Request('https://nanbanqiu.app' + u, { headers: { 'user-agent': ua } });
 const MOB = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148', DESK = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/130';
 let r = await sharePage('g', 'x', req('/g/x?s=wx', MOB), env, D), t = await r.text();
-T('整页：手机 UA → 手机端页面 + 这条球局的卡片，网址不变，不缓存', r.status === 200 && /id="tabbar"/.test(t) && /og:title" content="[^"]*South Camberwell TC/.test(t) && /no-store/.test(r.headers.get('cache-control')), r.status);
-r = await sharePage('g', 'x', req('/g/x', DESK), env, D); t = await r.text();
-T('整页：电脑 UA → 网页端页面', /id="tabs"/.test(t) && !/id="tabbar"/.test(t));
-r = await sharePage('g', 'x', req('/g/x', MOB), { ASSETS: { fetch: async () => new Response('x', { status: 500 }) } }, D);
-T('整页：资源取不到就原样返回错误，不吞', r.status === 500);
+T('整页：选排版壳（和 /melbourne/ 同一个）+ 这条球局的卡片，网址不变，不缓存；不再按 UA 选页面', r.status === 200 && /document\.write/.test(t) && /\(hover: none\) and \(pointer: coarse\)/.test(t) && /og:title" content="[^"]*South Camberwell TC/.test(t) && /no-store/.test(r.headers.get('cache-control')), r.status);
+r = await sharePage('g', 'x', req('/g/x', DESK), env, D); const t2 = await r.text();
+T('整页：手机和电脑 UA 拿到同一个壳（分辨在浏览器里做）', t2 === t);
+r = await sharePage('p', 'x', req('/p/x', MOB), { ASSETS: { fetch: async () => new Response('x', { status: 500 }) } }, D);
+T('整页：不依赖静态资源服务（资源取不到也照常给壳）', r.status === 200);
 console.log(`og: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

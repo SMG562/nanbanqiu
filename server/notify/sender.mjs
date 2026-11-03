@@ -8,7 +8,7 @@ import { priority, quietUntil, staleReason, pickChannels, emailPlan, pushText, e
 
 const ts = t => new Date(t).toISOString();
 // 应用页地址：现在 nanbanqiu.app 由预览站项目提供，根网址是入口页，应用在 /pwa.html、/web.html；以后根网址直接是应用时改这里
-const PUSH_URL = { mobile: '/pwa.html', desktop: '/web.html' };
+const PUSH_URL = { mobile: '/melbourne/', desktop: '/melbourne/' };   // 统一网址（11-04）；旧推送里的 /pwa.html 由中间件跳转
 
 // 读一条通知判断规则需要的全部信息
 async function loadCtx(db, n) {

@@ -89,7 +89,7 @@ T('后台不再出现「照片头像」', !/照片 ?\/ ?首字母|照片头像/.
 let man = null; try { man = JSON.parse(read('manifest.webmanifest')) } catch (e) { }
 T('manifest 是合法 JSON', !!man);
 if (man) {
-  T('manifest start_url = /?source=pwa', man.start_url === '/?source=pwa', man.start_url);
+  T('manifest start_url = /melbourne/?source=pwa（统一城市网址）', man.start_url === '/melbourne/?source=pwa', man.start_url);
   for (const s of man.shortcuts || []) {
     const route = (s.url.split('#')[1] || '');
     T(`快捷方式 ${s.name} → #${route} 两端都有路由`, !!route && H.pwa.includes("'#" + route) && H.web.includes("'#" + route) || (H.pwa.includes('#' + route) && H.web.includes('#' + route)), s.url);
