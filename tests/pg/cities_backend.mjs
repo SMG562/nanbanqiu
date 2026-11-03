@@ -73,7 +73,7 @@ try {
   await q(`update cities set status='on' where key in ('per','adl','bne')`);
   await q(`insert into suburbs(name,postcode,centroid,city,state) values ('Brighton','3186','POINT(145 -37.9)','melb','VIC'),('Subiaco','6008','POINT(115.82 -31.95)','per','WA')`);
   const VP = (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status) values ('Subiaco TC','Subiaco TC','Subiaco','6008','POINT(115.82 -31.95)','{hard}','active') returning id`)).id;
-  let un = 0; const user = async (city, email = null) => (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at,email,home_city) values ($1,'U'||$2,5,now(),$3,$4) returning id`, ['+6145' + String(++un).padStart(7, '0'), un, email, city])).id;
+  let un = 0; const user = async (city, email = null) => { const id = (await one(`insert into users(phone_e164,nickname,utr,pact_accepted_at,email,home_city) values ($1,'U'||$2,5,now(),$3,$4) returning id`, ['+6145' + String(++un).padStart(7, '0'), un, email, city])).id; if (email) await q(`update users set email_prefs='{"request":true,"result":true,"change":true}' where id=$1`, [id]); return id };   // 11-03：邮件默认不发，测试里有邮箱的人当作已打开
   const dev = async u => q(`insert into user_devices(user_id,platform,push_endpoint,push_p256dh,push_auth) values ($1,'mobile',$2,'p','a')`, [u, 'ep' + u]);
   const push = { calls: [], async send(sub, p) { this.calls.push({ sub, p }); return { status: 201 } } };
   const N = async (u, kind, at, g = null) => (await one(`insert into notifications(user_id,kind,created_at,game_id) values ($1,$2,$3,$4) returning id`, [u, kind, at, g])).id;
