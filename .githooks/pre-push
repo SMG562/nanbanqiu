@@ -8,5 +8,8 @@ while read -r lref lsha rref rsha; do
   git cat-file -e "$base^{commit}" 2>/dev/null || continue
   n=$(git diff --diff-filter=D --name-only "$base" "$lsha" | wc -l)
   if [ "$n" -ge 10 ]; then echo "推送被拦下：这次推到 main 会删掉 $n 个文件（前 5 个：$(git diff --diff-filter=D --name-only "$base" "$lsha" | head -5 | tr '\n' ' ')）。如果不是有意的，先查提交内容。"; exit 1; fi
+  # 随做随写（11-04）：这次推到 main 的提交改了代码（不含宣传图、文档），进度记录却没跟着改 → 提醒（不拦）。用户随时会开新对话，记录要跟上。
+  if [ -n "$(git diff --name-only "$base" "$lsha" -- . ':!marketing' ':!*.md')" ] && [ -z "$(git diff --name-only "$base" "$lsha" -- 进度记录.md)" ]; then
+    echo "提醒：这次推送改了代码，但 进度记录.md 没更新。如果状态变了（合并、部署、用户拍板、下一步变了），现在就补一行再推。"; fi
 done
 exit 0
