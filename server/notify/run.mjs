@@ -8,6 +8,8 @@ import { webPush } from './webpush.mjs';
 import { resend } from './resend.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// 日志里的出错原因：数据库报错（5 位代码，如 42501）带上原文（「permission denied for table x」这类，不含地址和密码）；连不上之类只记代码，避免把地址写进日志
+export const errWhy = e => !e ? 'unknown' : /^[0-9A-Z]{5}$/.test(String(e.code || '')) ? `${e.code} ${String(e.message || '').slice(0, 160)}` : (e.code || e.name || 'error');
 
 export async function runNotify(env, { connect = connectFromEnv(env), fetch: f = fetch, passes = 4, gapMs = 15000, log = console, now = () => Date.now() } = {}) {
   const out = { passes: 0, delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0, sent: 0, skipped: 0, failed: 0 };
@@ -20,9 +22,9 @@ export async function runNotify(env, { connect = connectFromEnv(env), fetch: f =
   if (push) for (let i = 0; i < passes; i++) {
     if (i) await sleep(gapMs);
     try { const s = await dispatch(pool, { push, now: now(), version: env.NBQ_VERSION }); out.passes++; for (const k of ['delivered', 'deferred', 'stale', 'merged', 'emailQueued']) out[k] += s[k] || 0 }
-    catch (e) { log.error?.('dispatch_error', e && (e.code || e.name)); break }          // 下一分钟再来；细节不外露
+    catch (e) { log.error?.('dispatch_error', errWhy(e)); break }          // 下一分钟再来；细节不外露
   }
   if (mail) try { const s = await flushEmail(pool, { mail, now: now(), baseUrl: env.BASE_URL || 'https://nanbanqiu.app' }); for (const k of ['sent', 'skipped', 'failed']) out[k] += s[k] || 0 }
-  catch (e) { log.error?.('email_error', e && (e.code || e.name)) }
+  catch (e) { log.error?.('email_error', errWhy(e)) }
   return out;
 }
