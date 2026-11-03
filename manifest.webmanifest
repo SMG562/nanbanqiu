@@ -4,7 +4,7 @@
   "description": "找到同水平的网球搭子，申请加入附近球局。",
   "lang": "zh-CN",
   "id": "/",
-  "start_url": "/?source=pwa",
+  "start_url": "/melbourne/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -16,7 +16,7 @@
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "发起球局", "short_name": "发起", "url": "/?source=shortcut#/new" },
-    { "name": "我的球局", "short_name": "我的", "url": "/?source=shortcut#/mine" }
+    { "name": "发起球局", "short_name": "发起", "url": "/melbourne/?source=shortcut#/new" },
+    { "name": "我的球局", "short_name": "我的", "url": "/melbourne/?source=shortcut#/mine" }
   ]
 }
