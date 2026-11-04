@@ -24,7 +24,7 @@
    不做「固定在底部的浮层按钮」：它会盖住内容。 */
 .iv-kbsum{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
 .iv-kbsum button{border:0;background:none;color:#176B4D;font:inherit;font-size:12.5px;font-weight:700;padding:2px 0 2px 8px;cursor:pointer;flex:none}
-.device.kb .iv .kbhide,.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
+.device.kb .iv .kbhide:not(:focus-within),.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
 .device.kb{--shgap:10px}   /* 打字时顶部不用留「点一下收起」的空，把高度让给表单 */
 .device.kb .iv .iv-kbsum,.device .iv.compact .iv-kbsum{display:flex}
 .device .iv.compact .kbhide{display:none}   /* 精简视图：点过「说一句」之后一直是这个样子，键盘收起也不展开 */

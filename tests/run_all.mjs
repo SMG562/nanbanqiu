@@ -55,6 +55,7 @@ add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), 
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
+add('static', 'static/input_audit', ['node', path.join(DIR, 'tools/input_audit.mjs')], { pass: [/input_audit: \d+ 个输入框, 0 个问题/], timeout: 60 });
 add('static', 'static/action_audit', ['node', path.join(DIR, 'tools/action_audit.mjs')], { pass: [/action_audit: \d+ 个动作, 0 个未归类, 0 个写法不对/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
@@ -111,6 +112,7 @@ add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
 add('frontend', 'frontend/invite_form', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/invite_form.js')], { pass: [/invite_form: \d+ passed, 0 failed/], timeout: 300 });   // 约 TA 表单：滚动不跳、发送条固定、说一句快捷短语
+add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/input_visible.js')], { pass: [/input_visible: \d+ passed, 0 failed/], timeout: 300 });   // 键盘弹出时每个弹层输入框都看得见、点得到
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致
 add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_scroll.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边整页上移 / 卡顿回归
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点

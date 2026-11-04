@@ -2,7 +2,7 @@
 /* 弹层原地重画时保住滚动位置（11-05）：表单里点一个选项就整张重画，原来一律把滚动条打回顶部，往下滚了的人被甩回最上面。
    判断「还是同一屏」：弹层已经开着，并且新旧内容的根元素 class 和标题文字都一样（换到别的屏标题不同，照旧从顶部开始）。 */
 const layerSig=el=>{const r=el.querySelector('.m-x')?el.querySelector('.m-x').nextElementSibling:el.firstElementChild;return r?r.className+'|'+((r.querySelector('b,.sh-t,h2,h3')||{}).textContent||''):''};
-function openModal(html,size='md'){UI.modalBack=null;const m=$('#modal'),was=$('#mbg').classList.contains('show'),sig0=was?layerSig(m):null,top0=m.scrollTop;m.className='modal '+size;m.innerHTML=`<button class="m-x" data-a="closeModal">×</button>`+html;m.scrollTop=sig0!==null&&sig0===layerSig(m)?top0:0;$('#mbg').classList.add('show')}
+function openModal(html,size='md'){UI.modalBack=null;const m=$('#modal'),was=$('#mbg').classList.contains('show'),sig0=was?layerSig(m):null,top0=m.scrollTop,dr0=was&&window.nbqDraftsTake?nbqDraftsTake(m):null;m.className='modal '+size;m.innerHTML=`<button class="m-x" data-a="closeModal">×</button>`+html;const same=sig0!==null&&sig0===layerSig(m);m.scrollTop=same?top0:0;if(same&&dr0)nbqDraftsPut(m,dr0);$('#mbg').classList.add('show')}
 function closeModal(){if(UI.modalBack){const f=UI.modalBack;UI.modalBack=null;f();return}$('#mbg').classList.remove('show')}
 $('#mbg').addEventListener('mousedown',e=>{if(e.target.id==='mbg')closeModal()});
 

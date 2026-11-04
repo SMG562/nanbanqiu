@@ -1168,7 +1168,7 @@ button.me[data-a=umenu] .av{width:34px;height:34px}button.me[data-a=umenu]:hover
    不做「固定在底部的浮层按钮」：它会盖住内容。 */
 .iv-kbsum{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
 .iv-kbsum button{border:0;background:none;color:#176B4D;font:inherit;font-size:12.5px;font-weight:700;padding:2px 0 2px 8px;cursor:pointer;flex:none}
-.device.kb .iv .kbhide,.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
+.device.kb .iv .kbhide:not(:focus-within),.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
 .device.kb{--shgap:10px}   /* 打字时顶部不用留「点一下收起」的空，把高度让给表单 */
 .device.kb .iv .iv-kbsum,.device .iv.compact .iv-kbsum{display:flex}
 .device .iv.compact .kbhide{display:none}   /* 精简视图：点过「说一句」之后一直是这个样子，键盘收起也不展开 */
@@ -2253,6 +2253,11 @@ const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:+
   const SKIP=/^(checkbox|radio|range|hidden|file|button|submit|color|date|number)$/;
   const inLayer=el=>!!(el&&el.closest&&el.closest('#sheet,#modal'));
   const isLine=el=>el&&el.tagName==='INPUT'&&!SKIP.test(el.type||'text');
+  /* 同屏重画时保住用户已经打的字（11-05 排查：新用户资料里点一下 UTR / Club，刚填的「姓氏首字母」就没了——NP.redraw 只记了昵称）。
+     不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
+     就把用户打的字放回去；表单故意清空 / 改值的（默认值变了）不动。 */
+  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id],textarea[id]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
+  window.nbqDraftsPut=(root,m)=>{if(!root||!m)return;Object.keys(m).forEach(id=>{const n=root.querySelector('#'+CSS.escape(id));if(n&&!SKIP.test(n.type||'text')&&n.defaultValue===m[id].d&&n.value!==m[id].v)n.value=m[id].v})};
   document.addEventListener('focusin',e=>{const el=e.target;if(!isLine(el)||!inLayer(el)||el.hasAttribute('enterkeyhint'))return;el.setAttribute('enterkeyhint',el.dataset.enter?'send':'done')});
   // iOS Safari：点键盘右下角确认拼音时，compositionend 先触发、随后才来一个 isComposing=false 的 Enter（11-05 真机复现：确认拼音就把邀约发出去了）。
   // 所以光看 isComposing 不够：刚结束拼写 400ms 内的 Enter 一律当成「确认拼音」，什么都不做（键盘也不收）。
@@ -2694,7 +2699,7 @@ function threadHTML(t){const ms=tMsgs(t),closed=gameClosed(t),other=t.type==='dm
   return `<div class="cx-th"><div class="cx-hd">${CX_BACK?`<button class="cx-back" data-cx="inbox">‹</button>`:''}${cxAv(t)}<div><b>${esc(cxTitle(t))}</b><small>${sub}</small></div>${t.type==='game'?`<button class="cx-link" data-cx="toGame" data-g="${t.game_id}">球局</button>`:`<button class="cx-link" data-user="${other.id}">球员卡</button>`}</div>
     <div class="cx-msgs" id="cxMsgs">${h||`<div class="cx-ts">${t.type==='game'?'和同局球友打个招呼吧':'说点什么吧'}</div>`}</div>
     ${closed?`<div class="cx-closed">球局已结束，聊天已关闭</div>`:`<div class="cx-quick">${QUICK.map(q=>`<button data-cx="quick" data-v="${q}">${q}</button>`).join('')}</div>
-    <div class="cx-in"><input id="cxIn" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
+    <div class="cx-in"><input id="cxIn" enterkeyhint="send" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
     <div class="cx-foot">不会显示你的手机号 · 只能发文字 · <a data-cx="report">举报</a></div>`}</div>`}
 function openThread(tid){if(NBQ_NET){nbqThreadOpen(tid);return}cxDraw(tid)}   // 真实模式：先在服务器建会话、读消息，再画
 function cxDraw(tid){CXCUR=tid;const t=THREADS.find(x=>x.id===tid);LASTREAD[ME.id+'|'+tid]=Date.now();CX_SHOW(t);INV_RENDER();
@@ -4867,7 +4872,7 @@ function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(e
 /* 弹层原地重画时保住滚动位置（11-05）：表单里点一个选项就整张重画，原来一律把滚动条打回顶部，往下滚了的人被甩回最上面。
    判断「还是同一屏」：弹层已经开着，并且新旧内容的根元素 class 和标题文字都一样（换到别的屏标题不同，照旧从顶部开始）。 */
 const layerSig=el=>{const r=el.querySelector('.m-x')?el.querySelector('.m-x').nextElementSibling:el.firstElementChild;return r?r.className+'|'+((r.querySelector('b,.sh-t,h2,h3')||{}).textContent||''):''};
-function openModal(html,size='md'){UI.modalBack=null;const m=$('#modal'),was=$('#mbg').classList.contains('show'),sig0=was?layerSig(m):null,top0=m.scrollTop;m.className='modal '+size;m.innerHTML=`<button class="m-x" data-a="closeModal">×</button>`+html;m.scrollTop=sig0!==null&&sig0===layerSig(m)?top0:0;$('#mbg').classList.add('show')}
+function openModal(html,size='md'){UI.modalBack=null;const m=$('#modal'),was=$('#mbg').classList.contains('show'),sig0=was?layerSig(m):null,top0=m.scrollTop,dr0=was&&window.nbqDraftsTake?nbqDraftsTake(m):null;m.className='modal '+size;m.innerHTML=`<button class="m-x" data-a="closeModal">×</button>`+html;const same=sig0!==null&&sig0===layerSig(m);m.scrollTop=same?top0:0;if(same&&dr0)nbqDraftsPut(m,dr0);$('#mbg').classList.add('show')}
 function closeModal(){if(UI.modalBack){const f=UI.modalBack;UI.modalBack=null;f();return}$('#mbg').classList.remove('show')}
 $('#mbg').addEventListener('mousedown',e=>{if(e.target.id==='mbg')closeModal()});
 
