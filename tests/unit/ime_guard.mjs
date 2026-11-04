@@ -9,6 +9,6 @@ let n = 0;
 for (const f of walk(path.join(DIR, 'src')).filter(f => f.endsWith('.js') && !f.includes(path.sep + 'admin' + path.sep))) {
   fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
     if (!/key\s*===?\s*['"]Enter['"]|keyCode\s*===?\s*13/.test(l) || /^\s*(\/\/|\/\*|\*)/.test(l)) return; n++;
-    T(`${path.relative(DIR, f)}:${i + 1} 回车监听要排除输入法拼写（isComposing / 229）`, /isComposing|229|ime-ok/.test(l), l.trim().slice(0, 120)) }) }
+    T(`${path.relative(DIR, f)}:${i + 1} 回车监听要排除输入法拼写（isComposing / 229）`, /isComposing|229|nbqImeEnter|ime-ok/.test(l), l.trim().slice(0, 120)) }) }
 T('找到的回车监听数量合理（防止扫描失效）', n >= 6, n);
 console.log(`\nime_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
