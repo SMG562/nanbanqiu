@@ -32,23 +32,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  reuse:
+  reuse:                 # 只在推 main 时开机器（GitHub 按任务向上取整到分钟计费，空跑也算 1 分钟）
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       hit: ${{ steps.r.outputs.hit }}
     steps:
       - uses: actions/checkout@v4
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
       - id: r
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests-fast
 
   fast:
     needs: reuse
-    if: needs.reuse.outputs.hit != '1'
+    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:

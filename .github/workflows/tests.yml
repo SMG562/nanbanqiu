@@ -63,22 +63,21 @@ concurrency:                    # 同一分支 / 同一 PR 连续推送时，只
 
 jobs:
   reuse:                 # 推到 main 时：同一提交已通过 → 下面的 test 跳过（跳过 = 本次运行仍是 success，上线闸门认它）
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       hit: ${{ steps.r.outputs.hit }}
     steps:
       - uses: actions/checkout@v4
-        if: github.event_name == 'push'
         with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
       - id: r
-        if: github.event_name == 'push'
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests
 
   test:
     needs: reuse
-    if: needs.reuse.outputs.hit != '1'
+    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
