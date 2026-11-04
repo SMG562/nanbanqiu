@@ -25,9 +25,25 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await pg.evaluate(() => document.querySelector('[data-iv="qp"][data-v="0"]').click());
     const v = await pg.evaluate(() => ({ val: document.getElementById('ivNote').value, f: IVF.note, q: document.querySelector('[data-iv="qp"]').textContent }));
     T(`${name} 快捷短语点一下填入「说一句」`, v.val && v.val === v.q && v.f === v.q, v);
+    // 中文输入法拼写中的回车只是「确认拼音」，不能把邀约发出去
+    await pg.focus('#ivNote'); await pg.evaluate(() => { const n = document.getElementById('ivNote'); n.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, isComposing: true, bubbles: true, cancelable: true })) }); await pg.waitForTimeout(200);
+    T(`${name} 输入法拼写中按回车不发送`, await pg.evaluate(() => !INVITES[0] || INVITES[0].status !== 'pending' || INVITES.length === (window.__n0 = INVITES.length)) && (await pg.evaluate(() => !!document.getElementById('ivNote'))));
+    T(`${name} 键盘右下角显示「发送」`, (await pg.getAttribute('#ivNote', 'enterkeyhint')) === 'send');
     await pg.focus('#ivNote'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(500);
     const inv = await pg.evaluate(() => INVITES[0] && { note: INVITES[0].note, status: INVITES[0].status, t: INVITES[0].game_type });
     T(`${name} 在输入框按回车 = 发送邀约（带上这句话和玩法）`, !!inv && inv.status === 'pending' && inv.note === v.q && inv.t === 'rally', inv);
+    // 通用规则：没有 data-enter 的输入框，键盘显示「完成」、回车只收键盘；弹层同屏重画保住滚动、换屏回到顶部
+    const r = await pg.evaluate(async () => {
+      const open = (title, n) => { const h = `<div class="tt-x"><b>${title}</b><input id="tti" class="iv-in">${'<p style="height:60px">x</p>'.repeat(n)}</div>`; if (typeof openSheet === 'function' && document.getElementById('sheet')) openSheet(h); else openModal(h) };
+      const sc = () => { let e = document.querySelector('.tt-x'); while (e && e !== document.body) { if (e.scrollHeight > e.clientHeight + 5 && /(auto|scroll)/.test(getComputedStyle(e).overflowY)) return e; e = e.parentElement } return null };
+      open('测试屏 A', 30); await new Promise(r => setTimeout(r, 400)); const s1 = sc(); if (!s1) return { err: 'no scroller' };
+      s1.scrollTop = 300; const a = s1.scrollTop; open('测试屏 A', 30); const same = sc().scrollTop;
+      open('测试屏 B', 30); const other = sc().scrollTop;
+      const i = document.getElementById('tti'); i.focus(); const hint = i.getAttribute('enterkeyhint'); const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); i.dispatchEvent(ev);
+      return { a, same, other, hint, blurred: document.activeElement !== i, prevented: ev.defaultPrevented } });
+    T(`${name} 同一屏重画：滚动位置保住`, !r.err && r.a > 100 && Math.abs(r.same - r.a) <= 2, r);
+    T(`${name} 换到另一屏：回到顶部`, !r.err && r.other === 0, r);
+    T(`${name} 普通输入框：键盘显示「完成」，回车只收键盘`, r.hint === 'done' && r.blurred && r.prevented, r);
     T(`${name} 无脚本错误`, errs.length === 0, errs); await b.close();
   }
   console.log(`invite_form: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
