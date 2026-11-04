@@ -2323,6 +2323,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-sx]');if(
     case'gConfirm':{setGender(d.v);GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');const n=GNEXT;GNEXT=null;if(n&&womenOK(ME))setTimeout(n,250);break}
     case'npg':NP.gender=d.v;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));break;
     case'impPick':{const k=ME.id+'|'+d.u+'|'+d.g,u=U(d.u),imp=impOf(u),g=KUDOS.get(k)||[],x=IMPK[d.v];
+      if(nbqOn()){const was=g.includes(d.v),nx=was?g.filter(y=>y!==d.v):[...g.filter(y=>y!=='like'),d.v];   // 真实模式：先写服务器，读回后以服务器为准
+        nbqRecapImp(d.g,d.u,nx).then(ok=>{if(ok)toast(was?'已撤回':`已送出 ${x[1]} ${x[2]}`);const b=document.querySelector('.impg-c [data-u="'+d.u+'"]'),box=b&&b.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT()});break}
       if(g.includes(d.v)){KUDOS.set(k,g.filter(y=>y!==d.v));imp[d.v]=Math.max(0,(imp[d.v]||1)-1);toast('已撤回')}else{KUDOS.set(k,[...g,d.v]);imp[d.v]=(imp[d.v]||0)+1;toast(`已送出 ${x[1]} ${x[2]}`)}
       const box=el.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT();break}
     case'ftag':{F.tags=F.tags||new Set();const k=d.v;if(k==='women'&&ME&&!womenOK(ME)&&!F.tags.has(k)){if(!ME.gender)openGender(()=>{F.tags.add('women');SX_FILTER_REFRESH()});else toast('女生局只对女生开放');return}if(k==='women'&&!ME){toast('女生局需要登录并确认是女生');return}if(F.tags.has(k))F.tags.delete(k);else{if(k==='match')F.tags.delete('relax');if(k==='relax')F.tags.delete('match');F.tags.add(k)}SX_FILTER_REFRESH();break}
@@ -3180,7 +3182,7 @@ function rcTick(){const now=Date.now();
   GAMES.forEach(g=>{if(g.status==='cancelled')return;const e=rcEnd(g);if(e>now||now-e>RC_WINDOW)return;
     PARTS.filter(p=>p.game_id===g.id&&p.status==='approved').forEach(p=>{const k=g.id+'|'+p.user_id,a=AFTER[k]||(AFTER[k]={});if(a.notified||a.closed)return;
       if(!rcEligible(g,p.user_id,now)){a.notified=true;return}const due=rcQuiet(e+RC_DELAY);if(now<due)return;a.notified=true;
-      if(now-due<864e5)notify(p.user_id,'recap',g.id,p.user_id)})});
+      if(now-due<864e5&&!nbqOn())notify(p.user_id,'recap',g.id,p.user_id)})});
   const t2=Date.now();RCQ.filter(x=>x.at<=t2).forEach(x=>{RCQ.splice(RCQ.indexOf(x),1);
     if(x.kind==='badge'){bdgNotify(x.uid,x.from);return}
     if(x.kind==='follow_game'){const g=GAMES.find(y=>y.id===x.gid);if(!g||g.status!=='open'||new Date(g.starts_at)<=t2||!followHas(x.uid,x.from))return}
@@ -3220,9 +3222,9 @@ function rcRedraw(gid){const el=document.querySelector('.rc');if(el)el.outerHTML
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rc]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rc,gid=b.dataset.g,uid=b.dataset.u,me=ME.id;
   if(k==='open'){rcOpen(gid);return}
   const key=gid+'|'+me,a=AFTER[key]=AFTER[key]||{};
-  if(k==='more'||k==='ok'||k==='less'){setOpin(me,uid,k,gid);rcRedraw(gid);return}
-  if(k==='feel'){a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
-  if(k==='done'){a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
+  if(k==='more'||k==='ok'||k==='less'){if(nbqOn()){nbqRecapPref(gid,uid,k).then(()=>rcRedraw(gid));return}setOpin(me,uid,k,gid);rcRedraw(gid);return}
+  if(k==='feel'){if(nbqOn()){if(a.feel!==b.dataset.v)nbqRecapFeel(gid,b.dataset.v).then(()=>rcRedraw(gid));return}a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
+  if(k==='done'){if(nbqOn()){nbqRecapDone(gid).then(ok=>{if(!ok)return;UF_CLOSE();toast('已保存，只有你知道');UF_RENDER()});return}a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
 
 // ---------- 球局详情里的入口（结束后 7 天内） ----------
 function rcEntryHTML(c){if(!ME)return'';const g=GAMES.find(x=>x.id===c.id);if(!rcEligible(g,ME.id))return'';const a=AFTER[c.id+'|'+ME.id]||{};
@@ -3237,6 +3239,7 @@ const _rcInvBtn=invBtnHTML;invBtnHTML=function(uid){if(!ME||uid===ME.id||blocked
   if(lessHas(uid,ME.id)&&/data-iv="new"/.test(h))h='<div class="invbtn off">TA 暂时不接受邀约</div>';
   return h+(playedTogether(ME.id,uid)?pcPrivHTML(uid):'')};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pcp]');if(!b||!ME)return;e.stopPropagation();const uid=b.dataset.u;
+  if(nbqOn()){nbqPrefSet(uid,b.dataset.pcp).then(()=>{const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)});return}
   setOpin(ME.id,uid,b.dataset.pcp,null);const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)},true);
 const _rcCan=canInvite;canInvite=function(to){const r=_rcCan(to);if(r)return r;if(lessHas(to,ME.id))return'TA 暂时不接受邀约';return null};
 
@@ -3527,9 +3530,11 @@ rcRow=function(gid,uid){const u=U(uid),k=ME.id+'|'+uid+'|'+gid,given=KUDOS.get(k
     ${ask?`<div class="rc-ns"><p>确认 ${esc(u.name.split(' ')[0])} 没有到场？TA 会收到通知，可以申诉。</p><div><button data-rcx="nsok" data-g="${gid}" data-u="${uid}">确认没来</button><button data-rcx="nsno" data-g="${gid}" data-u="${uid}">算了</button></div></div>`:''}</div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rcx,gid=b.dataset.g,uid=b.dataset.u,key=ME.id+'|'+uid+'|'+gid,nk=nsKey(gid,uid);
   if(k==='imp'){RC_IMP.has(key)?RC_IMP.delete(key):RC_IMP.add(key)}
+  if(k==='tag'&&nbqOn()){const g=(KUDOS.get(key)||[]).filter(y=>y!=='like'),v=b.dataset.v,nx=g.includes(v)?g.filter(y=>y!==v):[...g,v];nbqRecapImp(gid,uid,nx).then(()=>rcRedraw(gid));return}   // 真实模式：先写服务器
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
+  if(nbqOn()&&(k==='nsok'||k==='nsundo')){RC_NSASK=null;nbqNoshow(gid,uid,k==='nsok').then(ok=>{if(ok)toast(k==='nsok'?'已记录，谢谢反馈':'已撤回');rcRedraw(gid)});return}   // 真实模式：先写服务器
   if(k==='nsok'){RC_NSASK=null;const was=nsConfirmed(gid,uid);(NS[nk]=NS[nk]||new Set()).add(ME.id);
     if(!was&&nsConfirmed(gid,uid)&&!NS_TOLD.has(nk)){NS_TOLD.add(nk);const G=GAMES.find(x=>x.id===gid);notify(uid,'noshow',gid,null)}
     toast('已记录，谢谢反馈')}
@@ -3542,6 +3547,7 @@ function nsAppeal(gid){const g=GAMES.find(x=>x.id===gid),c=V(g),k=nsKey(gid,ME.i
     <div class="uf-l">${[['came','我到了','可能没碰上，或者对方记错了'],['told','我提前说过来不了','在聊天里或私下说过'],['other','其他原因','我们会联系你了解情况']].map(([v,t,d])=>`<button class="uf-r" data-nsa="${v}" data-g="${gid}"><b>${t}</b><small>${d}</small></button>`).join('')}
     <button class="uf-r" data-nsa="ok" data-g="${gid}"><b>没有误会</b><small>下次会提前说</small></button></div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nsa]');if(!b||!ME)return;e.stopPropagation();const v=b.dataset.nsa,k=nsKey(b.dataset.g,ME.id);
+  if(nbqOn()&&v!=='ok'){nbqNoshowAppeal(b.dataset.g,v).then(ok=>{if(ok)toast('已提交，核实期间不计入爽约');UF_CLOSE();UF_RENDER()});return}
   if(v!=='ok'){NS_APPEAL[k]={reason:v,at:Date.now(),status:'pending'};toast('已提交，核实期间不计入爽约')}else toast('好的，谢谢你');UF_CLOSE();UF_RENDER()},true);
 
 // ---------- 等级提升：通知一次 + 获得动画；等级回落不打扰 ----------
@@ -3613,6 +3619,7 @@ const _grRcHTML=rcHTML;rcHTML=function(gid){let h=_grRcHTML(gid);const g=GAMES.f
   if(os.length>1){const all=os.every(u=>(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length);h=h.replace('<div class="rc-q">以后想多遇到吗？</div>',`<div class="rc-q rc-q2"><span>以后想多遇到吗？</span><button data-rcx="all" data-g="${gid}" class="${all?'on':''}">${all?'已给大家点赞':'👍 都点个赞'}</button></div>`)}
   return h};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx="all"]');if(!b||!ME)return;e.stopPropagation();const gid=b.dataset.g,g=GAMES.find(x=>x.id===gid);
+  if(nbqOn()){nbqKudosAll(gid,rcOthers(g,ME.id).filter(u=>!(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length)).then(()=>rcRedraw(gid));return}
   rcOthers(g,ME.id).forEach(u=>{const k=ME.id+'|'+u+'|'+gid;if(!(KUDOS.get(k)||[]).length)KUDOS.set(k,['like'])});rcRedraw(gid)},true);
 
 
@@ -5041,7 +5048,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk,bdg]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/badges')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
+  const [pub,mine,inv,blk,aft,bdg]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges')]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -5052,7 +5059,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}   // 徽章读不到不算失败（null → 退回本机记录）
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}
 // 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
 function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
   const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
@@ -5096,7 +5103,22 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+
+// 赛后记录（第 6 轮 6d）：我的多遇到 / 少遇到 → OPIN；近 7 天的赛后感受 → AFTER（读不到时保持原样，不清空）
+function nbqApplyAfter(a,me){
+  Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
+  (a.prefs||[]).forEach(x=>{if(x.pref!=='more'&&x.pref!=='less')return;const k=me+'>'+x.target_id,at=nbqMs(x.updated_at)||Date.now();
+    OPIN[k]={v:x.pref,at,gid:x.game_id||null};if(x.pref==='less')LESS_IV[k]=[[at,Infinity]]});
+  // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
+  [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
+  (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
+  // 我反馈过谁没来 / 我对爽约反馈的申诉：以服务器为准
+  Object.keys(NS).forEach(k=>{if(NS[k])NS[k].delete(me)});Object.keys(NS_APPEAL).forEach(k=>{if(k.endsWith('|'+me))delete NS_APPEAL[k]});
+  (a.noshows||[]).forEach(x=>{const k=x.game_id+'|'+x.target_id;(NS[k]=NS[k]||new Set()).add(me)});
+  (a.appeals||[]).forEach(x=>{NS_APPEAL[x.game_id+'|'+me]={reason:x.reason,at:nbqMs(x.created_at)||0,status:x.status||'pending'}});
+  Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
+  (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
@@ -5215,6 +5237,22 @@ async function nbqInviteDecline(i,why,note){
 async function nbqInviteWithdraw(i){
   const was=i.status==='counter'&&i.to===ME.id?'counter':'invite',d=await nbqWrite('invwd'+i.id,n=>n.post('/api/invites/'+i.id+'/withdraw'));if(!d)return nbqInvBack();
   track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
+
+
+/* ---- 赛后（第 6 轮 6d）：感受 / 多遇到·随缘·少遇到 / 好了 都先调接口，成功后重读（以服务器为准）。对方不会收到任何通知 ---- */
+const nbqRecap=(gid,body,key)=>nbqWrite('rc'+(key||gid),n=>n.put('/api/games/'+gid+'/recap',body));
+async function nbqRecapPref(gid,uid,v){const d=await nbqRecap(gid,{prefs:{[uid]:v}},gid+uid);return !!d}
+async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel');return !!d}
+// 给球友留印象：整组替换（空数组 = 撤回），成功后重读；都点个赞：对同局每位还没点过的人各记一次「友善」
+async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
+async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
+// 反馈「TA 没来」（可撤回）/ 被反馈后申诉：先调接口，成功后重读；对方是否收到通知由服务器按规则决定，前台不再本地造通知
+async function nbqNoshow(gid,uid,on){const d=await nbqWrite('ns'+gid+uid,n=>on?n.post('/api/games/'+gid+'/noshow',{target_id:uid}):n.del('/api/games/'+gid+'/noshow',{target_id:uid}));
+  if(d)track(on?'noshow_report':'noshow_undo',{game_id:gid,target_uid:uid});return !!d}
+async function nbqNoshowAppeal(gid,reason){const d=await nbqWrite('nsa'+gid,n=>n.post('/api/games/'+gid+'/appeal',{reason}));if(d)track('noshow_appeal',{game_id:gid,reason});return !!d}
+async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
+async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 
 
 /* ---- 屏蔽 / 举报（第 6 轮 6c）：先调接口，成功才改页面；屏蔽名单登录时读入，刷新不丢 ---- */

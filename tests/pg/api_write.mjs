@@ -121,6 +121,9 @@ try {
   r = await call('POST', '/api/invites/not-a-uuid/accept', tP); T('邀约：id 不是 uuid → 404', r.s === 404);
 
   r = await call('PUT', `/api/players/${H}/pref`, tP, { pref: 'more' }); T('偏好：多遇到 → ok', r.s === 200 && r.j.ok === true, r);
+  r = await call('GET', '/api/me/after', tP); T('赛后读回：多遇到读得到，其余为空数组', r.s === 200 && r.j.prefs.some(x => x.target_id === H && x.pref === 'more') && ['feels', 'impressions', 'noshows', 'appeals'].every(k => Array.isArray(r.j[k])), r);
+  r = await call('GET', '/api/me/after', tH); T('赛后读回：别人的偏好看不到（只返回自己的）', r.s === 200 && !r.j.prefs.some(x => x.target_id === H), r.j);
+  r = await call('GET', '/api/me/after', null); T('赛后读回：没登录 → 401', r.s === 401, r);
   r = await call('PUT', `/api/players/${H}/pref`, tP, { pref: 'love' }); T('偏好：值不对 → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
   r = await call('PUT', `/api/players/${P}/pref`, tP, { pref: 'more' }); T('偏好：对自己 → 422 invalid', r.s === 422, r);
   r = await call('POST', `/api/players/${H}/kudos`, tP, { game_id: G }); T('好评：没一起打过 → 4xx（不是 200）', r.s >= 400 && r.s < 500, r);
