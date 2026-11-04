@@ -6,7 +6,7 @@ R=SMG562/nanbanqiu
 SHA=$(git rev-parse "${1:-HEAD}")
 ok=0
 for W in tests-fast tests smoke; do
-  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=20" --jq "[.workflow_runs[]|select(.name==\"$W\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
+  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=20" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
   [ "$L" = "completed success" ] && echo "✅ $W" || { echo "❌ $W：${L:-没有运行记录}"; ok=1; }
 done
 exit $ok

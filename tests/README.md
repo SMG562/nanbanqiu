@@ -55,6 +55,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | unit | `unit/side_rules.mjs` | 场边规则（`src/shared/side/0065-发布规则.js`、`0085-场边通知规则.js`）放进空沙盒载入（证明不依赖页面）：频率 = schema.sql rate_rules（窗口、次数、错误码、边界）、链接正则 = api_sb_post、话题名（字数按字符 = char_length、#、太宽的词、相似词、同名、昵称规则的先后）、网球 / 回复合并（起点、正好 10 分钟、不算自己、回复我）、通知文字 = server/notify/rules.mjs pushText（1200 种组合）。故意改坏 13 处全部抓到 | 0 失败 |
 | unit | `unit/sb_auth.mjs` | 5g-1 登录逻辑（0490 的 sbAuthMake，空沙盒）：请求地址 / 内容、错误码归类、登录态保存与续期、退出、资料缓存、未配置不启用 |
 | unit | `unit/nbq_net.mjs` | 5g-3 前台数据层骨架（0495 的接口调用 / 字段转换 / 一次读入，空沙盒 + 假 fetch）：令牌、错误码、断网、401 回调、查询串、后端字段 → 前台数据形状、读入失败不留半份 |
+| unit | `unit/ci_paths.mjs` | CI 路径规则守卫（11-04）：tests-fast.yml / tests.yml 的 paths 两份必须一致；每个已跟踪文件要么触发测试、要么在文件里的「不测名单」写明理由（新目录 / 新类型必须有人决定）；被 `!` 排除的目录没有测试 / 工具 / 站点代码引用、且有别的工作流顶上做轻量检查；关键文件（依赖、部署配置、海报清单、流程脚本、提交前检查）一定触发。改 paths 或新增目录后跑 `--grep=ci_paths`（`--changed` 会忽略 .github，选不到它）。故意改坏 5 处全部抓到 |
 | frontend | `frontend/real_data.js` | 5g-3 第 4 轮（4a）真实数据只在 nanbanqiu.app（两端，假 Supabase + 假 /api）：预览站仍演示、正式域名清空演示数据只读球场、老用户读入并字段对得上、新号码注册 → 常去球场 → 性别 → 读入、刷新恢复、退出清空 |
 | frontend | `frontend/real_write.js` | 5g-3 第 4 轮（4b）球局写操作在真实模式（两端，有状态的假 /api，点击走真实 data-a 事件）：申请 · 撤回 · 失败提示错误码并同步 · 连点只发一次 · 同意 · 婉拒（原因映射）· 取消 · 发局参数映射 · 球友约定先写库再继续 |
 | frontend | `frontend/real_invite.js` | 第 6 轮（6a）邀约在真实模式（两端，有状态的假 /api，点击走真实 data-iv 事件）：读入（时间换成第几天 + 时:分）· 接受 · 婉拒（原因 + 一句话）· 换个时间 · 撤回 · 发邀约（含每天上限失败提示）· 邀约类通知读入 |

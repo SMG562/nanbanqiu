@@ -1,5 +1,6 @@
 # 南伴球 · 快速自动测试（11-03）：静态 + 单元 + 数据库（不开浏览器），每次推送都跑、**不被后面的推送取消**，
 #   所以每个提交都有一个确定的「通过 / 失败」。浏览器那部分在 tests.yml（连续推送时只跑最新一次）。
+#   推到 main 的提交已在分支上通过（快进合并 = 同一提交号）→ 复用结果、不重跑（11-04，tools/ci_reuse.sh）。
 name: tests-fast
 
 on:
@@ -15,17 +16,38 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
+      - '**.jsonc'              # 部署配置（wrangler）
+      - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
+      - '.githooks/**'          # 提交前 / 推送前检查
+      - '!marketing/icons/**'   # 11-04：小毛图标（svg + 出图脚本）没有任何测试或站点引用，只跑 icons-lint.yml；放在最后，否定规则只作用于它前面的规则
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: tests-fast-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
+  reuse:                 # 只在推 main 时开机器（GitHub 按任务向上取整到分钟计费，空跑也算 1 分钟）
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      hit: ${{ steps.r.outputs.hit }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
+      - id: r
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: bash tools/ci_reuse.sh tests-fast
+
   fast:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
