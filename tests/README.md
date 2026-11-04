@@ -61,6 +61,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 | frontend | `frontend/real_invite.js` | 第 6 轮（6a）邀约在真实模式（两端，有状态的假 /api，点击走真实 data-iv 事件）：读入（时间换成第几天 + 时:分）· 接受 · 婉拒（原因 + 一句话）· 换个时间 · 撤回 · 发邀约（含每天上限失败提示）· 邀约类通知读入 |
 | frontend | `frontend/real_chat.js` | 第 6 轮（6b）聊天在真实模式（两端）：会话列表读入（最后一句 / 未读）· 点开读消息并标已读 · 发消息（失败提示、输入框保留）· 新消息轮询 · 球局群聊首次点开才在服务器建 |
 | frontend | `frontend/real_safety.js` | 第 6 轮（6c）屏蔽 / 举报在真实模式（两端）：屏蔽名单登录时读入 · 屏蔽 / 解除屏蔽调接口（失败不假装成功）· 举报（点原因即提交、「其他」必须写说明、重复举报的提示） |
+| frontend | `frontend/real_after.js` | 第 6 轮（6d）赛后在真实模式（两端）：登录时读入多遇到 / 少遇到 · 赛后卡片点多遇到 / 感受 / 好了 调 recap · 球员卡上改调 pref · 失败不改页面 · 本地不冒假通知 |
 | frontend | `frontend/dom_integrity.js` | 页面完整性（两端）：整页 id 不重复、`url(#x)` 引用都存在（SVG 头像的滤镜 / 裁剪 id 重复会让头像画成空白方块）· 同一个人的头像连画多次（含隐藏容器）· 聊天气泡 / 头像没被别处同名 class 串味（导航 `.me` 药丸边框） |
 | pg | `pg/venues_seed.mjs` | 5g-3 球场 + 区导入（server/seed/venues_seed.sql）：在真实 schema 上执行、数量与前台名录一致、区外键、坐标范围、可重复执行、核对标记、/api/venues 只给 active |
 | frontend | `frontend/sb_login.js` | 5g-1 两端用假 Supabase 接口跑完整登录：演示照旧、发码失败、验证码错、新号码填资料、刷新自动登录、退出、老用户直接进、续期被拒 |
