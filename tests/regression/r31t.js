@@ -16,6 +16,6 @@ const {chromium}=require('playwright');
    setWho('mia',true);const vis=api.list().some(c=>c.id===g.id);openDetail(g.id,true);return [vis,!!document.querySelector('.dlock')]});await p.waitForTimeout(400);await (await p.$('#dev')).screenshot({path:'r31_p6.png'});
  const r3=await p.evaluate(()=>{const g=GAMES[GAMES.length-1];setWho('grace',true);return api.list().some(c=>c.id===g.id)});
  // unfilled_end
- await p.evaluate(()=>{closeDetail();setWho('han',true);const g=GAMES.find(x=>x.host_id==='han'&&x.status==='open'&&new Date(x.starts_at)>NOW&&V(x).spots>0);g.starts_at=new Date(+NOW-10*6e4).toISOString();housekeep();const n=NOTIFS.find(n=>n.kind==='unfilled_end'&&n.game_id===g.id);ntfOpen(n)});await p.waitForTimeout(400);await (await p.$('#dev')).screenshot({path:'r31_p7.png'});
+ await p.evaluate(()=>{closeDetail();setWho('han',true);const g=GAMES.find(x=>x.host_id==='han'&&x.status==='open'&&new Date(x.starts_at)>NOW&&V(x).spots>0);g.starts_at=new Date(+NOW-35*6e4).toISOString();housekeep();const n=NOTIFS.find(n=>n.kind==='unfilled_end'&&n.game_id===g.id);ntfOpen(n)});await p.waitForTimeout(400);await (await p.$('#dev')).screenshot({path:'r31_p7.png'});
  await p.click('[data-uf="again"]');await p.waitForTimeout(700);const r4=await p.evaluate(()=>[NG.venue_id,NG.type,NG.o,NG.t]);
  console.log(e,r1,r2,r3,r4);await b.close()})();
