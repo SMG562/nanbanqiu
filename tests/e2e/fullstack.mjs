@@ -58,7 +58,8 @@ try {
     { name: '（自检）只改内存的动作', lost: true, act: pg => pg.evaluate(() => { window.__mem = 1; localStorage.removeItem('e2e_mem'); ME.__e2e = 1; USERS[ME.id].__e2e = 1 }), check: pg => pg.evaluate(() => !!(ME && ME.__e2e)) },
   ];
 
-  br = await chromium.launch({ executablePath: process.env.NBQ_CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const exe = [process.env.NBQ_CHROMIUM, '/opt/pw-browsers/chromium'].find(x => x && fs.existsSync(x));   // 本机有固定路径就用，CI 里用 playwright 自带的
+  br = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); for (const t of ['impressions', 'noshow_reports', 'game_feel', 'player_prefs', 'player_pref_mutes']) await admin.query(`delete from ${t}`); await admin.query('delete from game_participants where user_id = $1 and game_id = $2', [H, G]);   // 两个文件各自从干净状态开始
     const W = f.includes('Web'), ctx = await br.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
@@ -88,5 +89,5 @@ try {
     }
     T(`${f} 无脚本错误`, perr.length === 0, perr); await ctx.close();
   }
-} finally { try { await br?.close() } catch (_) { } try { await admin?.end() } catch (_) { } c.stop() }
+} catch (e) { fail++; console.log('FAIL 异常 ' + String((e && (e.stack || e.message)) || JSON.stringify(e)).slice(0, 1500)) } finally { try { await br?.close() } catch (_) { } try { await admin?.end() } catch (_) { } c.stop() }
 console.log(`\nfullstack: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
