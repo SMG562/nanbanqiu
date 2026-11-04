@@ -47,6 +47,17 @@ const SCAN = () => {
       const av2 = await pg.evaluate(() => [...document.querySelectorAll('.cx-m:not(.mine) .av')].map(a => { const r = a.getBoundingClientRect(); const cs = getComputedStyle(a); return [Math.round(r.width), Math.round(r.height), cs.borderTopLeftRadius] }));
       T(tag(`聊天 ${kind}：对方头像是正圆（宽高相等）`), av2.every(([w, h]) => w === h && w >= 24), av2);
     }
+    // 球局群聊头像（11-04 方案 C2）：圆角方块里 2 / 3 / 4 个圆头像，都在方块里面、互相遮挡不超过 30%、不是空白
+    const geo = await pg.evaluate(() => { const us = [USERS.han, USERS.tom, USERS.coco || USERS.han, USERS.tom].filter(Boolean); const out = {};
+      for (const ctxCls of ['cx-item', 'cx-hd']) for (const n of [2, 3, 4]) { const w = document.createElement('div'); w.className = ctxCls; w.style.cssText = 'position:fixed;left:10px;top:10px;z-index:99999;background:#fff';
+        w.innerHTML = `<span class="cx-gt n${n}">${us.slice(0, n).map(u => av(u)).join('')}</span>`; document.body.appendChild(w);
+        const t = w.querySelector('.cx-gt').getBoundingClientRect(), a = [...w.querySelectorAll('.cx-gt .av')].map(x => x.getBoundingClientRect());
+        const inside = a.every(r => r.left >= t.left - .5 && r.right <= t.right + .5 && r.top >= t.top - .5 && r.bottom <= t.bottom + .5);
+        let maxOv = 0; for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) { const ox = Math.max(0, Math.min(a[i].right, a[j].right) - Math.max(a[i].left, a[j].left)), oy = Math.max(0, Math.min(a[i].bottom, a[j].bottom) - Math.max(a[i].top, a[j].top)); maxOv = Math.max(maxOv, ox * oy / (a[i].width * a[i].height)) }
+        out[ctxCls + n] = { size: Math.round(t.width), radius: getComputedStyle(w.querySelector('.cx-gt')).borderTopLeftRadius, inside, maxOv: +maxOv.toFixed(2), minW: Math.round(Math.min(...a.map(r => r.width))), n: a.length }; w.remove() } return out });
+    for (const [k, v] of Object.entries(geo)) T(tag(`群聊头像 ${k}：头像都在方块里、互相遮挡 ≤30%、不太小、方块是圆角`), v.inside && v.maxOv <= .3 && v.minW >= 12 && parseFloat(v.radius) > 8 && v.size >= 36, v);
+    const gt = await pg.evaluate(() => { ME = USERS.han; seedChat(); const t = THREADS.find(x => x.type === 'game'); const h = cxAv(t); return { tile: /class="cx-gt n\d"/.test(h), n: (h.match(/class="av /g) || []).length, ball: h.includes('cx-gav') } });
+    T(tag('球局会话头像：用头像方块（2–4 个成员头像），不再是网球图标'), gt.tile && gt.n >= 1 && gt.n <= 4 && !gt.ball, gt);
     // 球员卡
     await pg.evaluate(() => { try { UF_CLOSE() } catch (e) { } try { CX_CLOSE() } catch (e) { } }); await pg.settle(500);
     await pg.evaluate(() => { const u = USERS.tom; typeof openCard === 'function' ? openCard(u.id) : document.querySelector('[data-user]') && document.querySelector('[data-user]').click() }); await pg.settle(600);

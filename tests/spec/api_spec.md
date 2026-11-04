@@ -396,7 +396,7 @@
 ### POST /api/threads/:id/messages `{body 1–200}` · `api_message_send(…)`
 - 检查：不在对话里 403 `forbidden` → 球局群聊开打 48 小时后关闭 409 `chat_closed` → 前置两关（action = chat，私信 target = 对方）→ 屏蔽 403 `blocked` → 空 / 超过 200 字 422 `invalid` → 含链接 422 `message_link` → 注册 7 天内主动开始和新的人聊天每天 3 位 429 `dm_new_limit` → 每分钟 10 条 429 `message_too_fast`
 - 对方对我「少遇到」：照常发出，不提醒对方（同局开打前 24 小时到结束后 2 小时除外），记 less_effect type=dm
-- 通知（11-04）：收到消息 → 对方（球局群聊 = 同局其他已加入的人）生成 `chat` 通知（`thread_id` + 发送人，不带 game_id），发送程序推到手机：文字直白、不带发送人和内容：私信「你收到一条新私信」、群聊「球局群聊有新消息」，正文「打开南伴球查看消息」（11-04 用户要求），夜里也立刻推；点开 `/melbourne/?t=<会话>`。不通知：有屏蔽关系；对方把我设成「少遇到」（同局开打前 24 小时到结束后 2 小时除外）；同一会话里上一条通知还没读且 5 分钟内已通知过（打开会话 = `api_chat_notif_read`，通知标已读，之后新消息立刻再推）
+- 通知（11-04）：收到消息 → 对方（球局群聊 = 同局其他已加入的人）生成 `chat` 通知（`thread_id` + 发送人，不带 game_id），发送程序推到手机：文字直白、不带发送人和内容：私信「你收到一条新私信」、群聊「球局群聊有新消息」，正文留空（iOS 自带「from 南伴球」，共两行；11-04 用户要求），夜里也立刻推；点开 `/melbourne/?t=<会话>`。不通知：有屏蔽关系；对方把我设成「少遇到」（同局开打前 24 小时到结束后 2 小时除外）；同一会话里上一条通知还没读且 5 分钟内已通知过（打开会话 = `api_chat_notif_read`，通知标已读，之后新消息立刻再推）
 - 事件：chat_send（前端，不含内容）
 
 ### POST /api/reports `{target_type: user|game, target_id, reason: pact_violation|harass|no_show|fake_profile|other, note ≤ 200, via: card|chat, context_ref}` · 直接 insert reports

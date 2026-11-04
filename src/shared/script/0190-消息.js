@@ -18,7 +18,11 @@ function myThreads(){if(!ME)return[];return THREADS.filter(t=>cxMember(t,ME.id)&
 const chatUnread=()=>myThreads().reduce((a,t)=>a+cxUnread(t),0);
 function gameClosed(t){if(t.type!=='game')return false;const g=GAMES.find(x=>x.id===t.game_id);return !g||g.status==='cancelled'||+new Date(g.starts_at)+g.duration_min*6e4+48*36e5<Date.now()}
 function cxTitle(t){if(t.type==='dm')return U(cxOther(t)).name;const c=V(GAMES.find(g=>g.id===t.game_id));return `${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`}
-function cxAv(t){return t.type==='dm'?av(U(cxOther(t))):`<span class="av cx-gav"><svg viewBox="0 0 100 100"><use href="#ball"/></svg></span>`}
+// 球局群聊头像（11-04 用户选定方案 C2）：浅绿圆角方块里放成员的圆头像，最多 4 人（2 人并排、3 人品字、4 人 2×2）；私信仍是圆头像，一眼分得清。
+// 排序：别人在前、我在最后。成员资料还没读到的先跳过；一个都没有时退回网球图标。
+function cxGroupMembers(t){const ids=gMembers(t.game_id).map(String),me=String(ME.id);return ids.filter(i=>i!==me).concat(ids.includes(me)?[me]:[]).map(i=>U(i)||U(+i)).filter(Boolean).slice(0,4)}
+function cxAv(t){if(t.type==='dm')return av(U(cxOther(t)));const m=cxGroupMembers(t);
+  return m.length?`<span class="cx-gt n${m.length}">${m.map(u=>av(u)).join('')}</span>`:`<span class="av cx-gav"><svg viewBox="0 0 100 100"><use href="#ball"/></svg></span>`}
 const cxTime=at=>{const d=new Date(at),o=dOff(d);return o===0?hm(d):o===-1?'昨天':`${d.getMonth()+1}/${d.getDate()}`};
 
 function inboxHTML(){const L=myThreads();

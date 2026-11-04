@@ -275,7 +275,7 @@ try {
   s = await run(Zc);
   const cc = callsTo('chatB');
   T('新消息：夜里也立刻推到手机（不顺延），电脑端不推', cc.length === 1 && callsTo('chatBd').length === 0 && cn && (await NR(cn.id)).pushed_at !== null, [cc.length, callsTo('chatBd').length]);
-  T('新消息：私信推送文字直白——标题「你收到一条新私信」、正文「打开南伴球查看消息」，不带发送人和内容', cc[0] && cc[0].p.title === '你收到一条新私信' && cc[0].p.body === '打开南伴球查看消息' && !JSON.stringify(cc[0].p).includes('Cora') && !JSON.stringify(cc[0].p).includes('老地方'), cc[0] && cc[0].p);
+  T('新消息：私信推送文字直白——标题「你收到一条新私信」、正文留空（手机上只显示两行），不带发送人和内容', cc[0] && cc[0].p.title === '你收到一条新私信' && cc[0].p.body === '' && !JSON.stringify(cc[0].p).includes('Cora') && !JSON.stringify(cc[0].p).includes('老地方'), cc[0] && cc[0].p);
   T('新消息：推送带会话 id 和类型，点开地址是 /melbourne/?t=会话', cc[0] && cc[0].p.data.kind === 'chat' && cc[0].p.data.thread_id === tCh && cc[0].p.data.url === `/melbourne/?t=${tCh}`, cc[0] && cc[0].p.data);
   // 已经在应用里看过了（打开会话标已读）→ 推送前判为过时，不推
   await asU(cA, `select api_message_send($1,$2)`, [tCh, '再确认一下场地']);
@@ -290,7 +290,7 @@ try {
   await asU(cA, `select api_message_send($1,$2)`, [tG, '谁带水？']);
   await run(Zc + 2 * M);
   const cg = callsTo('chatG');
-  T('新消息：球局群聊（球局已开打也照推）标题「球局群聊有新消息」，不带发送人和内容，点开去群聊', cg.length === 1 && cg[0].p.title === '球局群聊有新消息' && cg[0].p.body === '打开南伴球查看消息' && !JSON.stringify(cg[0].p).includes('谁带水') && !JSON.stringify(cg[0].p).includes('Cora') && cg[0].p.data.url === `/melbourne/?t=${tG}`, cg[0] && cg[0].p);
+  T('新消息：球局群聊（球局已开打也照推）标题「球局群聊有新消息」，不带发送人和内容，点开去群聊', cg.length === 1 && cg[0].p.title === '球局群聊有新消息' && cg[0].p.body === '' && !JSON.stringify(cg[0].p).includes('谁带水') && !JSON.stringify(cg[0].p).includes('Cora') && cg[0].p.data.url === `/melbourne/?t=${tG}`, cg[0] && cg[0].p);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`notify: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
