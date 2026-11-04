@@ -350,7 +350,8 @@ async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
 // 重新打开页面时，先看这台设备是不是已经订阅过：是 → 马上显示「已开启」、不再露出「开启提醒」卡片（订阅 / 上报要等 Service Worker 就绪，慢）
 async function nbqPushState(){try{if(!NBQ_NET||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
   const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
-  if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}}catch(e){}}
+  if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}
+  nbqPushHeal()}catch(e){}}   // 已允许通知：再核对服务器里有没有这台设备，没有就静默补订阅（0496）
 // 推送自检（11-03）：本人设备订阅状态 + 最近提醒去向；把本机推送地址放请求体里，让服务器标出「这台设备」
 async function nbqPushDiag(){if(!NBQ_NET||!ME)return null;let ep=null;
   try{if('serviceWorker'in navigator&&'PushManager'in window){const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();ep=sub?sub.endpoint:null}}catch(_){}

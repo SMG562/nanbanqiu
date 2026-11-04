@@ -107,7 +107,7 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}
-const invSentHTML=(to,when,where)=>`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(to)))} 回复后会通知你<br>${esc(when)} · ${esc(where)}</p><button class="iv-go" data-iv="close">好的</button></div>`;
+const invSentHTML=(to,when,where)=>`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(to)))} 回复后会通知你<br>${esc(when)} · ${esc(where)}</p>${pushNudgeHTML('invite')}<button class="iv-go" data-iv="close">好的</button></div>`;
 function sendInvite(){keepForm();if(!formOK())return;const f=IVF;
   if(NBQ_NET){nbqInviteSend(f,invSentHTML(f.to,`${dayTxt(f.o)} ${f.t}–${f.e}`,venTxt(f.venue_id)));return}   // 真实模式：先调接口
   const inv={id:++NID,from:ME.id,to:f.to,o:f.o,t:f.t,e:f.e,venue_id:f.venue_id,game_type:f.game_type,note:f.note.trim().slice(0,30),status:'pending',at:Date.now(),countered:false};
