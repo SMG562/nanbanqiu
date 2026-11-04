@@ -18,3 +18,10 @@
 .iv-2,.iv-3{height:44px;border-radius:14px;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .iv-2{border:0;background:#EEF1EE;color:#1F2A23}.iv-3{border:0;background:none;color:#8A928A}
 .iv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.iv-acts .iv-go{grid-column:1/-1;margin-top:12px}.iv-acts .iv-3:only-of-type{grid-column:auto}
+
+/* 发送条固定在弹层底部：表单很长、键盘弹出时「发送邀约」始终看得到，并带一行「时间 · 场地」摘要 */
+.iv-bar{position:sticky;bottom:0;z-index:2;background:linear-gradient(rgba(255,255,255,0),#fff 14px);padding-top:14px;margin-top:4px}
+.iv-bar .iv-go{margin-top:6px}
+.iv-barsum{font-size:12.5px;font-weight:600;color:#4A544C;text-align:center}
+.iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}

@@ -77,7 +77,12 @@ function lastTimeDefaults(f){const last=gamesTogether(ME.id,f.to).filter(g=>new 
 function venueChoices(){const f=IVF,base=f.kind==='counter'?[...new Set([f.orig,...(ME.home_club_ids||[])])]:(ME.home_club_ids||[]);
   const list=[...base];if(f.venue_id&&!list.includes(f.venue_id))list.push(f.venue_id);return list}
 function venueResults(){const o=U(IVF.to)||{};return vpList('iv',IVF,o.home_club_ids||[])}
-function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
+/* 表单里每点一下（哪天 / 几点 / 打多久 / 场地 / 玩法）都整张重画，而 openSheet 会把滚动条打回顶部——点下面的选项页面就跳回最上面（11-05 你报的「滚动有点乱」）。
+   重画前记住滚动位置，重画后放回去。滚动的是弹层（手机 #sheet）还是弹窗（电脑 .modal），所以找 .iv 最近的可滚动祖先。 */
+const ivScroller=()=>{let e=document.querySelector('.iv');while(e&&e!==document.body){if(/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight)return e;e=e.parentElement}return null};
+const IV_QP_PLAYED=['上次打得很开心，再来一局','这周有空吗？','想再切磋一下'],IV_QP_NEW=['想认识一下，一起练练','水平差不多，来一场吧','周末有空一起打吗？'];
+function drawInviteForm(){const sc0=document.querySelector('.iv .iv-days')?ivScroller():null,top0=sc0?sc0.scrollTop:0;_drawInviteForm();if(sc0){const sc=ivScroller();if(sc)sc.scrollTop=top0}}
+function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
@@ -99,10 +104,12 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
     ${counter?'':`<div class="iv-l">玩法</div>
     <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>
     <div class="iv-l">说一句 <span>选填</span></div>
-    <input id="ivNote" class="iv-in" maxlength="30" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">`}
+    <input id="ivNote" class="iv-in" maxlength="30" enterkeyhint="send" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
+    <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
     ${f.stranger&&!counter?`<p class="iv-safe">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
+    <div class="iv-bar"><div class="iv-barsum">${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')}</div>
     <button class="iv-go" data-iv="${counter?'sendCounter':'send'}">${counter?'发回给 TA 确认':'发送邀约'}</button>
-    ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div>`);
+    ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div></div>`);
   const d=document.querySelector('.iv-days .on');if(d)d.scrollIntoView({block:'nearest',inline:'center'})}
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
@@ -161,6 +168,7 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
     case'counter':IVF={kind:'counter',to:i.from,o:i.o,t:i.t,e:i.e,dur:toMin(i.e)-toMin(i.t),per:Math.max(0,perOf(i.t)),venue_id:i.venue_id,orig:i.venue_id,search:false,q:'',game_type:i.game_type,note:''};drawInviteForm();break;
@@ -205,7 +213,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
-document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='ivNote'&&e.key==='Enter'&&IVF&&IVF.kind==='new'){e.preventDefault();e.target.blur();sendInvite();return}
+  if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
 
 /* ---------- 「谁可以约我打球」：所有球友 / 一起打过球的 / 暂不接受 ---------- */
 const IVSET=[['all','所有球友','任何登录的球友都可以约你；每人每天最多约 2 位新球友'],['played','一起打过球的','只有和你同场打过球的人能约你'],['none','暂不接受','球员卡上不显示「约 TA 打球」']];
