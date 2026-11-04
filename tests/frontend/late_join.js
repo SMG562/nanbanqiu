@@ -43,6 +43,27 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
     }, mk.id);
     T(`${f} 开打 29 分钟：还能申请（有申请按钮、提示「已开打 · 还能申请加入」）`, other.in.includes('还能申请加入') && /data-a="(apply|join)"/.test(other.in), other.in.slice(0, 200));
     T(`${f} 开打 31 分钟：「这局已经开打了」，不能再申请`, other.out.includes('这局已经开打了') && !/data-a="(apply|join)"/.test(other.out), other.out.slice(0, 200));
+    // 11-04：开打后申请要选「多久能到」；开打后不能直接加入；发起人看得到预计到场；一键「人齐了」
+    const eta = await p.evaluate(async id => {
+      const wait = ms => window.__nbqSettle ? __nbqSettle(ms) : new Promise(r => setTimeout(r, ms));
+      const toasts = []; const _to = toast; toast = function (m) { toasts.push(m); return _to.apply(this, arguments) };
+      const g = GAMES.find(x => x.id === id); g.starts_at = new Date(Date.now() - 5 * 6e4).toISOString(); g.join_mode = 'instant'; g.status = 'open';
+      PARTS.filter(x => x.game_id === id && x.user_id !== 'han').forEach(x => x.status = 'withdrawn');
+      setWho('grace', true); const c = api.get(id), o = {};
+      o.chips = etaChips(c).includes('data-eta="20"'); o.noChipsFuture = etaChips({ start: new Date(Date.now() + 36e5) }) === ''; o.inst = ugInstant(c);
+      openApply(id); await wait(200);
+      document.querySelector('[data-a="doApply"]').click(); await wait(200);
+      o.blocked = !PARTS.some(x => x.game_id === id && x.user_id === 'grace') && toasts.some(t => t.includes('多久能到'));
+      document.querySelector('[data-eta="20"]').click(); document.querySelector('[data-a="doApply"]').click(); await wait(300);
+      const gp = PARTS.find(x => x.game_id === id && x.user_id === 'grace'); o.eta = gp && gp.eta_min; o.st = gp && gp.status;
+      setWho('han', true); const hc = api.get(id); o.row = requestsHTML(hc).includes('预计 20 分钟到'); o.ntf = typeof etaOf === 'function' && etaOf({ game_id: id, from: 'grace' }).includes('预计 20 分钟');
+      const bt = document.createElement('button'); bt.dataset.uf = 'closeFullGo'; bt.dataset.g = id; document.body.appendChild(bt); bt.click(); await wait(200);
+      o.full = g.status === 'full' && PARTS.find(x => x.game_id === id && x.user_id === 'grace').reason === 'full_auto' && api.get(id).spots === 0;
+      return o;
+    }, mk.id);
+    T(`${f} 开打后申请：要选多久能到；开打前不问；开打后不能直接加入`, eta.chips && eta.noChipsFuture && eta.inst === false && eta.blocked, eta);
+    T(`${f} 选了 20 分钟再申请：记下预计到场，发起人申请列表 / 通知里看得到`, eta.eta === 20 && eta.st === 'pending' && eta.row && eta.ntf, eta);
+    T(`${f} 发起人一键「人齐了」：满员、其余申请结束`, eta.full === true, eta);
     // 没凑齐：开打后 10 分钟不发；满 30 分钟且没有待处理申请才发
     const uf = await p.evaluate(() => {
       setWho('han', true); const now = Date.now(), id = 'lk' + (++NID);

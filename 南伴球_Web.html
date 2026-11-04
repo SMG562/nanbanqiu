@@ -473,6 +473,7 @@ button.person:hover{background:var(--bg)}
 .mini b{font-size:15px}.mini span.s{display:block;font-size:12.5px;color:var(--mut)}
 .qchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .qchips button{font-size:12.5px;padding:5px 10px;border-radius:99px;background:var(--gss);color:var(--g);font-weight:600}
+.qchips.etas button{background:var(--gss);border:1.5px solid transparent}.qchips.etas button.on{background:var(--g);color:#fff}.pm.eta{color:var(--g);font-weight:600}
 .warn{background:var(--amberbg);color:var(--amber);font-size:13px;border-radius:12px;padding:10px 12px;margin-top:12px}
 .info{background:var(--gss);color:var(--g);font-size:12.5px;border-radius:10px;padding:9px 12px;margin-top:12px;display:flex;gap:8px;align-items:center}
 .info svg{width:15px;height:15px;flex:none}
@@ -1921,6 +1922,11 @@ const myClubIds=()=>ME?(ME.home_club_ids||[]).filter(id=>VEN[id]):[];   // 已�
 const blockedPair=(a,b)=>!!(a&&b&&((USERS[a]&&USERS[a].blocked.has(b))||(USERS[b]&&USERS[b].blocked.has(a))));
 /* 开打后 30 分钟内仍可申请 / 加入（11-04）：和数据库 nbq_join_checks、发送程序 LATE_JOIN_MS 一致 */
 const LATE_JOIN=30*6e4,LATE_KINDS=['request','joined','approved','rejected','expired','full','player_left'];
+/* 开打后才申请：多问一句「我大概多久能到」（发起人据此决定接不接受，11-04） */
+let APPLY_ETA=0;
+const etaChips=c=>c.start<=NOW?`<div class="lab">我大概多久能到 <span>必选</span></div><div class="qchips etas">${[10,20,30].map(m=>`<button data-eta="${m}">${m} 分钟</button>`).join('')}</div>`:'';
+const etaLine=p=>p&&p.eta_min?`<div class="pm eta">🚶 预计 ${p.eta_min} 分钟到（约 ${hm(new Date(p.created_at+p.eta_min*6e4))}）</div>`:'';
+const etaOf=n=>{const p=PARTS.find(x=>x.game_id===n.game_id&&x.user_id===n.from);return p&&p.eta_min?` · 预计 ${p.eta_min} 分钟到`:''};
 const lateNote=c=>c.lateOpen&&!c.isHost&&!c.mine?`<div class="cap" style="text-align:center;margin-bottom:8px">已开打 · ${hm(new Date(+c.start+LATE_JOIN))} 前还能申请加入</div>`:'';
 function V(g){const v=VEN[g.venue_id],start=new Date(g.starts_at),end=new Date(+start+g.duration_min*6e4),ps=PARTS.filter(p=>p.game_id===g.id);
   const appr=ps.filter(p=>p.status==='approved').sort((a,b)=>(a.role==='host'?-1:0)-(b.role==='host'?-1:0)),pend=ps.filter(p=>p.status==='pending'&&!blockedPair(g.host_id,p.user_id)),mineP=ME?ps.find(p=>p.user_id===ME.id&&p.status!=='withdrawn'&&p.status!=='left'):null;
@@ -1960,7 +1966,7 @@ const api={
   byCode(code){const g=GAMES.find(g=>g.share_code===code);return g?V(g):null},
   login(p){const id='u'+(++NID);USERS[id]={id,no:1287+NID,color:'#F4EFE3',avatar_kind:'letter',animal:'tiger',blocked:new Set(),base:{},...p};ME=USERS[id];return ME},
   setClubs(ids){ME.home_club_ids=ids},
-  apply(id,msg){partUpsert({game_id:id,user_id:ME.id,role:'player',status:'pending',message:msg,created_at:Date.now()});notify(GAMES.find(g=>g.id===id).host_id,'request',id,ME.id)},
+  apply(id,msg,eta){const g0=GAMES.find(g=>g.id===id);partUpsert({game_id:id,user_id:ME.id,role:'player',status:'pending',message:msg,created_at:Date.now(),eta_min:eta&&new Date(g0.starts_at)<=NOW?eta:0});notify(GAMES.find(g=>g.id===id).host_id,'request',id,ME.id)},
   decide(id,uid,ok){const p=PARTS.find(p=>p.game_id===id&&p.user_id===uid);if(!p)return;p.status=ok?'approved':'rejected';const g=GAMES.find(g=>g.id===id);notify(uid,ok?'approved':'rejected',id,g.host_id);
     if(ok){const c=V(g);if(c.spots<=0){g.status='full';c.pend.forEach(q=>{q.status='rejected';q.reason='full_auto';notify(q.user_id,'full',id,g.host_id)})}}},
   leave(id){const p=PARTS.find(p=>p.game_id===id&&p.user_id===ME.id&&['pending','approved'].includes(p.status)),g=GAMES.find(g=>g.id===id);if(!p)return;if(p.status==='approved'){notify(g.host_id,'player_left',id,ME.id);g.status='open';if(ugLate(p,g))ME.base.late=(ME.base.late||0)+1}p.status=p.status==='approved'?'left':'withdrawn';p.left_at=Date.now()},
@@ -1975,7 +1981,7 @@ const api={
   kudos(id){const c=api.get(id);c.appr.filter(p=>p.user_id!==ME.id).forEach(p=>U(p.user_id).base.kudos=(U(p.user_id).base.kudos||0)+1);GAMES.find(g=>g.id===id).kudosDone=true}
 };
 function ntfText(n){if(n.invite_id)return invText(n);if(n.kind==='series_hold'||n.kind==='approved_hold')return sxText(n);const c=V(GAMES.find(g=>g.id===n.game_id)),f=U(n.from)||{name:''},when=`${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`;
-  return {request:[`${f.name} 申请加入你的球局`,`UTR ${f1(f.ntrp)} · ${when}`],approved:[`${f.name} 接受了你的申请 🎾`,when],rejected:['这局没排上 🎾',`${rejText(n)} · 附近还有别的局 ›`],
+  return {request:[`${f.name} ${etaOf(n)?'想加入':'申请加入你的球局'}`,`UTR ${f1(f.ntrp)} · ${when}${etaOf(n)}`],approved:[`${f.name} 接受了你的申请 🎾`,when],rejected:['这局没排上 🎾',`${rejText(n)} · 附近还有别的局 ›`],
     full:['这局已经满员啦',`${when} · 看看附近其他球局`],player_left:[`${f.name} 取消了参加`,`${when} · 名额已重新开放`],game_cancelled:[`${f.name} 取消了球局`,when],unfilled:c.spots<=0?['这局凑齐了 🎾',when]:+c.start+LATE_JOIN<=NOW?['这局没有凑齐',`${when} · 用同样的设置再发一局 ›`]:[`还缺 ${c.spots} 位，${ufLeft(c)}后开打`,`${when} · ${c.postponed?'再分享或放宽水平':'再分享、放宽水平或顺延 1 小时'} ›`],unfilled_end:['这局没有凑齐',`${when} · 用同样的设置再发一局 ›`],postponed:[`${f.name} 把球局顺延了 1 小时`,`${when} · 时间不合适可以退出`],changed:[`${f.name} 修改了球局`,`${(n.lines||['时间或地点有变化']).join('，')} · 还能来吗？ ›`]}[n.kind]}
 function notify(uid,kind,game_id,from){const n={id:++NID,user_id:uid,kind,game_id,from,at:Date.now(),read:false,...(typeof NR_EXTRA!=='undefined'&&NR_EXTRA||{})};NOTIFS.unshift(n);nrDeliver(n)}
 function deskNotify(title,body,onTap){if(document.hidden){if(PUSH.enabled&&'Notification'in window&&Notification.permission==='granted'){try{const n=new Notification(title,{body});n.onclick=()=>{window.focus();onTap&&onTap()}}catch(e){}}renderNav();return}const d=$('#dn');d.innerHTML=`<svg><use href="#logo"/></svg><div style="flex:1;min-width:0"><div class="h"><span>南伴球</span><span>现在</span></div><b>${esc(title)}</b><p>${esc(body)}</p></div>`;
@@ -2816,10 +2822,13 @@ function openUnfilled(id){const c=api.get(id);if(!c)return;const g=GAMES.find(x=
   const wide=c.ntrp_min<=UTR_MIN&&c.ntrp_max>=UTR_MAX,nmn=Math.max(UTR_MIN,c.ntrp_min-1),nmx=Math.min(UTR_MAX,c.ntrp_max+1);
   const ns=new Date(+c.start+36e5),ne=new Date(+c.end+36e5),late=ne.getHours()+ne.getMinutes()/60>23||ne.getHours()<6||ne.getDate()!==ns.getDate();
   UF_OPEN(`<div class="uf"><div class="uf-h">${c.start<=NOW?`还缺 ${c.spots} 位，已开打 · ${hm(new Date(+c.start+LATE_JOIN))} 前别人还能申请`:`还缺 ${c.spots} 位，${ufLeft(c)}后开打`}</div><p class="uf-s">${esc(relDay(c.start))} ${hm(c.start)} · ${esc(c.v.short)} · ${TYPE[c.game_type]}</p>
-    <div class="uf-l">${ufRow('share',id,'再分享一次','发到微信群，附近的球友更容易看到','p')}
+    <div class="uf-l">${c.start<=NOW?ufRow('closeFull',id,'人齐了，不再接受申请','现场已经凑齐了 / 不想再等'):''}${ufRow('share',id,'再分享一次','发到微信群，附近的球友更容易看到','p')}
       ${wide?'':ufRow('widen',id,'放宽水平要求',`UTR ${f1(c.ntrp_min)}–${f1(c.ntrp_max)} → ${f1(nmn)}–${f1(nmx)}`)}
       ${g.postponed||late||c.start<=NOW?'':ufRow('delay',id,'顺延 1 小时',`改到 ${hm(ns)}–${hm(ne)}${n?` · 已加入的 ${n} 位会收到通知`:''}`)}
       ${ufRow('cancel',id,'取消这局',n?`${n} 位球友会收到通知`:'还没有人加入','d')}</div></div>`)}
+function ufCloseConfirm(id){const c=api.get(id),n=c.pend.length;
+  UF_OPEN(`<div class="uf"><div class="uf-h">人齐了？</div><p class="uf-s">这局会标为满员，不再接受申请。${n?`还没处理的 ${n} 个申请会结束，对方会收到通知。`:''}</p>
+    <div class="uf-l">${ufRow('closeFullGo',id,'确认人齐了','','p')}${ufRow('open',id,'返回','')}</div></div>`)}
 function ufDelayConfirm(id){const c=api.get(id),ns=new Date(+c.start+36e5),ne=new Date(+c.end+36e5),n=c.appr.filter(p=>p.user_id!==c.host_id);
   UF_OPEN(`<div class="uf"><div class="uf-h">顺延到 ${hm(ns)}–${hm(ne)}？</div><p class="uf-s">先确认场地 ${hm(c.end)} 之后还能续订。${n.length?`${n.map(p=>esc(U(p.user_id).name.split(' ')[0])).join('、')} 会收到通知，时间不合适可以退出。`:''}只能顺延一次。</p>
     <div class="uf-l">${ufRow('delayGo',id,'确认顺延','','p')}${ufRow('open',id,'返回','')}</div></div>`)}
@@ -2835,6 +2844,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(!
     case'share':UF_CLOSE();setTimeout(()=>openShare(id),180);break;
     case'widen':if(NBQ_NET){const mn=Math.max(UTR_MIN,g.ntrp_min-1),mx=Math.min(UTR_MAX,g.ntrp_max+1);nbqEdit(id,{utr_min:mn,utr_max:mx}).then(r=>{if(r){UF_CLOSE();toast(`已放宽到 UTR ${f1(mn)}–${f1(mx)}`);UF_RENDER()}});break}
       g.ntrp_min=Math.max(UTR_MIN,g.ntrp_min-1);g.ntrp_max=Math.min(UTR_MAX,g.ntrp_max+1);UF_CLOSE();toast(`已放宽到 UTR ${f1(g.ntrp_min)}–${f1(g.ntrp_max)}`);UF_RENDER();break;
+    case'closeFull':ufCloseConfirm(id);break;
+    case'closeFullGo':{const c=api.get(id),nf=(g.filled||0)+Math.max(0,c.spots),np=c.pend.length;
+      const done=()=>{UF_CLOSE();toast(np?`已标记人齐了，其余 ${np} 个申请已结束`:'已标记人齐了');UF_RENDER()};
+      if(NBQ_NET){nbqEdit(id,{filled:nf}).then(r=>{if(r)done()});break}
+      g.filled=nf;g.status='full';c.pend.forEach(q=>{q.status='rejected';q.reason='full_auto';notify(q.user_id,'full',id,g.host_id)});done();break}
     case'delay':ufDelayConfirm(id);break;
     case'delayGo':{if(NBQ_NET){nbqPostpone(id).then(r=>{if(r){UF_CLOSE();toast('已顺延 1 小时');UF_RENDER()}});break}
       g.starts_at=new Date(+new Date(g.starts_at)+36e5).toISOString();g.postponed=true;g.ufRemind=false;g.time_set_at=Date.now();
@@ -2846,7 +2860,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(!
 // 发起人在球局详情里看到的提示
 function ufHostCard(c){if(!c.isHost)return'';let h='';
   if(ufCan(c)&&c.start>NOW&&c.start-NOW<=3*36e5)h+=`<div class="ufc"><div><b>还缺 ${c.spots} 位 · ${ufLeft(c)}后开打</b><small>${c.postponed?'已顺延 1 小时 · 可以再分享一次，或者放宽水平':'再分享一次、放宽水平，或者顺延 1 小时'}</small></div><button data-uf="open" data-g="${c.id}">看看办法</button></div>`;
-  if(ufCan(c)&&c.lateOpen)h+=`<div class="ufc"><div><b>已开打 · 还缺 ${c.spots} 位</b><small>${hm(new Date(+c.start+LATE_JOIN))} 前别人还能申请，申请来了可以直接处理</small></div></div>`;
+  if(ufCan(c)&&c.lateOpen)h+=`<div class="ufc"><div><b>已开打 · 还缺 ${c.spots} 位</b><small>${hm(new Date(+c.start+LATE_JOIN))} 前别人还能申请，申请来了可以直接处理</small></div><button data-uf="closeFull" data-g="${c.id}">人齐了</button></div>`;
   if(c.hide_done)h+=`<div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>`;return h}
 
 function ufDemo(){const t=new Date(+NOW+80*6e4);t.setMinutes(t.getMinutes()<30?30:60,0,0);const id=api.create({venue_id:'v1',starts_at:t.toISOString(),duration_min:90,game_type:'doubles',ntrp_min:3.5,ntrp_max:5,note:''});
@@ -3049,7 +3063,7 @@ const ugNow=()=>Date.now();
 const ugStart=g=>+new Date(g.starts_at);
 const ugDeadline=(p,g)=>{const st=ugStart(g);return Math.max(p.created_at||0,st-UG_WIN)+UG_WAIT};   // 11-04：不再被开打时间截断（开打后 30 分钟内仍可申请）
 const ugClock=t=>{const d=new Date(t);return (dOff(d)!==dOff(new Date())?relDay(d)+' ':'')+hm(d)};
-const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)+LATE_JOIN>ugNow()&&c.spots>0;
+const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)>ugNow()&&c.spots>0;   // 开打后（宽限期内）不能直接加入：一律要发起人确认
 const ugLvFit=(c,u)=>!!u&&u.ntrp>=c.ntrp_min-1e-9&&u.ntrp<=c.ntrp_max+1e-9;
 const ugFits=(c,u)=>ugLvFit(c,u)&&!lessHas(c.host_id,u.id);   // 发起人设了「少遇到」的人：照常申请，看起来和普通球局一样
 // 发布 / 修改表单：开场前 2 小时内才出现；已经是「直接加入」的球局修改时也显示，方便关掉
@@ -3092,7 +3106,7 @@ const _ugHost=ufHostCard;ufHostCard=function(c){if(!c.isHost)return'';const now=
     if(pend.length){const dl=Math.min(...pend.map(p=>ugDeadline(p,c))),who=pend.length===1?esc(U(pend[0].user_id).name.split(' ')[0])+' 的申请':`${pend.length} 个申请`;
       h+=`<div class="ugh warn">${who}${pend.length>1?'最早':''} ${ugClock(dl)} 前没处理会自动失效</div>`}
     const ex=PARTS.filter(p=>p.game_id===c.id&&p.reason==='timeout').length;
-    if(ex)h+=`<div class="ugh">${ex} 个申请超过 15 分钟没处理，已自动失效</div>`}
+    if(ex)h+=`<div class="ugh">${ex} 个申请超过 15 分钟没处理，已过时间</div>`}
   return h+(fresh?(c.hide_done?`<div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>`:''):_ugHost(c))};
 
 // ---------- 申请人：申请弹窗、等待中的提示 ----------
@@ -3126,7 +3140,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ug]');if(!
 const _ugPass=passHTML0;passHTML0=function(c){let h=_ugPass(c);const p=c.mineP;if(!p||c.isHost)return h;
   if(p.status==='pending'){const now=ugNow();h=h.replace(/(<div class="pass-band band-amber">)⏳ ?/,'$1');
     if(c.start-now<=UG_SOON&&c.start>now){const dl=ugDeadline(p,c);h=h.replace(/(<div class="pass-band band-amber">[^<]*确认)(<\/div>)/,`$1 · ${ugClock(dl)} 前没确认会自动失效$2`)}}
-  if(p.reason==='timeout')h=h.replace('这局没排上 · 看看附近其他球局吧',`${esc(c.host.name.split(' ')[0])} 没来得及确认，申请已自动失效`);
+  if(p.reason==='timeout')h=h.replace('这局没排上 · 看看附近其他球局吧',`${esc(c.host.name.split(' ')[0])} 没来得及确认，这次没约上 · 看看附近其他球局`);
   return h};
 // 「申请加入」按钮：能直接加入时改成「直接加入」
 function ugDecorate(){document.querySelectorAll('[data-a="apply"]:not([data-ugd])').forEach(b=>{b.dataset.ugd='1';
@@ -3140,7 +3154,7 @@ new MutationObserver(()=>ugDecorate()).observe(document.documentElement,{childLi
 // ---------- 通知 ----------
 const _ugNtf=ntfText;ntfText=function(n){const g=GAMES.find(x=>x.id===n.game_id);
   if(g&&(n.kind==='joined'||n.kind==='expired')){const c=V(g),f=U(n.from)||{name:''},when=`${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`;
-    return n.kind==='joined'?[`${f.name} 加入了你的球局 🎾`,`UTR ${f1(f.ntrp)} · ${when}`]:[`${f.name} 没来得及确认你的申请`,`申请已自动失效 · 附近还有别的局 ›`]}
+    return n.kind==='joined'?[`${f.name} 加入了你的球局 🎾`,`UTR ${f1(f.ntrp)} · ${when}`]:[`${f.name} 没来得及确认你的申请`,`这次没约上 · 看看附近其他局 ›`]}
   const r=_ugNtf(n);
   if(r&&n.kind==='request'&&g){const p=PARTS.find(x=>x.game_id===g.id&&x.user_id===n.from&&x.status==='pending');
     if(p&&ugStart(g)-ugNow()<=UG_SOON)r[1]+=` · ${ugClock(ugDeadline(p,g))} 前处理`}
@@ -3687,8 +3701,8 @@ function rqSorted(c){const k=RQ.sort[c.id]||'rec',L=c.pend.slice(),t=p=>p.create
   return L.sort((a,b)=>rqScore(c,a)-rqScore(c,b)||t(a)-t(b))}
 function rqRow(c,p,cmp){const u=U(p.user_id),s=stats(u.id);
   if(cmp)return `<div class="req rq-c" data-rqu="${u.id}"><div class="req-top"><button data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b> <span class="lvchip" style="background:${LVCOLOR[s.lv]}">Lv${s.lv+1} ${LV[s.lv][1]}</span><div class="pm">UTR ${f1(u.ntrp)} · 已打 ${s.played} 场${wTrust(c,u)}</div>${rqTags(u)}</div></button>
-    <div class="rq-a"><button class="${RQ_BTN.p}" data-a="approve" data-g="${c.id}" data-u="${u.id}">接受</button><button class="rq-no" data-sx="softNo" data-g="${c.id}" data-u="${u.id}">婉拒</button></div></div>${p.message?RQ_BTN.q(p.message):''}</div>`;
-  return `<div class="req" data-rqu="${u.id}"><div class="req-top"><button data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b> <span class="lvchip" style="background:${LVCOLOR[s.lv]}">Lv${s.lv+1} ${LV[s.lv][1]}</span><div class="pm">UTR ${f1(u.ntrp)} · 已打 ${s.played} 场 · ${s.kudos} 个赞${wTrust(c,u)}</div>${rqTags(u)}</div></button><span class="pm">${ago(p.created_at)}</span></div>${p.message?RQ_BTN.q(p.message):''}
+    <div class="rq-a"><button class="${RQ_BTN.p}" data-a="approve" data-g="${c.id}" data-u="${u.id}">接受</button><button class="rq-no" data-sx="softNo" data-g="${c.id}" data-u="${u.id}">婉拒</button></div></div>${p.message?RQ_BTN.q(p.message):''}${etaLine(p)}</div>`;
+  return `<div class="req" data-rqu="${u.id}"><div class="req-top"><button data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b> <span class="lvchip" style="background:${LVCOLOR[s.lv]}">Lv${s.lv+1} ${LV[s.lv][1]}</span><div class="pm">UTR ${f1(u.ntrp)} · 已打 ${s.played} 场 · ${s.kudos} 个赞${wTrust(c,u)}</div>${rqTags(u)}</div></button><span class="pm">${ago(p.created_at)}</span></div>${p.message?RQ_BTN.q(p.message):''}${etaLine(p)}
     <div class="acts"><button class="${RQ_BTN.p}" data-a="approve" data-g="${c.id}" data-u="${u.id}">接受</button><button class="${RQ_BTN.s}" data-sx="softNo" data-g="${c.id}" data-u="${u.id}">婉拒</button></div></div>`}
 function requestsHTML_(c){if(!(c.isHost&&c.pend.length&&!['past','cancelled'].includes(stateOf(c))))return'';
   const n=c.pend.length,k=RQ.sort[c.id]||'rec',L=rqSorted(c),open=RQ.open[c.id]||n<=RQ_FOLD+1,show=open?L:L.slice(0,RQ_FOLD);
@@ -4501,7 +4515,7 @@ function acctGo(){if(NR_PLAT==='mobile'){closeSheet();if(UI.detail)closeDetail()
 {const _t=ntfText;ntfText=function(n){const r=_t.apply(this,arguments);if(!['rejected','expired','full'].includes(n.kind)||n.invite_id)return r;
   const g=GAMES.find(x=>x.id===n.game_id);if(!g)return r;const c=V(g),when=`${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`;
   if(n.kind==='rejected'){const why=String(rejText(n)).replace(/\s*🎾/g,'').replace(/^这次没排上，/,'');return ['这局没排上 🎾',`${when}${why?' · '+why:''} ›`]}
-  if(n.kind==='expired'){const f=U(n.from)||{name:'发起人'};return [`${f.name} 没来得及确认你的申请`,`${when} · 申请已自动失效 ›`]}
+  if(n.kind==='expired'){const f=U(n.from)||{name:'发起人'};return [`${f.name} 没来得及确认你的申请`,`${when} · 这次没约上 · 看看附近其他局 ›`]}
   return ['这局已经满员啦',`${when} ›`]}}
 // 球局详情里的「看看附近其他球局」：去这局所在那天的发现页（没排上 / 满员 / 已取消时更有用）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-a="explore"]');if(!b)return;const gid=NR_PLAT==='mobile'?UI.detail:UI.sel;
@@ -5025,7 +5039,7 @@ function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start
   ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[],postponed:!!g.postponed_at}}
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
-  created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
+  eta_min:p.eta_min||0,created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
 // 邀约（第 6 轮）：接口给具体的开始 / 结束时间，前台用「第几天 + 时:分」（o / t / e）。自填场地（只有 venue_name）用 'n:名字' 当 id
 const nbqHM=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 function nbqInvSlot(s,e){const a=new Date(s),b=new Date(e),t0=new Date(typeof T0!=='undefined'?T0:Date.now());t0.setHours(0,0,0,0);   // 和页面的 dayAt 同一个「今天」(T0)
@@ -5188,7 +5202,7 @@ function nbqSaveCard(){if(!nbqOn()||!ME)return;
   clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
 const CLUB_MAX=3;
 const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
-const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
+const nbqApplyReq=(id,msg,eta)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||'',...(eta?{eta}:{})}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
 const nbqCancel=id=>nbqWrite('cancel'+id,n=>n.post('/api/games/'+id+'/cancel'));
@@ -5417,11 +5431,12 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:12px"></div><button class="btn btn-p w100" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button></div>`,'sm');
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
-function openApply(id){const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
+function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
   openModal(`<div class="m-b"><div class="m-t">申请加入</div><p class="m-s">${esc(h.name)} 确认后，你会收到通知</p>
   <div class="mini">${av(h)}<div style="flex:1;min-width:0"><b>${relDay(c.start)} ${hm(c.start)} · ${esc(c.v.short)}</b><span class="s">${TYPE[c.game_type]} · UTR ${lvl(c)} · 发起人 ${esc(h.name)}</span></div></div>
   <div class="lab">说一句 <span>选填</span></div><textarea class="inp" id="applyMsg" maxlength="140">你好，我 ${f1(ME.ntrp)} 左右，希望一起打！</textarea>
   <div class="qchips">${['可以带新球','时间可以灵活','住得很近'].map(q=>`<button data-q="${q}">+ ${q}</button>`).join('')}</div>
+  ${etaChips(c)}
   ${gap?`<div class="warn">你的水平 ${f1(ME.ntrp)} 与要求 ${lvl(c)} 有差距，可能不会通过。</div>`:''}
   <div style="height:16px"></div><button class="btn btn-p w100" data-a="doApply" data-g="${id}">发送申请</button></div>`,'md')}
 function openApplied(id){const c=api.get(id);openModal(`<div class="m-b center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-check"/></svg></div><div class="m-t">申请已发送</div><p class="m-s">${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</p>
@@ -5461,7 +5476,7 @@ function renderPop(){const p=$('#pop');
   p.innerHTML=`<div class="pop-h"><b>通知</b><button class="btn-link" data-a="readAll">全部已读</button></div>
   ${nrWebCard()}
   ${list.map(n=>{const[t,b]=ntfText(n),f=U(n.from)||{name:'?',color:'#999'},pp=n.kind==='request'?PARTS.find(p=>p.game_id===n.game_id&&p.user_id===n.from&&p.status!=='withdrawn'&&p.status!=='left'):null;
-    const acts=pp&&pp.status==='pending'?`<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${n.game_id}" data-u="${n.from}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${n.game_id}" data-u="${n.from}">婉拒</button></div>`:pp?`<div class="acts"><span class="pill ${pp.status==='approved'?'p-green':'p-gray'}">${pp.status==='approved'?'已接受':pp.reason==='timeout'?'已失效':pp.reason==='full_auto'?'已满员':'已婉拒'}</span></div>`:'';
+    const acts=pp&&pp.status==='pending'?`<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${n.game_id}" data-u="${n.from}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${n.game_id}" data-u="${n.from}">婉拒</button></div>`:pp?`<div class="acts"><span class="pill ${pp.status==='approved'?'p-green':'p-gray'}">${pp.status==='approved'?'已接受':pp.reason==='timeout'?'已过时间':pp.reason==='full_auto'?'已满员':'已婉拒'}</span></div>`:'';
     return `<div class="ntf${n.read?'':' unread'}" data-wn="${n.id}">${nrAv(n,f)||av(f)}<div class="nb"><b>${esc(t)}</b><p>${esc(b)}</p>${pp&&pp.message&&pp.status==='pending'?`<div class="quote">“${esc(pp.message)}”</div>`:''}${acts}</div><span class="tm">${ago(n.at)}</span></div>`}).join('')||'<div class="empty" style="padding:30px"><b>暂无通知</b><br>申请结果、新的申请都会出现在这里</div>'}`}
 function togglePop(force){const p=$('#pop'),show=force??!p.classList.contains('show');p.classList.toggle('show',show);if(show)renderPop()}
 function toggleUmenu(){const m=$('#umenu');m.innerHTML=`<button data-a="myCard"><svg><use href="#i-card"/></svg>我的球员卡</button><button data-tab="mine"><svg><use href="#i-cal"/></svg>我的球局</button><button data-a="sbAlbum"><svg><use href="#i-side"/></svg>场边相册</button><button data-a="blocklist"><svg><use href="#i-ban"/></svg>屏蔽名单</button><hr><button data-a="safety"><svg><use href="#i-shield"/></svg>安全须知</button><button data-a="contact"><svg><use href="#i-mail"/></svg>联系我们 / 举报</button><hr><button data-a="logout"><svg><use href="#i-out"/></svg>退出登录</button>`;m.classList.toggle('show')}
@@ -5504,6 +5519,7 @@ document.addEventListener('click',e=>{
   const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
   const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
+  const eb=t.closest('[data-eta]');if(eb){APPLY_ETA=+eb.dataset.eta;eb.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===eb));return}
   const q=t.closest('[data-q]');if(q){const a=$('#applyMsg');a.value=a.value.replace(/[。！!]?$/,'，')+q.dataset.q+'。';q.remove();return}
   const nd=t.closest('[data-ngdur]');if(nd){NG.dur=+nd.dataset.ngdur;NG.redraw();return}
   const nt=t.closest('[data-ngtype]');if(nt){NG.type=nt.dataset.ngtype;NG.redraw();return}
@@ -5553,7 +5569,8 @@ document.addEventListener('click',e=>{
       if(NBQ_NET){nbqNpDone(n);break}
       api.login({name:n,last:($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',ntrp:NP.ntrp,home_club_ids:[...NP.clubs],gender:NP.gender==='f'||NP.gender==='m'?NP.gender:null,adult_confirmed_at:new Date().toISOString(),terms_version:LEGAL_V.terms,privacy_version:LEGAL_V.privacy});/* = api_consent_accept(true) */sbaSaveProf();NP={ntrp:3.0,clubs:[]};closeModal();toast('账号已创建 · 以后打开链接自动登录');render();const nx=AUTH.next;AUTH.next=null;if(nx)setTimeout(nx,150);break}
     case'apply':need(()=>gateApply(g,()=>openApply(g)),'发送申请前，先用手机号验证一下');break;
-    case'doApply':if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim()).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
+    case'doApply':{if(api.get(g).start<=NOW&&!APPLY_ETA){toast('选一下大概多久能到');break}
+      if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim(),APPLY_ETA).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim(),APPLY_ETA);render();openApplied(g);break}
     case'leave':openLeave(g);break;
     case'doLeave':{const was=api.get(g).mine;if(NBQ_NET){nbqLeave(g).then(d=>{if(d){closeModal();toast(was==='approved'?'已取消参加':'已撤回申请');render()}});break}api.leave(g);closeModal();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
     case'approve':if(NBQ_NET){const nm=U(a.dataset.u).name;nbqApprove(a.dataset.g,a.dataset.u).then(d=>{if(d)toast(`已接受 ${nm}`);render();if($('#pop').classList.contains('show'))renderPop()});break}if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();if($('#pop').classList.contains('show'))renderPop();break;

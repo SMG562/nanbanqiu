@@ -82,11 +82,12 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
 
 /* 申请 / 取消 */
-function openApply(id){const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
+function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
   openSheet(`<div class="sh-t">申请加入</div><p class="sh-s">${esc(h.name)} 确认后，你会收到通知</p>
   <div class="mini">${av(h)}<div style="flex:1;min-width:0"><b>${relDay(c.start)} ${hm(c.start)} · ${esc(c.v.short)}</b><span class="s">${TYPE[c.game_type]} · UTR ${lvl(c)} · 发起人 ${esc(h.name)}</span></div></div>
   <div class="lab">说一句 <span>选填</span></div><textarea class="inp" id="applyMsg" maxlength="140">你好，我 ${f1(ME.ntrp)} 左右，希望一起打！</textarea>
   <div class="qchips">${['可以带新球','时间可以灵活','住得很近'].map(q=>`<button data-q="${q}">+ ${q}</button>`).join('')}</div>
+  ${etaChips(c)}
   ${gap?`<div class="warn">你的水平 ${f1(ME.ntrp)} 与要求 ${lvl(c)} 有差距，可能不会通过。</div>`:''}
   <div style="height:16px"></div><button class="btn btn-p" data-a="doApply" data-g="${id}">发送申请</button>`)}
 function openApplied(id){const c=api.get(id);

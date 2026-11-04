@@ -253,6 +253,7 @@
 - 事件：game_create_submit（前端）· follow_notify（服务端）
 
 ### PATCH /api/games/:id · `api_game_edit(…)`
+- 已开打：只许改 `filled`（发起人现场「人齐了」），且要在结束前；其余字段 → 409 `game_started`（11-04）；满员后没处理的申请由 sync_game 结束（full_auto）并通知
 - 谁：发起人，否则 403 `not_host`
 - 检查：已取消 → 409 `game_closed`；已开打 → 409 `game_started`；人数不能少于已加入的人（数据库 games_capacity_guard → 409 `game_full`）
 - 写入：games；game_changes（is_major = 改时间 / 改球场）；改时间后已加入的人 change_ack = pending（可以不算临时退出地退出）
@@ -282,13 +283,15 @@
 
 ## 5. 申请与参加
 
-### POST /api/games/:id/requests `{message ≤ 140}` · `api_apply(game_id, message)`
+### POST /api/games/:id/requests `{message ≤ 140, eta?: 1–120}` · `api_apply(game_id, message, eta)`
+- `eta` = 预计几分钟到（11-04）：只有开打后才申请的才记（开打前传了也不记）；超出 1–120 → 400 `invalid`；只有发起人和本人在参与记录里看得到 `eta_min`
 - 检查（顺序）：前置三关（action = apply，women = 女生局）→ 球局可见（看不到 → 404 `not_found`）→ 已取消 409 `game_closed` / 开打超过 30 分钟 409 `game_started`（11-04：开打后 30 分钟内仍可申请 / 直接加入） → 女生局非女生 403 `women_only`（记 women_apply_blocked）→ 屏蔽 403 `blocked` → 已有待确认 / 已加入 409 `already_applied` → 满员 409 `game_full` → 频率（和直接加入合计）：每小时 5 次 429 `apply_hourly_limit`、每天 15 次 429 `apply_daily_limit`、同一局每天 3 次 429 `apply_same_limit`
 - 写入：game_participants（撤回 / 退出 / 被婉拒 / 失效后再申请，复用同一行：status = pending、created_at = now()）
 - 通知：发起人 request（同一人再次申请只保留最新一条；同一局 10 分钟内只推一次）
 - 事件：game_apply_submit（前端）
 
 ### POST /api/games/:id/join · `api_join(game_id)`
+- 开打后（宽限期内）不能直接加入：409 `join_not_allowed`（detail `started`），要发申请由发起人确认（11-04）
 - 直接加入（instant 局）
 - 检查：同申请，另加：join_mode 不是 instant → 409 `join_not_allowed`；水平不在范围 → 409 `level_mismatch`；发起人对我「少遇到」→ 409 `join_not_allowed`（对方不知道原因，记 less_effect type=join）；频率同申请
 - 写入：game_participants status = approved、via = instant、approved_at；满员由数据库处理（其余申请 full_auto 并通知）

@@ -55,7 +55,7 @@ function nbqFromGame(g){return{...g,starts_at:nbqIso(g.starts_at),original_start
   ntrp_min:g.utr_min,ntrp_max:g.utr_max,filled:g.filled||0,tags:g.tags||[],postponed:!!g.postponed_at}}
 function nbqFromPart(p){return{game_id:p.game_id,user_id:p.user_id,role:p.role,status:p.status,message:p.message||'',
   reason:p.decline_reason||undefined,note:p.decline_note||undefined,change_ack:p.change_ack||undefined,
-  created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
+  eta_min:p.eta_min||0,created_at:nbqMs(p.created_at),approved_at:nbqMs(p.approved_at),left_at:nbqMs(p.left_at)}}
 // 邀约（第 6 轮）：接口给具体的开始 / 结束时间，前台用「第几天 + 时:分」（o / t / e）。自填场地（只有 venue_name）用 'n:名字' 当 id
 const nbqHM=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 function nbqInvSlot(s,e){const a=new Date(s),b=new Date(e),t0=new Date(typeof T0!=='undefined'?T0:Date.now());t0.setHours(0,0,0,0);   // 和页面的 dayAt 同一个「今天」(T0)
@@ -218,7 +218,7 @@ function nbqSaveCard(){if(!nbqOn()||!ME)return;
   clearTimeout(NBQ_CARD_T);NBQ_CARD_T=setTimeout(async()=>{const r=await NBQ_NET.patch('/api/me',body);if(!r.ok){if(r.code!=='login_required')toast('没保存上：'+apiErrText(r.code));await nbqRefresh();render()}},500)}
 const CLUB_MAX=3;
 const nbqSetClubs=ids=>nbqWrite('clubs',n=>n.put('/api/me/clubs',{venue_ids:[...new Set(ids)].slice(0,CLUB_MAX)}));
-const nbqApplyReq=(id,msg)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||''}));
+const nbqApplyReq=(id,msg,eta)=>nbqWrite('apply'+id,n=>n.post('/api/games/'+id+'/requests',{message:msg||'',...(eta?{eta}:{})}));
 const nbqJoin=id=>nbqWrite('join'+id,n=>n.post('/api/games/'+id+'/join'));
 const nbqLeave=id=>nbqWrite('leave'+id,n=>n.del('/api/games/'+id+'/requests/me'));
 const nbqCancel=id=>nbqWrite('cancel'+id,n=>n.post('/api/games/'+id+'/cancel'));

@@ -15,9 +15,14 @@ T('开打 31 分钟后：申请通知过时（已开打）', stale('request', 31
 T('开打后：别的类型（开打前提醒 / 还缺人）仍然不推', stale('soon', 1, { myStatus: 'approved' }) === 'started' && stale('unfilled', 1) === 'started');
 T('「没有凑齐」「赛后」等仍可在开打后推', ['unfilled_end', 'recap', 'noshow', 'game_cancelled'].every(k => stale(k, 40) === null));
 T('申请已被处理 → 仍判已处理', stale('request', 5, { applicantStatus: 'approved' }) === 'handled');
+const A = R.pushText({ kind: 'request' }, { actorName: 'Han', applicantEta: 15, game: { starts_at: at(1), tz: 'Australia/Melbourne', venue: 'TW' }, now });
+T('开打后的申请推送：标题带预计到场分钟', A.title === 'Han 想加入，预计 15 分钟到', A.title);
+T('开打前的申请推送：不带预计分钟（保持原样）', R.pushText({ kind: 'request' }, { actorName: 'Han', applicantEta: 15, game: { starts_at: at(-60), tz: 'Australia/Melbourne' }, now }).title === 'Han 申请加入你的球局');
+T('申请超时的推送文案不再写「失效」', !R.pushText({ kind: 'expired' }, { game: { starts_at: at(1), tz: 'Australia/Melbourne' } }).title.includes('失效'));
 // 和数据库 / 前台写同一个数
 const sql = rd('server/migrations/20261104_late_join.sql'), schema = rd('schema.sql');
 T('迁移和 schema.sql 都用「开打 + 30 分钟」', sql.includes("starts_at + interval '30 minutes' <= now()") && schema.includes("starts_at + interval '30 minutes' <= now()"));
 T('申请截止不再被开打截断（迁移、schema 都没有 least(…, p_start)）', !/least\(greatest\(p_created/.test(sql) && !/least\(greatest\(p_created/.test(schema));
+T('迁移带上预计到场分钟列、开打后不能直接加入、人齐了只许改 filled', sql.includes('eta_min smallint') && sql.includes("join_not_allowed', 'started'") && sql.includes("p - 'filled' = '{}'::jsonb"));
 T('前台 LATE_JOIN = 30 分钟', /const LATE_JOIN=30\*6e4/.test(rd('src/shared/script/0110-数据.js')));
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

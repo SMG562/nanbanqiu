@@ -81,6 +81,22 @@ try {
   r = await call(U.H, `select api_approve($1,$2)`, [gLate, U.B]); T('开打后发起人仍能接受申请', r.ok && r.v && r.v.status === 'approved', r);
   await q(`update games set starts_at=now()-interval '31 minutes' where id=$1`, [gLate]);
   r = await call(U.A, `select api_apply($1)`, [gLate]); T('开打满 30 分钟 → game_started', is(r, 'game_started'), r);
+  // 11-04：预计几分钟到 / 开打后不能直接加入 / 开打后发起人可一键「人齐了」（只许改 filled）
+  const gL2 = (await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('late2',$1,$2,now()-interval '10 minutes',90,'singles',2,3,7) returning id`, [U.H, V])).rows[0].id;
+  r = await call(U.A, `select api_apply($1,$2,$3)`, [gL2, 'hi', 15]); T('开打后申请可带预计到场分钟', r.ok, r);
+  T('预计到场分钟记下了', (await q(`select eta_min from game_participants where game_id=$1 and user_id=$2`, [gL2, U.A])).rows[0].eta_min === 15);
+  r = await call(U.B, `select api_apply($1,$2,$3)`, [gL2, null, 999]); T('预计分钟超范围 → invalid', is(r, 'invalid'), r);
+  const gFut = (await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('fut1',$1,$2,now()+interval '3 hours',90,'singles',2,3,7) returning id`, [U.H, V])).rows[0].id;
+  r = await call(U.L, `select api_apply($1,$2,$3)`, [gFut, null, 15]); T('开打前申请带预计分钟：不记', r.ok && (await q(`select eta_min from game_participants where game_id=$1 and user_id=$2`, [gFut, U.L])).rows[0].eta_min === null, r);
+  await q(`update games set join_mode='instant' where id=$1`, [gL2]);
+  r = await call(U.L, `select api_join($1)`, [gL2]); T('开打后不能直接加入 → join_not_allowed', is(r, 'join_not_allowed'), r);
+  r = await call(U.H, `select api_game_edit($1,$2)`, [gL2, JSON.stringify({ note: 'x' })]); T('开打后改别的项仍 → game_started', is(r, 'game_started'), r);
+  r = await call(U.H, `select api_game_edit($1,$2)`, [gL2, JSON.stringify({ filled: 1 })]); T('开打后发起人可改「线下已有几人」（人齐了）', r.ok, r);
+  T('人齐了：球局满员，没处理的申请自动结束并通知', (await q(`select status::text s from games where id=$1`, [gL2])).rows[0].s === 'full'
+    && (await q(`select status::text s, decline_reason from game_participants where game_id=$1 and user_id=$2`, [gL2, U.A])).rows[0].decline_reason === 'full_auto'
+    && (await q(`select count(*)::int c from notifications where user_id=$1 and kind='full' and game_id=$2`, [U.A, gL2])).rows[0].c === 1);
+  await q(`update games set starts_at=now()-interval '100 minutes' where id=$1`, [gL2]);
+  r = await call(U.H, `select api_game_edit($1,$2)`, [gL2, JSON.stringify({ filled: 0 })]); T('打完（超过时长）后不能再改 → game_started', is(r, 'game_started'), r);
   // ---------- 发起人处理 ----------
   r = await call(U.B, `select api_apply($1)`, [g2]); T('B 也申请', r.ok, r);
   r = await call(U.B, `select api_approve($1,$2)`, [g2, U.A]); T('不是发起人不能通过 → not_host', is(r, 'not_host'), r);

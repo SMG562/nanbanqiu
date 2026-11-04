@@ -43,11 +43,12 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
   <label class="npadult"><input type="checkbox" id="npAdult"${NP.adult?' checked':''}><span>我已满 18 岁，并同意${legalLinks()}</span></label>
   <div id="npErr" style="color:var(--red);font-size:13px;margin-top:6px"></div><div style="height:12px"></div><button class="btn btn-p w100" data-a="npDone">${AUTH.next?'完成并继续':'完成'}</button></div>`,'sm');
   NP.redraw=()=>{NP.name=$('#npName').value;NP.adult=!!($('#npAdult')&&$('#npAdult').checked);draw()};draw()}
-function openApply(id){const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
+function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
   openModal(`<div class="m-b"><div class="m-t">申请加入</div><p class="m-s">${esc(h.name)} 确认后，你会收到通知</p>
   <div class="mini">${av(h)}<div style="flex:1;min-width:0"><b>${relDay(c.start)} ${hm(c.start)} · ${esc(c.v.short)}</b><span class="s">${TYPE[c.game_type]} · UTR ${lvl(c)} · 发起人 ${esc(h.name)}</span></div></div>
   <div class="lab">说一句 <span>选填</span></div><textarea class="inp" id="applyMsg" maxlength="140">你好，我 ${f1(ME.ntrp)} 左右，希望一起打！</textarea>
   <div class="qchips">${['可以带新球','时间可以灵活','住得很近'].map(q=>`<button data-q="${q}">+ ${q}</button>`).join('')}</div>
+  ${etaChips(c)}
   ${gap?`<div class="warn">你的水平 ${f1(ME.ntrp)} 与要求 ${lvl(c)} 有差距，可能不会通过。</div>`:''}
   <div style="height:16px"></div><button class="btn btn-p w100" data-a="doApply" data-g="${id}">发送申请</button></div>`,'md')}
 function openApplied(id){const c=api.get(id);openModal(`<div class="m-b center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-check"/></svg></div><div class="m-t">申请已发送</div><p class="m-s">${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</p>
@@ -87,7 +88,7 @@ function renderPop(){const p=$('#pop');
   p.innerHTML=`<div class="pop-h"><b>通知</b><button class="btn-link" data-a="readAll">全部已读</button></div>
   ${nrWebCard()}
   ${list.map(n=>{const[t,b]=ntfText(n),f=U(n.from)||{name:'?',color:'#999'},pp=n.kind==='request'?PARTS.find(p=>p.game_id===n.game_id&&p.user_id===n.from&&p.status!=='withdrawn'&&p.status!=='left'):null;
-    const acts=pp&&pp.status==='pending'?`<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${n.game_id}" data-u="${n.from}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${n.game_id}" data-u="${n.from}">婉拒</button></div>`:pp?`<div class="acts"><span class="pill ${pp.status==='approved'?'p-green':'p-gray'}">${pp.status==='approved'?'已接受':pp.reason==='timeout'?'已失效':pp.reason==='full_auto'?'已满员':'已婉拒'}</span></div>`:'';
+    const acts=pp&&pp.status==='pending'?`<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${n.game_id}" data-u="${n.from}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${n.game_id}" data-u="${n.from}">婉拒</button></div>`:pp?`<div class="acts"><span class="pill ${pp.status==='approved'?'p-green':'p-gray'}">${pp.status==='approved'?'已接受':pp.reason==='timeout'?'已过时间':pp.reason==='full_auto'?'已满员':'已婉拒'}</span></div>`:'';
     return `<div class="ntf${n.read?'':' unread'}" data-wn="${n.id}">${nrAv(n,f)||av(f)}<div class="nb"><b>${esc(t)}</b><p>${esc(b)}</p>${pp&&pp.message&&pp.status==='pending'?`<div class="quote">“${esc(pp.message)}”</div>`:''}${acts}</div><span class="tm">${ago(n.at)}</span></div>`}).join('')||'<div class="empty" style="padding:30px"><b>暂无通知</b><br>申请结果、新的申请都会出现在这里</div>'}`}
 function togglePop(force){const p=$('#pop'),show=force??!p.classList.contains('show');p.classList.toggle('show',show);if(show)renderPop()}
 function toggleUmenu(){const m=$('#umenu');m.innerHTML=`<button data-a="myCard"><svg><use href="#i-card"/></svg>我的球员卡</button><button data-tab="mine"><svg><use href="#i-cal"/></svg>我的球局</button><button data-a="sbAlbum"><svg><use href="#i-side"/></svg>场边相册</button><button data-a="blocklist"><svg><use href="#i-ban"/></svg>屏蔽名单</button><hr><button data-a="safety"><svg><use href="#i-shield"/></svg>安全须知</button><button data-a="contact"><svg><use href="#i-mail"/></svg>联系我们 / 举报</button><hr><button data-a="logout"><svg><use href="#i-out"/></svg>退出登录</button>`;m.classList.toggle('show')}

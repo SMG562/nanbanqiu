@@ -30,6 +30,7 @@ select.inp{appearance:none;background:#F7F8F7 url("data:image/svg+xml,%3Csvg xml
 .mini b{font-size:15px}.mini span.s{display:block;font-size:12.5px;color:var(--mut)}
 .qchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .qchips button{font-size:12.5px;padding:5px 10px;border-radius:99px;background:var(--gss);color:var(--g);font-weight:600}
+.qchips.etas button{background:var(--gss);border:1.5px solid transparent}.qchips.etas button.on{background:var(--g);color:#fff}.pm.eta{color:var(--g);font-weight:600}
 .warn{background:var(--amberbg);color:var(--amber);font-size:13px;border-radius:12px;padding:10px 12px;margin-top:12px}
 .lv6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .lvb{border:1.5px solid var(--line);border-radius:12px;padding:10px 0;text-align:center;font-weight:700;font-size:16px}

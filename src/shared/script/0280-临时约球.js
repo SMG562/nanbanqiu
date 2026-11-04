@@ -13,7 +13,7 @@ const ugNow=()=>Date.now();
 const ugStart=g=>+new Date(g.starts_at);
 const ugDeadline=(p,g)=>{const st=ugStart(g);return Math.max(p.created_at||0,st-UG_WIN)+UG_WAIT};   // 11-04：不再被开打时间截断（开打后 30 分钟内仍可申请）
 const ugClock=t=>{const d=new Date(t);return (dOff(d)!==dOff(new Date())?relDay(d)+' ':'')+hm(d)};
-const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)+LATE_JOIN>ugNow()&&c.spots>0;
+const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)>ugNow()&&c.spots>0;   // 开打后（宽限期内）不能直接加入：一律要发起人确认
 const ugLvFit=(c,u)=>!!u&&u.ntrp>=c.ntrp_min-1e-9&&u.ntrp<=c.ntrp_max+1e-9;
 const ugFits=(c,u)=>ugLvFit(c,u)&&!lessHas(c.host_id,u.id);   // 发起人设了「少遇到」的人：照常申请，看起来和普通球局一样
 // 发布 / 修改表单：开场前 2 小时内才出现；已经是「直接加入」的球局修改时也显示，方便关掉
@@ -56,7 +56,7 @@ const _ugHost=ufHostCard;ufHostCard=function(c){if(!c.isHost)return'';const now=
     if(pend.length){const dl=Math.min(...pend.map(p=>ugDeadline(p,c))),who=pend.length===1?esc(U(pend[0].user_id).name.split(' ')[0])+' 的申请':`${pend.length} 个申请`;
       h+=`<div class="ugh warn">${who}${pend.length>1?'最早':''} ${ugClock(dl)} 前没处理会自动失效</div>`}
     const ex=PARTS.filter(p=>p.game_id===c.id&&p.reason==='timeout').length;
-    if(ex)h+=`<div class="ugh">${ex} 个申请超过 15 分钟没处理，已自动失效</div>`}
+    if(ex)h+=`<div class="ugh">${ex} 个申请超过 15 分钟没处理，已过时间</div>`}
   return h+(fresh?(c.hide_done?`<div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>`:''):_ugHost(c))};
 
 // ---------- 申请人：申请弹窗、等待中的提示 ----------
@@ -90,7 +90,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ug]');if(!
 const _ugPass=passHTML0;passHTML0=function(c){let h=_ugPass(c);const p=c.mineP;if(!p||c.isHost)return h;
   if(p.status==='pending'){const now=ugNow();h=h.replace(/(<div class="pass-band band-amber">)⏳ ?/,'$1');
     if(c.start-now<=UG_SOON&&c.start>now){const dl=ugDeadline(p,c);h=h.replace(/(<div class="pass-band band-amber">[^<]*确认)(<\/div>)/,`$1 · ${ugClock(dl)} 前没确认会自动失效$2`)}}
-  if(p.reason==='timeout')h=h.replace('这局没排上 · 看看附近其他球局吧',`${esc(c.host.name.split(' ')[0])} 没来得及确认，申请已自动失效`);
+  if(p.reason==='timeout')h=h.replace('这局没排上 · 看看附近其他球局吧',`${esc(c.host.name.split(' ')[0])} 没来得及确认，这次没约上 · 看看附近其他球局`);
   return h};
 // 「申请加入」按钮：能直接加入时改成「直接加入」
 function ugDecorate(){document.querySelectorAll('[data-a="apply"]:not([data-ugd])').forEach(b=>{b.dataset.ugd='1';
@@ -104,7 +104,7 @@ new MutationObserver(()=>ugDecorate()).observe(document.documentElement,{childLi
 // ---------- 通知 ----------
 const _ugNtf=ntfText;ntfText=function(n){const g=GAMES.find(x=>x.id===n.game_id);
   if(g&&(n.kind==='joined'||n.kind==='expired')){const c=V(g),f=U(n.from)||{name:''},when=`${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`;
-    return n.kind==='joined'?[`${f.name} 加入了你的球局 🎾`,`UTR ${f1(f.ntrp)} · ${when}`]:[`${f.name} 没来得及确认你的申请`,`申请已自动失效 · 附近还有别的局 ›`]}
+    return n.kind==='joined'?[`${f.name} 加入了你的球局 🎾`,`UTR ${f1(f.ntrp)} · ${when}`]:[`${f.name} 没来得及确认你的申请`,`这次没约上 · 看看附近其他局 ›`]}
   const r=_ugNtf(n);
   if(r&&n.kind==='request'&&g){const p=PARTS.find(x=>x.game_id===g.id&&x.user_id===n.from&&x.status==='pending');
     if(p&&ugStart(g)-ugNow()<=UG_SOON)r[1]+=` · ${ugClock(ugDeadline(p,g))} 前处理`}

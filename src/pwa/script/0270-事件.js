@@ -20,6 +20,7 @@ DEV.addEventListener('click',e=>{
   const npc=t.closest('[data-npc]');if(npc){const id=npc.dataset.npc;if(!NP.clubs.includes(id)&&NP.clubs.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}NP.clubs=NP.clubs.includes(id)?NP.clubs.filter(x=>x!==id):[...NP.clubs,id];npc.classList.toggle('on');return}
   const cm=t.closest('[data-clmain]');if(cm){const id=cm.dataset.clmain;CL=[id,...CL.filter(x=>x!==id)];$('#clList').innerHTML=clubRows();return}
   const cl=t.closest('[data-cl]');if(cl){const id=cl.dataset.cl;if(!CL.includes(id)&&CL.length>=CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club');return}CL=CL.includes(id)?CL.filter(x=>x!==id):[...CL,id];$('#clList').innerHTML=clubRows();$('[data-a=saveClubs]').textContent='完成'+(CL.length?`（${CL.length}）`:'');return}
+  const eb=t.closest('[data-eta]');if(eb){APPLY_ETA=+eb.dataset.eta;eb.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===eb));return}
   const q=t.closest('[data-q]');if(q){const a=$('#applyMsg');a.value=a.value.replace(/[。！!]?$/,'，')+q.dataset.q+'。';q.remove();return}
   const nd=t.closest('[data-ngdur]');if(nd){NG.dur=+nd.dataset.ngdur;NG.redraw();return}
   const nt=t.closest('[data-ngtype]');if(nt){NG.type=nt.dataset.ngtype;NG.redraw();return}
@@ -56,7 +57,8 @@ DEV.addEventListener('click',e=>{
       if(NBQ_NET){nbqNpDone(n);break}
       api.login({name:n,last:($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',ntrp:NP.ntrp,home_club_ids:[...NP.clubs],gender:NP.gender==='f'||NP.gender==='m'?NP.gender:null,adult_confirmed_at:new Date().toISOString(),terms_version:LEGAL_V.terms,privacy_version:LEGAL_V.privacy});/* = api_consent_accept(true) */sbaSaveProf();toast('账号已创建 · 以后打开链接自动登录');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};closeSheet();render();if(nx)setTimeout(nx,380);break}
     case'apply':need(()=>gateApply(g,()=>openApply(g)),'发送申请前，先用手机号验证一下');break;
-    case'doApply':if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim()).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim());render();openApplied(g);break;
+    case'doApply':{if(api.get(g).start<=NOW&&!APPLY_ETA){toast('选一下大概多久能到');break}
+      if(NBQ_NET){nbqApplyReq(g,$('#applyMsg').value.trim(),APPLY_ETA).then(d=>{if(d){render();openApplied(g)}});break}api.apply(g,$('#applyMsg').value.trim(),APPLY_ETA);render();openApplied(g);break}
     case'leave':openLeave(g);break;
     case'doLeave':{const was=api.get(g).mine;if(NBQ_NET){nbqLeave(g).then(d=>{if(d){closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render()}});break}api.leave(g);closeSheet();toast(was==='approved'?'已取消参加':'已撤回申请');render();break}
     case'approve':if(NBQ_NET){const nm=U(a.dataset.u).name;nbqApprove(a.dataset.g,a.dataset.u).then(d=>{if(d)toast(`已接受 ${nm}`);render()});break}if(api.decide(a.dataset.g,a.dataset.u,true)!==false)toast(`已接受 ${U(a.dataset.u).name}`);render();break;

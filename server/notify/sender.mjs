@@ -28,7 +28,7 @@ async function loadCtx(db, n) {
     if (ctx.game) {
       ctx.spotsLeft = ctx.game.capacity - ctx.game.ap - ctx.game.filled;
       ctx.myStatus = (await db.query(`select status::text s from game_participants where game_id=$1 and user_id=$2`, [n.game_id, n.user_id])).rows[0]?.s || null;
-      if (n.actor_id) ctx.applicantStatus = (await db.query(`select status::text s from game_participants where game_id=$1 and user_id=$2`, [n.game_id, n.actor_id])).rows[0]?.s || null;
+      if (n.actor_id) { const ap = (await db.query(`select status::text s, eta_min from game_participants where game_id=$1 and user_id=$2`, [n.game_id, n.actor_id])).rows[0]; ctx.applicantStatus = ap?.s || null; ctx.applicantEta = ap?.eta_min || null }
     }
   }
   if (n.thread_id) ctx.chat = (await db.query(`select t.kind from threads t where t.id = $1`, [n.thread_id])).rows[0] || null;   // 新消息：只要会话类型（私信 / 球局群聊），推送文字不带发送人和内容（11-04 用户要求，也省一次查询）

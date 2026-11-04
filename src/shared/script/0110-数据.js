@@ -1,6 +1,11 @@
 const blockedPair=(a,b)=>!!(a&&b&&((USERS[a]&&USERS[a].blocked.has(b))||(USERS[b]&&USERS[b].blocked.has(a))));
 /* 开打后 30 分钟内仍可申请 / 加入（11-04）：和数据库 nbq_join_checks、发送程序 LATE_JOIN_MS 一致 */
 const LATE_JOIN=30*6e4,LATE_KINDS=['request','joined','approved','rejected','expired','full','player_left'];
+/* 开打后才申请：多问一句「我大概多久能到」（发起人据此决定接不接受，11-04） */
+let APPLY_ETA=0;
+const etaChips=c=>c.start<=NOW?`<div class="lab">我大概多久能到 <span>必选</span></div><div class="qchips etas">${[10,20,30].map(m=>`<button data-eta="${m}">${m} 分钟</button>`).join('')}</div>`:'';
+const etaLine=p=>p&&p.eta_min?`<div class="pm eta">🚶 预计 ${p.eta_min} 分钟到（约 ${hm(new Date(p.created_at+p.eta_min*6e4))}）</div>`:'';
+const etaOf=n=>{const p=PARTS.find(x=>x.game_id===n.game_id&&x.user_id===n.from);return p&&p.eta_min?` · 预计 ${p.eta_min} 分钟到`:''};
 const lateNote=c=>c.lateOpen&&!c.isHost&&!c.mine?`<div class="cap" style="text-align:center;margin-bottom:8px">已开打 · ${hm(new Date(+c.start+LATE_JOIN))} 前还能申请加入</div>`:'';
 function V(g){const v=VEN[g.venue_id],start=new Date(g.starts_at),end=new Date(+start+g.duration_min*6e4),ps=PARTS.filter(p=>p.game_id===g.id);
   const appr=ps.filter(p=>p.status==='approved').sort((a,b)=>(a.role==='host'?-1:0)-(b.role==='host'?-1:0)),pend=ps.filter(p=>p.status==='pending'&&!blockedPair(g.host_id,p.user_id)),mineP=ME?ps.find(p=>p.user_id===ME.id&&p.status!=='withdrawn'&&p.status!=='left'):null;

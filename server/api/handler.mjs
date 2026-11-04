@@ -93,6 +93,7 @@ const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))];
 // 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
 const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.message end as message,
+    case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.eta_min end as eta_min,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.decline_reason end as decline_reason,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.decline_note end as decline_note,
     case when gp.user_id = nbq_uid() then gp.change_ack::text end as change_ack
@@ -177,7 +178,8 @@ const ROUTES = {
   'POST /api/games/:id/cancel': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_game_cancel($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   'POST /api/games/:id/requests': (req, d, p) => act(req, d, p, async (q, b, x) => {
     if (b.message != null && typeof b.message !== 'string') throw Object.assign(new Error('invalid'), { code: '22023' });
-    return { status: (await one(q, 'select api_apply($1, $2) as s', [x.id, b.message ?? null])).s } }, { ids: ['id'] }),
+    if (b.eta != null && !Number.isInteger(b.eta)) throw Object.assign(new Error('invalid'), { code: '22023' });   // 预计几分钟到（开打后才申请的人选）
+    return { status: (await one(q, 'select api_apply($1, $2, $3) as s', [x.id, b.message ?? null, b.eta ?? null])).s } }, { ids: ['id'] }),
   'POST /api/games/:id/join': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, 'select api_join($1) as s', [x.id])).s }), { ids: ['id'], body: false }),
   'POST /api/games/:id/requests/:uid/approve': (req, d, p) => act(req, d, p, async (q, b, x) => (await one(q, 'select api_approve($1, $2) as r', [x.id, x.uid])).r, { ids: ['id', 'uid'], body: false }),
   'POST /api/games/:id/requests/:uid/decline': (req, d, p) => act(req, d, p, async (q, b, x) => {

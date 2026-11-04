@@ -1423,6 +1423,8 @@ alter table games add column if not exists time_set_at timestamptz;   -- 最近�
 alter table game_participants add column if not exists approved_at timestamptz;   -- 被确认 / 直接加入的时间：10 分钟内退出不算临时退出
 alter table game_participants add column if not exists via text not null default 'request' check (via in ('request','instant','invite','series'));
 alter table game_participants add column if not exists expired_at timestamptz;
+-- 预计几分钟到（11-04）：开打后才申请的人选 10 / 20 / 30 分钟；发起人据此决定接不接受。只有发起人和本人看得到
+alter table game_participants add column if not exists eta_min smallint check (eta_min between 1 and 120);
 -- ② 申请超时：失效时间 = least( greatest(created_at, starts_at - 60 min) + 15 min , starts_at )
 --    到点：status → expired，decline_reason='timeout'，通知申请人（kind='expired'，只推送，不发邮件）；
 --    离线补算时失效已超过 30 分钟的，只改状态不通知。接受 / 婉拒前都要重新检查 status='pending'。
@@ -3055,7 +3057,8 @@ begin
   if not found then perform nbq_err('not_found'); end if;
   if g.host_id <> u then perform nbq_err('not_host'); end if;
   if g.status = 'cancelled' then perform nbq_err('game_closed'); end if;
-  if g.starts_at <= now() then perform nbq_err('game_started'); end if;
+  -- 已开打：只许改「线下已有几人」（发起人现场凑齐了 / 不再等了，一键「人齐了」）；其余照旧不能改
+  if g.starts_at <= now() and not (p ? 'filled' and p - 'filled' = '{}'::jsonb and g.starts_at + make_interval(mins => g.duration_min) > now()) then perform nbq_err('game_started'); end if;
   n := g;
   if p ? 'starts_at' then n.starts_at := (p->>'starts_at')::timestamptz; if n.starts_at <> g.starts_at then perform nbq_check_slot(n.starts_at, g.city); end if; end if;
   if p ? 'duration_min' then n.duration_min := (p->>'duration_min')::int; if n.duration_min not in (60, 90, 120) then perform nbq_err('invalid', 'duration_min'); end if; end if;
@@ -3133,14 +3136,15 @@ begin
   return g;
 end $$;
 
-create or replace function api_apply(p_game uuid, p_message text default null) returns text language plpgsql security definer set search_path = public as $$
+create or replace function api_apply(p_game uuid, p_message text default null, p_eta int default null) returns text language plpgsql security definer set search_path = public as $$
 declare g games := nbq_join_checks(p_game, 'apply'); u uuid := nbq_uid();
 begin
   if char_length(coalesce(p_message, '')) > 140 then perform nbq_err('invalid', 'message'); end if;
+  if p_eta is not null and p_eta not between 1 and 120 then perform nbq_err('invalid', 'eta'); end if;
   perform nbq_rate(u::text, 'apply', p_game::text);   -- 频率（⑭）
-  insert into game_participants(game_id, user_id, role, status, message, via, created_at)
-  values (p_game, u, 'player', 'pending', nullif(p_message, ''), 'request', now())
-  on conflict (game_id, user_id) do update set status = 'pending', message = excluded.message, via = 'request', created_at = now(),
+  insert into game_participants(game_id, user_id, role, status, message, via, created_at, eta_min)
+  values (p_game, u, 'player', 'pending', nullif(p_message, ''), 'request', now(), case when g.starts_at <= now() then p_eta end)   -- 预计几分钟到：只有开打后才申请的才记
+  on conflict (game_id, user_id) do update set status = 'pending', message = excluded.message, via = 'request', created_at = now(), eta_min = excluded.eta_min,
      left_at = null, decided_at = null, approved_at = null, expired_at = null, decline_reason = null, decline_note = null
    where game_participants.status in ('withdrawn','left','rejected','expired');
   -- 同一人对同一局再次申请：只保留最新一条申请通知
@@ -3153,6 +3157,7 @@ create or replace function api_join(p_game uuid) returns text language plpgsql s
 declare g games := nbq_join_checks(p_game, 'join'); u uuid := nbq_uid(); r numeric;
 begin
   if g.join_mode <> 'instant' then perform nbq_err('join_not_allowed'); end if;
+  if g.starts_at <= now() then perform nbq_err('join_not_allowed', 'started'); end if;   -- 11-04：开打后（宽限期内）一律要发起人确认，不能直接加入
   select utr into r from users where id = u;
   if r not between g.utr_min and g.utr_max then perform nbq_err('level_mismatch'); end if;
   -- 发起人对我「少遇到」：不能直接加入（不告诉原因，前台提示改为发送申请）

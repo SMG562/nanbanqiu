@@ -90,8 +90,8 @@ const cut = (t, k = 24) => { const a = [...String(t || '').trim()]; return a.len
 export function pushText(n, ctx) {
   const a = ctx.actorName || '球友', w = when(ctx.game, ctx.userTz), sb = ctx.sb || {}, k = n.sb_count || 1;
   const T = {
-    request: [`${a} 申请加入你的球局`, w], joined: [`${a} 加入了你的球局`, w], approved: [`${a} 接受了你的申请 🎾`, w], rejected: ['这局没排上', w], full: ['这局已经满员啦', w],
-    expired: ['申请已失效', w], player_left: [`${a} 取消了参加`, `${w} · 名额已重新开放`], game_cancelled: [`${a} 取消了球局`, w], changed: ['球局有改动', w], postponed: ['球局顺延了 1 小时', w],
+    request: [ctx.applicantEta && ctx.game && +new Date(ctx.game.starts_at) <= (ctx.now || Date.now()) ? `${a} 想加入，预计 ${ctx.applicantEta} 分钟到` : `${a} 申请加入你的球局`, w], joined: [`${a} 加入了你的球局`, w], approved: [`${a} 接受了你的申请 🎾`, w], rejected: ['这局没排上', w], full: ['这局已经满员啦', w],
+    expired: ['发起人没来得及确认', w], player_left: [`${a} 取消了参加`, `${w} · 名额已重新开放`], game_cancelled: [`${a} 取消了球局`, w], changed: ['球局有改动', w], postponed: ['球局顺延了 1 小时', w],
     soon: ['30 分钟后开打', w], unfilled: ['还缺人', w], unfilled_end: ['这局没有凑齐', w], reopen: ['又有空位了', w], follow_game: [`${a} 发了新球局`, w], recap: ['打得怎么样？', w],
     invite: [`${a} 约你打球`, ''], invite_counter: [`${a} 想换个时间`, ''], invite_accepted: [`${a} 接受了你的邀约`, w], invite_declined: [`${a} 这次不方便`, ''], invite_expired: ['邀约已失效', ''],
     noshow: ['有球友反馈你没到场', '可以申诉'], badge: ['获得新徽章', ''], levelup: ['等级提升', ''], account_status: ['账号状态有变化', '点开查看'],

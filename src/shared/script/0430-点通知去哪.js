@@ -19,7 +19,7 @@ function acctGo(){if(NR_PLAT==='mobile'){closeSheet();if(UI.detail)closeDetail()
 {const _t=ntfText;ntfText=function(n){const r=_t.apply(this,arguments);if(!['rejected','expired','full'].includes(n.kind)||n.invite_id)return r;
   const g=GAMES.find(x=>x.id===n.game_id);if(!g)return r;const c=V(g),when=`${relDay(c.start)} ${hm(c.start)} · ${c.v.short}`;
   if(n.kind==='rejected'){const why=String(rejText(n)).replace(/\s*🎾/g,'').replace(/^这次没排上，/,'');return ['这局没排上 🎾',`${when}${why?' · '+why:''} ›`]}
-  if(n.kind==='expired'){const f=U(n.from)||{name:'发起人'};return [`${f.name} 没来得及确认你的申请`,`${when} · 申请已自动失效 ›`]}
+  if(n.kind==='expired'){const f=U(n.from)||{name:'发起人'};return [`${f.name} 没来得及确认你的申请`,`${when} · 这次没约上 · 看看附近其他局 ›`]}
   return ['这局已经满员啦',`${when} ›`]}}
 // 球局详情里的「看看附近其他球局」：去这局所在那天的发现页（没排上 / 满员 / 已取消时更有用）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-a="explore"]');if(!b)return;const gid=NR_PLAT==='mobile'?UI.detail:UI.sel;
