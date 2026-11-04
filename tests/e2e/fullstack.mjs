@@ -10,6 +10,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ
 const { handleApi } = await import(path.join(DIR, 'server/api/handler.mjs')), { makeVerifier } = await import(path.join(DIR, 'server/api/jwt.mjs')), { makeDb } = await import(path.join(DIR, 'server/api/db.mjs'));
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
 const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
+// 点击：和用户点一样走前台真实的事件处理（这些入口正是 6d 漏掉的地方），不直接调函数
+const clickAttrs = (pg, a) => pg.evaluate(a => { const el = document.createElement('button'); Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); (typeof DEV !== 'undefined' ? DEV : document.body).appendChild(el); el.click(); el.remove() }, a);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (fn, n = 40) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await sleep(250) } return false };
 
@@ -33,13 +35,24 @@ try {
   const H = (await admin.query('select id from users where auth_id=$1', [AH])).rows[0].id, P = (await admin.query('select id from users where auth_id=$1', [AP])).rows[0].id;
   await admin.query(`insert into suburbs(name, postcode, centroid) values ('Glen Iris','3146','POINT(145.05 -37.86)')`);
   const V = (await admin.query(`insert into venues(name, short_name, suburb, postcode, location, surfaces, status) values ('Glen Iris Tennis Club','Glen Iris','Glen Iris','3146', st_makepoint(145.05, -37.86)::geography, '{hard}', 'active') returning id`)).rows[0].id;
+  const V2 = (await admin.query(`insert into venues(name, short_name, suburb, postcode, location, surfaces, status) values ('Kooyong Lawn Tennis Club','Kooyong','Glen Iris','3146', st_makepoint(145.04, -37.84)::geography, '{grass}', 'active') returning id`)).rows[0].id;   // 申请 / 打过球会自动把那个球场算进「我的 Club」，所以保存 Club 单独用另一个球场
   const G = (await admin.query(`insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, join_mode, visibility) values ('e2e001',$1,$2, now()+interval '2 days', 90,'singles',2,3,8,'approve','public') returning id`, [P, V])).rows[0].id;
-  const ctx0 = { H, P, V, G };
+  const GF = (await admin.query(`insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, join_mode, visibility) values ('e2e002',$1,$2, now()-interval '5 hours', 90,'singles',2,3,8,'approve','public') returning id`, [P, V])).rows[0].id;
+  await admin.query(`insert into game_participants(game_id, user_id, status, approved_at, created_at) values ($1,$2,'approved', now()-interval '1 day', now()-interval '2 days')`, [GF, H]);   // 5 小时前开打、1.5 小时前结束：我和 P 打过
+  if (process.env.E2E_DEBUG) console.log('DBG', JSON.stringify((await admin.query('select p.user_id=$2 as me, p.status, p.role, g.status gs, g.starts_at < now() past from game_participants p join games g on g.id=p.game_id where g.id=$1', [GF, H])).rows));
+  const ctx0 = { H, P, V, V2, G, GF };
 
   // ---- 场景：做一次 → 刷新（重新加载 + 重新登录读回）→ 页面状态还在 ----
   const SCENARIOS = [
     { name: '申请加入别人的球局', act: (pg, x) => pg.evaluate(g => nbqApplyReq(g, '你好，想一起打'), x.G), check: (pg, x) => pg.evaluate(([g, me]) => PARTS.some(p => p.game_id === g && p.user_id === me && p.status === 'pending'), [x.G, x.H]) },
-    { name: '保存我的 Club', act: (pg, x) => pg.evaluate(v => nbqSetClubs([v]), x.V), check: (pg, x) => pg.evaluate(v => myClubIds().includes(v), x.V) },
+    { name: '保存我的 Club', act: (pg, x) => pg.evaluate(v => nbqSetClubs([v]), x.V2), check: (pg, x) => pg.evaluate(v => (ME.home_club_ids || []).includes(v), x.V2) },
+    // ---- 赛后：每个入口各一项（6d 就是漏了其中几个）----
+    { name: '赛后卡片 · 多遇到', act: (pg, x) => clickAttrs(pg, { 'data-rc': 'more', 'data-g': x.GF, 'data-u': x.P }), check: (pg, x) => pg.evaluate(([me, p]) => (OPIN[me + '>' + p] || {}).v === 'more', [x.H, x.P]) },
+    { name: '赛后卡片 · 印象标签（守时）', act: (pg, x) => clickAttrs(pg, { 'data-rcx': 'tag', 'data-g': x.GF, 'data-u': x.P, 'data-v': 'ontime' }), check: (pg, x) => pg.evaluate(([me, p, g]) => (KUDOS.get(me + '|' + p + '|' + g) || []).includes('ontime'), [x.H, x.P, x.GF]) },
+    { name: '球员卡 · 给 TA 留个印象（友善）', act: (pg, x) => clickAttrs(pg, { 'data-sx': 'impPick', 'data-u': x.P, 'data-g': x.GF, 'data-v': 'kind' }), check: (pg, x) => pg.evaluate(([me, p, g]) => { const k = KUDOS.get(me + '|' + p + '|' + g) || []; return k.includes('kind') && k.includes('ontime') }, [x.H, x.P, x.GF]) },
+    { name: '赛后卡片 · 确认没来', act: (pg, x) => clickAttrs(pg, { 'data-rcx': 'nsok', 'data-g': x.GF, 'data-u': x.P }), check: (pg, x) => pg.evaluate(([me, p, g]) => !!(NS[g + '|' + p] && NS[g + '|' + p].has(me)), [x.H, x.P, x.GF]) },
+    { name: '赛后卡片 · 感受（偏难）', act: (pg, x) => clickAttrs(pg, { 'data-rc': 'feel', 'data-g': x.GF, 'data-v': 'hard' }), check: (pg, x) => pg.evaluate(([me, g]) => (AFTER[g + '|' + me] || {}).feel === 'hard', [x.H, x.GF]) },
+    // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
     { name: '（自检）只改内存的动作', lost: true, act: pg => pg.evaluate(() => { window.__mem = 1; localStorage.removeItem('e2e_mem'); ME.__e2e = 1; USERS[ME.id].__e2e = 1 }), check: pg => pg.evaluate(() => !!(ME && ME.__e2e)) },
@@ -47,7 +60,7 @@ try {
 
   br = await chromium.launch({ executablePath: process.env.NBQ_CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
-    await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); await admin.query('delete from game_participants where user_id = $1', [H]);   // 两个文件各自从干净状态开始
+    await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); for (const t of ['impressions', 'noshow_reports', 'game_feel', 'player_prefs', 'player_pref_mutes']) await admin.query(`delete from ${t}`); await admin.query('delete from game_participants where user_id = $1 and game_id = $2', [H, G]);   // 两个文件各自从干净状态开始
     const W = f.includes('Web'), ctx = await br.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), perr = []; pg.on('pageerror', e => perr.push(e.message));
     const AT = await token(AH);
@@ -55,6 +68,7 @@ try {
       if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const init = { method: rq.method(), headers: rq.headers() }; const pd = rq.postData(); if (pd) init.body = pd;
       const res = await handleApi(new Request(u.toString(), init), deps), body = Buffer.from(await res.arrayBuffer());
+      if (process.env.E2E_DEBUG && rq.method() !== 'GET') console.log('API', rq.method(), u.pathname, pd || '', '→', res.status, body.toString().slice(0, 120));
       r.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body }) });
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: AT, refresh_token: 'RT', expires_in: 3000, user: { id: AH, phone: '61412345678' } }) : '' }) });
