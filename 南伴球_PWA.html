@@ -1133,6 +1133,9 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .iv-barsum{font-size:12.5px;font-weight:600;color:#4A544C;text-align:center}
 .iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}
+
+.iv-warn{margin-top:10px;padding:8px 12px;border-radius:10px;background:#FFF6E0;color:#8A5A00;font-size:12.5px;line-height:1.45}
+.invnext{display:block;width:100%;margin-top:6px;border:0;background:none;color:inherit;opacity:.78;font:inherit;font-size:12.5px;text-align:center;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .iv-foot{text-align:center;font-size:12px;color:#9AA29A;margin-top:10px}
 .iv-card{border-radius:18px;background:#F6F8F5;padding:16px;border:1px solid #E7ECE7}
 .iv-kv{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:1px solid #E7ECE7}.iv-kv span{color:#6B746B}.iv-kv b{font-weight:700;text-align:right}
@@ -2046,11 +2049,12 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
   const open=INVITES.find(i=>[i.from,i.to].includes(uid)&&[i.from,i.to].includes(ME.id)&&['pending','counter'].includes(i.status)&&!invExpired(i));
   if(open){const mine=open.status==='pending'?open.from===ME.id:open.to===ME.id;
     return `<button class="invbtn ${mine?'wait':''}" data-iv="view" data-i="${open.id}">${mine?'已约 · 等 TA 回复':open.status==='counter'?'TA 提议了新时间 · 去确认':'TA 约了你 · 去回复'}<small>${esc(invWhen(open))} · ${esc(invWhere(open))}</small></button>`}
+  // 已有一场未开始的球局：不再把「约 TA」换成「查看球局」——想再约一天、或只是同在多人局里想单独约，都应该约得了。球局信息作为一行小字放在按钮下面。
   const next=gamesTogether(ME.id,uid).filter(g=>new Date(g.starts_at)>NOW).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at))[0];
-  if(next){const s=new Date(next.starts_at);return `<button class="invbtn wait" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 有一场 · 查看<small>${esc(venTxt(next.venue_id))}</small></button>`}
   const n=playedCount(ME.id,uid),u=U(uid);
-  return n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
-          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`}
+  const nextRow=next?(()=>{const s=new Date(next.starts_at);return `<button class="invnext" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 已有一场 · ${esc(venTxt(next.venue_id))} · 查看</button>`})():'';
+  return (n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
+          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`)+nextRow}
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
@@ -2091,6 +2095,7 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
     <div class="iv-l">打多久</div>
     <div class="iv-seg">${DURS.map(m=>`<button data-iv="dur" data-v="${m}" class="${f.dur===m?'on':''}">${durLbl(m)}</button>`).join('')}</div>
     <div class="iv-sum"><b>${esc(dayTxt(f.o))}</b><span>${f.t} – ${f.e}</span></div>
+    ${(()=>{const c=ivClash(f);return c?`<div class="iv-warn">${c}</div>`:''})()}
     <div class="iv-l">在哪打</div>
     <div class="iv-chips">${venueChoices().map(v=>`<button data-iv="ven" data-v="${v}" class="${f.venue_id===v?'on':''}">${esc(venTxt(v))}<small>${tag(v)}</small></button>`).join('')}<button data-iv="more" class="${f.search?'on2':''}">其他场地</button></div>
     ${f.search||f.adding?vpHTML('iv',f):''}
@@ -2104,6 +2109,12 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
     <button class="iv-go" data-iv="${counter?'sendCounter':'send'}">${counter?'发回给 TA 确认':'发送邀约'}</button>
     ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div></div>`);
   const d=document.querySelector('.iv-days .on');if(d)d.scrollIntoView({block:'nearest',inline:'center'})}
+/* 选的时间和已有球局撞了：只提醒、不拦（可能想换场、或另有安排）。先看和 TA 的球局，再看自己的 */
+function ivClash(f){if(!ME||f.kind==='counter'&&false)return'';const a=dayAt(f.o,f.t),b=dayAt(f.o,f.e);
+  const hit=(uid,pre)=>GAMES.find(g=>g.status!=='cancelled'&&PARTS.some(p=>p.game_id===g.id&&p.user_id===uid&&p.status==='approved')&&new Date(g.starts_at)<b&&new Date(+new Date(g.starts_at)+g.duration_min*6e4)>a);
+  const t=hit(f.to),m=hit(ME.id);const w=g=>`${relDay(new Date(g.starts_at))} ${hm(new Date(g.starts_at))}`;
+  if(t&&PARTS.some(p=>p.game_id===t.id&&p.user_id===ME.id&&p.status==='approved'))return `你们 ${w(t)} 已经有一场了，换个时间约吧`;
+  if(m)return `你这个时间已有一场球局（${w(m)}），确定要约吗？`;return''}
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}

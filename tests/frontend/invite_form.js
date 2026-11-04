@@ -17,6 +17,13 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     const st = () => pg.evaluate(() => { const s = ivScroller(), bar = document.querySelector('.iv-bar'); if (!s || !bar) return null; const a = s.getBoundingClientRect(), r = bar.getBoundingClientRect(); return { top: s.scrollTop, over: s.scrollHeight - s.clientHeight, barIn: r.bottom <= a.bottom + 1 && r.top >= a.top } });
     let s = await st(); T(`${name} 表单可滚动（测试前提）`, !!s && s.over > 60, s);
     T(`${name} 发送条在可见区域内（没滚到底也看得到）`, !!s && s.barIn, s);
+    // 球员卡规则（11-05）：已有一场未开始的球局，仍然能约 TA；球局只是按钮下面一行小字；时间撞了只提醒不拦
+    const rule = await pg.evaluate(() => { const to = IVF.to, id = 'tg_rule'; GAMES.push({ id, status: 'open', starts_at: dayAt(1, '09:00').toISOString(), duration_min: 90, venue_id: Object.keys(VEN)[0], host_id: ME.id });
+      PARTS.push({ game_id: id, user_id: ME.id, status: 'approved' }, { game_id: id, user_id: to, status: 'approved' });
+      const html = invBtnHTML(to), f = IVF; const keep = [f.o, f.t, f.e]; f.o = 1; f.t = '09:00'; f.e = '10:30'; const clash = ivClash(f); f.o = 1; f.t = '16:00'; f.e = '17:30'; const free = ivClash(f); [f.o, f.t, f.e] = keep;
+      GAMES.splice(GAMES.findIndex(g => g.id === id), 1); PARTS.splice(PARTS.length - 2, 2); return { hasNew: /data-iv="new"/.test(html), hasGame: /data-iv="gameOf"/.test(html), clash, free } });
+    T(`${name} 已有球局时球员卡仍有「约 TA」按钮，并另带一行「查看球局」`, rule.hasNew && rule.hasGame, rule);
+    T(`${name} 选的时间和你们已有球局撞了：给提醒；不撞：没有提醒`, /已经有一场/.test(rule.clash) && rule.free === '', rule);
     await pg.evaluate(() => { ivScroller().scrollTop = 150 }); const t0 = (await st()).top;
     for (const [sel, label] of [['[data-iv="type"][data-v="rally"]', '玩法'], ['[data-iv="dur"][data-v="120"]', '打多久'], ['[data-iv="per"][data-v="3"]', '时段']]) {
       await pg.evaluate(q => document.querySelector(q).click(), sel); await pg.waitForTimeout(150);
