@@ -60,7 +60,7 @@ function womenLock0(c){if(!isW(c)||ME&&(womenOK(ME)||inGame(c,ME.id)))return'';
   return `<div class="wlock"><span class="wl-i">♀</span><b>女生局</b><p>这局只对女生开放。<br>为了营造一个女性友好、安全的环境，<br>时间、地点和球友信息只有女生能看到。</p></div>`}
 function xActs(c,st){const X=SX_BTN;
   if(doneLock(c))return `<button class="${X.p}" data-a="explore">看看附近其他球局</button>`;
-  if(!c.past&&c.start<=NOW&&!c.isHost&&!c.mine)return `<div class="cap" style="text-align:center;margin-bottom:8px">这局已经开打了</div><button class="${X.p}" data-a="explore">看看附近其他球局</button>`;
+  if(!c.past&&+c.start+LATE_JOIN<=NOW&&!c.isHost&&!c.mine)return `<div class="cap" style="text-align:center;margin-bottom:8px">这局已经开打了</div><button class="${X.p}" data-a="explore">看看附近其他球局</button>`;
   if(womenLock(c)){if(!ME)return authView({wait:'',out:()=>`<button class="${X.p}" data-a="login">我是女生 · 登录查看</button>`});
     if(ME.gender==='m')return `<div class="cap">女生局只对女生开放</div>`;
     if(ME.gender==='f')return `<div class="cap">账号审核中，暂时看不到女生局</div>`;

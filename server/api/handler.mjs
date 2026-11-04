@@ -144,12 +144,12 @@ const ROUTES = {
       round(st_y(location::geometry)::numeric, 5)::float8 as lat, round(st_x(location::geometry)::numeric, 5)::float8 as lng from venues where status = 'active' order by name`)).rows);   // 缺区 / 待审核 / 下线的球场不对外
     return send(200, { venues: rows }, { 'Cache-Control': 'public, max-age=300' });
   },
-  // 球局列表：只要还没开打的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断
+  // 球局列表：还没开打、或开打不到 30 分钟（仍可申请，11-04）的公开球局；可见性由数据库的 api_game_cards（game_visible）决定，这里不再判断
   // 没登录（请求里没有 Authorization）也能看：只给公开的、非女生局的球局（匿名浏览，10-30 定）；令牌坏了仍是 401
   'GET /api/games': async (req, d) => {
-    if (!req.headers.get('Authorization')) return send(200, { games: await anonGames(d, `g.status in ('open','full') and g.starts_at > now()`, [], 'order by g.starts_at limit 100'), anon: true });
+    if (!req.headers.get('Authorization')) return send(200, { games: await anonGames(d, `g.status in ('open','full') and g.starts_at + interval '30 minutes' > now()`, [], 'order by g.starts_at limit 100'), anon: true });
     const w = await whoIs(req, d); if (w.err) return w.err; if (!w.uid) return send(403, { error: 'not_registered' });
-    const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.status in ('open','full') and g.starts_at > now() order by g.starts_at limit 100`)).rows);
+    const rows = await d.db.asUser(w.uid, async q => (await q(`select ${GAME_COLS} from ${GAME_FROM} where g.status in ('open','full') and g.starts_at + interval '30 minutes' > now() order by g.starts_at limit 100`)).rows);
     return send(200, { games: rows });
   },
   // 单个球局（分享码），打开分享链接用；没登录也能看公开的

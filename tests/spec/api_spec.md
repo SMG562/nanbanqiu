@@ -283,7 +283,7 @@
 ## 5. 申请与参加
 
 ### POST /api/games/:id/requests `{message ≤ 140}` · `api_apply(game_id, message)`
-- 检查（顺序）：前置三关（action = apply，women = 女生局）→ 球局可见（看不到 → 404 `not_found`）→ 已取消 409 `game_closed` / 已开打 409 `game_started` → 女生局非女生 403 `women_only`（记 women_apply_blocked）→ 屏蔽 403 `blocked` → 已有待确认 / 已加入 409 `already_applied` → 满员 409 `game_full` → 频率（和直接加入合计）：每小时 5 次 429 `apply_hourly_limit`、每天 15 次 429 `apply_daily_limit`、同一局每天 3 次 429 `apply_same_limit`
+- 检查（顺序）：前置三关（action = apply，women = 女生局）→ 球局可见（看不到 → 404 `not_found`）→ 已取消 409 `game_closed` / 开打超过 30 分钟 409 `game_started`（11-04：开打后 30 分钟内仍可申请 / 直接加入） → 女生局非女生 403 `women_only`（记 women_apply_blocked）→ 屏蔽 403 `blocked` → 已有待确认 / 已加入 409 `already_applied` → 满员 409 `game_full` → 频率（和直接加入合计）：每小时 5 次 429 `apply_hourly_limit`、每天 15 次 429 `apply_daily_limit`、同一局每天 3 次 429 `apply_same_limit`
 - 写入：game_participants（撤回 / 退出 / 被婉拒 / 失效后再申请，复用同一行：status = pending、created_at = now()）
 - 通知：发起人 request（同一人再次申请只保留最新一条；同一局 10 分钟内只推一次）
 - 事件：game_apply_submit（前端）

@@ -59,7 +59,7 @@ const CARDSRC={
   '值得关注':[['v_game_fill','games','game_participants'],'只列有明显差异的'],'一局球的去向':[['v_game_fill'],'按开打时间'],'从开打到打完':[['v_game_fill','v_counted_games','game_feel'],'每一步都是上一步里的局'],
   '开打时段':[['v_game_fill'],'按开打时间所在时段'],'星期几':[['games'],'到了开打时间的球局'],
   '申请':[['application_outcomes()'],'申请次数与通过率'],'超时失效':[['game_participants','application_deadline()'],'status = expired'],'满员自动结束':[['game_participants'],'decline_reason = full_auto'],'发起人婉拒':[['game_participants'],'decline_reason in (known, level, pass)'],
-  '申请截止':[['application_deadline()'],'失效时间 = min(max(申请时间, 开打前 60 分钟) + 15 分钟, 开打)'],'超时与退出':[['game_participants'],'退出 = status left；10 分钟内不算临时退出；改时间后退出不算'],
+  '申请截止':[['application_deadline()'],'失效时间 = max(申请时间, 开打前 60 分钟) + 15 分钟（开打后 30 分钟内仍可申请）'],'超时与退出':[['game_participants'],'退出 = status left；10 分钟内不算临时退出；改时间后退出不算'],
   '临时发布的局':[['games'],'开打前 2 小时内发布'],'开了「不用我确认」':[['games'],'join_mode = instant'],'直接加入':[['game_participants'],'不经过申请直接通过'],'临时局开打时人齐的比例':[['v_game_fill'],'临时局按 join_mode 分'],
   '发起人改了什么':[['game_changes'],'按修改时间'],'取消发生在':[['games'],'开打时间 − cancelled_at'],
   '4 人以上申请的局':[['v_multi_applicant_games'],'申请人数 ≥4（不含发起人）'],'这些局开打时人齐':[['v_multi_applicant_games','v_game_fill'],'与 1–3 人申请的局对比'],'发起人处理用时（中位数）':[['v_multi_applicant_games'],'发起人亲自处理（不含直接加入、自动结束）'],

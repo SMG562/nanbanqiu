@@ -1772,7 +1772,7 @@ METRIC_DEFS.length=0;[
  ['申请通过率','host_decide(ok=true) ÷ game_apply_submit（同一周期）；等价于 game_participants 里 approved ÷ 全部申请行','v_applications_daily'],
  ['申请的结果','通过 host_decide(ok=true) · 发起人婉拒 host_decide(ok=false) · 满员自动结束 decline_reason=full_auto · 超时失效 apply_expired（timeout）· 屏蔽自动结束 decline_reason=blocked · 申请人撤回 apply_withdraw（status=withdrawn）','game_participants'],
  ['婉拒理由','host_decide.reason：known「这局想和熟悉的球友打」· level「想找水平更接近的」· pass「这次先不了」','game_participants.decline_reason'],
- ['申请截止','失效时间 = min(max(申请时间, 开打前 60 分) + 15 分, 开打)：所有需要确认的球局都适用，开打前最后一小时内到点自动失效','application_deadline()'],
+ ['申请截止','失效时间 = max(申请时间, 开打前 60 分) + 15 分（不再被开打截断，开打后 30 分钟内仍可申请）：所有需要确认的球局都适用','application_deadline()'],
  ['开打时人齐（成局率）',DEF.fill,'game_start_checks · v_game_fill · fill_rate(from,to)'],
  ['开打时还缺人','game_start_check：到开打时间人数仍不足（含照常开打的）；reason 记差在哪','game_start_checks'],
  ['还缺人提醒','开打前 2 小时还缺人提醒发起人（刚发布或刚改过时间 20 分钟内的不提醒）；发起人的选择记在 unfilled_action','events(unfilled_action) · notification_deliveries'],
@@ -2323,7 +2323,7 @@ pageLife=function(){const C=X3.ctx(),M=C.M,G=C.created.length,Sg=C.started,stG=S
     <div class="card"><div class="ch"><b>星期几</b><small>到了开打时间的球局</small></div>${barsH(WDR,{lw:48})}</div></div>
   ${sec('申请')}
   <div class="grid g4">${kpi('申请',fmt(AP.apps),'通过率 '+pct(AP.rate))}${kpi('超时失效',fmt(exp.length),'所有需要确认的球局都适用')}${kpi('满员自动结束',fmt(fa),'对方看到「这局已经满员」')}${kpi('发起人婉拒',fmt(dec),'三句理由 + 可选一句话')}</div>
-  <div class="grid g2 sec"><div class="card"><div class="ch"><b>申请截止</b><small>所有需要确认的球局</small></div><p class="cap" style="margin:0">失效时间 = min( max(申请时间, 开打前 60 分钟) + 15 分钟, 开打 )。不只是临时局：每一局在开打前最后一小时都按这个规则——开打前 1 小时起开始计时，发起人有 15 分钟处理；开打前 1 小时内提交的申请，从提交起 15 分钟，最晚到开打。到点自动失效并通知申请人；发起人那边只提示「N 个申请超时已失效」。</p></div>
+  <div class="grid g2 sec"><div class="card"><div class="ch"><b>申请截止</b><small>所有需要确认的球局</small></div><p class="cap" style="margin:0">失效时间 = max(申请时间, 开打前 60 分钟) + 15 分钟（不再被开打截断：开打后 30 分钟内仍可申请）。不只是临时局：每一局在开打前最后一小时都按这个规则——开打前 1 小时起开始计时，发起人有 15 分钟处理；开打前 1 小时内提交的申请，从提交起 15 分钟，最晚到开打。到点自动失效并通知申请人；发起人那边只提示「N 个申请超时已失效」。</p></div>
     <div class="card"><div class="ch"><b>超时与退出</b><small>所有球局</small></div>${tbl11(['','次数','说明'],[['申请超时失效',fmt(exp.length),'之后 30 分钟内申请了别的局：'+pct(X3.share(reApply,exp.length))],['确认后 10 分钟内退出',fmt(grace),'不算临时退出'],['开打前 24 小时内退出（临时退出）',fmt(late24),'等级里按半次计，发起人收到提醒']])}</div></div>
   ${sec('临时约球（开打前 2 小时内）')}
   <div class="grid g3">${kpi('临时发布的局',fmt(lateG.length),G?pct(lateG.length/G)+' 的球局':'—')}${kpi('开了「不用我确认」',pct(X3.share(inst.length,lateG.length)),fmt(inst.length)+' 局')}${kpi('直接加入',fmt(ij),'不经过申请')}</div>
@@ -2856,7 +2856,7 @@ const CARDSRC={
   '值得关注':[['v_game_fill','games','game_participants'],'只列有明显差异的'],'一局球的去向':[['v_game_fill'],'按开打时间'],'从开打到打完':[['v_game_fill','v_counted_games','game_feel'],'每一步都是上一步里的局'],
   '开打时段':[['v_game_fill'],'按开打时间所在时段'],'星期几':[['games'],'到了开打时间的球局'],
   '申请':[['application_outcomes()'],'申请次数与通过率'],'超时失效':[['game_participants','application_deadline()'],'status = expired'],'满员自动结束':[['game_participants'],'decline_reason = full_auto'],'发起人婉拒':[['game_participants'],'decline_reason in (known, level, pass)'],
-  '申请截止':[['application_deadline()'],'失效时间 = min(max(申请时间, 开打前 60 分钟) + 15 分钟, 开打)'],'超时与退出':[['game_participants'],'退出 = status left；10 分钟内不算临时退出；改时间后退出不算'],
+  '申请截止':[['application_deadline()'],'失效时间 = max(申请时间, 开打前 60 分钟) + 15 分钟（开打后 30 分钟内仍可申请）'],'超时与退出':[['game_participants'],'退出 = status left；10 分钟内不算临时退出；改时间后退出不算'],
   '临时发布的局':[['games'],'开打前 2 小时内发布'],'开了「不用我确认」':[['games'],'join_mode = instant'],'直接加入':[['game_participants'],'不经过申请直接通过'],'临时局开打时人齐的比例':[['v_game_fill'],'临时局按 join_mode 分'],
   '发起人改了什么':[['game_changes'],'按修改时间'],'取消发生在':[['games'],'开打时间 − cancelled_at'],
   '4 人以上申请的局':[['v_multi_applicant_games'],'申请人数 ≥4（不含发起人）'],'这些局开打时人齐':[['v_multi_applicant_games','v_game_fill'],'与 1–3 人申请的局对比'],'发起人处理用时（中位数）':[['v_multi_applicant_games'],'发起人亲自处理（不含直接加入、自动结束）'],

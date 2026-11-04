@@ -56,7 +56,10 @@ try {
     let err = null; try { await o.query('begin'); await o.query(fs.readFileSync(path.join(DIR, 'server/migrations/20261104_chat_notify.sql'), 'utf8')); await o.query('commit') } catch (e) { err = e.code + ' ' + e.message; await o.query('rollback').catch(() => {}) }
     T('旧库（无 chat）：chat_notify 迁移在单个事务里执行成功（不报 55P04）', had === 0 && !err, { had, err });
     err = null; try { await o.query('begin'); await o.query(fs.readFileSync(path.join(DIR, 'server/migrations/20261104_chat_notify.sql'), 'utf8')); await o.query('commit') } catch (e) { err = e.message; await o.query('rollback').catch(() => {}) }
-    T('chat_notify 迁移可重复执行', !err, err); await o.end() }
+    T('chat_notify 迁移可重复执行', !err, err);
+    // 11-04 开打后 30 分钟内仍可申请：迁移只改函数，可重复执行，且在旧库上也在单个事务里成功
+    for (const k of [1, 2]) { err = null; try { await o.query('begin'); await o.query(fs.readFileSync(path.join(DIR, 'server/migrations/20261104_late_join.sql'), 'utf8')); await o.query('commit') } catch (e) { err = e.message; await o.query('rollback').catch(() => {}) } T(`late_join 迁移第 ${k} 次执行成功（可重复）`, !err, err) }
+    await o.end() }
   r = await call('GET', '/api/health?db=1'); T('health?db=1：连得上 → db true', r.s === 200 && r.j.db === true, r);
   r = await call('GET', '/api/health?db=1', null, { verify, db: makeDb(null) }); T('没配数据库：health?db=1 → 503、db false、原因 not_configured', r.s === 503 && r.j.db === false && r.j.why === 'not_configured', r);
   { const mk = e => ({ verify, db: makeDb(async () => { throw e }) }), W = async e => (await call('GET', '/api/health?db=1', null, mk(e))).j.why;

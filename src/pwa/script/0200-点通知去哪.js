@@ -18,7 +18,7 @@ function renderDisc(){
   $('#calView').hidden=UI.mode!=='cal';$('#mapView').hidden=UI.mode!=='map';
   UI.mode==='cal'?renderCal(items):renderMap(items);
 }
-function grState(c){const r=grState0(c);if(!c.past&&c.start<=NOW){r.cls=(r.cls==='mine'?'mine':'past')+' live';r.tag='进行中'}return r}
+function grState(c){const r=grState0(c);if(!c.past&&c.start<=NOW){const j=c.lateOpen&&c.spots>0&&!c.isHost&&!c.mine;r.cls=j?r.cls:(r.cls==='mine'?'mine':'past')+' live';r.tag=j?'已开打 · 可加入':'进行中'}return r}
 function grState0(c){const st=stateOf(c);return {st,cls:st==='host'||st==='approved'?'mine':st==='pending'||st==='held'||st==='invited'?'pending':st==='full'||st==='rejected'?'full':st==='past'?'past':c.spots===1?'hot':'',
   tag:st==='host'?(c.pend.length?`${c.pend.length} 个申请`:'我发起'):st==='approved'?'已加入':st==='held'?'保留中':st==='invited'?'受邀':st==='pending'?'待确认':st==='full'?'已满':st==='rejected'?'没排上':st==='past'?'已结束':`缺 ${c.spots}`}}
 function grHTML(c,row){const{cls,tag}=grState(c);

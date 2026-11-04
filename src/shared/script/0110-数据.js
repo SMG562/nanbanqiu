@@ -1,7 +1,10 @@
 const blockedPair=(a,b)=>!!(a&&b&&((USERS[a]&&USERS[a].blocked.has(b))||(USERS[b]&&USERS[b].blocked.has(a))));
+/* 开打后 30 分钟内仍可申请 / 加入（11-04）：和数据库 nbq_join_checks、发送程序 LATE_JOIN_MS 一致 */
+const LATE_JOIN=30*6e4,LATE_KINDS=['request','joined','approved','rejected','expired','full','player_left'];
+const lateNote=c=>c.lateOpen&&!c.isHost&&!c.mine?`<div class="cap" style="text-align:center;margin-bottom:8px">已开打 · ${hm(new Date(+c.start+LATE_JOIN))} 前还能申请加入</div>`:'';
 function V(g){const v=VEN[g.venue_id],start=new Date(g.starts_at),end=new Date(+start+g.duration_min*6e4),ps=PARTS.filter(p=>p.game_id===g.id);
   const appr=ps.filter(p=>p.status==='approved').sort((a,b)=>(a.role==='host'?-1:0)-(b.role==='host'?-1:0)),pend=ps.filter(p=>p.status==='pending'&&!blockedPair(g.host_id,p.user_id)),mineP=ME?ps.find(p=>p.user_id===ME.id&&p.status!=='withdrawn'&&p.status!=='left'):null;
-  return {...g,v,start,end,appr,pend,hold:Array(g.filled||0).fill(0),spots:g.capacity-appr.length-(g.filled||0),dist:km(LOC,v),mine:mineP?mineP.status:null,mineP,isHost:!!ME&&g.host_id===ME.id,host:U(g.host_id),past:end<NOW}}
+  return {...g,v,start,end,appr,pend,hold:Array(g.filled||0).fill(0),spots:g.capacity-appr.length-(g.filled||0),dist:km(LOC,v),mine:mineP?mineP.status:null,mineP,isHost:!!ME&&g.host_id===ME.id,host:U(g.host_id),past:end<NOW,lateOpen:start<=NOW&&+start+LATE_JOIN>NOW&&end>=NOW}}
 function stateOf(c){if(c.status==='cancelled')return'cancelled';if(c.past||c.status==='completed')return'past';if(c.isHost)return'host';
   if(['pending','approved','rejected','held','invited'].includes(c.mine))return c.mine;return c.spots<=0?'full':'open'}
 const lvl=c=>c.ntrp_min<=UTR_MIN&&c.ntrp_max>=UTR_MAX?'不限':c.ntrp_min===c.ntrp_max?f1(c.ntrp_min):f1(c.ntrp_min)+'–'+f1(c.ntrp_max);

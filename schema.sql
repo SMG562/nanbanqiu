@@ -1430,7 +1430,8 @@ alter table game_participants drop constraint if exists game_participants_declin
 alter table game_participants add constraint game_participants_decline_reason_check
   check (decline_reason in ('full','level','time','pass','timeout'));
 create or replace function application_deadline(p_created timestamptz, p_start timestamptz) returns timestamptz
-  language sql immutable as $$ select least(greatest(p_created, p_start - interval '60 minutes') + interval '15 minutes', p_start) $$;
+  language sql immutable as $$ select greatest(p_created, p_start - interval '60 minutes') + interval '15 minutes' $$;
+-- 11-04 改：不再被「开打」截断。开打后 30 分钟内仍可申请，申请人的 15 分钟照给（最晚 = 开打后 45 分钟）。
 create index if not exists gp_pending_idx on game_participants(game_id) where status = 'pending';
 -- 定时任务（每分钟）：
 --   update game_participants gp set status='expired', decline_reason='timeout', expired_at=application_deadline(gp.created_at, g.starts_at)
@@ -3122,7 +3123,7 @@ begin
   u := nbq_gate(p_action, null, 'women' = any(g.tags));
   if not game_visible(p_game, u) or g.visibility <> 'public' then perform nbq_err('not_found'); end if;
   if g.status = 'cancelled' then perform nbq_err('game_closed'); end if;
-  if g.starts_at <= now() then perform nbq_err('game_started'); end if;
+  if g.starts_at + interval '30 minutes' <= now() then perform nbq_err('game_started'); end if;   -- 11-04：开打后 30 分钟内仍可申请 / 直接加入
   select * into me from users where id = u;
   if 'women' = any(g.tags) and (me.gender is distinct from 'f' or me.gender_review) then perform nbq_err('women_only'); end if;
   if is_blocked(u, g.host_id) then perform nbq_err('blocked'); end if;
@@ -3691,15 +3692,16 @@ begin
   return nbq_job_log('expire_applications', n, t0);
 end $$;
 
--- 开打时检查人数：每局只写一次；没凑齐的（公开局）给发起人发 unfilled_end；结束了的局标为 completed
+-- 开打后 30 分钟检查人数（11-04：开打后 30 分钟内仍可申请）：每局只写一次；没凑齐的（公开局）给发起人发 unfilled_end；结束了的局标为 completed
 create or replace function job_start_checks(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$
 declare t0 timestamptz := clock_timestamp(); n int;
 begin
-  with g as (select g.* from games g where g.starts_at <= p_now and g.status in ('open','full')
-               and not exists (select 1 from game_start_checks c where c.game_id = g.id)),
+  with g as (select g.* from games g where g.starts_at + interval '30 minutes' <= p_now and g.status in ('open','full')   -- 11-04：开打后 30 分钟（仍可申请的窗口结束）才检查人数 / 撤下
+               and not exists (select 1 from game_start_checks c where c.game_id = g.id)
+               and not exists (select 1 from game_participants p where p.game_id = g.id and p.status = 'pending')),   -- 还有没处理完的申请：等处理完（或超时）再检查
   s as (select g.id, g.capacity, g.filled + (select count(*) from game_participants p where p.game_id = g.id and p.status = 'approved') as have,
                (select count(*) from game_participants p where p.game_id = g.id and p.role = 'player') as applied,
-               (select count(*) from game_participants p where p.game_id = g.id and p.status = 'pending') as pend,
+               (select count(*) from game_participants p where p.game_id = g.id and (p.status = 'pending' or (p.status = 'expired' and p.decline_reason = 'timeout'))) as pend,   -- 有申请没处理（含超时失效的）
                (select count(*) from game_participants p where p.game_id = g.id and p.role = 'player' and p.status = 'rejected') as rej,
                (select count(*) from game_participants p where p.game_id = g.id and p.status = 'left') as lft,
                g.host_id, g.visibility from g),
@@ -6995,5 +6997,6 @@ insert into schema_migrations(version) values
   ('20261103_my_push_diag'),
   ('20261103_mail_default_off'),
   ('20261103_schema_migrations'),
-  ('20261104_chat_notify')
+  ('20261104_chat_notify'),
+  ('20261104_late_join')
 on conflict do nothing;

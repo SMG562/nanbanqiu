@@ -42,15 +42,23 @@ try {
   n = await job('job_expire_applications'); T('再跑一次什么都不做', n === 0, n);
 
   // ---------- 开打时检查人数 ----------
-  const gFull = await game("now()-interval '5 minutes'"); await join(gFull, U.A);
-  const gShort = await game("now()-interval '5 minutes'");
+  const gFull = await game("now()-interval '35 minutes'"); await join(gFull, U.A);
+  const gShort = await game("now()-interval '35 minutes'");
+  // 11-04：开打后 30 分钟内还不检查 / 不撤下；有没处理的申请时也先等
+  const gWin = await game("now()-interval '10 minutes'");
+  const gPend = await game("now()-interval '35 minutes'"); await q(`insert into game_participants(game_id,user_id,created_at) values ($1,$2,now()-interval '5 minutes')`, [gPend, U.B]);
   const gDone = await game("now()-interval '3 hours'"); await join(gDone, U.A);
-  n = await job('job_start_checks'); T('开打的局都写了人数检查', n >= 3, n);
+  n = await job('job_start_checks'); T('开打满 30 分钟的局都写了人数检查', n >= 3, n);
+  T('开打才 10 分钟的局不检查、不撤下（还能申请）', (await one(`select count(*)::int c from game_start_checks where game_id=$1`, [gWin])).c === 0 && await nn(U.H, 'unfilled_end', gWin) === 0);
+  T('还有没处理的申请：先不检查，等处理完（或超时）', (await one(`select count(*)::int c from game_start_checks where game_id=$1`, [gPend])).c === 0);
   T('人齐的记 full，没人申请的记 no_apply', (await one(`select reason from game_start_checks where game_id=$1`, [gFull])).reason === 'full' && (await one(`select reason from game_start_checks where game_id=$1`, [gShort])).reason === 'no_apply');
   T('没凑齐的给发起人发「没有凑齐」，并从发现页撤下', await nn(U.H, 'unfilled_end', gShort) === 1 && await nn(U.H, 'unfilled_end', gFull) === 0
     && (await one(`select unfilled_closed_at is not null c from games where id=$1`, [gShort])).c === true);
   T('结束了的局标为 completed', (await one(`select status::text s from games where id=$1`, [gDone])).s === 'completed');
   n = await job('job_start_checks'); T('再跑一次什么都不做', n === 0 && await nn(U.H, 'unfilled_end', gShort) === 1, n);
+  await q(`update game_participants set created_at=now()-interval '1 hour' where game_id=$1 and user_id=$2`, [gPend, U.B]);
+  await job('job_expire_applications'); n = await job('job_start_checks');
+  T('申请超时失效后才检查：记「有申请没处理」并发「没有凑齐」', n === 1 && (await one(`select reason from game_start_checks where game_id=$1`, [gPend])).reason === 'not_handled' && await nn(U.H, 'unfilled_end', gPend) === 1, n);
 
   // ---------- 开打前 30 分钟 ----------
   const g30 = await game("now()+interval '20 minutes'", { cap: 4 }); await join(g30, U.A); await join(g30, U.B, "now()-interval '2 minutes'");   // B 是开打前 30 分钟内才加入的

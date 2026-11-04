@@ -72,8 +72,15 @@ try {
   r = await call(U.B, `select api_apply($1)`, [gw]); T('男生申请女生局 → women_only', is(r, 'women_only'), r);
   r = await call(U.R, `select api_apply($1)`, [gw]); T('待核实的女生申请女生局 → account_review', is(r, 'account_review'), r);
   r = await call(U.L, `select api_apply($1)`, [gw]); T('女生可以申请女生局', r.ok, r);
-  const gPast = (await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('past',$1,$2,now()-interval '10 minutes',90,'singles',2,3,7) returning id`, [U.H, V])).rows[0].id;
-  r = await call(U.B, `select api_apply($1)`, [gPast]); T('已开打 → game_started', is(r, 'game_started'), r);
+  const gPast = (await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('past',$1,$2,now()-interval '40 minutes',90,'singles',2,3,7) returning id`, [U.H, V])).rows[0].id;
+  r = await call(U.B, `select api_apply($1)`, [gPast]); T('开打超过 30 分钟 → game_started', is(r, 'game_started'), r);
+  // 11-04：开打后 30 分钟内仍可申请；发起人仍能接受；申请的 15 分钟不被开打截断
+  const gLate = (await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('late',$1,$2,now()-interval '10 minutes',90,'singles',2,3,7) returning id`, [U.H, V])).rows[0].id;
+  r = await call(U.B, `select api_apply($1)`, [gLate]); T('开打 10 分钟后还能申请', r.ok, r);
+  T('开打后申请：截止 = 申请时间 + 15 分钟（不被开打截断）', (await q(`select application_deadline(p.created_at, g.starts_at) - p.created_at as d from game_participants p join games g on g.id=p.game_id where p.game_id=$1 and p.user_id=$2`, [gLate, U.B])).rows[0].d.minutes === 15);
+  r = await call(U.H, `select api_approve($1,$2)`, [gLate, U.B]); T('开打后发起人仍能接受申请', r.ok && r.v && r.v.status === 'approved', r);
+  await q(`update games set starts_at=now()-interval '31 minutes' where id=$1`, [gLate]);
+  r = await call(U.A, `select api_apply($1)`, [gLate]); T('开打满 30 分钟 → game_started', is(r, 'game_started'), r);
   // ---------- 发起人处理 ----------
   r = await call(U.B, `select api_apply($1)`, [g2]); T('B 也申请', r.ok, r);
   r = await call(U.B, `select api_approve($1,$2)`, [g2, U.A]); T('不是发起人不能通过 → not_host', is(r, 'not_host'), r);
@@ -123,7 +130,7 @@ try {
   r = await call(U.H, `select api_game_cancel($1)`, [g1]); T('取消球局，已加入的人收到通知', r.ok && await nn(U.B, 'game_cancelled') >= 1, r);
   r = await call(U.H, `select api_game_cancel($1)`, [g1]); T('重复取消 → game_closed', is(r, 'game_closed'), r);
   r = await call(U.B, `select api_apply($1)`, [g1]); T('已取消的局不能申请', is(r, 'game_closed') || is(r, 'already_applied'), r);
-  r = await call(U.H, `select api_game_edit($1,$2)`, [gPast, JSON.stringify({ note: 'x' })]); T('已开打不能改 → game_started', is(r, 'game_started'), r);
+  r = await call(U.H, `select api_game_edit($1,$2)`, [gPast, JSON.stringify({ note: 'x' })]); T('已开打（超过 30 分钟）不能改 → game_started', is(r, 'game_started'), r);
 
   // ---------- 邀约 ----------
   const IV = (to, extra = {}) => JSON.stringify({ to_user: to, starts_at: t18, ends_at: new Date(+new Date(t18) + 90 * 6e4).toISOString(), venue_id: V, game_type: 'singles', ...extra });

@@ -4,6 +4,8 @@
 //   ④ 出发类在电脑上看到时也推手机；⑤ 夜间（按收件人常用城市，默认 22:00–08:00）不紧急的顺延到当地 8 点，8 点同时到期的合成一条；
 //   ⑥ 推送前再检查是否已过时；⑦ 同一局的申请 10 分钟内只推一次；⑧ 只推到电脑或推不到的，5 分钟后仍未读补发邮件。
 
+export const LATE_JOIN_MS = 30 * 60e3;   // 开打后仍可申请 / 加入的时长（和数据库 nbq_join_checks 一致）
+export const LATE_KINDS = new Set(['request', 'joined', 'approved', 'rejected', 'expired', 'full', 'player_left']);
 export const URGENT = new Set(['soon', 'game_cancelled', 'changed', 'postponed', 'unfilled', 'unfilled_end']);   // 推送的 Urgency: high（Web Push 头）+ 夜里照常发
 // 11-02 你定的：像短信一样，申请 / 同意 / 婉拒 / 邀约这类人对人的提醒夜里也立刻推（但不算 Urgency high）；只有 LOW（赛后回顾、徽章、等级…）夜里才顺延到 8 点
 export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined', 'chat']);   // chat = 新消息：像短信一样夜里也立刻推（11-04 你定的：消息要及时推送）
@@ -46,7 +48,9 @@ export function staleReason(n, ctx, now) {
   const g = ctx.game;
   if (g) {
     if (g.status === 'cancelled' && n.kind !== 'game_cancelled') return 'cancelled';
-    if (+new Date(g.starts_at) <= now && !['unfilled_end', 'recap', 'noshow', 'game_cancelled', 'badge', 'levelup'].includes(n.kind)) return 'started';
+    // 开打后 30 分钟内仍可申请（11-04）：申请 / 加入 / 处理结果这几类照常推，别因为「已开打」被吞掉
+    const lateOk = LATE_KINDS.has(n.kind) && now < +new Date(g.starts_at) + LATE_JOIN_MS;
+    if (+new Date(g.starts_at) <= now && !lateOk && !['unfilled_end', 'recap', 'noshow', 'game_cancelled', 'badge', 'levelup'].includes(n.kind)) return 'started';
     if (n.kind === 'request' && ctx.applicantStatus !== 'pending') return 'handled';
     if (n.kind === 'soon' && ctx.myStatus !== 'approved') return 'not_in_game';
     if (n.kind === 'reopen' && (ctx.spotsLeft <= 0 || ['pending', 'approved'].includes(ctx.myStatus))) return 'full_or_joined';

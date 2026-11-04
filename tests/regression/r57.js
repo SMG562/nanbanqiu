@@ -57,7 +57,7 @@ const T=(n,ok,x='')=>console.log((ok?'PASS ':'FAIL ')+n,x);
  T('applicant band timeout text',r.band.includes('没来得及确认'),JSON.stringify(r));
  await (await w.$('#colR')).screenshot({path:'r57_expired.png'});
  // deadline at start: apply 10 min before start
- r=await w.evaluate(()=>{const st=Date.now()+10*6e4;return ugDeadline({created_at:Date.now()},{starts_at:new Date(st).toISOString()})-st});T('deadline capped at start',r===0,r);
+ r=await w.evaluate(()=>{const st=Date.now()+10*6e4;return (ugDeadline({created_at:Date.now()},{starts_at:new Date(st).toISOString()})-st)/6e4});T('deadline no longer capped at start (11-04: 开打后 30 分钟内仍可申请，+15 分钟)',Math.round(r)===5,r);
  r=await w.evaluate(()=>{const st=Date.now()+3*36e5;return (ugDeadline({created_at:Date.now()},{starts_at:new Date(st).toISOString()})-st)/6e4});T('deadline st-45 for early apply',r===-45,r);
  // 10 email
  r=await w.evaluate(a=>{const u=U(a.u2);u.email='x@y.com';u.pushOK=false;u.emPrefs={};const m0=emQueue(a.u2,'game_cancelled',a.id,0);EMAIL_OUTBOX.length=0;return m0},eg);

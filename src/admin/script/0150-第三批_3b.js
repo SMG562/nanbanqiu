@@ -71,7 +71,7 @@ pageLife=function(){const C=X3.ctx(),M=C.M,G=C.created.length,Sg=C.started,stG=S
     <div class="card"><div class="ch"><b>星期几</b><small>到了开打时间的球局</small></div>${barsH(WDR,{lw:48})}</div></div>
   ${sec('申请')}
   <div class="grid g4">${kpi('申请',fmt(AP.apps),'通过率 '+pct(AP.rate))}${kpi('超时失效',fmt(exp.length),'所有需要确认的球局都适用')}${kpi('满员自动结束',fmt(fa),'对方看到「这局已经满员」')}${kpi('发起人婉拒',fmt(dec),'三句理由 + 可选一句话')}</div>
-  <div class="grid g2 sec"><div class="card"><div class="ch"><b>申请截止</b><small>所有需要确认的球局</small></div><p class="cap" style="margin:0">失效时间 = min( max(申请时间, 开打前 60 分钟) + 15 分钟, 开打 )。不只是临时局：每一局在开打前最后一小时都按这个规则——开打前 1 小时起开始计时，发起人有 15 分钟处理；开打前 1 小时内提交的申请，从提交起 15 分钟，最晚到开打。到点自动失效并通知申请人；发起人那边只提示「N 个申请超时已失效」。</p></div>
+  <div class="grid g2 sec"><div class="card"><div class="ch"><b>申请截止</b><small>所有需要确认的球局</small></div><p class="cap" style="margin:0">失效时间 = max(申请时间, 开打前 60 分钟) + 15 分钟（不再被开打截断：开打后 30 分钟内仍可申请）。不只是临时局：每一局在开打前最后一小时都按这个规则——开打前 1 小时起开始计时，发起人有 15 分钟处理；开打前 1 小时内提交的申请，从提交起 15 分钟，最晚到开打。到点自动失效并通知申请人；发起人那边只提示「N 个申请超时已失效」。</p></div>
     <div class="card"><div class="ch"><b>超时与退出</b><small>所有球局</small></div>${tbl11(['','次数','说明'],[['申请超时失效',fmt(exp.length),'之后 30 分钟内申请了别的局：'+pct(X3.share(reApply,exp.length))],['确认后 10 分钟内退出',fmt(grace),'不算临时退出'],['开打前 24 小时内退出（临时退出）',fmt(late24),'等级里按半次计，发起人收到提醒']])}</div></div>
   ${sec('临时约球（开打前 2 小时内）')}
   <div class="grid g3">${kpi('临时发布的局',fmt(lateG.length),G?pct(lateG.length/G)+' 的球局':'—')}${kpi('开了「不用我确认」',pct(X3.share(inst.length,lateG.length)),fmt(inst.length)+' 局')}${kpi('直接加入',fmt(ij),'不经过申请')}</div>

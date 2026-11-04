@@ -340,7 +340,7 @@ METRIC_DEFS.length=0;[
  ['申请通过率','host_decide(ok=true) ÷ game_apply_submit（同一周期）；等价于 game_participants 里 approved ÷ 全部申请行','v_applications_daily'],
  ['申请的结果','通过 host_decide(ok=true) · 发起人婉拒 host_decide(ok=false) · 满员自动结束 decline_reason=full_auto · 超时失效 apply_expired（timeout）· 屏蔽自动结束 decline_reason=blocked · 申请人撤回 apply_withdraw（status=withdrawn）','game_participants'],
  ['婉拒理由','host_decide.reason：known「这局想和熟悉的球友打」· level「想找水平更接近的」· pass「这次先不了」','game_participants.decline_reason'],
- ['申请截止','失效时间 = min(max(申请时间, 开打前 60 分) + 15 分, 开打)：所有需要确认的球局都适用，开打前最后一小时内到点自动失效','application_deadline()'],
+ ['申请截止','失效时间 = max(申请时间, 开打前 60 分) + 15 分（不再被开打截断，开打后 30 分钟内仍可申请）：所有需要确认的球局都适用','application_deadline()'],
  ['开打时人齐（成局率）',DEF.fill,'game_start_checks · v_game_fill · fill_rate(from,to)'],
  ['开打时还缺人','game_start_check：到开打时间人数仍不足（含照常开打的）；reason 记差在哪','game_start_checks'],
  ['还缺人提醒','开打前 2 小时还缺人提醒发起人（刚发布或刚改过时间 20 分钟内的不提醒）；发起人的选择记在 unfilled_action','events(unfilled_action) · notification_deliveries'],

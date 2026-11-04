@@ -71,7 +71,7 @@ function renderDisc(){
   else{if(MAP.lf){MAP.lf.remove();MAP.lf=null}$('#colC').innerHTML=h+`<div class="card mapbox"><div class="mapel" id="mapEl"></div>${md}</div>`}
   renderMap(all);
 }
-function gcState(c){const r=gcState0(c);if(!c.past&&c.start<=NOW){r.cls=(r.cls==='mine'?'mine':'past')+' live';r.tag='进行中'}return r}
+function gcState(c){const r=gcState0(c);if(!c.past&&c.start<=NOW){const j=c.lateOpen&&c.spots>0&&!c.isHost&&!c.mine;r.cls=j?r.cls:(r.cls==='mine'?'mine':'past')+' live';r.tag=j?'已开打 · 可加入':'进行中'}return r}
 function gcState0(c){const st=stateOf(c);return {st,cls:st==='host'||st==='approved'?'mine':st==='pending'||st==='held'||st==='invited'?'pending':st==='full'||st==='rejected'?'full':st==='past'?'past':c.spots===1?'hot':'',
   tag:st==='host'?(c.pend.length?`${c.pend.length} 个申请`:'我发起'):st==='approved'?'已加入':st==='held'?'保留中':st==='invited'?'受邀':st==='pending'?'待确认':st==='full'?'已满':st==='rejected'?'没排上':st==='past'?'已结束':`缺 ${c.spots}`}}
 function gcHTML(c){const{cls,tag}=gcState(c);
@@ -170,7 +170,7 @@ function requestsHTML(c){if(!(c.isHost&&c.pend.length&&!['past','cancelled'].inc
   return `<div class="sec-t">申请 · ${c.pend.length}</div>`+c.pend.map(p=>{const u=U(p.user_id),s=stats(u.id);return `<div class="req"><div class="req-top"><button data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b> <span class="lvchip" style="background:${LVCOLOR[s.lv]}">Lv${s.lv+1} ${LV[s.lv][1]}</span><div class="pm">UTR ${f1(u.ntrp)} · 已打 ${s.played} 场 · ${s.kudos} 个赞${wTrust(c,u)}${lessHas(ME.id,u.id)?' · <span class="lt">你设过少遇到</span>':''}</div></div></button><span class="pm">${ago(p.created_at)}</span></div>${p.message?`<div class="quote">“${esc(p.message)}”</div>`:''}<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${c.id}" data-u="${u.id}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${c.id}" data-u="${u.id}">婉拒</button></div></div>`}).join('')}
 function actionsHTML(c){const st=stateOf(c),nav=`https://maps.google.com/?daddr=${encodeURIComponent(c.v.name+' VIC')}`,safe='<div class="safe"><svg width="14" height="14" style="color:var(--g)"><use href="#i-shield"/></svg>见面前，看看<b data-pact="1">球友约定</b>和<b data-a="safety">安全须知</b></div>';
   if(ME&&blockedPair(ME.id,c.host_id))return `<div class="cap">你与发起人之间存在屏蔽关系，无法申请</div>`;
-  return {open:`<button class="btn btn-p w100" data-a="apply" data-g="${c.id}">申请加入</button><div class="cap">${ME?`${esc(c.host.name)} 确认后${NOTIFY_WHERE()}`:'无需下载 · 手机号 30 秒完成'}</div>`,
+  return {open:`${lateNote(c)}<button class="btn btn-p w100" data-a="apply" data-g="${c.id}">申请加入</button><div class="cap">${ME?`${esc(c.host.name)} 确认后${NOTIFY_WHERE()}`:'无需下载 · 手机号 30 秒完成'}</div>`,
   pending:`<button class="btn btn-o w100" data-a="leave" data-g="${c.id}">撤回申请</button>${safe}`,
   approved:`<div class="row2"><button class="btn btn-o" data-a="ics" data-g="${c.id}"><svg><use href="#i-cal"/></svg>加入日历</button><a class="btn btn-p" href="${nav}" target="_blank" rel="noopener"><svg><use href="#i-dir"/></svg>导航</a></div><button class="btn btn-link red" data-a="leave" data-g="${c.id}">取消参加</button>${safe}`,
   host:`<button class="btn btn-p w100" data-a="share" data-g="${c.id}"><svg><use href="#i-wx"/></svg>分享到微信群</button><div class="hostlinks">${c.start>NOW?`<button class="btn btn-link" data-ge="edit" data-g="${c.id}">修改球局</button><i></i>`:''}<button class="btn btn-link red" data-a="cancelGame" data-g="${c.id}">取消球局</button></div>`,

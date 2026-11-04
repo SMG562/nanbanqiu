@@ -1,9 +1,9 @@
 /* ===================== 临时约球（开场前 2 小时内） =====================
  * ① 不用我确认：开场前 2 小时内发布（或修改）时可以打开。水平在范围内的球友点「直接加入」就定了；不在范围内的照常申请、由发起人确认。
  *    名额满了自动关闭加入；满员时其余待确认的申请自动婉拒并通知。
- * ② 申请超时：一局进入开场前 1 小时，发起人还没处理的申请再给 15 分钟（之后才申请的，从申请时算 15 分钟），最晚到开场；
+ * ② 申请超时：一局进入开场前 1 小时，发起人还没处理的申请再给 15 分钟（之后才申请的，从申请时算 15 分钟）， 开场后 30 分钟内才申请的也给 15 分钟；
  *    到点自动失效并通知申请人，让 TA 去找别的局。失效后在发起人那边不再显示，只提示「N 个申请超时已失效」。
- *    计算：失效时间 = min( max(申请时间, 开场 − 60 分钟) + 15 分钟 , 开场 )
+ *    计算：失效时间 = max(申请时间, 开场 − 60 分钟) + 15 分钟（11-04 起不再被开场截断：开场后 30 分钟内仍可申请，最晚到开场后 45 分钟）
  * ③ 和已有规则的衔接：
  *    · 开场前 2 小时内才发布 / 改时间 / 顺延的球局，不再发「还缺人」提醒（发起人刚操作过）；开场时没凑齐的提醒照发
  *    · 邮件：开场前 1 小时内的「申请 / 结果」类不发邮件（读到时已经来不及）；开场前 2 小时内的改动 / 取消不等 5 分钟、不合并，立刻发
@@ -11,9 +11,9 @@
 const UG_SOON=2*36e5,UG_WIN=36e5,UG_WAIT=15*6e4,UG_GRACE=10*6e4,UG_FRESH=20*6e4;
 const ugNow=()=>Date.now();
 const ugStart=g=>+new Date(g.starts_at);
-const ugDeadline=(p,g)=>{const st=ugStart(g);return Math.min(Math.max(p.created_at||0,st-UG_WIN)+UG_WAIT,st)};
+const ugDeadline=(p,g)=>{const st=ugStart(g);return Math.max(p.created_at||0,st-UG_WIN)+UG_WAIT};   // 11-04：不再被开打时间截断（开打后 30 分钟内仍可申请）
 const ugClock=t=>{const d=new Date(t);return (dOff(d)!==dOff(new Date())?relDay(d)+' ':'')+hm(d)};
-const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)>ugNow()&&c.spots>0;
+const ugInstant=c=>!!c&&c.join_mode==='instant'&&c.status!=='cancelled'&&c.status!=='full'&&c.visibility!=='private'&&ugStart(c)+LATE_JOIN>ugNow()&&c.spots>0;
 const ugLvFit=(c,u)=>!!u&&u.ntrp>=c.ntrp_min-1e-9&&u.ntrp<=c.ntrp_max+1e-9;
 const ugFits=(c,u)=>ugLvFit(c,u)&&!lessHas(c.host_id,u.id);   // 发起人设了「少遇到」的人：照常申请，看起来和普通球局一样
 // 发布 / 修改表单：开场前 2 小时内才出现；已经是「直接加入」的球局修改时也显示，方便关掉

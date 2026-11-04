@@ -24,7 +24,7 @@ function renderDetail(){
   $('#dBody').innerHTML=b;
   const nav=`https://maps.google.com/?daddr=${encodeURIComponent(c.v.name+' VIC')}`,safe=`<div class="safe"><svg width="14" height="14" style="color:var(--g)"><use href="#i-shield"/></svg>见面前，看看<b data-pact="1">球友约定</b>和<b data-a="safety">安全须知</b></div>`;
   $('#dAct').innerHTML={
-    open:`<button class="btn btn-p" data-a="apply">申请加入</button><div class="cap">${ME?`${esc(c.host.name)} 确认后${NOTIFY_WHERE()}`:'无需下载 · 手机号 30 秒完成'}</div>`,
+    open:`${lateNote(c)}<button class="btn btn-p" data-a="apply">申请加入</button><div class="cap">${ME?`${esc(c.host.name)} 确认后${NOTIFY_WHERE()}`:'无需下载 · 手机号 30 秒完成'}</div>`,
     pending:`<button class="btn btn-s" data-a="leave">撤回申请</button>${safe}`,
     approved:`<div class="row2"><button class="btn btn-s" data-a="ics"><svg><use href="#i-cal"/></svg>加入日历</button><a class="btn btn-p" href="${nav}" target="_blank" rel="noopener"><svg><use href="#i-dir"/></svg>导航</a></div><button class="btn btn-link red" data-a="leave">取消参加</button>${safe}`,
     host:`<button class="btn btn-p" data-a="share"><svg><use href="#i-wx"/></svg>分享到微信群</button><div class="hostlinks">${c.start>NOW?`<button class="btn btn-link" data-ge="edit" data-g="${c.id}">修改球局</button><i></i>`:''}<button class="btn btn-link red" data-a="cancelGame">取消球局</button></div>`,

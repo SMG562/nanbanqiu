@@ -27,7 +27,7 @@ function nrPri(n){if(NR_URGENT.has(n.kind))return 0;if(NR_LOW.has(n.kind))return
 function nrStale(n){if(n.read)return'已经看过';const g=nrGame(n),now=Date.now();
   if(n.from&&n.user_id&&blockedPair(n.user_id,n.from))return'有屏蔽关系';
   if(g){if(g.status==='cancelled'&&n.kind!=='game_cancelled')return'球局已取消';
-    const st=+new Date(g.starts_at);if(st<=now&&!['unfilled_end','recap','noshow','game_cancelled','badge','levelup'].includes(n.kind))return'已经开打';
+    const st=+new Date(g.starts_at);if(st<=now&&!(LATE_KINDS.includes(n.kind)&&now<st+LATE_JOIN)&&!['unfilled_end','recap','noshow','game_cancelled','badge','levelup'].includes(n.kind))return'已经开打';
     if(n.kind==='request'&&!PARTS.some(p=>p.game_id===g.id&&p.user_id===n.from&&p.status==='pending'))return'申请已处理';
     if(n.kind==='soon'&&!PARTS.some(p=>p.game_id===g.id&&p.user_id===n.user_id&&p.status==='approved'))return'已不在这局';
     if(n.kind==='reopen'&&(V(g).spots<=0||PARTS.some(p=>p.game_id===g.id&&p.user_id===n.user_id&&['pending','approved'].includes(p.status))))return'已经没有空位或已报名';
