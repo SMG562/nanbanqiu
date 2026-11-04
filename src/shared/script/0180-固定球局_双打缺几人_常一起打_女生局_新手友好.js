@@ -105,7 +105,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const lvTxt=f.lv==='any'?'不限':`UTR ${f1(f.mn)} – ${f1(f.mx)}`;
-  return `<div class="iv ngf"><div class="kbhide">
+  return `<div class="iv ngf${f.compact?' compact':''}"><div class="kbhide">
     <div class="iv-l">哪天</div>
     <div class="iv-days">${days.map(o=>{const d=dayAt(o);return `<button data-ng="day" data-v="${o}" class="${f.o===o?'on':''}"><small>${o===0?'今天':o===1?'明天':WD[d.getDay()]}</small><b>${d.getDate()}</b></button>`}).join('')}</div>
     <div class="iv-l">几点开始</div>
@@ -132,6 +132,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-chips ngtg">${NG_TAGS.filter(k=>k!=='women'||womenOK(ME)).map(k=>`<button data-ng="tag" data-v="${k}" class="${f.tags.has(k)?'on':''}">${TAGS[k][0]}</button>`).join('')}</div>
     ${f.tags.has('women')?'<div class="iv-hint">女生局：只有女生能看到和报名</div>':f.lv==='any'&&f.tags.has('newbie')?'<div class="iv-hint">水平不限，已自动加上「新手友好」</div>':''}
     </div>
+    <div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${fromMin(toMin(f.t)+f.dur)} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.type]||''}</span><button type="button" data-ng="expand">修改</button></div>
     <div class="iv-l">想对球友说的 <span>选填</span></div>
     <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
@@ -162,9 +163,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(
     case'pace':{const on=f.tags.has(v);PACE.forEach(p=>f.tags.delete(p[0]));if(!on)f.tags.add(v);break}
     case'tag':{if(f.tags.has(v))f.tags.delete(v);else{f.tags.add(v);if(v==='match'){f.tags.delete('casual');f.tags.delete('drill')}if(v==='casual'||v==='drill')f.tags.delete('match')}break}
     case'noteQ':{const ps=noteParts(f.note);f.note=(noteHas(f.note,v)?ps.filter(x=>x!==v):[...ps,v]).join('，').slice(0,80);break}
+    case'expand':f.compact=false;break;
     case'rep':f.rep=!f.rep;break;case'hide':f.hide=!f.hide;break;case'instant':f.instant=!f.instant;break;
     case'publish':ngPublish();return;
   }drawCreate()},true);
+document.addEventListener('focusin',e=>{if(e.target.id==='ngNote'&&NG&&NG.o!=null&&!NG.compact){NG.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});   // 同约 TA 表单：点了输入框就一直精简
 document.addEventListener('input',e=>{if(e.target.id!=='ngQ'||!NG)return;NG.q=e.target.value;const r=document.getElementById('ngRes');if(r)r.innerHTML=ngVenueList()});
 
 /* ---------- UTR ---------- */

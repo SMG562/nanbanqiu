@@ -1131,10 +1131,12 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 /* 键盘弹出时（手机端外壳有 .kb）：弹层只留「正在填的那一项 + 发送」，其余选项折起来（.kbhide），摘要一行（.iv-kbsum）代替。
    原因：键盘 + Safari 工具条占掉大半屏，可见区域只有 200pt 左右，长表单里的输入框会被顶出画面、按钮浮在内容上面（11-05 真机）。
    不做「固定在底部的浮层按钮」：它会盖住内容。 */
-.iv-kbsum{display:none;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
+.iv-kbsum{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
+.iv-kbsum button{border:0;background:none;color:#176B4D;font:inherit;font-size:12.5px;font-weight:700;padding:2px 0 2px 8px;cursor:pointer;flex:none}
 .device.kb .iv .kbhide,.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
 .device.kb{--shgap:10px}   /* 打字时顶部不用留「点一下收起」的空，把高度让给表单 */
-.device.kb .iv .iv-kbsum{display:block}
+.device.kb .iv .iv-kbsum,.device .iv.compact .iv-kbsum{display:flex}
+.device .iv.compact .kbhide{display:none}   /* 精简视图：点过「说一句」之后一直是这个样子，键盘收起也不展开 */
 .iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}
 .iv-warn{margin-top:10px;padding:8px 12px;border-radius:10px;background:#FFF6E0;color:#8A5A00;font-size:12.5px;line-height:1.45}
@@ -2086,7 +2088,7 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
-  INV_OPEN(`<div class="iv">
+  INV_OPEN(`<div class="iv${f.compact?' compact':''}">
     <div class="iv-h"><span class="iv-av">${av(u)}</span><div><b>${counter?'换个时间给 '+esc(u.name):'约 '+esc(cardName(u))+' 打球'}</b><small>${counter?'只能改一次，TA 确认后生成球局':'TA 接受后，就是你们俩的私人球局'}</small></div></div>
     <div class="kbhide">
     ${f.stranger&&!counter?(()=>{const s=stats(f.to);return `<div class="iv-trust"><span>赴约率 <b>${s.played?Math.round(s.att*100)+'%':'—'}</b></span><span>好评 <b>${s.kudos}</b></span><span>打过 <b>${s.played}</b> 场</span></div>`})():''}
@@ -2106,7 +2108,7 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
     ${counter?'':`<div class="iv-l">玩法</div>
     <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>`}
     </div>
-    ${counter?'':`<div class="iv-kbsum">${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</div>
+    ${counter?'':`<div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</span><button type="button" data-iv="expand">修改</button></div>
     <div class="iv-l">说一句 <span>选填</span></div>
     <input id="ivNote" class="iv-in" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
     <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
@@ -2177,6 +2179,7 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'expand':keepForm();IVF.compact=false;drawInviteForm();break;
     case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
@@ -2221,6 +2224,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wx'){wxToggle(el.dataset.g);return}
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
+/* 点了「说一句」就进入精简视图并一直留着：键盘收起（点「完成」）后表单不再展开、位置不跳；要改时间 / 地点点摘要旁的「修改」 */
+document.addEventListener('focusin',e=>{if(e.target.id==='ivNote'&&IVF&&IVF.kind==='new'&&!IVF.compact){IVF.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
 document.addEventListener('keydown',e=>{if(nbqImeEnter(e))return;   // 中文输入法拼写中的回车只是「确认拼音」
   if(e.target.id==='ivQ'&&e.key==='Enter'&&!nbqImeEnter(e)&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
@@ -2466,7 +2471,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const lvTxt=f.lv==='any'?'不限':`UTR ${f1(f.mn)} – ${f1(f.mx)}`;
-  return `<div class="iv ngf"><div class="kbhide">
+  return `<div class="iv ngf${f.compact?' compact':''}"><div class="kbhide">
     <div class="iv-l">哪天</div>
     <div class="iv-days">${days.map(o=>{const d=dayAt(o);return `<button data-ng="day" data-v="${o}" class="${f.o===o?'on':''}"><small>${o===0?'今天':o===1?'明天':WD[d.getDay()]}</small><b>${d.getDate()}</b></button>`}).join('')}</div>
     <div class="iv-l">几点开始</div>
@@ -2493,6 +2498,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-chips ngtg">${NG_TAGS.filter(k=>k!=='women'||womenOK(ME)).map(k=>`<button data-ng="tag" data-v="${k}" class="${f.tags.has(k)?'on':''}">${TAGS[k][0]}</button>`).join('')}</div>
     ${f.tags.has('women')?'<div class="iv-hint">女生局：只有女生能看到和报名</div>':f.lv==='any'&&f.tags.has('newbie')?'<div class="iv-hint">水平不限，已自动加上「新手友好」</div>':''}
     </div>
+    <div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${fromMin(toMin(f.t)+f.dur)} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.type]||''}</span><button type="button" data-ng="expand">修改</button></div>
     <div class="iv-l">想对球友说的 <span>选填</span></div>
     <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
@@ -2523,9 +2529,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(
     case'pace':{const on=f.tags.has(v);PACE.forEach(p=>f.tags.delete(p[0]));if(!on)f.tags.add(v);break}
     case'tag':{if(f.tags.has(v))f.tags.delete(v);else{f.tags.add(v);if(v==='match'){f.tags.delete('casual');f.tags.delete('drill')}if(v==='casual'||v==='drill')f.tags.delete('match')}break}
     case'noteQ':{const ps=noteParts(f.note);f.note=(noteHas(f.note,v)?ps.filter(x=>x!==v):[...ps,v]).join('，').slice(0,80);break}
+    case'expand':f.compact=false;break;
     case'rep':f.rep=!f.rep;break;case'hide':f.hide=!f.hide;break;case'instant':f.instant=!f.instant;break;
     case'publish':ngPublish();return;
   }drawCreate()},true);
+document.addEventListener('focusin',e=>{if(e.target.id==='ngNote'&&NG&&NG.o!=null&&!NG.compact){NG.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});   // 同约 TA 表单：点了输入框就一直精简
 document.addEventListener('input',e=>{if(e.target.id!=='ngQ'||!NG)return;NG.q=e.target.value;const r=document.getElementById('ngRes');if(r)r.innerHTML=ngVenueList()});
 
 /* ---------- UTR ---------- */

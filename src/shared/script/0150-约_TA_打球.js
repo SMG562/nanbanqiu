@@ -85,7 +85,7 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
-  INV_OPEN(`<div class="iv">
+  INV_OPEN(`<div class="iv${f.compact?' compact':''}">
     <div class="iv-h"><span class="iv-av">${av(u)}</span><div><b>${counter?'换个时间给 '+esc(u.name):'约 '+esc(cardName(u))+' 打球'}</b><small>${counter?'只能改一次，TA 确认后生成球局':'TA 接受后，就是你们俩的私人球局'}</small></div></div>
     <div class="kbhide">
     ${f.stranger&&!counter?(()=>{const s=stats(f.to);return `<div class="iv-trust"><span>赴约率 <b>${s.played?Math.round(s.att*100)+'%':'—'}</b></span><span>好评 <b>${s.kudos}</b></span><span>打过 <b>${s.played}</b> 场</span></div>`})():''}
@@ -105,7 +105,7 @@ function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine
     ${counter?'':`<div class="iv-l">玩法</div>
     <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>`}
     </div>
-    ${counter?'':`<div class="iv-kbsum">${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</div>
+    ${counter?'':`<div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</span><button type="button" data-iv="expand">修改</button></div>
     <div class="iv-l">说一句 <span>选填</span></div>
     <input id="ivNote" class="iv-in" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
     <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
@@ -176,6 +176,7 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'expand':keepForm();IVF.compact=false;drawInviteForm();break;
     case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
@@ -220,6 +221,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wx'){wxToggle(el.dataset.g);return}
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
+/* 点了「说一句」就进入精简视图并一直留着：键盘收起（点「完成」）后表单不再展开、位置不跳；要改时间 / 地点点摘要旁的「修改」 */
+document.addEventListener('focusin',e=>{if(e.target.id==='ivNote'&&IVF&&IVF.kind==='new'&&!IVF.compact){IVF.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
 document.addEventListener('keydown',e=>{if(nbqImeEnter(e))return;   // 中文输入法拼写中的回车只是「确认拼音」
   if(e.target.id==='ivQ'&&e.key==='Enter'&&!nbqImeEnter(e)&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});

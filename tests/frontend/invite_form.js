@@ -37,7 +37,14 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
       const k = await pg.evaluate(() => { const s = ivScroller(), n = document.getElementById('ivNote').getBoundingClientRect(), g = document.querySelector('.iv-go').getBoundingClientRect(), vh = innerHeight;
         return { hidden: [...document.querySelectorAll('.iv .kbhide')].every(e => getComputedStyle(e).display === 'none'), sum: getComputedStyle(document.querySelector('.iv-kbsum')).display !== 'none', over: s ? s.scrollHeight - s.clientHeight : 0, noteIn: n.top >= 0 && n.bottom <= vh, goIn: g.top >= 0 && g.bottom <= vh } });
       T(`${name} 键盘弹出时：选项折起、摘要出现、不用滚动，输入框和「发送邀约」同时看得到`, k.hidden && k.sum && k.over <= 2 && k.noteIn && k.goIn, k);
-      await pg.evaluate(() => document.querySelector('.device').classList.remove('kb')); await pg.setViewportSize({ width: 390, height: 560 }); await pg.waitForTimeout(200);
+      // 点完「完成」键盘收起（.kb 去掉）：仍然是精简视图，位置不跳；点「修改」才展开
+      await pg.focus('#ivNote'); await pg.waitForTimeout(100);
+      await pg.evaluate(() => document.querySelector('.device').classList.remove('kb')); await pg.waitForTimeout(250);
+      const k2 = await pg.evaluate(() => ({ compact: IVF.compact === true && document.querySelector('.iv').classList.contains('compact'), hidden: [...document.querySelectorAll('.iv .kbhide')].every(e => getComputedStyle(e).display === 'none'), sum: getComputedStyle(document.querySelector('.iv-kbsum')).display !== 'none', note: !!document.getElementById('ivNote') }));
+      T(`${name} 键盘收起后仍是精简视图（不展开、不跳位置）`, k2.compact && k2.hidden && k2.sum && k2.note, k2);
+      await pg.evaluate(() => document.querySelector('[data-iv="expand"]').click()); await pg.waitForTimeout(250);
+      T(`${name} 点「修改」展开全部选项`, await pg.evaluate(() => IVF.compact === false && [...document.querySelectorAll('.iv .kbhide')].every(e => getComputedStyle(e).display !== 'none')));
+      await pg.setViewportSize({ width: 390, height: 560 }); await pg.waitForTimeout(200);
     }
     // 回车：iOS 点键盘右下角确认拼音时，compositionend 先到、随后才来一个 isComposing=false 的 Enter —— 不能把邀约发出去
     await pg.evaluate(() => { window.__n0 = INVITES.length }); await pg.focus('#ivNote');
