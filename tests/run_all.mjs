@@ -110,6 +110,7 @@ add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
+add('frontend', 'frontend/invite_form', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/invite_form.js')], { pass: [/invite_form: \d+ passed, 0 failed/], timeout: 300 });   // 约 TA 表单：滚动不跳、发送条固定、说一句快捷短语
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致
 add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_scroll.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边整页上移 / 卡顿回归
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点

@@ -1127,6 +1127,16 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .iv-2,.iv-3{height:44px;border-radius:14px;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .iv-2{border:0;background:#EEF1EE;color:#1F2A23}.iv-3{border:0;background:none;color:#8A928A}
 .iv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.iv-acts .iv-go{grid-column:1/-1;margin-top:12px}.iv-acts .iv-3:only-of-type{grid-column:auto}
+
+/* 发送条固定在弹层底部：表单很长、键盘弹出时「发送邀约」始终看得到，并带一行「时间 · 场地」摘要 */
+.iv-bar{position:sticky;bottom:0;z-index:2;background:linear-gradient(rgba(255,255,255,0),#fff 14px);padding-top:14px;margin-top:4px}
+.iv-bar .iv-go{margin-top:6px}
+.iv-barsum{font-size:12.5px;font-weight:600;color:#4A544C;text-align:center}
+.iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}
+
+.iv-warn{margin-top:10px;padding:8px 12px;border-radius:10px;background:#FFF6E0;color:#8A5A00;font-size:12.5px;line-height:1.45}
+.invnext{display:block;width:100%;margin-top:6px;border:0;background:none;color:inherit;opacity:.78;font:inherit;font-size:12.5px;text-align:center;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .iv-foot{text-align:center;font-size:12px;color:#9AA29A;margin-top:10px}
 .iv-card{border-radius:18px;background:#F6F8F5;padding:16px;border:1px solid #E7ECE7}
 .iv-kv{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:1px solid #E7ECE7}.iv-kv span{color:#6B746B}.iv-kv b{font-weight:700;text-align:right}
@@ -2040,11 +2050,12 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
   const open=INVITES.find(i=>[i.from,i.to].includes(uid)&&[i.from,i.to].includes(ME.id)&&['pending','counter'].includes(i.status)&&!invExpired(i));
   if(open){const mine=open.status==='pending'?open.from===ME.id:open.to===ME.id;
     return `<button class="invbtn ${mine?'wait':''}" data-iv="view" data-i="${open.id}">${mine?'已约 · 等 TA 回复':open.status==='counter'?'TA 提议了新时间 · 去确认':'TA 约了你 · 去回复'}<small>${esc(invWhen(open))} · ${esc(invWhere(open))}</small></button>`}
+  // 已有一场未开始的球局：不再把「约 TA」换成「查看球局」——想再约一天、或只是同在多人局里想单独约，都应该约得了。球局信息作为一行小字放在按钮下面。
   const next=gamesTogether(ME.id,uid).filter(g=>new Date(g.starts_at)>NOW).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at))[0];
-  if(next){const s=new Date(next.starts_at);return `<button class="invbtn wait" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 有一场 · 查看<small>${esc(venTxt(next.venue_id))}</small></button>`}
   const n=playedCount(ME.id,uid),u=U(uid);
-  return n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
-          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`}
+  const nextRow=next?(()=>{const s=new Date(next.starts_at);return `<button class="invnext" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 已有一场 · ${esc(venTxt(next.venue_id))} · 查看</button>`})():'';
+  return (n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
+          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`)+nextRow}
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
@@ -2066,7 +2077,10 @@ function lastTimeDefaults(f){const last=gamesTogether(ME.id,f.to).filter(g=>new 
 function venueChoices(){const f=IVF,base=f.kind==='counter'?[...new Set([f.orig,...(ME.home_club_ids||[])])]:(ME.home_club_ids||[]);
   const list=[...base];if(f.venue_id&&!list.includes(f.venue_id))list.push(f.venue_id);return list}
 function venueResults(){const o=U(IVF.to)||{};return vpList('iv',IVF,o.home_club_ids||[])}
-function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
+const ivScroller=()=>{let e=document.querySelector('.iv');while(e&&e!==document.body){if(/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight)return e;e=e.parentElement}return null};   // 只给测试用；重画不跳回顶部由 openSheet / openModal 统一保证
+const IV_QP_PLAYED=['上次打得很开心，再来一局','这周有空吗？','想再切磋一下'],IV_QP_NEW=['想认识一下，一起练练','水平差不多，来一场吧','周末有空一起打吗？'];
+function drawInviteForm(){_drawInviteForm()}
+function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
@@ -2082,17 +2096,26 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
     <div class="iv-l">打多久</div>
     <div class="iv-seg">${DURS.map(m=>`<button data-iv="dur" data-v="${m}" class="${f.dur===m?'on':''}">${durLbl(m)}</button>`).join('')}</div>
     <div class="iv-sum"><b>${esc(dayTxt(f.o))}</b><span>${f.t} – ${f.e}</span></div>
+    ${(()=>{const c=ivClash(f);return c?`<div class="iv-warn">${c}</div>`:''})()}
     <div class="iv-l">在哪打</div>
     <div class="iv-chips">${venueChoices().map(v=>`<button data-iv="ven" data-v="${v}" class="${f.venue_id===v?'on':''}">${esc(venTxt(v))}<small>${tag(v)}</small></button>`).join('')}<button data-iv="more" class="${f.search?'on2':''}">其他场地</button></div>
     ${f.search||f.adding?vpHTML('iv',f):''}
     ${counter?'':`<div class="iv-l">玩法</div>
     <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>
     <div class="iv-l">说一句 <span>选填</span></div>
-    <input id="ivNote" class="iv-in" maxlength="30" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">`}
+    <input id="ivNote" class="iv-in" maxlength="30" data-enter=".iv-go" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
+    <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
     ${f.stranger&&!counter?`<p class="iv-safe">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
+    <div class="iv-bar"><div class="iv-barsum">${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')}</div>
     <button class="iv-go" data-iv="${counter?'sendCounter':'send'}">${counter?'发回给 TA 确认':'发送邀约'}</button>
-    ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div>`);
+    ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div></div>`);
   const d=document.querySelector('.iv-days .on');if(d)d.scrollIntoView({block:'nearest',inline:'center'})}
+/* 选的时间和已有球局撞了：只提醒、不拦（可能想换场、或另有安排）。先看和 TA 的球局，再看自己的 */
+function ivClash(f){if(!ME||f.kind==='counter'&&false)return'';const a=dayAt(f.o,f.t),b=dayAt(f.o,f.e);
+  const hit=(uid,pre)=>GAMES.find(g=>g.status!=='cancelled'&&PARTS.some(p=>p.game_id===g.id&&p.user_id===uid&&p.status==='approved')&&new Date(g.starts_at)<b&&new Date(+new Date(g.starts_at)+g.duration_min*6e4)>a);
+  const t=hit(f.to),m=hit(ME.id);const w=g=>`${relDay(new Date(g.starts_at))} ${hm(new Date(g.starts_at))}`;
+  if(t&&PARTS.some(p=>p.game_id===t.id&&p.user_id===ME.id&&p.status==='approved'))return `你们 ${w(t)} 已经有一场了，换个时间约吧`;
+  if(m)return `你这个时间已有一场球局（${w(m)}），确定要约吗？`;return''}
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}
@@ -2150,6 +2173,7 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
     case'counter':IVF={kind:'counter',to:i.from,o:i.o,t:i.t,e:i.e,dur:toMin(i.e)-toMin(i.t),per:Math.max(0,perOf(i.t)),venue_id:i.venue_id,orig:i.venue_id,search:false,q:'',game_type:i.game_type,note:''};drawInviteForm();break;
@@ -2194,7 +2218,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
-document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
+document.addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;   // 中文输入法拼写中的回车只是「确认拼音」
+  if(e.target.id==='ivQ'&&e.key==='Enter'&&!e.isComposing&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
 
 /* ---------- 「谁可以约我打球」：所有球友 / 一起打过球的 / 暂不接受 ---------- */
 const IVSET=[['all','所有球友','任何登录的球友都可以约你；每人每天最多约 2 位新球友'],['played','一起打过球的','只有和你同场打过球的人能约你'],['none','暂不接受','球员卡上不显示「约 TA 打球」']];
@@ -2206,6 +2231,21 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ivset]');i
 const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:++NID,from:'han',to:'jason',o,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'上次双打配合很好，想约你单挑一局',status:'pending',at:Date.now(),countered:false};INVITES.unshift(inv);return inv};
 
 
+/* ===== 弹层 / 弹窗里的输入框：通用规则（11-05：「说一句」输入框回车没反应、点选项页面跳回顶部）=====
+   不靠每张表单各写各的，这里统一：
+   1. 键盘右下角的键：有 data-enter 的显示「发送」，其余显示「完成」（enterkeyhint，iOS / 安卓都认）。
+   2. 按回车：有 data-enter="选择器" → 点那个按钮；没有 → 只收起键盘。绝不让回车「没反应」，也不会误提交整张表单。
+   3. 中文输入法正在拼写时（isComposing / keyCode 229）的回车是「确认拼音」，一律不处理——否则打到一半就把邀约发出去了。
+   只管 #sheet / #modal 里的单行输入框；别处（聊天 / 场边）自己有回车逻辑，不动。 */
+(function(){
+  const SKIP=/^(checkbox|radio|range|hidden|file|button|submit|color|date|number)$/;
+  const inLayer=el=>!!(el&&el.closest&&el.closest('#sheet,#modal'));
+  const isLine=el=>el&&el.tagName==='INPUT'&&!SKIP.test(el.type||'text');
+  document.addEventListener('focusin',e=>{const el=e.target;if(!isLine(el)||!inLayer(el)||el.hasAttribute('enterkeyhint'))return;el.setAttribute('enterkeyhint',el.dataset.enter?'send':'done')});
+  document.addEventListener('keydown',e=>{const el=e.target;if(e.key!=='Enter'||e.defaultPrevented||e.isComposing||e.keyCode===229||!isLine(el)||!inLayer(el))return;
+    e.preventDefault();const sel=el.dataset.enter;el.blur();
+    if(sel){const b=document.querySelector(sel);if(b&&!b.disabled)b.click()}})
+})();
 const CREATE_OPEN=(h,p)=>{const sh=$('#sheet'),on=sh.classList.contains('show')&&sh.querySelector('.ngf'),st=sh.scrollTop;openSheet(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="sh-t">${NG&&NG.edit?'修改球局':'发起球局'}</div><button class="navbtn" data-a="close" style="box-shadow:none;background:var(--bg)">✕</button></div>${NG&&NG.edit?'<p class="sh-s" style="margin:-2px 0 12px">改时间、地点或玩法，会通知已加入的球友</p>':''}${h}`,true);if(on)sh.scrollTop=st},
   CREATE_DONE=(id,o)=>{UI._justMade=id;UI.day=Math.min(o,6);closeSheet();go('disc');setTimeout(()=>{openDetail(id);setTimeout(()=>openShare(id),450)},200)},SX_CARD=u=>openCard(u);
 const CX_BACK=true,CX_SHOW=t=>openSheet(`<div class="cxsheet">${threadHTML(t)}</div>`,true),CX_INBOX=()=>{closeSheet();if(UI.detail)closeDetail();UI.msgTab='chat';go('notif')},CX_CLOSE=()=>closeSheet(),NOTIFY_WHERE=()=>nrWhere();
@@ -2444,12 +2484,12 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-chips ngtg">${NG_TAGS.filter(k=>k!=='women'||womenOK(ME)).map(k=>`<button data-ng="tag" data-v="${k}" class="${f.tags.has(k)?'on':''}">${TAGS[k][0]}</button>`).join('')}</div>
     ${f.tags.has('women')?'<div class="iv-hint">女生局：只有女生能看到和报名</div>':f.lv==='any'&&f.tags.has('newbie')?'<div class="iv-hint">水平不限，已自动加上「新手友好」</div>':''}
     <div class="iv-l">想对球友说的 <span>选填</span></div>
-    <input id="ngNote" class="iv-in" maxlength="80" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
+    <input id="ngNote" class="iv-in" maxlength="80" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
     ${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
     <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场。仅你可见，球友看到的是普通球局</small></span><span class="sw${f.rep?' on':''}"></span></div>
-    <button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
-    ${f.edit?'':'<div class="iv-foot">发布后可以直接分享到微信群、小红书</div>'}</div>`}
+    <div class="iv-bar"><button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
+    ${f.edit?'':'<div class="iv-foot">发布后可以直接分享到微信群、小红书</div>'}</div></div>`}
 function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,start:dayAt(NG.o,NG.t),game_type:NG.type,ntrp_min:NG.mn,ntrp_max:NG.mx,spots:NG.type==='doubles'?NG.miss:1,host:ME})}
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
@@ -2557,7 +2597,7 @@ function vpAct(f,act,el){const v=el.dataset.v;
       f.venue_id=id;f.adding=null;f.search=false;f.q='';toast('已添加，核实后会加入公共球场列表');return true}
   }return false}
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='ngAN'||id==='ivAN'){const a=id.slice(0,2),f=a==='ng'?NG:IVF,s=document.getElementById(a+'AS');if(f&&f.adding&&s&&(s.value===''||s.value===f.adding.short)){f.adding.short=autoShort(e.target.value);s.value=f.adding.short}if(f&&f.adding)f.adding.name=e.target.value}});
-document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
 
 /* ---------- UTR 水平筛选：一条双滑块，可以选任意区间 ---------- */
 const UR_MAX=13;
@@ -2658,7 +2698,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-cx]');if(
     case'toGame':CX_CLOSE();INV_GAME(d.g);break;
     case'report':toast('已收到举报，我们会尽快核实');break;
   }},true);
-document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'){e.preventDefault();cxSend(e.target.value)}});
+document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();cxSend(e.target.value)}});
 function seedChat(){THREADS=[];MSGS=[];LASTREAD={};CXCUR=null;const now=Date.now();
   const g=gameThread('g6',true),dm={id:'t1',type:'dm',members:['han','jason']};THREADS.push(dm);
   MSGS.push({tid:g.id,from:'tom',text:'明天 9 点见，我订了 3 号场',at:now-5*36e5},{tid:g.id,from:'grace',text:'好的👌 我带一筒新球',at:now-4.6*36e5},{tid:g.id,from:'jason',text:'收到，8:50 到',at:now-4.2*36e5},{tid:g.id,from:'tom',text:'明天可能有小雨，早上我看一下再说',at:now-40*6e4});
@@ -4756,7 +4796,10 @@ function renderDetail(){
 }
 
 /* ============================== Sheets ============================== */
-function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
+/* 弹层原地重画时保住滚动位置（11-05）：表单里点一个选项就整张重画，原来一律把滚动条打回顶部，往下滚了的人被甩回最上面。
+   判断「还是同一屏」：弹层已经开着，并且新旧内容的根元素 class 和标题文字都一样（换到别的屏标题不同，照旧从顶部开始）。 */
+const layerSig=el=>{const r=el.querySelector('.grab')?el.querySelector('.grab').nextElementSibling:el.firstElementChild;return r?r.className+'|'+((r.querySelector('b,.sh-t,h2,h3')||{}).textContent||''):''};
+function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet'),was=s.classList.contains('show'),sig0=was?layerSig(s):null,top0=s.scrollTop;s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=sig0!==null&&sig0===layerSig(s)?top0:0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
 /* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
@@ -6219,7 +6262,7 @@ function App(el,init){
       </div>
       <div class="bar"><div class="box"><span class="hint" style="right:60px">在 ${esc(S.court)} 发一条…</span><input maxlength="${CFG.settings.post_max_len}" data-cin><button class="send" data-csend disabled>${ic('up')}</button></div></div>`;
     const ci=v.querySelector('[data-cin]'),cs=v.querySelector('[data-csend]'),ch=v.querySelector('.hint');
-    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!cs.disabled)cs.click()}};
+    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229&&!cs.disabled)cs.click()}};
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
     $('.sheet').innerHTML=`<div class="grab"></div>
       <div class="sh-top">${av(U(x),34)}<div class="who">${unb(U(x)).replace('class="un"','')}<small>${x.w?(x.area?`<span class="pl ar">${esc(x.w)} 附近</span>`:`<span class="pl" data-court="${esc(x.w)}">${esc(x.w)}</span>`)+'<i>·</i>':''}${lifeRing(x.t)}<span>${a}</span></small></div><span class="sp"></span>${x.mine&&x.pic?`<button class="ib2" data-share title="分享图片">${ic('share')}</button>`:''}<button class="ib2" data-menu>${ic('dots')}</button><button class="ib2 shx" data-shut>${ic('x')}</button></div>
@@ -6233,7 +6276,7 @@ function App(el,init){
     const hs=$('.sheet .hs');if(hs)hs.onscroll=()=>{const k=Math.round(hs.scrollLeft/hs.clientWidth);el.querySelectorAll('.sheet .hd2 i').forEach((d,i)=>d.classList.toggle('on',i===k))};
     if(x.mine){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
     const ri=$('[data-rin]'),rb=$('[data-rsend]'),rh=$('.sheet .hint');
-    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!rb.disabled)rb.click()};
+    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229&&!rb.disabled)rb.click()};
       ri.onblur=()=>setTimeout(()=>{if(S.rto&&!ri.value&&AE()!==ri)clearRto()},220)}};
   const rtoHint=v=>{const h=$('.sheet .hint');if(!h)return;h.textContent=v;h.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'})};
   const setRto=(n,row)=>{S.rto=n;el.querySelectorAll('.sheet .rr.tgt').forEach(r=>r.classList.remove('tgt'));row.classList.add('tgt');rtoHint(`回复 ${n}…`);const ri=$('[data-rin]');if(ri)ri.focus({preventScroll:true})};
@@ -6460,7 +6503,7 @@ function App(el,init){
   const tcode=tp=>tp&&S.T[tp]&&S.T[tp].user?'user':tp||null;
   const subEv=(id,photos,tk,court,later,via)=>track('sb_post_submit',{post_id:id,photos,topic_kind:tk,court:!!court,later:!!later,via});
   const fromBar=(o={})=>{const q=S.hq||{};openCompose(Object.assign({ph:q.t,topic:q.tp,sc:q.sc},o))};
-  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!sendB.disabled)sendB.click()};
+  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229&&!sendB.disabled)sendB.click()};
   const qtp=$('[data-qtp]');
   const drawQ=()=>{const T=S.qtp&&S.T[S.qtp];qtp.innerHTML=`${T?`<span class="qt">#${esc(T.t)}<button data-qtx aria-label="不带这个话题">${ic('x')}</button></span>`:''}<span class="sp"></span><button class="qx" data-qx>展开${ic('chev','cv')}</button>`};
   const qOpen=()=>{if(el.classList.contains('qing'))return;S.qhq=S.hq;S.qtp=S.hq&&S.hq.tp||null;drawQ();el.classList.add('qing');closeLp()};

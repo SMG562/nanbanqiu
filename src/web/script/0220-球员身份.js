@@ -54,7 +54,7 @@ function bindSub(root){const inp=$('#fSub',root),dd=$('#fSubDD',root);if(!inp)re
   inp.oninput=()=>{SUBX.i=0;subDD(root)};
   inp.onblur=()=>setTimeout(()=>{dd.hidden=true;inp.value=LOC.label},120);
   inp.onkeydown=e=>{const n=SUBX.items.length;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!n)return;SUBX.i=(SUBX.i+(e.key==='ArrowDown'?1:-1)+n)%n;subDD(root)}
-    else if(e.key==='Enter'){e.preventDefault();const s=SUBX.items[Math.max(0,SUBX.i)];if(s){inp.blur();subPick(s.name)}}else if(e.key==='Escape'){inp.value=LOC.label;inp.blur()}};
+    else if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();const s=SUBX.items[Math.max(0,SUBX.i)];if(s){inp.blur();subPick(s.name)}}else if(e.key==='Escape'){inp.value=LOC.label;inp.blur()}};
   dd.onmousedown=e=>{e.preventDefault();const lt=e.target.closest('[data-sbl]');if(lt){SBS.letter=lt.dataset.sbl||null;subDD(root);dd.scrollTop=0;return}const b=e.target.closest('[data-subpick]');if(b){inp.blur();subPick(b.dataset.subpick)}}}
 
 /* ---------- 中栏：发现 ---------- */
