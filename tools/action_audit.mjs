@@ -18,7 +18,7 @@ const reg = fs.existsSync(regF) ? JSON.parse(fs.readFileSync(regF, 'utf8')) : { 
 if (process.argv.includes('--seed')) { for (const k of found.keys()) if (!reg.actions[k]) reg.actions[k] = 'baseline'; fs.writeFileSync(regF, JSON.stringify(reg, null, 1) + '\n'); console.log('已写入 ' + found.size + ' 个'); process.exit(0) }
 const missing = [...found].filter(([k]) => !reg.actions[k]);
 const stale = Object.keys(reg.actions).filter(k => !found.has(k));
-const bad = Object.entries(reg.actions).filter(([, v]) => !/^(write:\S+|local|nav|baseline)(\s|：|$)/.test(v));
+const bad = Object.entries(reg.actions).filter(([, v]) => !/^(write:\S+|local|nav|baseline)(\s|：|（|$)/.test(v));
 const base = Object.values(reg.actions).filter(v => v === 'baseline').length;
 if (process.argv.includes('--list')) for (const [k, v] of Object.entries(reg.actions)) console.log(k.padEnd(28), v);
 missing.forEach(([k, f]) => console.log(`未归类 ${k}（${f}）`));

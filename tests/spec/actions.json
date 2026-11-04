@@ -111,6 +111,8 @@
   "a:vback": "baseline",
   "a:closeModal": "baseline",
   "sx:dlPoster": "baseline",
-  "a:readAll": "baseline"
+  "a:readAll": "baseline",
+  "a:pushRecheck": "write:push_onboarding（授权后补订阅）",
+  "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）"
  }
 }
