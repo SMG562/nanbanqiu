@@ -20,7 +20,7 @@
  * 退出码：0 = 全部通过；1 = 有失败；2 = 环境不满足（会说明缺什么、怎么装）
  * 报告：tests/reports/<时间>/summary.md、results.json、logs/<测试>.log
  * ===================================================================== */
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -316,5 +316,10 @@ fs.writeFileSync(path.join(OUT, 'summary.md'), md + '\n');
 fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ stamp: STAMP, quick: QUICK, dir: DIR, files: Object.fromEntries(files.map(f => [f, sha(f)])), results }, null, 2));
 try { fs.writeFileSync(FAILED_FILE, JSON.stringify({ stamp: STAMP, ids: updateFailed(readFailed(), results) }, null, 2) + '\n') } catch { /* 名单写不了不影响测试结果 */ }
 if (!args.keep) fs.rmSync(WORK, { recursive: true, force: true });
+// 11-05：「相关测试全绿」的戳——pre-push 看它（.githooks/pre-push）。只有「--changed=<ref> 不带 --grep/--only、全部通过、工作区干净」才盖戳，内容 = 当时 HEAD 的树。
+try {
+  if (!nFail && args.changed && args.changed !== true && !args.grep && !args.only && !execFileSync('git', ['status', '--porcelain'], { cwd: DIR }).toString().trim())
+    fs.writeFileSync(path.join(DIR, '.git', 'nbq_changed_ok'), execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: DIR }).toString().trim() + '\n');
+} catch (e) { /* 盖不了戳 = 推送时会要求重跑，不影响测试结果 */ }
 console.log(`\n${nFail ? '有 ' + nFail + ' 项失败' : '全部通过'} · 报告：${path.relative(process.cwd(), path.join(OUT, 'summary.md'))}`);
 process.exit(nFail ? 1 : 0);
