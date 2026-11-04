@@ -145,6 +145,9 @@ function nbqApplyAfter(a,me){
   Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
   (a.prefs||[]).forEach(x=>{if(x.pref!=='more'&&x.pref!=='less')return;const k=me+'>'+x.target_id,at=nbqMs(x.updated_at)||Date.now();
     OPIN[k]={v:x.pref,at,gid:x.game_id||null};if(x.pref==='less')LESS_IV[k]=[[at,Infinity]]});
+  // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
+  [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
+  (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
   Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
   (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
@@ -271,6 +274,10 @@ async function nbqInviteWithdraw(i){
 const nbqRecap=(gid,body,key)=>nbqWrite('rc'+(key||gid),n=>n.put('/api/games/'+gid+'/recap',body));
 async function nbqRecapPref(gid,uid,v){const d=await nbqRecap(gid,{prefs:{[uid]:v}},gid+uid);return !!d}
 async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel');return !!d}
+// 给球友留印象：整组替换（空数组 = 撤回），成功后重读；都点个赞：对同局每位还没点过的人各记一次「友善」
+async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
+async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
 async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
 async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 

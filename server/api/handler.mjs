@@ -226,7 +226,7 @@ const ROUTES = {
     const prefs = (await q(`select target_id, pref, game_id, updated_at from player_prefs where user_id = nbq_uid() order by updated_at desc limit 500`)).rows;
     const feels = (await q(`select f.game_id, f.feel, f.closed_at from game_feel f join games g on g.id = f.game_id
                             where f.user_id = nbq_uid() and g.starts_at + make_interval(mins => g.duration_min) > now() - interval '8 days' order by f.game_id limit 200`)).rows;
-    const impressions = (await q(`select i.game_id, i.to_id, i.kinds from impressions i join games g on g.id = i.game_id
+    const impressions = (await q(`select i.game_id, i.to_id, i.kinds::text[] as kinds from impressions i join games g on g.id = i.game_id
                                   where i.from_id = nbq_uid() and g.starts_at > now() - interval '15 days' limit 500`)).rows;
     const noshows = (await q(`select n.game_id, n.target_id from noshow_reports n join games g on g.id = n.game_id
                               where n.reporter_id = nbq_uid() and g.starts_at > now() - interval '15 days' limit 200`)).rows;

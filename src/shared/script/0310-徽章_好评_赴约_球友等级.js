@@ -109,6 +109,7 @@ rcRow=function(gid,uid){const u=U(uid),k=ME.id+'|'+uid+'|'+gid,given=KUDOS.get(k
     ${ask?`<div class="rc-ns"><p>确认 ${esc(u.name.split(' ')[0])} 没有到场？TA 会收到通知，可以申诉。</p><div><button data-rcx="nsok" data-g="${gid}" data-u="${uid}">确认没来</button><button data-rcx="nsno" data-g="${gid}" data-u="${uid}">算了</button></div></div>`:''}</div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rcx,gid=b.dataset.g,uid=b.dataset.u,key=ME.id+'|'+uid+'|'+gid,nk=nsKey(gid,uid);
   if(k==='imp'){RC_IMP.has(key)?RC_IMP.delete(key):RC_IMP.add(key)}
+  if(k==='tag'&&nbqOn()){const g=(KUDOS.get(key)||[]).filter(y=>y!=='like'),v=b.dataset.v,nx=g.includes(v)?g.filter(y=>y!==v):[...g,v];nbqRecapImp(gid,uid,nx).then(()=>rcRedraw(gid));return}   // 真实模式：先写服务器
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
@@ -195,6 +196,7 @@ const _grRcHTML=rcHTML;rcHTML=function(gid){let h=_grRcHTML(gid);const g=GAMES.f
   if(os.length>1){const all=os.every(u=>(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length);h=h.replace('<div class="rc-q">以后想多遇到吗？</div>',`<div class="rc-q rc-q2"><span>以后想多遇到吗？</span><button data-rcx="all" data-g="${gid}" class="${all?'on':''}">${all?'已给大家点赞':'👍 都点个赞'}</button></div>`)}
   return h};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx="all"]');if(!b||!ME)return;e.stopPropagation();const gid=b.dataset.g,g=GAMES.find(x=>x.id===gid);
+  if(nbqOn()){nbqKudosAll(gid,rcOthers(g,ME.id).filter(u=>!(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length)).then(()=>rcRedraw(gid));return}
   rcOthers(g,ME.id).forEach(u=>{const k=ME.id+'|'+u+'|'+gid;if(!(KUDOS.get(k)||[]).length)KUDOS.set(k,['like'])});rcRedraw(gid)},true);
 
 

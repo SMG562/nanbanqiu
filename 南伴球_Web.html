@@ -2325,6 +2325,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-sx]');if(
     case'gConfirm':{setGender(d.v);GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');const n=GNEXT;GNEXT=null;if(n&&womenOK(ME))setTimeout(n,250);break}
     case'npg':NP.gender=d.v;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));break;
     case'impPick':{const k=ME.id+'|'+d.u+'|'+d.g,u=U(d.u),imp=impOf(u),g=KUDOS.get(k)||[],x=IMPK[d.v];
+      if(nbqOn()){const was=g.includes(d.v),nx=was?g.filter(y=>y!==d.v):[...g.filter(y=>y!=='like'),d.v];   // 真实模式：先写服务器，读回后以服务器为准
+        nbqRecapImp(d.g,d.u,nx).then(ok=>{if(ok)toast(was?'已撤回':`已送出 ${x[1]} ${x[2]}`);const b=document.querySelector('.impg-c [data-u="'+d.u+'"]'),box=b&&b.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT()});break}
       if(g.includes(d.v)){KUDOS.set(k,g.filter(y=>y!==d.v));imp[d.v]=Math.max(0,(imp[d.v]||1)-1);toast('已撤回')}else{KUDOS.set(k,[...g,d.v]);imp[d.v]=(imp[d.v]||0)+1;toast(`已送出 ${x[1]} ${x[2]}`)}
       const box=el.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT();break}
     case'ftag':{F.tags=F.tags||new Set();const k=d.v;if(k==='women'&&ME&&!womenOK(ME)&&!F.tags.has(k)){if(!ME.gender)openGender(()=>{F.tags.add('women');SX_FILTER_REFRESH()});else toast('女生局只对女生开放');return}if(k==='women'&&!ME){toast('女生局需要登录并确认是女生');return}if(F.tags.has(k))F.tags.delete(k);else{if(k==='match')F.tags.delete('relax');if(k==='relax')F.tags.delete('match');F.tags.add(k)}SX_FILTER_REFRESH();break}
@@ -3513,6 +3515,7 @@ rcRow=function(gid,uid){const u=U(uid),k=ME.id+'|'+uid+'|'+gid,given=KUDOS.get(k
     ${ask?`<div class="rc-ns"><p>确认 ${esc(u.name.split(' ')[0])} 没有到场？TA 会收到通知，可以申诉。</p><div><button data-rcx="nsok" data-g="${gid}" data-u="${uid}">确认没来</button><button data-rcx="nsno" data-g="${gid}" data-u="${uid}">算了</button></div></div>`:''}</div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rcx,gid=b.dataset.g,uid=b.dataset.u,key=ME.id+'|'+uid+'|'+gid,nk=nsKey(gid,uid);
   if(k==='imp'){RC_IMP.has(key)?RC_IMP.delete(key):RC_IMP.add(key)}
+  if(k==='tag'&&nbqOn()){const g=(KUDOS.get(key)||[]).filter(y=>y!=='like'),v=b.dataset.v,nx=g.includes(v)?g.filter(y=>y!==v):[...g,v];nbqRecapImp(gid,uid,nx).then(()=>rcRedraw(gid));return}   // 真实模式：先写服务器
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
@@ -3599,6 +3602,7 @@ const _grRcHTML=rcHTML;rcHTML=function(gid){let h=_grRcHTML(gid);const g=GAMES.f
   if(os.length>1){const all=os.every(u=>(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length);h=h.replace('<div class="rc-q">以后想多遇到吗？</div>',`<div class="rc-q rc-q2"><span>以后想多遇到吗？</span><button data-rcx="all" data-g="${gid}" class="${all?'on':''}">${all?'已给大家点赞':'👍 都点个赞'}</button></div>`)}
   return h};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx="all"]');if(!b||!ME)return;e.stopPropagation();const gid=b.dataset.g,g=GAMES.find(x=>x.id===gid);
+  if(nbqOn()){nbqKudosAll(gid,rcOthers(g,ME.id).filter(u=>!(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length)).then(()=>rcRedraw(gid));return}
   rcOthers(g,ME.id).forEach(u=>{const k=ME.id+'|'+u+'|'+gid;if(!(KUDOS.get(k)||[]).length)KUDOS.set(k,['like'])});rcRedraw(gid)},true);
 
 
@@ -5113,6 +5117,9 @@ function nbqApplyAfter(a,me){
   Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
   (a.prefs||[]).forEach(x=>{if(x.pref!=='more'&&x.pref!=='less')return;const k=me+'>'+x.target_id,at=nbqMs(x.updated_at)||Date.now();
     OPIN[k]={v:x.pref,at,gid:x.game_id||null};if(x.pref==='less')LESS_IV[k]=[[at,Infinity]]});
+  // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
+  [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
+  (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
   Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
   (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
@@ -5239,6 +5246,10 @@ async function nbqInviteWithdraw(i){
 const nbqRecap=(gid,body,key)=>nbqWrite('rc'+(key||gid),n=>n.put('/api/games/'+gid+'/recap',body));
 async function nbqRecapPref(gid,uid,v){const d=await nbqRecap(gid,{prefs:{[uid]:v}},gid+uid);return !!d}
 async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel');return !!d}
+// 给球友留印象：整组替换（空数组 = 撤回），成功后重读；都点个赞：对同局每位还没点过的人各记一次「友善」
+async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
+async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
 async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
 async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 
