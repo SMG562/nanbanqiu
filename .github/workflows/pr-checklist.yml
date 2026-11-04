@@ -1,0 +1,22 @@
+# PR 描述核对（11-04）：改了前台 / 接口 / 库的 PR，描述里要有「入口清单」；几秒出结果，不跑浏览器。
+#   合并时的真机两项由 tools/pr_merge.sh 核对（--merge）。
+name: pr-checklist
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: pr-checklist-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: tools/pr_body_check.mjs, sparse-checkout-cone-mode: false }
+      - name: 核对 PR 描述
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: node tools/pr_body_check.mjs ${{ github.event.pull_request.number }}
