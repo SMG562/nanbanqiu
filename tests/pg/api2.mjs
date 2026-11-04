@@ -46,6 +46,7 @@ try {
   T('感受、多遇到 / 少遇到、印象都写进去，少遇到同时开始静音私信', (await one(`select feel, closed_at is not null c from game_feel where game_id=$1 and user_id=$2`, [GC, U.A])).feel === 'hard'
     && +(await one(`select count(*) from player_prefs where user_id=$1`, [U.A])).count === 2 && +(await one(`select count(*) from player_pref_mutes where user_id=$1 and target_id=$2 and muted_until is null`, [U.A, U.B])).count === 1
     && +(await one(`select count(*) from impressions where from_id=$1 and to_id=$2`, [U.A, U.H])).count === 1);
+  { const i = await one(`select i.kinds::text[] as kinds from impressions i where i.from_id=$1 and i.to_id=$2 and i.game_id=$3`, [U.A, U.H, GC]); T('读回印象：kinds 转成文字数组（接口 /api/me/after 用的写法）', Array.isArray(i.kinds) && i.kinds.join() === 'ontime,kind', i); }
   T('对方不收到任何通知', +(await one(`select count(*) from notifications where user_id in ($1,$2)`, [U.B, U.H])).count === 0);
   r = await call(U.A, `select api_recap($1,$2)`, [GC, JSON.stringify({ prefs: { [U.B]: 'ok' }, impressions: { [U.H]: [] } })]);
   T('改为随缘、撤回印象', r.ok && +(await one(`select count(*) from player_prefs where user_id=$1 and target_id=$2`, [U.A, U.B])).count === 0

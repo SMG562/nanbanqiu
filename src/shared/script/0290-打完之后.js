@@ -25,7 +25,7 @@ function rcTick(){const now=Date.now();
   GAMES.forEach(g=>{if(g.status==='cancelled')return;const e=rcEnd(g);if(e>now||now-e>RC_WINDOW)return;
     PARTS.filter(p=>p.game_id===g.id&&p.status==='approved').forEach(p=>{const k=g.id+'|'+p.user_id,a=AFTER[k]||(AFTER[k]={});if(a.notified||a.closed)return;
       if(!rcEligible(g,p.user_id,now)){a.notified=true;return}const due=rcQuiet(e+RC_DELAY);if(now<due)return;a.notified=true;
-      if(now-due<864e5)notify(p.user_id,'recap',g.id,p.user_id)})});
+      if(now-due<864e5&&!nbqOn())notify(p.user_id,'recap',g.id,p.user_id)})});
   const t2=Date.now();RCQ.filter(x=>x.at<=t2).forEach(x=>{RCQ.splice(RCQ.indexOf(x),1);
     if(x.kind==='badge'){bdgNotify(x.uid,x.from);return}
     if(x.kind==='follow_game'){const g=GAMES.find(y=>y.id===x.gid);if(!g||g.status!=='open'||new Date(g.starts_at)<=t2||!followHas(x.uid,x.from))return}
@@ -65,9 +65,9 @@ function rcRedraw(gid){const el=document.querySelector('.rc');if(el)el.outerHTML
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rc]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rc,gid=b.dataset.g,uid=b.dataset.u,me=ME.id;
   if(k==='open'){rcOpen(gid);return}
   const key=gid+'|'+me,a=AFTER[key]=AFTER[key]||{};
-  if(k==='more'||k==='ok'||k==='less'){setOpin(me,uid,k,gid);rcRedraw(gid);return}
-  if(k==='feel'){a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
-  if(k==='done'){a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
+  if(k==='more'||k==='ok'||k==='less'){if(nbqOn()){nbqRecapPref(gid,uid,k).then(()=>rcRedraw(gid));return}setOpin(me,uid,k,gid);rcRedraw(gid);return}
+  if(k==='feel'){if(nbqOn()){if(a.feel!==b.dataset.v)nbqRecapFeel(gid,b.dataset.v).then(()=>rcRedraw(gid));return}a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
+  if(k==='done'){if(nbqOn()){nbqRecapDone(gid).then(ok=>{if(!ok)return;UF_CLOSE();toast('已保存，只有你知道');UF_RENDER()});return}a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
 
 // ---------- 球局详情里的入口（结束后 7 天内） ----------
 function rcEntryHTML(c){if(!ME)return'';const g=GAMES.find(x=>x.id===c.id);if(!rcEligible(g,ME.id))return'';const a=AFTER[c.id+'|'+ME.id]||{};
@@ -82,6 +82,7 @@ const _rcInvBtn=invBtnHTML;invBtnHTML=function(uid){if(!ME||uid===ME.id||blocked
   if(lessHas(uid,ME.id)&&/data-iv="new"/.test(h))h='<div class="invbtn off">TA 暂时不接受邀约</div>';
   return h+(playedTogether(ME.id,uid)?pcPrivHTML(uid):'')};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pcp]');if(!b||!ME)return;e.stopPropagation();const uid=b.dataset.u;
+  if(nbqOn()){nbqPrefSet(uid,b.dataset.pcp).then(()=>{const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)});return}
   setOpin(ME.id,uid,b.dataset.pcp,null);const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)},true);
 const _rcCan=canInvite;canInvite=function(to){const r=_rcCan(to);if(r)return r;if(lessHas(to,ME.id))return'TA 暂时不接受邀约';return null};
 

@@ -22,6 +22,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - **CI 分工（省 token）**：本地只跑相关的（`--changed`，已提交用 `--changed=origin/main`，自动跳过截图；改了测试入口会选中全部 → 改用 `--grep=`）；PR 自动跑浏览器快速测试，合并前不手动跑完整档（每周日自动）；等 CI 放后台轮询、读注解，不干等；截图基准用 tests.yml 的 visual-baseline 在 CI 重拍。
 - **推 main 前**：`git diff --stat origin/main..HEAD` 只含预期文件；`.githooks/pre-push` 拦大量删除；不用 worktree 分支直推 main；在临时仓库跑 git 的测试必须去掉 `GIT_*` 变量。
 - **前台数据边界**：接口数据只走 `nbqFrom*` 转换，枚举用 `nbqEnum`（`enum_cover` 测试盯着）；用户能改的资料必须写服务器，测试「改 → 重读 → 还在」。
+- **用户能改的数据：按「入口清单」做，不按「接口清单」做**（11-04 6d 漏了球员卡上的印象、徽章已庆祝只在内存）：开工前 grep 这份数据的**所有**修改入口（仓库名 `KUDOS.set` 之类），列「入口 × 写服务器 × 刷新后还在」表放进 PR 描述；`node tools/persist_audit.mjs`（提交前自动跑）拦「改了内存却没写服务器 / 整仓库没读回」，欠账在 `tests/spec/persist_allow.json` 里 `todo:` 列着，不准当没事；测试必含「清空内存 → 重读 → 还在」；用户报一处，同一仓库的其他入口一起查。
 - **开分支用 `bash tools/new_branch.sh <名>`**（从最新 main、本地名 = 远端名、立刻推）；用户报的问题各开从 main 出发的小 PR；PR 描述要有「入口清单」（CI `pr-checklist` 检查），合并前真机勾「刷新后还在 / 换设备还在」；用户发现的问题记进 `逃逸缺陷.md`，同类第二次必须升级成自动检查。
 - **前台状态看页面**：读入只走 `nbqApply`；测试断言 DOM / 像素，不只断言内存；异步后逐个查 `if(...)return`；刷新不准先闪「未登录」（快照 `nbq_snap`，`NBQ_STALE` 期间不写）。
 - **改规则 = 同时改旧规则的测试**（11-04）：改业务规则 / 默认值 / 去掉功能时，同一轮 grep 全部 tests/（含只在完整档跑的 regression）里断言旧行为的地方一起改；`--changed` 会自动带上用到被改函数 / id 的回归测试。

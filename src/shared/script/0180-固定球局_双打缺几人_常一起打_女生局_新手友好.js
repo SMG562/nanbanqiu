@@ -11,6 +11,8 @@
     case'gConfirm':{setGender(d.v);GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');const n=GNEXT;GNEXT=null;if(n&&womenOK(ME))setTimeout(n,250);break}
     case'npg':NP.gender=d.v;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));break;
     case'impPick':{const k=ME.id+'|'+d.u+'|'+d.g,u=U(d.u),imp=impOf(u),g=KUDOS.get(k)||[],x=IMPK[d.v];
+      if(nbqOn()){const was=g.includes(d.v),nx=was?g.filter(y=>y!==d.v):[...g.filter(y=>y!=='like'),d.v];   // 真实模式：先写服务器，读回后以服务器为准
+        nbqRecapImp(d.g,d.u,nx).then(ok=>{if(ok)toast(was?'已撤回':`已送出 ${x[1]} ${x[2]}`);const b=document.querySelector('.impg-c [data-u="'+d.u+'"]'),box=b&&b.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT()});break}
       if(g.includes(d.v)){KUDOS.set(k,g.filter(y=>y!==d.v));imp[d.v]=Math.max(0,(imp[d.v]||1)-1);toast('已撤回')}else{KUDOS.set(k,[...g,d.v]);imp[d.v]=(imp[d.v]||0)+1;toast(`已送出 ${x[1]} ${x[2]}`)}
       const box=el.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT();break}
     case'ftag':{F.tags=F.tags||new Set();const k=d.v;if(k==='women'&&ME&&!womenOK(ME)&&!F.tags.has(k)){if(!ME.gender)openGender(()=>{F.tags.add('women');SX_FILTER_REFRESH()});else toast('女生局只对女生开放');return}if(k==='women'&&!ME){toast('女生局需要登录并确认是女生');return}if(F.tags.has(k))F.tags.delete(k);else{if(k==='match')F.tags.delete('relax');if(k==='relax')F.tags.delete('match');F.tags.add(k)}SX_FILTER_REFRESH();break}
