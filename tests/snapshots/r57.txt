@@ -15,10 +15,10 @@ PASS pending band deadline {"st":"pending","band":"等待 Han Liu 确认 · 15:4
 PASS request notif has deadline Alex M. 申请加入你的球局 / UTR 4.5 · 今天 16:30 · South Camberwell TC · 15:45 前处理
 PASS full closes & rejects pending {"gs":"full","ps":"rejected","full":true,"inst":false}
 PASS race: no overfill 2
-PASS expired after 15min, other stays {"id":"n111","u1":"jason","u2":"alex","p1":"rejected/timeout","p2":"pending","n":1,"card":"<div class=\"ugh warn\">Alex 的申请 15:20 前没处理会自动失效</div><div class=\"ugh\">1 个申请超过 15 分钟没处理，已自动失效</div><div class=\"ufc\"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf=\"open\" data-g=\"n111\">看看办法</button></div>","ok":false}
-PASS host card counts timeout & deadline <div class="ugh warn">Alex 的申请 15:20 前没处理会自动失效</div><div class="ugh">1 个申请超过 15 分钟没处理，已自动失效</div><div class="ufc"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf="open" data-g="n111">看看办法</button></div>
+PASS expired after 15min, other stays {"id":"n111","u1":"jason","u2":"alex","p1":"rejected/timeout","p2":"pending","n":1,"card":"<div class=\"ugh warn\">Alex 的申请 15:20 前没处理会自动失效</div><div class=\"ugh\">1 个申请超过 15 分钟没处理，已过时间</div><div class=\"ufc\"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf=\"open\" data-g=\"n111\">看看办法</button></div>","ok":false}
+PASS host card counts timeout & deadline <div class="ugh warn">Alex 的申请 15:20 前没处理会自动失效</div><div class="ugh">1 个申请超过 15 分钟没处理，已过时间</div><div class="ufc"><div><b>还缺 3 位 · 40 分钟后开打</b><small>再分享一次、放宽水平，或者顺延 1 小时</small></div><button data-uf="open" data-g="n111">看看办法</button></div>
 PASS decide on expired refused
-PASS applicant band timeout text {"band":"Han 没来得及确认，申请已自动失效","ntf":"Han Liu 没来得及确认你的申请 / 今天 15:50 · Glendearg All Saints TC · 申请已自动失效 ›","pill":"rejected"}
+PASS applicant band timeout text {"band":"Han 没来得及确认，这次没约上 · 看看附近其他球局","ntf":"Han Liu 没来得及确认你的申请 / 今天 15:50 · Glendearg All Saints TC · 这次没约上 · 看看附近其他局 ›","pill":"rejected"}
 PASS deadline no longer capped at start (11-04: 开打后 30 分钟内仍可申请，+15 分钟) 5
 PASS deadline st-45 for early apply -45
 PASS email: 默认不发（11-03：有邮箱但没在「提醒方式 → 邮件」打开 → 不排邮件） null
