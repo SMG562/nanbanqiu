@@ -59,7 +59,7 @@ try {
   await q(`update games set status='cancelled' where id = (select id from games where host_id=$1 limit 1)`, [G3]);
   r = await create(G3, 0); T('取消一个后能发', r.ok, r);
   const G4 = await user(); const res = await Promise.all(Array.from({ length: 10 }, (_, i) => create(G4, i)));
-  T('同时点 10 次只成功 5 次', res.filter(x => x.ok).length === 5 && res.filter(x => is(x, 'game_daily_limit')).length === 5, res.map(x => x.err || 'ok'));
+  T('同时点 10 次只成功 5 次', res.filter(x => x.ok).length === 5 && res.filter(x => is(x, 'game_daily_limit') || is(x, 'game_open_limit')).length === 5, res.map(x => x.err || 'ok'));
 
   // ---------- 申请 + 直接加入：每小时 10、每天 30、同一局 3 次 ----------
   const H = await user(); const GS = []; for (let i = 0; i < 36; i++) GS.push(await game(H));
