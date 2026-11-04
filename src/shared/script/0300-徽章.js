@@ -12,6 +12,10 @@ var BDG={},BDG_T=0,BDG_SHOWN=new Set();
 // 真实模式：「庆祝过」记在本机（刷新后不再重复弹）。服务端 user_badges 的读写还没接，接上前换设备会再庆祝一次
 var BDG_PERSIST=null;   // null = 跟随是否真实模式（NBQ_NET 在后面才声明，不能在这里读）；测试可强制 true / false
 const bdgOn=()=>BDG_PERSIST!==null?BDG_PERSIST:(typeof NBQ_NET!=='undefined'&&!!NBQ_NET);
+var BDG_SRV=false,BDG_FAIL=false,BDG_Q=Promise.resolve();   // 服务器记录读到了 / 读失败了（读失败时退回本机记录）；写服务器排队，保证「先记获得、再记已庆祝」
+function bdgSync(claim,seen){if(!bdgOn()||!BDG_SRV)return;
+  if(claim&&claim.length)BDG_Q=BDG_Q.then(()=>nbqBadgeClaim(claim)).catch(()=>{});
+  (seen||[]).forEach(c=>{BDG_Q=BDG_Q.then(()=>nbqBadgeSeen(c)).catch(()=>{})})}
 const bdgSeenKey=uid=>'nbq_bdg_seen_'+uid;
 function bdgSeenList(uid){try{const a=JSON.parse(localStorage.getItem(bdgSeenKey(uid))||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 const bdgSeenHas=(uid,code)=>bdgSeenList(uid).includes(code);
@@ -28,7 +32,14 @@ const _bdgStats=stats;stats=function(uid){const s=_bdgStats(uid);s.streak=Math.m
 function bdgInit(){BDG={};BDG_SHOWN=new Set();Object.keys(USERS).forEach(uid=>{const s=stats(uid);BDG[uid]={};s.badges.filter(b=>b.cur).forEach(b=>BDG[uid][b.code]={at:null,seen:true})})}
 function bdgCheck(force){const now=Date.now();if(!force&&now-BDG_T<2000)return;BDG_T=now;
   Object.keys(USERS).forEach(uid=>{const s=stats(uid),r=BDG[uid]=BDG[uid]||{};
-    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{if(bdgOn()&&bdgSeenHas(uid,b.code)){r[b.code]={at:null,seen:true};return}r[b.code]={at:now,seen:false};rcQueue(uid,'badge',null,b.code,now)})})}
+    if(bdgOn()){
+      if(!ME||uid!==ME.id){s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{r[b.code]={at:null,seen:true}});return}   // 真实模式：别人的徽章只用来显示，不庆祝、不记录
+      if(!BDG_SRV&&!BDG_FAIL)return}   // 还没读到服务器上的记录：先不判断，否则会把「早就庆祝过」的当成新获得
+    const claim=[],seen=[];
+    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{
+      if(bdgOn()&&bdgSeenHas(uid,b.code)){r[b.code]={at:null,seen:true};claim.push(b.code);seen.push(b.code);return}   // 这台设备以前庆祝过（服务器还没有记录）：补记
+      r[b.code]={at:now,seen:false};if(bdgOn())claim.push(b.code);rcQueue(uid,'badge',null,b.code,now)});
+    if(claim.length)bdgSync(claim,seen)})}
 function bdgNotify(uid,code){const b=BADGES.find(x=>x[0]===code);if(!b)return;const n={id:++NID,user_id:uid,kind:'badge',game_id:null,from:uid,badge:code,at:Date.now(),read:false};NOTIFS.unshift(n);
   nrDeliver(n)}
 const bdgPending=()=>ME?Object.entries(BDG[ME.id]||{}).filter(([c,r])=>!r.seen).map(x=>x[0]):[];
@@ -41,7 +52,7 @@ const bdgDate=t=>{const d=new Date(t);return `${d.getFullYear()} 年 ${d.getMont
 
 // ---------- 庆祝 / 查看 ----------
 function bdgShow(uid,code,mode){const s=stats(uid),b=s.badges.find(x=>x.code===code);if(!b)return;const self=!!ME&&uid===ME.id,r=(BDG[uid]||{})[code],isNew=self&&r&&!r.seen;
-  if(isNew){r.seen=true;if(bdgOn())bdgSeenAdd(uid,code)}BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
+  if(isNew){r.seen=true;if(bdgOn()){bdgSeenAdd(uid,code);bdgSync(null,[code])}}BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
   // 稀有度只在有意义时显示（一半以下的球友拥有）
   const meta=b.got?`${b.at?bdgDate(b.at)+' 获得':'已获得'}${rare<=50?` · 只有 ${rare}% 的球友有`:''}`:`还差 ${b.target-b.val} ${unit}${rare<=50?` · ${rare}% 的球友已经拿到`:''}`;
   const conf=isNew?`<div class="bfx-cf">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*53)%100}%;--d:${(i%5)*.12}s;--r:${(i*47)%360}deg"></i>`).join('')}</div>`:'';

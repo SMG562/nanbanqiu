@@ -89,7 +89,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
+  const [pub,mine,inv,blk,bdg]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/badges')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -100,7 +100,13 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}   // 徽章读不到不算失败（null → 退回本机记录）
+// 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
+function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
+  const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
+  try{bdgCheck(true)}catch(_){}}
+async function nbqBadgeClaim(codes){const r=await NBQ_NET.post('/api/me/badges',{codes});if(!r.ok)throw new Error(r.code)}
+async function nbqBadgeSeen(code){const r=await NBQ_NET.post('/api/me/badges/seen',{code});if(!r.ok)throw new Error(r.code)}
 // 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
 async function nbqLoadPublic(net){
   const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
@@ -138,7 +144,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;

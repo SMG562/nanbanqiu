@@ -3297,6 +3297,10 @@ var BDG={},BDG_T=0,BDG_SHOWN=new Set();
 // 真实模式：「庆祝过」记在本机（刷新后不再重复弹）。服务端 user_badges 的读写还没接，接上前换设备会再庆祝一次
 var BDG_PERSIST=null;   // null = 跟随是否真实模式（NBQ_NET 在后面才声明，不能在这里读）；测试可强制 true / false
 const bdgOn=()=>BDG_PERSIST!==null?BDG_PERSIST:(typeof NBQ_NET!=='undefined'&&!!NBQ_NET);
+var BDG_SRV=false,BDG_FAIL=false,BDG_Q=Promise.resolve();   // 服务器记录读到了 / 读失败了（读失败时退回本机记录）；写服务器排队，保证「先记获得、再记已庆祝」
+function bdgSync(claim,seen){if(!bdgOn()||!BDG_SRV)return;
+  if(claim&&claim.length)BDG_Q=BDG_Q.then(()=>nbqBadgeClaim(claim)).catch(()=>{});
+  (seen||[]).forEach(c=>{BDG_Q=BDG_Q.then(()=>nbqBadgeSeen(c)).catch(()=>{})})}
 const bdgSeenKey=uid=>'nbq_bdg_seen_'+uid;
 function bdgSeenList(uid){try{const a=JSON.parse(localStorage.getItem(bdgSeenKey(uid))||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 const bdgSeenHas=(uid,code)=>bdgSeenList(uid).includes(code);
@@ -3313,7 +3317,14 @@ const _bdgStats=stats;stats=function(uid){const s=_bdgStats(uid);s.streak=Math.m
 function bdgInit(){BDG={};BDG_SHOWN=new Set();Object.keys(USERS).forEach(uid=>{const s=stats(uid);BDG[uid]={};s.badges.filter(b=>b.cur).forEach(b=>BDG[uid][b.code]={at:null,seen:true})})}
 function bdgCheck(force){const now=Date.now();if(!force&&now-BDG_T<2000)return;BDG_T=now;
   Object.keys(USERS).forEach(uid=>{const s=stats(uid),r=BDG[uid]=BDG[uid]||{};
-    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{if(bdgOn()&&bdgSeenHas(uid,b.code)){r[b.code]={at:null,seen:true};return}r[b.code]={at:now,seen:false};rcQueue(uid,'badge',null,b.code,now)})})}
+    if(bdgOn()){
+      if(!ME||uid!==ME.id){s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{r[b.code]={at:null,seen:true}});return}   // 真实模式：别人的徽章只用来显示，不庆祝、不记录
+      if(!BDG_SRV&&!BDG_FAIL)return}   // 还没读到服务器上的记录：先不判断，否则会把「早就庆祝过」的当成新获得
+    const claim=[],seen=[];
+    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{
+      if(bdgOn()&&bdgSeenHas(uid,b.code)){r[b.code]={at:null,seen:true};claim.push(b.code);seen.push(b.code);return}   // 这台设备以前庆祝过（服务器还没有记录）：补记
+      r[b.code]={at:now,seen:false};if(bdgOn())claim.push(b.code);rcQueue(uid,'badge',null,b.code,now)});
+    if(claim.length)bdgSync(claim,seen)})}
 function bdgNotify(uid,code){const b=BADGES.find(x=>x[0]===code);if(!b)return;const n={id:++NID,user_id:uid,kind:'badge',game_id:null,from:uid,badge:code,at:Date.now(),read:false};NOTIFS.unshift(n);
   nrDeliver(n)}
 const bdgPending=()=>ME?Object.entries(BDG[ME.id]||{}).filter(([c,r])=>!r.seen).map(x=>x[0]):[];
@@ -3326,7 +3337,7 @@ const bdgDate=t=>{const d=new Date(t);return `${d.getFullYear()} 年 ${d.getMont
 
 // ---------- 庆祝 / 查看 ----------
 function bdgShow(uid,code,mode){const s=stats(uid),b=s.badges.find(x=>x.code===code);if(!b)return;const self=!!ME&&uid===ME.id,r=(BDG[uid]||{})[code],isNew=self&&r&&!r.seen;
-  if(isNew){r.seen=true;if(bdgOn())bdgSeenAdd(uid,code)}BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
+  if(isNew){r.seen=true;if(bdgOn()){bdgSeenAdd(uid,code);bdgSync(null,[code])}}BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
   // 稀有度只在有意义时显示（一半以下的球友拥有）
   const meta=b.got?`${b.at?bdgDate(b.at)+' 获得':'已获得'}${rare<=50?` · 只有 ${rare}% 的球友有`:''}`:`还差 ${b.target-b.val} ${unit}${rare<=50?` · ${rare}% 的球友已经拿到`:''}`;
   const conf=isNew?`<div class="bfx-cf">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*53)%100}%;--d:${(i%5)*.12}s;--r:${(i*47)%360}deg"></i>`).join('')}</div>`:'';
@@ -5063,7 +5074,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
+  const [pub,mine,inv,blk,bdg]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/badges')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -5074,7 +5085,13 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}   // 徽章读不到不算失败（null → 退回本机记录）
+// 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
+function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
+  const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
+  try{bdgCheck(true)}catch(_){}}
+async function nbqBadgeClaim(codes){const r=await NBQ_NET.post('/api/me/badges',{codes});if(!r.ok)throw new Error(r.code)}
+async function nbqBadgeSeen(code){const r=await NBQ_NET.post('/api/me/badges/seen',{code});if(!r.ok)throw new Error(r.code)}
 // 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
 async function nbqLoadPublic(net){
   const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
@@ -5112,7 +5129,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;

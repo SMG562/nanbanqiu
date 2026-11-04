@@ -3013,6 +3013,23 @@ $$;
 create or replace function api_pact_accept() returns void language plpgsql security definer set search_path = public as $$
 begin update users set pact_accepted_at = coalesce(pact_accepted_at, now()), pact_version = 1 where id = nbq_me(); end $$;
 
+-- 徽章接服务器（11-04，迁移 20261104_badges_server）
+create or replace function api_badges_claim(p_codes text[]) returns void language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me();
+begin
+  if p_codes is null or coalesce(array_length(p_codes, 1), 0) > 20 then perform nbq_err('invalid', 'codes'); end if;
+  insert into user_badges (user_id, code)
+    select distinct u, c from unnest(p_codes) c
+    where c = any (array['first','ten','fifty','hundred','host10','night','early','surface','explorer','streak','kudos','partner'])
+  on conflict (user_id, code) do nothing;
+end $$;
+create or replace function api_badge_seen(p_code text) returns void language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me();
+begin
+  update user_badges set seen_at = coalesce(seen_at, now()) where user_id = u and code = p_code;
+end $$;
+grant execute on function api_badges_claim(text[]), api_badge_seen(text) to nbq_user;
+
 create or replace function api_game_create(p jsonb) returns uuid language plpgsql security definer set search_path = public as $$
 declare u uuid := nbq_gate('create'); me users; g uuid; st timestamptz := (p->>'starts_at')::timestamptz; dur int := coalesce((p->>'duration_min')::int, 90);
         typ text := p->>'game_type'; lo numeric := (p->>'utr_min')::numeric; hi numeric := (p->>'utr_max')::numeric; fl int := coalesce((p->>'filled')::int, 0);
@@ -6995,5 +7012,6 @@ insert into schema_migrations(version) values
   ('20261103_my_push_diag'),
   ('20261103_mail_default_off'),
   ('20261103_schema_migrations'),
+  ('20261104_badges_server'),
   ('20261104_chat_notify')
 on conflict do nothing;

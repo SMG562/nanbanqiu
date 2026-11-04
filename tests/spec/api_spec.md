@@ -221,6 +221,11 @@
 - 写入：pact_accepted_at = now()，pact_version = 1
 - 事件：pact_accept（前端）
 
+### GET /api/me/badges · POST /api/me/badges `{codes[] ≤ 20}` · POST /api/me/badges/seen `{code}`
+- 读：`{badges:[{code, earned_at, seen_at}]}`，只有自己的（RLS）
+- 写：`api_badges_claim` 只收白名单 12 个 code（first / ten / fifty / hundred / host10 / night / early / surface / explorer / streak / kudos / partner），已有的不改；`api_badge_seen` 只记一次 seen_at
+- 徽章规则在前台算，服务端只记录；codes 不是数组 / 超过 20 个 / code 不是文字 → 422 invalid
+
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks
 - 事件：home_clubs_save / loc_suburb_pick（前端）

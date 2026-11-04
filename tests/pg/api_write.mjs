@@ -47,6 +47,18 @@ try {
   r = await call('POST', '/api/games', tH, await NG({ starts_at: 'not-a-time' })); T('发局：时间格式不对 → 422 invalid（不外露数据库原文）', r.s === 422 && r.j.error === 'invalid' && !/timestamp|syntax/.test(JSON.stringify(r.j)), r);
   r = await call('POST', '/api/games', tQ, await NG()); T('发局：没确认球友约定 → 428 pact_required', r.s === 428 && r.j.error === 'pact_required', r);
   r = await call('POST', '/api/me/pact', tQ); T('确认球友约定', r.s === 200 && r.j.ok === true, r);
+  // 徽章（11-04）：获得记录和「已庆祝」存服务器
+  r = await call('GET', '/api/me/badges', tQ); T('徽章：一开始没有', r.s === 200 && Array.isArray(r.j.badges) && r.j.badges.length === 0, r);
+  r = await call('POST', '/api/me/badges', tQ, { codes: ['first', 'ten', 'bogus'] }); T('徽章：记录获得', r.s === 200 && r.j.ok === true, r);
+  r = await call('GET', '/api/me/badges', tQ); T('徽章：只收白名单里的 code，还没庆祝', r.s === 200 && r.j.badges.map(x => x.code).sort().join() === 'first,ten' && r.j.badges.every(x => x.seen_at === null && x.earned_at), r);
+  r = await call('POST', '/api/me/badges/seen', tQ, { code: 'first' }); T('徽章：标记已庆祝', r.s === 200, r);
+  r = await call('GET', '/api/me/badges', tQ); const b1 = r.j.badges.find(x => x.code === 'first'), t1 = b1 && b1.seen_at; T('徽章：first 有 seen_at，ten 仍是空', !!t1 && r.j.badges.find(x => x.code === 'ten').seen_at === null, r);
+  await call('POST', '/api/me/badges/seen', tQ, { code: 'first' }); await call('POST', '/api/me/badges', tQ, { codes: ['first'] });
+  r = await call('GET', '/api/me/badges', tQ); T('徽章：重复标记 / 重复记录不改已有的', r.j.badges.find(x => x.code === 'first').seen_at === t1 && r.j.badges.length === 2, r);
+  r = await call('GET', '/api/me/badges', tP); T('徽章：别人看不到我的', r.s === 200 && r.j.badges.length === 0, r);
+  r = await call('POST', '/api/me/badges', tQ, { codes: 'first' }); T('徽章：codes 不是数组 → 422', r.s === 422, r);
+  r = await call('POST', '/api/me/badges/seen', tQ, { code: 5 }); T('徽章：code 不是文字 → 422', r.s === 422, r);
+  r = await call('GET', '/api/me/badges', null); T('徽章：没登录 → 401', r.s === 401, r);
   r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
 
   // 发局 → 看得到
