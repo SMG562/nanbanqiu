@@ -26,6 +26,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - **开分支用 `bash tools/new_branch.sh <名>`**（从最新 main、本地名 = 远端名、立刻推）；用户报的问题各开从 main 出发的小 PR；PR 描述要有「入口清单」（CI `pr-checklist` 检查），合并前真机勾「刷新后还在 / 换设备还在」；用户发现的问题记进 `逃逸缺陷.md`，同类第二次必须升级成自动检查。
 - **界面动作清单**（11-04）：新增 `data-a / data-sx / data-rcx …` 动作必须在 `tests/spec/actions.json` 归类（write:<测试> / local / nav），`tools/action_audit.mjs` 提交前拦；baseline 是旧欠账，动到时顺手归类。
 - **弹层 / 表单 / 键盘**（11-05）：同屏重画滚动位置由 `openSheet` / `openModal` 根上保；键盘弹出（`.kb`）时长表单折起 `.kbhide` 只留输入框 + 提交，**不做固定浮层按钮**；有后果的操作回车只收键盘；自己写的 Enter 监听必须用 `nbqImeEnter(e)`（iOS 确认拼音后会紧跟一个 Enter）；键盘类改动**必须真机看过**。细节见 开发规矩.md「11-05」。
+- **推 main 的顺序是机器管的**（11-05）：改 → 构建 → `node tests/run_all.mjs --changed=origin/main` **跑完且全绿、工作区干净** → 提交 → 推送；`pre-push` 没有这份记录就拦（跳过要 `NBQ_UNTESTED="原因"`）。后台测试没出结果不提交，停止钩子催也先说「测试还在跑」。**往公共层（shared 01xx/02xx、Sheets/弹窗、通用监听）加行为一律 opt-in**（如 `data-keep`），不做默认全开；改公共层的 PR 描述写「影响面 × 反例测试」。新 `<input id>` 先登记 `tests/spec/inputs.json`（`input_audit` 拦）。复盘见 开发规矩.md「11-05」两节。
 - **前台状态看页面**：读入只走 `nbqApply`；测试断言 DOM / 像素，不只断言内存；异步后逐个查 `if(...)return`；刷新不准先闪「未登录」（快照 `nbq_snap`，`NBQ_STALE` 期间不写）。
 - **改规则 = 同时改旧规则的测试**（11-04）：改业务规则 / 默认值 / 去掉功能时，同一轮 grep 全部 tests/（含只在完整档跑的 regression）里断言旧行为的地方一起改；`--changed` 会自动带上用到被改函数 / id 的回归测试。
 - **用户明确说过的要求，先写成测试再改**（如纸白一致性 `paper_consistency` 按真实像素比对），避免同一个问题被反复提。
