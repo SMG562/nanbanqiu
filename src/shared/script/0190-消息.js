@@ -35,7 +35,7 @@ function threadHTML(t){const ms=tMsgs(t),closed=gameClosed(t),other=t.type==='dm
   return `<div class="cx-th"><div class="cx-hd">${CX_BACK?`<button class="cx-back" data-cx="inbox">‹</button>`:''}${cxAv(t)}<div><b>${esc(cxTitle(t))}</b><small>${sub}</small></div>${t.type==='game'?`<button class="cx-link" data-cx="toGame" data-g="${t.game_id}">球局</button>`:`<button class="cx-link" data-user="${other.id}">球员卡</button>`}</div>
     <div class="cx-msgs" id="cxMsgs">${h||`<div class="cx-ts">${t.type==='game'?'和同局球友打个招呼吧':'说点什么吧'}</div>`}</div>
     ${closed?`<div class="cx-closed">球局已结束，聊天已关闭</div>`:`<div class="cx-quick">${QUICK.map(q=>`<button data-cx="quick" data-v="${q}">${q}</button>`).join('')}</div>
-    <div class="cx-in"><input id="cxIn" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
+    <div class="cx-in"><input id="cxIn" enterkeyhint="send" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
     <div class="cx-foot">不会显示你的手机号 · 只能发文字 · <a data-cx="report">举报</a></div>`}</div>`}
 function openThread(tid){if(NBQ_NET){nbqThreadOpen(tid);return}cxDraw(tid)}   // 真实模式：先在服务器建会话、读消息，再画
 function cxDraw(tid){CXCUR=tid;const t=THREADS.find(x=>x.id===tid);LASTREAD[ME.id+'|'+tid]=Date.now();CX_SHOW(t);INV_RENDER();

@@ -2,7 +2,7 @@
 /* 弹层原地重画时保住滚动位置（11-05）：表单里点一个选项就整张重画，原来一律把滚动条打回顶部，往下滚了的人被甩回最上面。
    判断「还是同一屏」：弹层已经开着，并且新旧内容的根元素 class 和标题文字都一样（换到别的屏标题不同，照旧从顶部开始）。 */
 const layerSig=el=>{const r=el.querySelector('.grab')?el.querySelector('.grab').nextElementSibling:el.firstElementChild;return r?r.className+'|'+((r.querySelector('b,.sh-t,h2,h3')||{}).textContent||''):''};
-function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet'),was=s.classList.contains('show'),sig0=was?layerSig(s):null,top0=s.scrollTop;s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=sig0!==null&&sig0===layerSig(s)?top0:0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
+function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet'),was=s.classList.contains('show'),sig0=was?layerSig(s):null,top0=s.scrollTop,dr0=was&&window.nbqDraftsTake?nbqDraftsTake(s):null;s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);const same=sig0!==null&&sig0===layerSig(s);s.scrollTop=same?top0:0;if(same&&dr0)nbqDraftsPut(s,dr0);$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
 /* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
