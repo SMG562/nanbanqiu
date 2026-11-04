@@ -7,7 +7,7 @@
 set -u
 W="$1"; SHA="${2:-$GITHUB_SHA}"; OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&per_page=100" --jq "[.workflow_runs[]
-  | select(.name==\"$W\" and .status==\"completed\" and .conclusion==\"success\" and (.id|tostring)!=\"$GITHUB_RUN_ID\"
+  | select(.path==\".github/workflows/$W.yml\" and .status==\"completed\" and .conclusion==\"success\" and (.id|tostring)!=\"$GITHUB_RUN_ID\"
            and (.event==\"pull_request\" or .event==\"push\" or .event==\"workflow_dispatch\")
            and ((.display_title // \"\")|test(\"visual-baseline\")|not))] | sort_by(.created_at) | last | .id // empty" 2>/dev/null)
 if [ -n "$ID" ]; then

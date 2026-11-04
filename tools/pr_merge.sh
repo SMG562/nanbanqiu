@@ -20,7 +20,7 @@ git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
 else no "不能快进：main 有 PR 之外的新提交。在分支上  git merge origin/main  再推分支（不用强推），等 PR 上的测试对新提交跑完再合并"; fi
 for W in tests-fast tests; do
-  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.name==\"$W\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
+  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
   case "$L" in "completed success "*) yes "$W 通过（运行 ${L##* }）";; "null"*|"") no "$W：这个提交还没有运行记录";; *) no "$W：$L";; esac
 done
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations)" ]; then

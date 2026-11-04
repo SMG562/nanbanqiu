@@ -91,4 +91,8 @@ T('两个工作流都只在「推到 main」时复用；命中才跳过测试任
 T('PR 测的是 PR 最新提交本身，且和推 main 跑同一条命令', tests.includes('github.event.pull_request.head.sha') && tests.includes('[ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]'));
 T('合并脚本只快进（把测过的提交号推成 main）、不强推，并核对测试 / db-parity / 工作区', merge.includes('merge-base --is-ancestor origin/main') && merge.includes('git push origin "$SHA:refs/heads/main"') && !/git push[^\n]*(--force|\s-f\s)/.test(merge) && merge.includes('db-parity') && merge.includes('status --porcelain'));
 
+const gateS = rd(path.join(ROOT, 'tools', 'gate.sh'));
+T('查运行记录按工作流文件路径（.path），不按 .name——tests.yml 有 run-name，name 会变成 PR 标题 / 提交说明（11-04 实测）', [reuse, merge, gateS].every(x => x.includes('.path==') && !/select\(\.name==/.test(x)));
+T('闸门 / 合并 / 复用都不把「重拍截图基准」的运行当成测试（它不跑测试）', [reuse, merge, gateS].every(x => x.includes('visual-baseline')));
+
 console.log(`\nci_paths: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
