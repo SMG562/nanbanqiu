@@ -10,9 +10,9 @@
   const inLayer=el=>!!(el&&el.closest&&el.closest('#sheet,#modal'));
   const isLine=el=>el&&el.tagName==='INPUT'&&!SKIP.test(el.type||'text');
   /* 同屏重画时保住用户已经打的字（11-05 排查：新用户资料里点一下 UTR / Club，刚填的「姓氏首字母」就没了——NP.redraw 只记了昵称）。
-     不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
+     11-05 实测：不能对所有输入框默认恢复——聊天发送后重画本来就要清空，会被「恢复」回去（real_chat 红）。所以只对写了 data-keep 的输入框生效（表单重画但字要留着的才写）。不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
      就把用户打的字放回去；表单故意清空 / 改值的（默认值变了）不动。 */
-  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id],textarea[id]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
+  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id][data-keep],textarea[id][data-keep]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
   window.nbqDraftsPut=(root,m)=>{if(!root||!m)return;Object.keys(m).forEach(id=>{const n=root.querySelector('#'+CSS.escape(id));if(n&&!SKIP.test(n.type||'text')&&n.defaultValue===m[id].d&&n.value!==m[id].v)n.value=m[id].v})};
   document.addEventListener('focusin',e=>{const el=e.target;if(!isLine(el)||!inLayer(el)||el.hasAttribute('enterkeyhint'))return;el.setAttribute('enterkeyhint',el.dataset.enter?'send':'done')});
   // iOS Safari：点键盘右下角确认拼音时，compositionend 先触发、随后才来一个 isComposing=false 的 Enter（11-05 真机复现：确认拼音就把邀约发出去了）。

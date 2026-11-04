@@ -2254,9 +2254,9 @@ const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:+
   const inLayer=el=>!!(el&&el.closest&&el.closest('#sheet,#modal'));
   const isLine=el=>el&&el.tagName==='INPUT'&&!SKIP.test(el.type||'text');
   /* 同屏重画时保住用户已经打的字（11-05 排查：新用户资料里点一下 UTR / Club，刚填的「姓氏首字母」就没了——NP.redraw 只记了昵称）。
-     不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
+     11-05 实测：不能对所有输入框默认恢复——聊天发送后重画本来就要清空，会被「恢复」回去（real_chat 红）。所以只对写了 data-keep 的输入框生效（表单重画但字要留着的才写）。不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
      就把用户打的字放回去；表单故意清空 / 改值的（默认值变了）不动。 */
-  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id],textarea[id]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
+  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id][data-keep],textarea[id][data-keep]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
   window.nbqDraftsPut=(root,m)=>{if(!root||!m)return;Object.keys(m).forEach(id=>{const n=root.querySelector('#'+CSS.escape(id));if(n&&!SKIP.test(n.type||'text')&&n.defaultValue===m[id].d&&n.value!==m[id].v)n.value=m[id].v})};
   document.addEventListener('focusin',e=>{const el=e.target;if(!isLine(el)||!inLayer(el)||el.hasAttribute('enterkeyhint'))return;el.setAttribute('enterkeyhint',el.dataset.enter?'send':'done')});
   // iOS Safari：点键盘右下角确认拼音时，compositionend 先触发、随后才来一个 isComposing=false 的 Enter（11-05 真机复现：确认拼音就把邀约发出去了）。
@@ -5511,7 +5511,7 @@ function openOtp(){openModal(`<div class="m-b"><button class="btn-link" data-a="
   setTimeout(()=>{const o=$('#otp');o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},60)}
 function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,6);
   const draw=()=>openModal(`<div class="m-b"><div class="m-t">欢迎来到南伴球 👋</div><p class="m-s">填一次就好，发起人会看到</p>
-  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
+  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" data-keep maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>

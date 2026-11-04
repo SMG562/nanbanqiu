@@ -55,8 +55,8 @@ const FLOWS = [
   await pg.fill('#npLast', 'W'); await pg.fill('#npName', 'Tom'); await pg.evaluate(() => document.querySelector('[data-nlv]').click()); await pg.waitForTimeout(300);
   const dr = await pg.evaluate(() => ({ last: document.getElementById('npLast').value, name: document.getElementById('npName').value }));
   T('同屏重画（点 UTR 按钮）：已打的「姓氏首字母」和「昵称」还在', dr.last === 'W' && dr.name === 'Tom', dr);
-  const dr2 = await pg.evaluate(() => { openSheet('<div class="x1"><b>草稿测试</b><input id="dd" value="abc"></div>'); const i = document.getElementById('dd'); i.value = 'abcdef'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" value="abc"></div>'); const keep = document.getElementById('dd').value; i.value = 'zzz'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" value=""></div>'); return { keep, cleared: document.getElementById('dd').value } });
-  T('同屏重画：没改默认值 → 保留已打的字；表单故意清空 → 不被盖回去', dr2.keep === 'abcdef' && dr2.cleared === '', dr2);
+  const dr2 = await pg.evaluate(() => { openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value="abc"></div>'); const i = document.getElementById('dd'); i.value = 'abcdef'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value="abc"></div>'); const keep = document.getElementById('dd').value; i.value = 'zzz'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value=""></div>'); const cleared = document.getElementById('dd').value; openSheet('<div class="x1"><b>草稿测试</b><input id="de" value=""></div>'); document.getElementById('de').value='发出去了'; openSheet('<div class="x1"><b>草稿测试</b><input id="de" value=""></div>'); return { keep, cleared, plain: document.getElementById('de').value } });
+  T('同屏重画：写了 data-keep 且没改默认值 → 保留；故意清空 → 不盖回；没写 data-keep（如聊天发送后清空）→ 一律不恢复', dr2.keep === 'abcdef' && dr2.cleared === '' && dr2.plain === '', dr2);
   T('检查到的输入框数量合理（防止检查失效）', total >= 14, total);
   T('无脚本错误', errs.length === 0, errs); await b.close();
   console.log(`input_visible: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
