@@ -9,3 +9,5 @@ git fetch -q origin main
 git checkout -q -b "$B" origin/main
 git push -q -u origin "$B"
 echo "✅ 分支 $B 从 origin/main（$(git rev-parse --short origin/main)）出发，已推到远端并设好跟踪"
+# 这个环境里 git push 不会更新本地的远端引用，会让「有未推送提交」的检查误报：手动补上
+git update-ref "refs/remotes/origin/$B" "$(git rev-parse HEAD)"
