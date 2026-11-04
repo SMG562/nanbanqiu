@@ -14,9 +14,8 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.waitForTimeout(700);
     await pg.evaluate(() => document.querySelector('[data-demo="invsend"]').click()); await pg.waitForTimeout(900);
-    const st = () => pg.evaluate(() => { const s = ivScroller(), bar = document.querySelector('.iv-bar'); if (!s || !bar) return null; const a = s.getBoundingClientRect(), r = bar.getBoundingClientRect(); return { top: s.scrollTop, over: s.scrollHeight - s.clientHeight, barIn: r.bottom <= a.bottom + 1 && r.top >= a.top } });
+    const st = () => pg.evaluate(() => { const s = ivScroller(); return s ? { top: s.scrollTop, over: s.scrollHeight - s.clientHeight } : null });
     let s = await st(); T(`${name} 表单可滚动（测试前提）`, !!s && s.over > 60, s);
-    T(`${name} 发送条在可见区域内（没滚到底也看得到）`, !!s && s.barIn, s);
     // 球员卡规则（11-05）：已有一场未开始的球局，仍然能约 TA；球局只是按钮下面一行小字；时间撞了只提醒不拦
     const rule = await pg.evaluate(() => { const to = IVF.to, id = 'tg_rule'; GAMES.push({ id, status: 'open', starts_at: dayAt(1, '09:00').toISOString(), duration_min: 90, venue_id: Object.keys(VEN)[0], host_id: ME.id });
       PARTS.push({ game_id: id, user_id: ME.id, status: 'approved' }, { game_id: id, user_id: to, status: 'approved' });
@@ -32,13 +31,24 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await pg.evaluate(() => document.querySelector('[data-iv="qp"][data-v="0"]').click());
     const v = await pg.evaluate(() => ({ val: document.getElementById('ivNote').value, f: IVF.note, q: document.querySelector('[data-iv="qp"]').textContent }));
     T(`${name} 快捷短语点一下填入「说一句」`, v.val && v.val === v.q && v.f === v.q, v);
-    // 中文输入法拼写中的回车只是「确认拼音」，不能把邀约发出去
-    await pg.focus('#ivNote'); await pg.evaluate(() => { const n = document.getElementById('ivNote'); n.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, isComposing: true, bubbles: true, cancelable: true })) }); await pg.waitForTimeout(200);
-    T(`${name} 输入法拼写中按回车不发送`, await pg.evaluate(() => !INVITES[0] || INVITES[0].status !== 'pending' || INVITES.length === (window.__n0 = INVITES.length)) && (await pg.evaluate(() => !!document.getElementById('ivNote'))));
-    T(`${name} 键盘右下角显示「发送」`, (await pg.getAttribute('#ivNote', 'enterkeyhint')) === 'send');
-    await pg.focus('#ivNote'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(500);
+    // 键盘弹出（手机端外壳 .kb）：折起选项，只剩摘要 + 说一句 + 发送，不需要滚动、输入框和发送按钮同时在可见区
+    if (name === 'pwa') {
+      await pg.setViewportSize({ width: 390, height: 330 }); await pg.evaluate(() => document.querySelector('.device').classList.add('kb')); await pg.waitForTimeout(250);
+      const k = await pg.evaluate(() => { const s = ivScroller(), n = document.getElementById('ivNote').getBoundingClientRect(), g = document.querySelector('.iv-go').getBoundingClientRect(), vh = innerHeight;
+        return { hidden: [...document.querySelectorAll('.iv .kbhide')].every(e => getComputedStyle(e).display === 'none'), sum: getComputedStyle(document.querySelector('.iv-kbsum')).display !== 'none', over: s ? s.scrollHeight - s.clientHeight : 0, noteIn: n.top >= 0 && n.bottom <= vh, goIn: g.top >= 0 && g.bottom <= vh } });
+      T(`${name} 键盘弹出时：选项折起、摘要出现、不用滚动，输入框和「发送邀约」同时看得到`, k.hidden && k.sum && k.over <= 2 && k.noteIn && k.goIn, k);
+      await pg.evaluate(() => document.querySelector('.device').classList.remove('kb')); await pg.setViewportSize({ width: 390, height: 560 }); await pg.waitForTimeout(200);
+    }
+    // 回车：iOS 点键盘右下角确认拼音时，compositionend 先到、随后才来一个 isComposing=false 的 Enter —— 不能把邀约发出去
+    await pg.evaluate(() => { window.__n0 = INVITES.length }); await pg.focus('#ivNote');
+    await pg.evaluate(() => { const n = document.getElementById('ivNote'); n.dispatchEvent(new CompositionEvent('compositionend', { data: 'nihao', bubbles: true })); n.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, isComposing: false, bubbles: true, cancelable: true })) }); await pg.waitForTimeout(100);
+    T(`${name} 确认拼音（compositionend 后紧跟的回车）：不发送、键盘不收`, await pg.evaluate(() => INVITES.length === window.__n0 && document.activeElement && document.activeElement.id === 'ivNote'));
+    T(`${name} 键盘右下角显示「完成」（有后果的操作回车不提交）`, (await pg.getAttribute('#ivNote', 'enterkeyhint')) === 'done');
+    await pg.waitForTimeout(450); await pg.keyboard.press('Enter'); await pg.waitForTimeout(150);
+    T(`${name} 正常回车：只收键盘，不发送`, await pg.evaluate(() => INVITES.length === window.__n0 && document.activeElement.id !== 'ivNote'));
+    await pg.evaluate(() => document.querySelector('.iv-go').click()); await pg.waitForTimeout(500);
     const inv = await pg.evaluate(() => INVITES[0] && { note: INVITES[0].note, status: INVITES[0].status, t: INVITES[0].game_type });
-    T(`${name} 在输入框按回车 = 发送邀约（带上这句话和玩法）`, !!inv && inv.status === 'pending' && inv.note === v.q && inv.t === 'rally', inv);
+    T(`${name} 点「发送邀约」按钮才发送（带上这句话和玩法）`, !!inv && inv.status === 'pending' && inv.note === v.q && inv.t === 'rally', inv);
     // 通用规则：没有 data-enter 的输入框，键盘显示「完成」、回车只收键盘；弹层同屏重画保住滚动、换屏回到顶部
     const r = await pg.evaluate(async () => {
       const open = (title, n) => { const h = `<div class="tt-x"><b>${title}</b><input id="tti" class="iv-in">${'<p style="height:60px">x</p>'.repeat(n)}</div>`; if (typeof openSheet === 'function' && document.getElementById('sheet')) openSheet(h); else openModal(h) };

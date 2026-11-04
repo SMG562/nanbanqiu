@@ -60,7 +60,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-cx]');if(
     case'toGame':CX_CLOSE();INV_GAME(d.g);break;
     case'report':toast('已收到举报，我们会尽快核实');break;
   }},true);
-document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();cxSend(e.target.value)}});
+document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'&&!nbqImeEnter(e)){e.preventDefault();cxSend(e.target.value)}});
 function seedChat(){THREADS=[];MSGS=[];LASTREAD={};CXCUR=null;const now=Date.now();
   const g=gameThread('g6',true),dm={id:'t1',type:'dm',members:['han','jason']};THREADS.push(dm);
   MSGS.push({tid:g.id,from:'tom',text:'明天 9 点见，我订了 3 号场',at:now-5*36e5},{tid:g.id,from:'grace',text:'好的👌 我带一筒新球',at:now-4.6*36e5},{tid:g.id,from:'jason',text:'收到，8:50 到',at:now-4.2*36e5},{tid:g.id,from:'tom',text:'明天可能有小雨，早上我看一下再说',at:now-40*6e4});
