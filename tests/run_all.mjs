@@ -32,7 +32,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(process.env.NBQ_DIR || path.join(HERE, '..'));
 const CACHE = path.resolve(process.env.NBQ_CACHE || path.join(os.homedir(), '.cache', 'nbq-tests'));
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, v] = a.replace(/^--/, '').split('='); return [k, v ?? true] }));
-const QUICK = !!args.quick || !!args.changed, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null, SKIP = args.skip ? String(args.skip).split(',') : null;
+const QUICK = !!args.quick || !!args.changed, UPDATE = !!args['update-snapshots'], ONLY = args.only ? String(args.only).split(',') : null, SKIP = args.skip ? String(args.skip).split(',') : (args.changed && !process.env.CI ? ['visual'] : null);   // 11-04：本地 --changed 默认不跑截图对比（本地字体和基准不同，必然不一致；截图在 CI 跑）。要跑就写 --skip=none
 const GREP = args.grep ? String(args.grep).split(',').filter(Boolean) : null, FAST = !!args.fast, JOBS = Math.max(1, Math.min(4, +args.jobs || os.cpus().length));
 const STAMP = new Date().toLocaleString('sv-SE', { timeZone: 'Australia/Melbourne' }).replace(' ', '_').replace(/:/g, '-');   // 墨尔本时间
 const OUT = path.join(HERE, 'reports', STAMP), LOGS = path.join(OUT, 'logs'), WORK = path.join(os.tmpdir(), 'nbq-work-' + STAMP);

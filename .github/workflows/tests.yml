@@ -1,12 +1,33 @@
 # 南伴球 · 自动测试（10-27 起）
-#   推送到 main：只要改了代码 / 数据库 / 测试，就跑快速测试（--quick --fast，约 20–30 分钟）；只改文档不跑。
+#   开 PR / PR 有新提交：跑浏览器快速测试（测 PR 最新提交本身）；同一 PR 连续推送只跑最新一次。
+#   推送到 main：同一个提交已在 PR 上通过 → 复用结果、不重跑（11-04，tools/ci_reuse.sh，只认完全相同的提交号；合并用 tools/pr_merge.sh 只快进）；
+#   否则照常跑快速测试（--quick --fast）。只改文档不跑。
 #   每周日凌晨（墨尔本时间约 3 点）+ 手动：完整测试（含一年数据量性能、全部时间点、回归快照）。
 #   结果：Actions 页面的摘要 = tests/reports/<时间>/summary.md；完整报告和日志在 Artifacts 里下载。
 name: tests
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('tests（手动 {0}）', inputs.mode) || github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message || 'tests' }}"
 
 on:
   push:
     branches: [main, staging-env]   # 11-03：加上测试分支，合并前就能看到浏览器测试结果
+    paths:
+      - '**.html'
+      - '**.js'
+      - '**.mjs'
+      - '**.cjs'
+      - '**.sql'
+      - '**.py'
+      - 'manifest.webmanifest'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
+      - '**.jsonc'              # 部署配置（wrangler）
+      - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
+      - '.githooks/**'          # 提交前 / 推送前检查
+      - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
+  pull_request:                 # 11-04：PR 上先测，合并（快进）后 main 复用结果；paths 必须和 push 一致（tests/unit/ci_paths 盯着）
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '**.html'
       - '**.js'
@@ -34,13 +55,30 @@ on:
 
 permissions:
   contents: write
+  actions: read          # 复用结果要查这个提交以前的运行
 
-concurrency:                    # 同一分支连续推送时，只跑最新的那次
-  group: tests-${{ github.ref }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'x' }}   # 手动触发各自独立，不互相取消
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+concurrency:                    # 同一分支 / 同一 PR 连续推送时，只跑最新的那次
+  group: tests-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || github.ref }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'x' }}   # 手动触发各自独立，不互相取消
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
+  reuse:                 # 推到 main 时：同一提交已通过 → 下面的 test 跳过（跳过 = 本次运行仍是 success，上线闸门认它）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      hit: ${{ steps.r.outputs.hit }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
+      - id: r
+        if: github.event_name == 'push'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: bash tools/ci_reuse.sh tests
+
   test:
+    needs: reuse
+    if: needs.reuse.outputs.hit != '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
@@ -48,6 +86,8 @@ jobs:
       TZ: Australia/Melbourne
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}   # PR：测 PR 最新提交本身（不是临时合并结果）；合并只快进，main 上就是这个提交
 
       - name: 腾磁盘（一年数据量性能测试会写满 runner 的盘）
         run: |
@@ -89,7 +129,7 @@ jobs:
       - name: 跑测试
         if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
             node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
           elif [ "${{ inputs.mode }}" = "quick" ]; then
             node tests/run_all.mjs --quick --fast --jobs=2

@@ -17,9 +17,9 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 ## 工程规矩（一行一条；来历、命令、例子见 `开发规矩.md`，做到相关的事再打开）
 - **同步到 Mac 必须回读核对**：`device_commit_files` → `sync_verify.sh HEAD~1 --paths` → `device_stage_files` → `sync_verify.sh HEAD~1`。改了发送程序另走 `deploy_notify.mjs`：**先** `sync_verify.sh --deploy` 回读核对一致，**再**给用户命令，命令必须带 `--expect=$(node tools/worker_version.mjs)` 的指纹（不带或对不上，脚本拒绝部署）；没核对一致不准让用户部署。线上是哪版只认 `/version.json`、`/api/version`。
 - **上线闸门**：说「通过 / 已上线」前 `bash tools/gate.sh <提交号>` 三项全绿；没跑、被取消、看的不是这个提交号 = 没过，如实说。
-- **发布流程 B**：风险较大（登录账号、推送、数据读写与迁移、启动流程、Service Worker）走「分支 → 预览站（staging 库）→ 用户真机 → PR 合并」，PR 清单用模板；小修直接推 main。
+- **发布流程 B**：风险较大（登录账号、推送、数据读写与迁移、启动流程、Service Worker）走「分支 → 预览站（staging 库）→ 用户真机 → PR 合并」，PR 清单用模板；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**（只快进、核对测试 / db-parity；main 有新提交就在分支 `git merge origin/main`，不强推），PR 上测过的提交到 main 不重跑（11-04）。
 - **两个库**：正式 `nanbanqiu-au`、测试 `nanbanqiu-staging`（分支预览 `*.nanbanqiu-preview.pages.dev` 自动连测试库）。改库结构 / 默认值 / 迁移：迁移可重复运行并**处理已有数据** → **先正式库跑迁移、再合并前端** → Actions `db-parity`（REST 触发，confirm=production）输出 ✅ 才算正式库也成立。
-- **CI 分工（省 token）**：本地只跑改动相关的几项（已提交的改动用 `--changed=origin/main`）；完整测试交给 Actions，用 REST 触发、读注解，不在对话里干等；截图基准用 tests.yml 的 visual-baseline 在 CI 重拍。
+- **CI 分工（省 token）**：本地只跑改动相关的几项（已提交的改动用 `--changed=origin/main`，本地自动跳过截图对比）；PR 自动跑浏览器快速测试，合并前**不**手动跑完整档（完整档每周日自动跑；大的库结构轮次可加跑一次）；用 REST 触发、读注解，不在对话里干等；截图基准用 tests.yml 的 visual-baseline 在 CI 重拍。
 - **推 main 前**：`git diff --stat origin/main..HEAD` 只含预期文件；`.githooks/pre-push` 拦大量删除；不用 worktree 分支直推 main；在临时仓库跑 git 的测试必须去掉 `GIT_*` 变量。
 - **前台数据边界**：接口数据只走 `nbqFrom*` 转换，枚举用 `nbqEnum`（`enum_cover` 测试盯着）；用户能改的资料必须写服务器，测试「改 → 重读 → 还在」。
 - **前台状态看页面**：读入只走 `nbqApply`；测试断言 DOM / 像素，不只断言内存；异步后逐个查 `if(...)return`；刷新不准先闪「未登录」（快照 `nbq_snap`，`NBQ_STALE` 期间不写）。

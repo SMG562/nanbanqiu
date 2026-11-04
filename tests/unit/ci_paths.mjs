@@ -11,9 +11,9 @@ const WF = path.join(ROOT, '.github', 'workflows');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 900))) };
 
 // 读 on.push.paths（简单的行解析，不引入 yaml 依赖；读不到会让下面的第一项测试失败）
-function pushPaths(file) {
+function pushPaths(file, ev = 'push') {
   let lines; try { lines = fs.readFileSync(path.join(WF, file), 'utf8').split('\n') } catch { return null }
-  let i = lines.findIndex(l => /^  push:\s*$/.test(l)); if (i < 0) return null;
+  let i = lines.findIndex(l => new RegExp('^  ' + ev + ':').test(l)); if (i < 0) return null;
   const out = []; let inPaths = false;
   for (i++; i < lines.length; i++) {
     const l = lines[i];
@@ -79,5 +79,16 @@ const MUST = ['package.json', 'package-lock.json', 'wrangler.jsonc', 'notify-wor
   'schema.sql', 'manifest.webmanifest', 'sw.js', 'tests/run_all.mjs', 'tools/gate.sh', 'tools/build.mjs', '.githooks/pre-commit', '.githooks/pre-push'];
 const missing = MUST.filter(f => FILES.includes(f) && !(triggers(FAST, f) && triggers(FULL, f)));
 T('关键文件改动一定触发 tests-fast 和 tests', missing.length === 0, missing);
+
+// ⑤ 按提交复用结果（11-04）：PR 上测过的提交快进到 main 后不重跑。前提必须守住，否则会「复用」到没测过的东西
+const PR = pushPaths('tests.yml', 'pull_request');
+T('tests.yml 的 pull_request.paths 和 push.paths 完全一致（否则有的改动 PR 上不测、合并后却被复用）', !!PR && JSON.stringify(PR) === JSON.stringify(FULL), { PR, FULL });
+const rd = f => { try { return fs.readFileSync(f, 'utf8') } catch { return '' } };
+const reuse = rd(path.join(ROOT, 'tools', 'ci_reuse.sh')), merge = rd(path.join(ROOT, 'tools', 'pr_merge.sh')), tests = rd(path.join(WF, 'tests.yml')), fastY = rd(path.join(WF, 'tests-fast.yml'));
+T('复用只按完全相同的提交号查（head_sha），只认通过的运行，不认重拍截图基准的运行', reuse.includes('head_sha=$SHA') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
+T('两个工作流都只在「推到 main」时复用；命中才跳过测试任务', tests.includes("if: github.event_name == 'push'") && fastY.includes("github.ref == 'refs/heads/main' && github.event_name == 'push'")
+  && /needs: reuse\n\s+if: needs.reuse.outputs.hit != '1'/.test(tests) && /needs: reuse\n\s+if: needs.reuse.outputs.hit != '1'/.test(fastY));
+T('PR 测的是 PR 最新提交本身，且和推 main 跑同一条命令', tests.includes('github.event.pull_request.head.sha') && tests.includes('[ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]'));
+T('合并脚本只快进（把测过的提交号推成 main）、不强推，并核对测试 / db-parity / 工作区', merge.includes('merge-base --is-ancestor origin/main') && merge.includes('git push origin "$SHA:refs/heads/main"') && !/git push[^\n]*(--force|\s-f\s)/.test(merge) && merge.includes('db-parity') && merge.includes('status --porcelain'));
 
 console.log(`\nci_paths: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
