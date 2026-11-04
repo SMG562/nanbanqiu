@@ -21,13 +21,14 @@ const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
       const r = await pg.evaluate(() => {
         setWho(Object.keys(USERS)[0], true); const o = {};
         setEnv('safari'); o.safari = pushState(); setEnv('wechat'); o.wechat = pushState(); setEnv('pwa'); PUSH.enabled = false;
+        Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });   // CI 的无头浏览器默认是 denied，不能依赖默认值
         o.ask = pushState(); o.askHtml = pushNudgeHTML('game'); o.invHtml = pushNudgeHTML('invite');
-        const orig = Object.getOwnPropertyDescriptor(Notification, 'permission'); Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'denied' });
+        const orig = null; Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'denied' });
         o.denied = pushState(); o.deniedHtml = pushNudgeHTML('game');
         window.__req = 0; const oR = Notification.requestPermission; Notification.requestPermission = () => { window.__req++; return Promise.resolve('denied') };
         enablePush(); o.sheet = document.body.innerText; o.req = window.__req;
         o.steps = document.querySelectorAll('.pdsteps li').length; o.recheck = !!document.querySelector('[data-a="pushRecheck"]');
-        closeSheet(); Notification.requestPermission = oR; if (orig) Object.defineProperty(Notification, 'permission', orig); else delete Notification.permission;
+        closeSheet(); Notification.requestPermission = oR; delete Notification.permission;
         PUSH.enabled = true; o.on = pushState(); o.onHtml = pushNudgeHTML('game'); PUSH.enabled = false;
         setWho(null, true); o.anon = pushNudgeHTML('game'); return o });
       T('状态：浏览器标签 = need_install，微信 = wechat', r.safari === 'need_install' && r.wechat === 'wechat', r);
