@@ -54,6 +54,7 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）
@@ -130,6 +131,7 @@ add('frontend', 'frontend/real_write', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/real_invite', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_invite.js')], { pass: [/real_invite: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_chat', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_chat.js')], { pass: [/real_chat: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_safety.js')], { pass: [/real_safety: \d+ 通过, 0 失败/], timeout: 600 });
+add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });

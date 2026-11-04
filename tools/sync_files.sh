@@ -4,11 +4,12 @@
 # 写完之后必须回读核对（tools/sync_verify.sh），commit_files 说成功不等于文件真的换了。
 # 11-03 复现：同一个暂存文件刚被 cp 覆盖后立刻 commit_files，电脑上可能拿到上一版内容（读暂存目录有延迟）。所以本脚本最后等几秒；核对不一致就再写一次。
 set -e
+# .github 不同步：受保护目录写不进电脑（11-04 起自动排除，清单可以直接贴给 device_commit_files）
 cd "$(dirname "$0")/.."
 REF="${1:-HEAD~1}"; OUT=/mnt/user-data/outputs/sync; DEV="/Users/hanliu/Documents/南伴球"
 mkdir -p "$OUT"
-git diff --name-only -z --diff-filter=AM "$REF" HEAD | while IFS= read -r -d '' f; do mkdir -p "$OUT/$(dirname "$f")"; cp "$f" "$OUT/$f"; done
-git diff --name-only -z --diff-filter=AM "$REF" HEAD | python3 -c "
+git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' | while IFS= read -r -d '' f; do mkdir -p "$OUT/$(dirname "$f")"; cp "$f" "$OUT/$f"; done
+git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' | python3 -c "
 import sys,json
 fs=[x for x in sys.stdin.buffer.read().decode().split('\0') if x]
 print(json.dumps([{'devicePath':'$DEV/'+x,'stagedPath':'$OUT/'+x} for x in fs],ensure_ascii=False))"

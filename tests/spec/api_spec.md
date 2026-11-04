@@ -404,6 +404,8 @@
 - 被举报人不知道是谁举报的
 - 事件：report_submit（前端，不含说明）
 
+### GET /api/me/after · 赛后读回 `{prefs:[{target_id,pref,game_id,updated_at}], feels:[{game_id,feel,closed_at}], impressions, noshows, appeals}`（11-04 6d；只返回自己的：全部多遇到 / 少遇到、近 8 天的赛后感受、近 15 天给的印象与没到场反馈、申诉；登录时读入前台）
+
 ### GET /api/blocks · 我屏蔽的人 `{blocks:[{user_id, created_at}], profiles}`（只返回我屏蔽的，不返回谁屏蔽了我；登录时读入前台屏蔽名单）
 
 ### POST /api/blocks `{user_id}` · DELETE /api/blocks/:user_id · `api_block(uid)` / `api_unblock(uid)`

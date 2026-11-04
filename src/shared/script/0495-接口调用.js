@@ -89,7 +89,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
+  const [pub,mine,inv,blk,aft]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after')]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -100,7 +100,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null}}
 // 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
 async function nbqLoadPublic(net){
   const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
@@ -138,7 +138,22 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+
+// 赛后记录（第 6 轮 6d）：我的多遇到 / 少遇到 → OPIN；近 7 天的赛后感受 → AFTER（读不到时保持原样，不清空）
+function nbqApplyAfter(a,me){
+  Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
+  (a.prefs||[]).forEach(x=>{if(x.pref!=='more'&&x.pref!=='less')return;const k=me+'>'+x.target_id,at=nbqMs(x.updated_at)||Date.now();
+    OPIN[k]={v:x.pref,at,gid:x.game_id||null};if(x.pref==='less')LESS_IV[k]=[[at,Infinity]]});
+  // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
+  [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
+  (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
+  // 我反馈过谁没来 / 我对爽约反馈的申诉：以服务器为准
+  Object.keys(NS).forEach(k=>{if(NS[k])NS[k].delete(me)});Object.keys(NS_APPEAL).forEach(k=>{if(k.endsWith('|'+me))delete NS_APPEAL[k]});
+  (a.noshows||[]).forEach(x=>{const k=x.game_id+'|'+x.target_id;(NS[k]=NS[k]||new Set()).add(me)});
+  (a.appeals||[]).forEach(x=>{NS_APPEAL[x.game_id+'|'+me]={reason:x.reason,at:nbqMs(x.created_at)||0,status:x.status||'pending'}});
+  Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
+  (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
@@ -257,6 +272,22 @@ async function nbqInviteDecline(i,why,note){
 async function nbqInviteWithdraw(i){
   const was=i.status==='counter'&&i.to===ME.id?'counter':'invite',d=await nbqWrite('invwd'+i.id,n=>n.post('/api/invites/'+i.id+'/withdraw'));if(!d)return nbqInvBack();
   track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
+
+
+/* ---- 赛后（第 6 轮 6d）：感受 / 多遇到·随缘·少遇到 / 好了 都先调接口，成功后重读（以服务器为准）。对方不会收到任何通知 ---- */
+const nbqRecap=(gid,body,key)=>nbqWrite('rc'+(key||gid),n=>n.put('/api/games/'+gid+'/recap',body));
+async function nbqRecapPref(gid,uid,v){const d=await nbqRecap(gid,{prefs:{[uid]:v}},gid+uid);return !!d}
+async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel');return !!d}
+// 给球友留印象：整组替换（空数组 = 撤回），成功后重读；都点个赞：对同局每位还没点过的人各记一次「友善」
+async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
+async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
+// 反馈「TA 没来」（可撤回）/ 被反馈后申诉：先调接口，成功后重读；对方是否收到通知由服务器按规则决定，前台不再本地造通知
+async function nbqNoshow(gid,uid,on){const d=await nbqWrite('ns'+gid+uid,n=>on?n.post('/api/games/'+gid+'/noshow',{target_id:uid}):n.del('/api/games/'+gid+'/noshow',{target_id:uid}));
+  if(d)track(on?'noshow_report':'noshow_undo',{game_id:gid,target_uid:uid});return !!d}
+async function nbqNoshowAppeal(gid,reason){const d=await nbqWrite('nsa'+gid,n=>n.post('/api/games/'+gid+'/appeal',{reason}));if(d)track('noshow_appeal',{game_id:gid,reason});return !!d}
+async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
+async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 
 
 /* ---- 屏蔽 / 举报（第 6 轮 6c）：先调接口，成功才改页面；屏蔽名单登录时读入，刷新不丢 ---- */
