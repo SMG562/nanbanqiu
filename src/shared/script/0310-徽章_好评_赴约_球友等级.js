@@ -113,6 +113,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
+  if(nbqOn()&&(k==='nsok'||k==='nsundo')){RC_NSASK=null;nbqNoshow(gid,uid,k==='nsok').then(ok=>{if(ok)toast(k==='nsok'?'已记录，谢谢反馈':'已撤回');rcRedraw(gid)});return}   // 真实模式：先写服务器
   if(k==='nsok'){RC_NSASK=null;const was=nsConfirmed(gid,uid);(NS[nk]=NS[nk]||new Set()).add(ME.id);
     if(!was&&nsConfirmed(gid,uid)&&!NS_TOLD.has(nk)){NS_TOLD.add(nk);const G=GAMES.find(x=>x.id===gid);notify(uid,'noshow',gid,null)}
     toast('已记录，谢谢反馈')}
@@ -125,6 +126,7 @@ function nsAppeal(gid){const g=GAMES.find(x=>x.id===gid),c=V(g),k=nsKey(gid,ME.i
     <div class="uf-l">${[['came','我到了','可能没碰上，或者对方记错了'],['told','我提前说过来不了','在聊天里或私下说过'],['other','其他原因','我们会联系你了解情况']].map(([v,t,d])=>`<button class="uf-r" data-nsa="${v}" data-g="${gid}"><b>${t}</b><small>${d}</small></button>`).join('')}
     <button class="uf-r" data-nsa="ok" data-g="${gid}"><b>没有误会</b><small>下次会提前说</small></button></div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nsa]');if(!b||!ME)return;e.stopPropagation();const v=b.dataset.nsa,k=nsKey(b.dataset.g,ME.id);
+  if(nbqOn()&&v!=='ok'){nbqNoshowAppeal(b.dataset.g,v).then(ok=>{if(ok)toast('已提交，核实期间不计入爽约');UF_CLOSE();UF_RENDER()});return}
   if(v!=='ok'){NS_APPEAL[k]={reason:v,at:Date.now(),status:'pending'};toast('已提交，核实期间不计入爽约')}else toast('好的，谢谢你');UF_CLOSE();UF_RENDER()},true);
 
 // ---------- 等级提升：通知一次 + 获得动画；等级回落不打扰 ----------

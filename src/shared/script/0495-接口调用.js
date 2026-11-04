@@ -148,6 +148,10 @@ function nbqApplyAfter(a,me){
   // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
   [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
   (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
+  // 我反馈过谁没来 / 我对爽约反馈的申诉：以服务器为准
+  Object.keys(NS).forEach(k=>{if(NS[k])NS[k].delete(me)});Object.keys(NS_APPEAL).forEach(k=>{if(k.endsWith('|'+me))delete NS_APPEAL[k]});
+  (a.noshows||[]).forEach(x=>{const k=x.game_id+'|'+x.target_id;(NS[k]=NS[k]||new Set()).add(me)});
+  (a.appeals||[]).forEach(x=>{NS_APPEAL[x.game_id+'|'+me]={reason:x.reason,at:nbqMs(x.created_at)||0,status:x.status||'pending'}});
   Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
   (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
@@ -278,6 +282,10 @@ async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel
 async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
 async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
   try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
+// 反馈「TA 没来」（可撤回）/ 被反馈后申诉：先调接口，成功后重读；对方是否收到通知由服务器按规则决定，前台不再本地造通知
+async function nbqNoshow(gid,uid,on){const d=await nbqWrite('ns'+gid+uid,n=>on?n.post('/api/games/'+gid+'/noshow',{target_id:uid}):n.del('/api/games/'+gid+'/noshow',{target_id:uid}));
+  if(d)track(on?'noshow_report':'noshow_undo',{game_id:gid,target_uid:uid});return !!d}
+async function nbqNoshowAppeal(gid,reason){const d=await nbqWrite('nsa'+gid,n=>n.post('/api/games/'+gid+'/appeal',{reason}));if(d)track('noshow_appeal',{game_id:gid,reason});return !!d}
 async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
 async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 

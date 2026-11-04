@@ -16,7 +16,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const tag = s => `${f} ${s}`, G1 = U('7'), now = +new Date(process.env.NBQ_TS || '2026-10-14T15:10:00+11:00');   // 页面时钟固定（tests/lib/preload.js），球局时间也按它算
     const S = { me: { id: ME, member_no: 1, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
-      prefs: [{ target_id: OLD, pref: 'less', game_id: null, updated_at: new Date(now - 864e5).toISOString() }], feel: null, closed: null, imps: [], fail: null, log: [], bodies: {} };
+      prefs: [{ target_id: OLD, pref: 'less', game_id: null, updated_at: new Date(now - 864e5).toISOString() }], feel: null, closed: null, imps: [], ns: [], appeals: [], fail: null, log: [], bodies: {} };
     const game = { id: G1, share_code: 'ABC123', host_id: ME, venue_id: V1, venue_name: null, starts_at: new Date(now - 3 * 36e5).toISOString(), duration_min: 90, game_type: 'singles', capacity: 2, utr_min: 3, utr_max: 7, status: 'open', visibility: 'public', join_mode: 'approval', note: '', tags: [], approved_count: 2, filled: 2 };
     const parts = [{ game_id: G1, user_id: ME, role: 'host', status: 'approved', message: '', created_at: new Date(now - 864e5).toISOString() }, { game_id: G1, user_id: HOST, role: 'player', status: 'approved', message: '', created_at: new Date(now - 864e5).toISOString() }];
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
@@ -33,13 +33,15 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
         if (p === '/api/threads') return J(200, { threads: [] });
         if (p === '/api/blocks') return J(200, { blocks: [], profiles: {} });
         if (p === '/api/profiles') return J(200, { profiles: { [HOST]: card(HOST, 'Host', 1200), [OLD]: card(OLD, 'Olga', 1100) } });
-        if (p === '/api/me/after') return J(200, { prefs: S.prefs, feels: S.feel || S.closed ? [{ game_id: G1, feel: S.feel, closed_at: S.closed }] : [], impressions: S.imps.map(x => ({ game_id: G1, to_id: x.to, kinds: x.kinds })), noshows: [], appeals: [] });
+        if (p === '/api/me/after') return J(200, { prefs: S.prefs, feels: S.feel || S.closed ? [{ game_id: G1, feel: S.feel, closed_at: S.closed }] : [], impressions: S.imps.map(x => ({ game_id: G1, to_id: x.to, kinds: x.kinds })), noshows: S.ns.map(t => ({ game_id: G1, target_id: t })), appeals: S.appeals });
         return J(404, { error: 'not_found' }) }
       if (p === '/api/me/pact') return J(200, { ok: true });
       if (S.fail) return J(409, { error: S.fail });
       if (p === `/api/games/${G1}/recap`) { if (body.prefs) Object.entries(body.prefs).forEach(([k, v]) => { S.prefs = S.prefs.filter(x => x.target_id !== k); if (v !== 'ok') S.prefs.push({ target_id: k, pref: v, game_id: G1, updated_at: new Date().toISOString() }) });
         if (body.impressions) Object.entries(body.impressions).forEach(([k, v]) => { S.imps = S.imps.filter(x => x.to !== k); if (v.length) S.imps.push({ to: k, kinds: v }) });
         if (body.feel) S.feel = body.feel; if (body.done) S.closed = new Date().toISOString(); return J(200, { ok: true }) }
+      if (p === `/api/games/${G1}/noshow`) { if (S.fail) return J(409, { error: S.fail }); if (m === 'POST') S.ns = [...new Set([...S.ns, body.target_id])]; else S.ns = S.ns.filter(x => x !== body.target_id); return J(200, { ok: true, confirmed: false }) }
+      if (p === `/api/games/${G1}/appeal`) { S.appeals = [{ game_id: G1, reason: body.reason, status: 'pending', created_at: new Date().toISOString() }]; return J(200, { ok: true }) }
       if (p === `/api/players/${HOST}/kudos`) { if (!S.imps.some(x => x.to === HOST)) S.imps.push({ to: HOST, kinds: ['kind'] }); return J(200, { kudos: 1 }) }
       if (p === `/api/players/${HOST}/pref`) { S.prefs = S.prefs.filter(x => x.target_id !== HOST); if (body.pref !== 'ok') S.prefs.push({ target_id: HOST, pref: body.pref, game_id: null, updated_at: new Date().toISOString() }); return J(200, { ok: true }) }
       return J(404, { error: 'not_found' }) });
@@ -88,6 +90,19 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     S.imps = []; await pg.evaluate(() => nbqRefresh()); await pg.settle(400); S.log.length = 0;
     await click({ 'data-rcx': 'all', 'data-g': G1 }); await until(async () => (await kd()) === 'kind');
     T(tag('「都点个赞」：对同局每位调 kudos，读回后是友善'), S.log.includes('POST /api/players/HOST/kudos') && S.bodies['POST /api/players/HOST/kudos'].game_id === G1, [S.log, await kd()]);
+
+    // 爽约反馈 / 申诉：写服务器、读回后还在
+    const nsOn = () => pg.evaluate(([h, g, me]) => !!(NS[g + '|' + h] && NS[g + '|' + h].has(me)), [HOST, G1, ME]);
+    S.log.length = 0; await click({ 'data-rcx': 'nsok', 'data-g': G1, 'data-u': HOST }); await until(nsOn);
+    T(tag('确认没来：POST noshow 带 target_id，读回后已记录；本地不造通知'), S.log.includes('POST /api/games/G1/noshow') && S.bodies['POST /api/games/G1/noshow'].target_id === HOST && (await nsOn()) && await pg.evaluate(() => !NOTIFS.some(n => n.kind === 'noshow')), [S.log, S.bodies]);
+    await pg.evaluate(() => { for (const k in NS) delete NS[k] }); await pg.evaluate(() => nbqRefresh()); await pg.settle(400);
+    T(tag('刷新（内存清空后重读）：爽约反馈还在'), await nsOn());
+    await click({ 'data-rcx': 'nsundo', 'data-g': G1, 'data-u': HOST }); await until(async () => !(await nsOn()));
+    T(tag('撤回：DELETE noshow，读回后没有了'), S.log.includes('DELETE /api/games/G1/noshow') && !(await nsOn()), S.log);
+    S.fail = 'noshow_window_closed'; await click({ 'data-rcx': 'nsok', 'data-g': G1, 'data-u': HOST }); S.fail = null;
+    T(tag('接口失败：不记录，并提示原因'), !(await nsOn()) && !!(await toasts()), await toasts());
+    await click({ 'data-nsa': 'came', 'data-g': G1 }); await until(() => pg.evaluate(([g, me]) => !!NS_APPEAL[g + '|' + me], [G1, ME]));
+    T(tag('申诉：POST appeal 带 reason，读回后是待核实'), S.bodies['POST /api/games/G1/appeal'].reason === 'came' && await pg.evaluate(([g, me]) => NS_APPEAL[g + '|' + me].status === 'pending', [G1, ME]), S.bodies);
 
     // 球员卡上改
     S.log.length = 0; await pg.evaluate(h => { UF_CLOSE && UF_CLOSE() }, HOST); await click({ 'data-pcp': 'less', 'data-u': HOST }); await until(async () => (await op(HOST)) === 'less');

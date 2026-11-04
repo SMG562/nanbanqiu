@@ -54,6 +54,7 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）

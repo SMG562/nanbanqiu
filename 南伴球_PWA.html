@@ -3515,6 +3515,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
+  if(nbqOn()&&(k==='nsok'||k==='nsundo')){RC_NSASK=null;nbqNoshow(gid,uid,k==='nsok').then(ok=>{if(ok)toast(k==='nsok'?'已记录，谢谢反馈':'已撤回');rcRedraw(gid)});return}   // 真实模式：先写服务器
   if(k==='nsok'){RC_NSASK=null;const was=nsConfirmed(gid,uid);(NS[nk]=NS[nk]||new Set()).add(ME.id);
     if(!was&&nsConfirmed(gid,uid)&&!NS_TOLD.has(nk)){NS_TOLD.add(nk);const G=GAMES.find(x=>x.id===gid);notify(uid,'noshow',gid,null)}
     toast('已记录，谢谢反馈')}
@@ -3527,6 +3528,7 @@ function nsAppeal(gid){const g=GAMES.find(x=>x.id===gid),c=V(g),k=nsKey(gid,ME.i
     <div class="uf-l">${[['came','我到了','可能没碰上，或者对方记错了'],['told','我提前说过来不了','在聊天里或私下说过'],['other','其他原因','我们会联系你了解情况']].map(([v,t,d])=>`<button class="uf-r" data-nsa="${v}" data-g="${gid}"><b>${t}</b><small>${d}</small></button>`).join('')}
     <button class="uf-r" data-nsa="ok" data-g="${gid}"><b>没有误会</b><small>下次会提前说</small></button></div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nsa]');if(!b||!ME)return;e.stopPropagation();const v=b.dataset.nsa,k=nsKey(b.dataset.g,ME.id);
+  if(nbqOn()&&v!=='ok'){nbqNoshowAppeal(b.dataset.g,v).then(ok=>{if(ok)toast('已提交，核实期间不计入爽约');UF_CLOSE();UF_RENDER()});return}
   if(v!=='ok'){NS_APPEAL[k]={reason:v,at:Date.now(),status:'pending'};toast('已提交，核实期间不计入爽约')}else toast('好的，谢谢你');UF_CLOSE();UF_RENDER()},true);
 
 // ---------- 等级提升：通知一次 + 获得动画；等级回落不打扰 ----------
@@ -5086,6 +5088,10 @@ function nbqApplyAfter(a,me){
   // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
   [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
   (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
+  // 我反馈过谁没来 / 我对爽约反馈的申诉：以服务器为准
+  Object.keys(NS).forEach(k=>{if(NS[k])NS[k].delete(me)});Object.keys(NS_APPEAL).forEach(k=>{if(k.endsWith('|'+me))delete NS_APPEAL[k]});
+  (a.noshows||[]).forEach(x=>{const k=x.game_id+'|'+x.target_id;(NS[k]=NS[k]||new Set()).add(me)});
+  (a.appeals||[]).forEach(x=>{NS_APPEAL[x.game_id+'|'+me]={reason:x.reason,at:nbqMs(x.created_at)||0,status:x.status||'pending'}});
   Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
   (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
@@ -5216,6 +5222,10 @@ async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel
 async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
 async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
   try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
+// 反馈「TA 没来」（可撤回）/ 被反馈后申诉：先调接口，成功后重读；对方是否收到通知由服务器按规则决定，前台不再本地造通知
+async function nbqNoshow(gid,uid,on){const d=await nbqWrite('ns'+gid+uid,n=>on?n.post('/api/games/'+gid+'/noshow',{target_id:uid}):n.del('/api/games/'+gid+'/noshow',{target_id:uid}));
+  if(d)track(on?'noshow_report':'noshow_undo',{game_id:gid,target_uid:uid});return !!d}
+async function nbqNoshowAppeal(gid,reason){const d=await nbqWrite('nsa'+gid,n=>n.post('/api/games/'+gid+'/appeal',{reason}));if(d)track('noshow_appeal',{game_id:gid,reason});return !!d}
 async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
 async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
 
