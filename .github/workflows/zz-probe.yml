@@ -9,13 +9,9 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: 等预览部署完并请求
+      - name: 分支预览的后台有没有 Access；探针已撤
         run: |
           B=https://admin-api-probe.nanbanqiu-preview.pages.dev
-          for i in $(seq 1 30); do
-            c=$(curl -s -o /tmp/b -w '%{http_code}' "$B/api/zz-probe?n=1"); echo "try $i: $c $(head -c 200 /tmp/b)"
-            if [ "$c" = 200 ] && grep -q '"n"' /tmp/b; then break; fi; sleep 20
-          done
-          for n in 1 3 10; do echo "== n=$n"; curl -s -w ' [HTTP %{http_code}, %{time_total}s]\n' "$B/api/zz-probe?n=$n" | head -c 400; echo; done
-          echo "== 分支预览前面有没有 Cloudflare Access（/admin.html 的第一跳）"; curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$B/admin.html"
-          echo "== 生产 /admin/api/me 第一跳"; curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://nanbanqiu.app/admin/api/me"
+          sleep 90
+          for p in /admin /admin.html /admin/api/me /api/zz-probe; do echo "== $p"; curl -s -L --max-redirs 3 -o /tmp/b -w '%{http_code} %{url_effective}\n' "$B$p"; head -c 160 /tmp/b | tr -d '\n'; echo; done
+          echo "== staging"; curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://staging.nanbanqiu-preview.pages.dev/admin
