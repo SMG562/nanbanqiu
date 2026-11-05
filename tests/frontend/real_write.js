@@ -28,7 +28,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       { game_id: G2, user_id: REQ, role: 'player', status: S.reqStatus, created_at: iso(-1), message: '想打', decline_reason: S.reqStatus === 'rejected' ? 'pass' : null }];
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
-      if (m !== 'GET') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
+      // 埋点（/api/events）由定时器批量发，什么时候插进来不确定；它不是写操作，不进写请求日志（11-05：「约定」那条因此偶发红）
+      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
       if (m === 'PATCH' && p === '/api/me') { Object.assign(S.me, body); return J(200, { user: S.me }) }   // 资料修改：服务器记下，下次读回就是新值
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });

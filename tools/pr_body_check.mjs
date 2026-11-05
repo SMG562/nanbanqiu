@@ -14,6 +14,13 @@ export function checkBody(body, files, { merge = false } = {}) {
     const none = /入口清单\s*[:：]\s*无[（(][^）)]{4,}[）)]/.test(b);   // 「入口清单：无（理由）」，理由至少 4 个字
     if (!real.length && !none) bad.push('缺「入口清单」：列出这份用户可改数据的所有修改入口（入口 | 真实模式是否写服务器 | 读回在哪 | 测试）；确实不涉及就写「入口清单：无（理由）」');
   }
+  // 11-05（逃逸：用户照「你来做」去电脑上找迁移文件，没有）：「你来做」里提到的、本 PR 才有的文件，main 的同步不会带到用户电脑 →
+  //   必须先 sync_files.sh --branch=<分支> <文件…> 写过去并回读核对，再在描述里写一行「已同步到电脑：…」
+  const todo = /##+[^\n]*你来做[^\n]*\n([\s\S]*?)(?=\n##+ |$)/.exec(b);
+  if (todo) { const need = [...new Set([...todo[1].matchAll(/`([^`]+)`/g)].flatMap(m => m[1].match(/[\w\u4e00-\u9fff./-]+\.[a-z]{1,5}\b/g) || []).filter(f => (files || []).includes(f)))];
+    const synced = (/已同步到电脑[:：]([^\n]*)/.exec(b) || [])[1] || '';
+    const miss = need.filter(f => !synced.includes(f));
+    if (miss.length) bad.push(`「你来做」用到本 PR 才有的文件，没写「已同步到电脑」：${miss.join('、')}（先 bash tools/sync_files.sh --branch=<分支> ${miss.join(' ')}，写到电脑并 sync_verify.sh --branch 回读核对）`) }
   if (!ticked(b, '(较大风险|小修小补)')) bad.push('风险类别没勾（较大风险 / 小修小补）');
   if (merge) {
     if (ticked(b, '较大风险') && has(b, '刷新后还在') && !ticked(b, '刷新后还在')) bad.push('真机项「刷新后还在」没勾');

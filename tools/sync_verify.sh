@@ -9,10 +9,13 @@
 set -u
 cd "$(dirname "$0")/.."
 UP="${UPLOADS:-/mnt/user-data/uploads/南伴球}"; DEV="/Users/hanliu/Documents/南伴球"
-if [ "${1:-}" = "--deploy" ]; then MODE=deploy; REF=""; else MODE=diff; REF="${1:-HEAD~1}"; fi
-ACTION="${2:-verify}"; [ "${1:-}" = "--deploy" ] && ACTION="${2:-verify}"
+# 11-05：--branch=<分支> [--paths] <文件…>：核对从 PR 分支同步过去的文件（见 sync_files.sh --branch）
+BR=""; BFILES=()
+if [ "${1#--branch=}" != "${1:-}" ]; then BR="${1#--branch=}"; shift; ACTION=verify; [ "${1:-}" = "--paths" ] && { ACTION=--paths; shift; }; BFILES=("$@"); MODE=branch; REF=""
+elif [ "${1:-}" = "--deploy" ]; then MODE=deploy; REF=""; ACTION="${2:-verify}"; else MODE=diff; REF="${1:-HEAD~1}"; ACTION="${2:-verify}"; fi
 list() {
-  if [ "$MODE" = deploy ]; then node tools/worker_version.mjs --list
+  if [ "$MODE" = branch ]; then printf '%s\n' "${BFILES[@]}"
+  elif [ "$MODE" = deploy ]; then node tools/worker_version.mjs --list
   else git diff --name-only -z --diff-filter=AM "$REF" HEAD | tr '\0' '\n' | grep -v '^\.github/'; fi   # .github 是受保护文件，写不进电脑，不核对
 }
 if [ "$ACTION" = "--paths" ]; then
@@ -36,7 +39,7 @@ for round in 1 2 3 4; do
   bad=(); n=0
   while IFS= read -r f; do
     [ -z "$f" ] && continue; n=$((n+1))
-    a=$(h "$f"); b=$(h "$UP/$f" 2>/dev/null)
+    if [ "$MODE" = branch ]; then git show "origin/$BR:$f" > /tmp/nbq_sv_branch 2>/dev/null; a=$(h /tmp/nbq_sv_branch); else a=$(h "$f"); fi; b=$(h "$UP/$f" 2>/dev/null)
     [ "$a" = "$b" ] || bad+=("$f")
   done < <(list)
   [ ${#bad[@]} -eq 0 ] && break
