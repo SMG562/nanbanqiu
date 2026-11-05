@@ -39,7 +39,7 @@ export const RULES = [
   [/^server\/seed\/|^tools\/venues_seed\.mjs$|^src\/shared\/script\/0080-数据\.js$/, ['pg/venues_seed']],
   [/^server\/api\/|^functions\/api\/|^worker\/|^package(-lock)?\.json$/, ['unit/api', 'pg/api', 'frontend/site']],
   [/^server\/(notify|ops|admin)\/|^server\/(routes|headers)\./, ['pg/', 'admin/']],
-  [/^server\/admin\/|^functions\/admin\/|^worker\/|^tools\/site\.mjs$/, ['pg/admin_api', 'static/admin_api_routes', 'e2e_admin_login']],   // #27：后台接口
+  [/^server\/admin\/|^functions\/admin\/|^worker\/|^tools\/site\.mjs$/, ['pg/admin_api', 'pg/admin_reports', 'static/admin_api_routes', 'e2e_admin_login']],   // #27：后台接口
   [/^server\/og\/|^functions\/(g|p)\//, ['unit/og', 'unit/site_route', 'frontend/wx_share', 'frontend/site']],
   [/^server\/site_route\.mjs$|^functions\/_middleware\.js$/, ['unit/site_route', 'frontend/site']],
   [/^sw\.js$|^manifest\.webmanifest$/, ['frontend/a2hs', 'frontend/site', 'unit/site_route']],

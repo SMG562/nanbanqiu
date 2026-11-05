@@ -40,7 +40,21 @@ try {
   const GF = (await admin.query(`insert into games(share_code, host_id, venue_id, starts_at, duration_min, game_type, capacity, utr_min, utr_max, join_mode, visibility) values ('e2e002',$1,$2, now()-interval '5 hours', 90,'singles',2,3,8,'approve','public') returning id`, [P, V])).rows[0].id;
   await admin.query(`insert into game_participants(game_id, user_id, status, approved_at, created_at) values ($1,$2,'approved', now()-interval '1 day', now()-interval '2 days')`, [GF, H]);   // 5 小时前开打、1.5 小时前结束：我和 P 打过
   if (process.env.E2E_DEBUG) console.log('DBG', JSON.stringify((await admin.query('select p.user_id=$2 as me, p.status, p.role, g.status gs, g.starts_at < now() past from game_participants p join games g on g.id=p.game_id where g.id=$1', [GF, H])).rows));
-  const ctx0 = { H, P, V, V2, G, GF };
+  // ---- 后台（11-06 #27 第 2 步）：用真实的 server/admin/api.mjs 处理前台刚提交的举报，验证「前台举报 → 后台处理 → 前台刷新不再显示 → 可重新举报」整条链 ----
+  const AU = await import(path.join(DIR, 'server/admin/auth.mjs')), ADM = await import(path.join(DIR, 'server/admin/api.mjs'));
+  await admin.query(`alter role nbq_admin_api login`);
+  const APW = 'correct horse battery', ASEC = AU.newTotpSecret();
+  await admin.query(`insert into admin_users(email,name,role,password_hash,totp_secret,recovery_hashes) values ('ops@e2e.test','Amy','operator',$1,$2,'{}')`, [AU.hashPassword(APW), ASEC]);
+  const adeps = { connect: async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_admin_api', database: 'nbq' }); await cl.connect(); return cl }, now: () => aClock };   // 虚拟时钟：同一个 30 秒的验证码只能用一次，两个页面文件各登录一次，每次前进 30 秒
+  let aClock = 1_800_000_000_000;
+  const aCall = async (method, p, body, cookie) => { const O = 'https://admin.e2e.test'; const r = await ADM.handleAdmin(new Request(O + p, { method, headers: { 'X-NBQ-Admin': '1', ...(method !== 'GET' ? { Origin: O, 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) }, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) }), adeps); return { s: r.status, j: await r.json().catch(() => null), ck: r.headers.get('Set-Cookie') } };
+  const adminHandleReport = async (reporter, target, action) => {
+    aClock += 30e3; const lg = await aCall('POST', '/admin/api/login', { email: 'ops@e2e.test', password: APW, code: AU.totp(ASEC, aClock) }), ck = 'nbq_admin=' + ((lg.ck || '').match(/nbq_admin=([^;]+)/) || [])[1];
+    const list = await aCall('GET', '/admin/api/reports', null, ck), row = (list.j?.reports || []).find(x => x.status === 'open' && x.target_type === 'user');
+    const id = (await admin.query(`select id from reports where reporter_id=$1 and target_id=$2 and status='open'`, [reporter, String(target)])).rows[0]?.id;
+    const h = id ? await aCall('POST', '/admin/api/reports/handle', { id, action }, ck) : { s: 0 };
+    return { listed: !!row, handled: h.s === 200 } };
+  const ctx0 = { H, P, V, V2, G, GF, adminHandleReport };
 
   // ---- 场景：做一次 → 刷新（重新加载 + 重新登录读回）→ 页面状态还在 ----
   const SCENARIOS = [
@@ -55,6 +69,8 @@ try {
     { name: '赛后卡片 · 感受（偏难）', act: (pg, x) => clickAttrs(pg, { 'data-rc': 'feel', 'data-g': x.GF, 'data-v': 'hard' }), check: (pg, x) => pg.evaluate(([me, g]) => (AFTER[g + '|' + me] || {}).feel === 'hard', [x.H, x.GF]) },
     // ---- 举报（11-05 已举报标记刷新后丢）：走前台真实入口——球员卡「举报」打开面板 → 点原因提交；刷新后必须仍认得出「已举报」----
     { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
+    { name: '后台处理这条举报后，前台刷新不再显示「已举报」', act: async (pg, x) => { const r = await x.adminHandleReport(x.H, x.P, 'actioned'); T('后台列表里看得到这条举报、处理成功', r.listed && r.handled, r); await pg.reload() }, check: (pg, x) => pg.evaluate(p => typeof NBQ_STALE !== 'undefined' && !NBQ_STALE && !!ME && Object.keys(VEN).length > 0 && !repOpenOf('user', p), x.P) },
+    { name: '后台处理后可以重新举报同一位球友', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」

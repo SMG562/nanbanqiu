@@ -151,17 +151,45 @@ try {
     for (const k of keys) {
       await pg.evaluate(k => { S.page = k; render() }, k);
       const r = await pg.evaluate(() => ({ t: document.getElementById('page').innerText, all: document.getElementById('app').textContent, badge: document.querySelectorAll('#nav button i').length, feed: !!document.getElementById('feed') }));
-      if (k === 'account') { if (/还没接真数据/.test(r.t)) bad.push(k + ':account 不该是占位') }
+      if (k === 'account' || k === 'review') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
       else if (/还没接真数据/.test(r.t)) placeholder++; else bad.push(k + ':不是占位');
       const leak = mock.filter(m => r.all.includes(m)); if (leak.length) bad.push(k + ':出现模拟数据 ' + leak.slice(0, 3));
       if (r.badge || r.feed) bad.push(k + ':有模拟的角标 / 动态');
     }
-    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 1, bad);
+    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 2, bad);
     T('7.2 筛选条（日期范围、设备、导出 CSV）真模式下不显示', !(await vis(pg, '.filters')));
     // 从界面点：点导航里的占位页
-    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：占位页，并说明接入计划', /还没接真数据/.test(await pg.evaluate(() => document.getElementById('page').innerText)) && /举报队列/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
-    T('7.4 占位页的导航项带「待接入」标记，「我的账号」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => b.dataset.pg === 'account' ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
+    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核、场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
+    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
+  }
+
+
+  // ================= 7b. 举报队列（#27 第 2 步）：真数据 · 查看对话要理由 · 处理后刷新还在 =================
+  {
+    let un = 100; const mkU = async n => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at) values ($1,$2,5,'m',now()) returning id`, ['+6143' + String(++un).padStart(7, '0'), n])).id;
+    const UA = await mkU('举报人阿明'), UB = await mkU('被举报阿强');
+    const th = (await one(`insert into threads(kind,user_a,user_b) values ('dm',$1,$2) returning id`, [UA < UB ? UA : UB, UA < UB ? UB : UA])).id;
+    await su.query(`insert into messages(thread_id,sender_id,body,created_at) values ($1,$2,'你这人怎么回事',now() - interval '3 hours'),($1,$3,'关你什么事',now() - interval '2 hours')`, [th, UA, UB]);
+    const RID = (await one(`insert into reports(reporter_id,target_type,target_id,reason,note,source,via,context_ref) values ($1,'user',$2,'harass','一直发骚扰消息','in_app','chat',$3) returning id`, [UA, UB, th])).id;
+    const { ctx, pg, pe } = await open(); await loginAs(pg, 'a4@x.com');
+    const page = () => pg.evaluate(() => document.getElementById('page').innerText);
+    await pg.click('#nav [data-pg="review"]');
+    T('7b.1 举报列表读到真数据：举报人、对象、原因、说明、来源都在，状态「待处理」', await until(async () => /举报人阿明/.test(await page())) && /被举报阿强/.test(await page()) && /骚扰/.test(await page()) && /一直发骚扰消息/.test(await page()) && /站内 · 聊天/.test(await page()) && /待处理/.test(await page()), await page());
+    T('7b.2 页面里没有手机号', !/\+?614\d{6}/.test(await pg.evaluate(() => document.getElementById('app').textContent)));
+    await pg.click(`[data-rp="msgs"][data-id="${RID}"]`);
+    await until(() => vis(pg, '#admRin'));
+    await pg.fill('#admRin', '短'); await pg.click('[data-admrok]');
+    T('7b.3 看对话理由太短：不发请求，提示要写理由', /理由/.test(await pg.evaluate(() => document.getElementById('admRe').textContent)) && +(await one(`select count(*) n from admin_audit_log where action='message.read'`)).n === 0);
+    await pg.fill('#admRin', '核对骚扰举报'); await pg.click('[data-admrok]');
+    T('7b.4 填了理由：显示被举报的那段对话，并在操作日志留痕', await until(async () => /关你什么事/.test(await pg.evaluate(() => document.getElementById('admR').innerText))) && /你这人怎么回事/.test(await pg.evaluate(() => document.getElementById('admR').innerText)) && +(await one(`select count(*) n from admin_audit_log where action='message.read'`)).n === 1);
+    await pg.click('[data-admrx]'); await sleep(200);
+    await pg.click(`[data-rp="ok"][data-id="${RID}"]`);
+    T('7b.5 点「处理」：服务器状态变 actioned，页面显示「已处理」和处理人', await until(async () => (await one(`select status from reports where id=$1`, [RID])).status === 'actioned') && await until(async () => /已处理/.test(await page()) && /Amy|a4/.test(await page())), await page());
+    await pg.reload(); await until(() => vis(pg, '#app')); await pg.click('#nav [data-pg="review"]');
+    T('7b.6 刷新后还在：仍是「已处理」，操作按钮没了（以服务器为准，不是本地改的）', await until(async () => /已处理/.test(await page())) && !(await vis(pg, `[data-rp="ok"][data-id="${RID}"]`)), await page());
+    T('7b.7 处理留痕：操作日志有 report.handle', +(await one(`select count(*) n from admin_audit_log where action='report.handle' and target=$1`, [RID])).n === 1);
+    T('7b.8 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
   // ================= 8. 会话过期 → 回登录页 =================

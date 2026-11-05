@@ -3445,8 +3445,8 @@ const _sbAct=act;act=function(d){if(!/^sb(pk|px|rh|ro|rd)$/.test(d.act||''))retu
  * ===================================================================== */
 const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
-const REAL_PAGES={account:()=>realAccountPage()};
-const REAL_NOTE={review:'举报队列是 #27 第 2 步，球场审核在后面的步骤。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
+const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage()};
+const REAL_NOTE={review:'待审核。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
 // ---------- 接口 ----------
@@ -3500,7 +3500,7 @@ function realPaintMe(){const m=RL.me,nm=String(m.name||'').trim()||'管理员',b
 function enterApp(me){RL.me=me;S.role=realRole(me.role);RL.touchAt=Date.now();
   document.documentElement.removeAttribute('data-boot');$('#login').style.display='none';$('#app').style.display='block';
   realPaintMe();S.page='account';render()}
-function toLogin(msg){RL.me=null;RL.busy=false;RL.recovery=false;
+function toLogin(msg){RP.list=null;RP.err=null;RP.loadedAt=0;RP.busy.clear();RL.me=null;RL.busy=false;RL.recovery=false;
   document.documentElement.removeAttribute('data-boot');
   $('#app').style.display='none';$('#page').innerHTML='';$('#nav').innerHTML='';$('#drw').innerHTML='';   // 退出后页面上不留上一位管理员的内容
   $('#login').style.display='grid';for(const i of ['#lgEmail','#lgPw','#lgCode'])$(i).value='';
@@ -3522,6 +3522,52 @@ function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[]
   <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
   <div class="ch"><b>你能做的事</b><small>共 ${perms.length} 项 · ✎ = 必须填理由</small></div>
   <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div></div>`}
+
+
+// ---------- 待审核 → 举报（#27 第 2 步，真数据）----------
+// 列表来自 GET /reports（处理中的全部 + 最近处理的 30 条）；处理 / 忽略 POST /reports/handle；查看对话 POST /reports/messages（必须填理由，服务端留痕）。
+// 球场审核、场边举报还在后面的步骤，这一页只放举报，页脚如实写明。刚处理完立即重读，不在本地改状态（刷新后还在 = 以服务器为准）。
+const RP={list:null,err:null,loading:false,loadedAt:0,busy:new Set()};
+const RP_TYPE={user:'用户',game:'球局'};
+function rpAgo(t){const m=Math.max(0,Math.round((Date.now()-new Date(t))/6e4));return m<1?'刚刚':m<60?m+' 分钟前':m<1440?Math.round(m/60)+' 小时前':m<2880?'昨天':Math.round(m/1440)+' 天前'}
+function rpSrc(r){return r.source==='email'?'邮件录入':r.via==='chat'?'站内 · 聊天':'站内 · 球员卡'}
+async function rpLoad(){if(RP.loading)return;RP.loading=true;
+  const r=await admApi('GET','/reports');RP.loading=false;RP.loadedAt=Date.now();
+  if(r.status===401){RP.list=null;return toLogin('登录已过期，请重新登录')}
+  if(r.ok&&r.body&&Array.isArray(r.body.reports)){RP.list=r.body.reports;RP.err=null}
+  else RP.err=r.status===403?'你的角色不能处理举报':r.ok?'服务返回的内容不对，请稍后再试':realErr(r);
+  if(RL.me&&S.page==='review')render()}
+async function rpAct(id,action){if(RP.busy.has(id))return;RP.busy.add(id);render();
+  const r=await admApi('POST','/reports/handle',{id,action});RP.busy.delete(id);
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  admToast(r.ok?(action==='actioned'?'已处理':'已忽略'):r.error==='state_changed'?'这条刚被别人处理过，已刷新':realErr(r));
+  await rpLoad();if(RL.me&&S.page==='review')render()}
+function rpMsgs(id){admAskReason('查看被举报的对话',async reason=>{
+  const r=await admApi('POST','/reports/messages',{id,reason});
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(!r.ok||!r.body||!Array.isArray(r.body.messages))return admToast(realErr(r));
+  const ms=r.body.messages;
+  admAskInfo('被举报的对话',`<p class="cap">只显示这条举报相关的那段对话（举报前 7 天到举报后 1 天）；你查看过已记进操作日志。</p>${ms.length?`<div class="admr-msgs">${ms.map(m=>`<div><b>${esc(m.sender_name)}</b><span>${esc(m.body)}${m.hidden?'（已隐藏）':''} <small>${esc(rpAgo(m.created_at))}</small></span></div>`).join('')}</div>`:'<p class="cap">这段时间里没有找到消息。</p>'}`)})}
+function realReviewPage(){
+  if(RP.list===null&&!RP.err&&!RP.loading)rpLoad();
+  else if(!RP.loading&&Date.now()-RP.loadedAt>30000)rpLoad();                 // 隔一会儿再进来：先画旧的，同时后台重读
+  const note='<p class="cap">这一页只有举报。球场审核、场边举报在后面的步骤接入；现在要处理它们请先用其他方式。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的；处理或忽略后举报人可以重新举报。所有操作写入操作日志。</p>';
+  if(RP.err&&RP.list===null)return `<div class="card nodata"><h2>举报队列：读不出来</h2><p>${esc(RP.err)}</p><div class="rowacts"><button class="btn sm p" data-rp="reload">重试</button></div></div>`;
+  if(RP.list===null)return '<div class="card nodata"><h2>举报队列</h2><p>读取中…</p></div>';
+  const L=RP.list,open=L.filter(x=>x.status==='open').length;
+  const row=x=>{const busy=RP.busy.has(x.id),can=x.status==='open';
+    return `<tr><td>${esc(x.reporter)}</td><td><b style="font-weight:600">${esc(x.target_type==='game'?`「${x.target||'?'} 发起的球局」`:x.target||'（已删除）')}</b></td><td>${esc(RP_TYPE[x.target_type]||x.target_type)}</td><td>${esc(rpSrc(x))}</td>
+    <td>${esc(REP_RC[x.reason]||'其他')}${x.note?`<br><small style="color:var(--mut)">${esc(x.note)}</small>`:''}</td><td>${esc(rpAgo(x.created_at))}</td>
+    <td>${x.status==='open'?'<span class="pill w">待处理</span>':x.status==='actioned'?'<span class="pill g">已处理</span>':'<span class="pill">已忽略</span>'}${x.handled_by_name?`<br><small style="color:var(--mut)">${esc(x.handled_by_name)}</small>`:''}</td>
+    <td>${can?`<div class="rowacts"><button class="btn sm" data-rp="msgs" data-id="${esc(x.id)}"${busy?' disabled':''}>查看对话</button><button class="btn sm p" data-rp="ok" data-id="${esc(x.id)}"${busy?' disabled':''}>处理</button><button class="btn sm" data-rp="no" data-id="${esc(x.id)}"${busy?' disabled':''}>忽略</button></div>`:''}</td></tr>`};
+  return `<div class="card"><div class="ch"><b>举报</b><small>待处理 ${open} 条 · 另显示最近处理的</small><button class="btn sm" data-rp="reload" style="margin-left:auto">刷新</button></div>
+  ${RP.err?`<p class="cap" style="color:var(--crit)">${esc(RP.err)}（下面是上次读到的）</p>`:''}
+  ${L.length?`<table><thead><tr><th>举报人</th><th>对象</th><th>类型</th><th>来源</th><th>原因</th><th>时间</th><th>状态</th><th></th></tr></thead><tbody>${L.map(row).join('')}</tbody></table>`:'<div class="empty">还没有举报 ✓</div>'}</div>${note}`}
+if(NBQ_MODE==='real')document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-rp]');if(!b||b.disabled)return;
+  const k=b.dataset.rp,id=b.dataset.id;
+  if(k==='reload'){RP.list=null;RP.err=null;RP.loadedAt=0;render();return}
+  if(k==='msgs')return rpMsgs(id);
+  if(k==='ok'||k==='no')rpAct(id,k==='ok'?'actioned':'dismissed')});
 
 // ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
 const _realRender=render;

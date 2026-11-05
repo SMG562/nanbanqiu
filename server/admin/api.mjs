@@ -18,6 +18,7 @@ const CLEAR_COOKIE = `${COOKIE_NAME}=; Path=/admin; HttpOnly; Secure; SameSite=S
 const BASE_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Vary': 'Cookie' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...BASE_H, ...extra } });
 const MAX_BODY = 8192;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 数据库抛出的错误码 → HTTP 状态。表里没有的一律当服务器错误（不把没见过的码原样交出去）；schema 里所有 admin_ 开头的码必须在这里（tests/static/admin_api_routes.mjs）
 export const ADMIN_STATUS = {
@@ -130,6 +131,33 @@ export const ROUTES = {
     name: a.name, role: a.role, cities: a.cities ?? null,
     perms: (await db.query('select action, label, need_reason from admin_perms where $1 = any(roles) order by action', [a.role])).rows,
   })) },
+  // ---------- 举报队列（#27 第 2 步）----------
+  // 列表：处理中的全部（最多 200）+ 最近处理过的 30 条。限城市的管理员只看举报人所在城市的。不返回手机号 / 举报人 id，只给昵称。
+  'GET /admin/api/reports': { name: 'reports', perm: 'report.handle', run: (req, d, b, route) => authed(req, d, route, async (db, a) => ({ reports: (await db.query(`
+      with base as (
+        select r.*, ru.nickname as reporter_name,
+               case when r.target_type = 'user' and r.target_id ~ '^[0-9a-f-]{36}$' then (select nickname from users where id = r.target_id::uuid)
+                    when r.target_type = 'game' and r.target_id ~ '^[0-9a-f-]{36}$' then (select hu.nickname from games g join users hu on hu.id = g.host_id where g.id = r.target_id::uuid) end as target_name
+          from reports r join users ru on ru.id = r.reporter_id
+         where $1::text[] is null or ru.home_city = any($1::text[])),
+      pick as (
+        (select * from base where status = 'open' order by created_at desc limit 200)
+        union all
+        (select * from base where status <> 'open' order by handled_at desc nulls last limit 30))
+      select p.id, p.status, p.target_type, p.reason, p.note, p.source, p.via, p.created_at, p.handled_at,
+             p.reporter_name as reporter, p.target_name as target, (p.context_ref is not null) as has_chat,
+             (select name from admin_users where id = p.handled_by) as handled_by_name
+        from pick p order by (p.status = 'open') desc, coalesce(p.handled_at, p.created_at) desc`, [a.cities ?? null])).rows })) },
+  // 处理 / 忽略：只有「处理中」的能改（别人刚处理过 → 409 state_changed）。处理后举报人的 /api/reports/mine 就不再返回，可以重新举报
+  'POST /admin/api/reports/handle': { name: 'reports_handle', perm: 'report.handle', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || !['actioned', 'dismissed'].includes(b.action) || (b.note != null && !strIn(b.note, 500))) return fail(bad(), 'reports_handle');
+    return authed(req, d, route, async db => { await db.query('select admin_report_handle($1::uuid, $2, $3)', [b.id, b.action, b.note ?? null]); return { ok: true } }, b);
+  } },
+  // 被举报的那段对话：必须填理由（至少 4 个字），数据库函数留痕 message.read
+  'POST /admin/api/reports/messages': { name: 'reports_messages', perm: 'message.read', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || !strIn(b.reason, 300)) return fail(bad(), 'reports_messages');
+    return authed(req, d, route, async db => ({ messages: (await db.query('select id::text, sender_name, body, created_at, hidden from admin_report_messages($1::uuid, $2)', [b.id, b.reason])).rows }), b);
+  } },
 };
 
 export async function handleAdmin(request, d) {
