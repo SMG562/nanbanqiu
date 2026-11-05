@@ -115,6 +115,7 @@ try {
     && !(await as('anon', null, `select job_sb_hourly()`)).ok && !(await as('nbq_user', null, `select sb_pick_today('melb', current_date)`)).ok);
 
   // ---------- 浏览明细 ----------
+  await job('2026-11-05 14:30Z');   // 先跑一次：把「今日推荐」写好，免得它的计数混进下面的 r（真实日期过了 11-05 后会多算 1）
   const pv = await post(U.A, null, '2026-11-05 10:00+11');
   await q(`update sb_posts set views = 9 where id = $1`, [pv]);
   await q(`insert into sb_views(post_id, day, viewer) values ($1,'2026-10-05','a'),($1,'2026-10-06','b'),($1,'2026-11-05','c')`, [pv]);
