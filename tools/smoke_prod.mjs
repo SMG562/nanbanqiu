@@ -44,7 +44,10 @@ if (SHA && !process.argv.includes('--no-wait')) {
       if ([301, 302, 303, 307, 308].includes(r.status) && loc) { const n = new URL(loc, u); if (/cloudflareaccess\.com$/.test(n.hostname)) return 'access'; if (n.origin !== new URL(BASE).origin) return 'away:' + n.hostname; u = n.href; continue }
       if (r.status === 401 || r.status === 403) return 'denied'; const t = await r.text(); return r.status + (/演示身份|管理后台/.test(t) ? ':admin' : ':other') }
     return 'loop' };
-  for (const p of ['/admin', '/admin.html', '/admin/api/me', '/admin/api/health']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } }
+  for (const p of ['/admin', '/admin.html', '/admin/api/me', '/admin/api/health']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } 
+  // #27：预览站根域名和正式站是同一个生产部署、但前面没有 Access → 后台接口必须在那里 404（ADMIN_HOSTS 白名单只放 nanbanqiu.app）
+  if (new URL(BASE).hostname === 'nanbanqiu.app') { const pv = await fetch('https://nanbanqiu-preview.pages.dev/admin/api/health', { redirect: 'manual' }).then(async r => ({ s: r.status, t: await r.text() })).catch(e => ({ s: 0, t: e.message }));
+    T('预览站根域名不提供后台接口（404 JSON，不是网页、不是 200）', pv.s === 404 && /"not_found"/.test(pv.t), [pv.s, pv.t.slice(0, 80)]) } }
 // ③ 浏览器
 const require = createRequire(import.meta.url); let chromium;
 try { ({ chromium } = require('playwright')) } catch { try { ({ chromium } = require(execSync('npm root -g', { encoding: 'utf8' }).trim() + '/playwright')) } catch { } }

@@ -15,6 +15,11 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
 T('connectAdminFromEnv：没配 ADMIN_DB_URL = null，且绝不使用前台接口的 HYPERDRIVE / DB_URL',
   CON.connectAdminFromEnv({}) === null && CON.connectAdminFromEnv({ HYPERDRIVE: { connectionString: 'postgres://x' }, DB_URL: 'postgres://y' }) === null);
 T('connectAdminFromEnv：配了 ADMIN_DB_URL 才给连接函数', typeof CON.connectAdminFromEnv({ ADMIN_DB_URL: 'postgres://z' }) === 'function');
+const HL = API.parseHosts(' nanbanqiu.app , *.nanbanqiu-preview.pages.dev,');
+T('域名白名单：解析去空格、小写、丢空项', JSON.stringify(HL) === '["nanbanqiu.app","*.nanbanqiu-preview.pages.dev"]');
+T('域名白名单：正式站、分支预览、测试环境放行', ['nanbanqiu.app', 'NANBANQIU.APP', 'staging.nanbanqiu-preview.pages.dev', 'admin-api-a.nanbanqiu-preview.pages.dev'].every(h => API.hostAllowed(h, HL)));
+T('域名白名单：预览站根域名（和正式站是同一个生产部署，但没有 Access）不放行；仿冒后缀也不放行', !['nanbanqiu-preview.pages.dev', 'evil-nanbanqiu-preview.pages.dev', 'nanbanqiu.app.evil.com', 'www.nanbanqiu.app', 'x.nanbanqiu-preview.pages.dev.evil.com', ''].some(h => API.hostAllowed(h, HL)));
+T('域名白名单：没配（空）= 什么都不放行', !API.hostAllowed('nanbanqiu.app', API.parseHosts(undefined)) && !API.hostAllowed('nanbanqiu.app', []));
 T('isAdminPath：只认 /admin/api 和 /admin/api/…', API.isAdminPath('/admin/api') && API.isAdminPath('/admin/api/me') && !API.isAdminPath('/admin') && !API.isAdminPath('/admin/apix') && !API.isAdminPath('/api/me'));
 
 const c = startCluster(); let su, pool, apiPool;
@@ -63,6 +68,13 @@ try {
   r = await call('DELETE', '/admin/api/me', { raw: '' }); T('已知路径错误方法 → 405 并带 Allow', r.s === 405 && /GET/.test(r.h.get('Allow') || ''), r);
   r = await call('GET', '/admin/api/me');
   T('响应头：no-store、nosniff、noindex', r.h.get('Cache-Control') === 'no-store' && r.h.get('X-Content-Type-Options') === 'nosniff' && /noindex/.test(r.h.get('X-Robots-Tag') || ''), [...r.h]);
+
+  // ---------- 域名白名单（handleAdmin 的第一道检查） ----------
+  for (const [hosts, ok, what] of [[['nanbanqiu.test'], 200, '登记过的域名'], [['nanbanqiu.app'], 404, '没登记的域名'], [[], 404, 'ADMIN_HOSTS 没配']]) {
+    r = await call('GET', '/admin/api/health', { csrf: false, d: { ...deps, hosts } }); T('域名白名单：' + what + ' → ' + ok, r.s === ok && (ok === 200 || r.j.error === 'not_found'), r);
+  }
+  r = await call('POST', '/admin/api/login', { body: { email: 'han@x.com', password: PW, code: '000000' }, d: { ...deps, hosts: [] } });
+  T('域名白名单：没登记时连登录都碰不到（不进数据库、不记失败）', r.s === 404 && (await one(`select count(*)::int n from admin_login_attempts`)).n === 0, r);
 
   // ---------- 跨站防护 ----------
   r = await call('GET', '/admin/api/me', { csrf: false }); T('CSRF：缺 X-NBQ-Admin 头（GET）→ 403 csrf', r.s === 403 && r.j.error === 'csrf', r);

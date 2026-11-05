@@ -34,16 +34,19 @@ T('没有被映射成 2xx / 3xx 的错误码', Object.values(API.ADMIN_STATUS).e
 T('Pages 的 _routes.json 包含 /admin/api/*（漏了会落到静态文件，返回 404 网页而不是 JSON）', SITE.ROUTES.include.includes('/admin/api/*'), SITE.ROUTES.include);
 T('站点路由放行 /admin（不会被改写成城市页面）', ROUTE.PASS.test('/admin/api/me') && ROUTE.PASS.test('/admin/api'));
 const code = s => s.replace(/\/\/.*$/gm, '');
+const apis = code(fs.readFileSync(path.join(DIR, 'server/admin/api.mjs'), 'utf8'));
 const fn = rd('functions/admin/api/[[path]].js'), wk = rd('worker/index.mjs'), cn = rd('server/admin/connect.mjs');
 T('Pages 入口用 handleAdmin + connectAdminFromEnv', /handleAdmin/.test(fn) && /connectAdminFromEnv/.test(fn));
 T('Workers 入口也分流到 handleAdmin，且排在 /api 分流之前', /isAdminPath/.test(wk) && wk.indexOf('handleAdmin(request') < wk.indexOf('handleApi(request'));
 const adminBlk = wk.slice(wk.indexOf('isAdminPath(new'), wk.indexOf('isAdminPath(new') + 200);
 const notFront = s => !/\bDB_URL\b|HYPERDRIVE|\bconnectFromEnv\b/.test(code(s).replace(/ADMIN_DB_URL/g, ''));
 T('后台入口和连接代码绝不碰前台的 DB_URL / HYPERDRIVE / connectFromEnv', [fn, adminBlk, cn].every(notFront));
+T('Pages / Workers 入口都把 env.ADMIN_HOSTS 传给 handleAdmin（没配 = 全部 404）', /hosts: parseHosts\(env\.ADMIN_HOSTS\)/.test(fn) && /hosts: parseHosts\(env\.ADMIN_HOSTS\)/.test(wk));
+T('handleAdmin 第一件事是查域名白名单（在路由、CSRF、数据库之前）', (() => { const b = apis.slice(apis.indexOf('export async function handleAdmin')); return b.indexOf('hostAllowed') > 0 && b.indexOf('hostAllowed') < b.indexOf('ROUTES[') })());
 T('连接代码只读 ADMIN_DB_URL', /env\?\.ADMIN_DB_URL/.test(cn));
 
 // ---- 最小权限 ----
-const auth = code(rd('server/admin/auth.mjs')), apis = code(rd('server/admin/api.mjs'));
+const auth = code(rd('server/admin/auth.mjs'));
 T('后台代码里不再有 nbq_service / nbq_user（不切到前台那套权限）', !/nbq_service|nbq_user/.test(auth + apis + code(cn)));
 T('迁移：角色 NOINHERIT、不属于 nbq_service / nbq_user', /nologin noinherit/.test(rd('server/migrations/20261105_admin_api.sql')) && /revoke nbq_service from nbq_admin_api/.test(rd('server/migrations/20261105_admin_api.sql')));
 const mig = rd('server/migrations/20261105_admin_api.sql');

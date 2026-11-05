@@ -1,15 +1,19 @@
-// 南伴球 · 后台接口 /admin/api/*（#27 第 1 步）。纯函数风格 handleAdmin(request, { connect }) → Response，Node / Workers 通用。
+// 南伴球 · 后台接口 /admin/api/*（#27 第 1 步）。纯函数风格 handleAdmin(request, { connect, hosts }) → Response，Node / Workers 通用。
 //   登录、会话、权限、审计的规则都在数据库（schema ⑰ ㉚）和 server/admin/auth.mjs；这里只管：路由、防跨站请求、请求格式、错误码 → HTTP 状态、响应头。
 //   安全要点（每条都有 tests/pg/admin_api.mjs 的用例）：
 //     · 会话令牌只在 httpOnly + Secure + SameSite=Strict 的 Cookie 里，响应体里不出现
 //     · 除 health 外每个请求都要带自定义头 X-NBQ-Admin: 1；POST 还要 Origin 与本站一致、Content-Type 是 JSON
 //     · 每条路由在 ROUTES 里声明所需权限（admin_perms 的动作）：接口层先查，数据库函数再查一次（数据页接入时沿用）
+//     · 只在登记过的域名上提供（ADMIN_HOSTS）：预览站根域名和正式站是同一个生产部署，但只有正式站前面有 Cloudflare Access → 没登记的域名一律 404；没配 = 全部 404
 //     · 登录失败按 IP 限流（含不存在的邮箱）；所有响应 no-store；错误体只有错误码，不带数据库原文；日志只记错误码，不记请求内容
 import { isIP } from 'node:net';
 import { acquire, adminLogin, adminLogout, adminRequest, adminAttemptCheck, adminAttemptNote, COOKIE } from './auth.mjs';
 
 export const ADMIN_BASE = '/admin/api';
 export const isAdminPath = p => p === ADMIN_BASE || p.startsWith(ADMIN_BASE + '/');
+// 域名白名单：ADMIN_HOSTS="nanbanqiu.app" 或 "*.nanbanqiu-preview.pages.dev"（逗号分隔；*. 只匹配子域名，不匹配根域名本身）
+export const parseHosts = s => String(s || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+export const hostAllowed = (host, list) => { const h = String(host || '').toLowerCase(); return (list || []).some(p => p.startsWith('*.') ? h.endsWith(p.slice(1)) && h.length > p.length - 1 : h === p) };
 const COOKIE_NAME = 'nbq_admin';
 const CLEAR_COOKIE = `${COOKIE_NAME}=; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 const BASE_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow', 'Vary': 'Cookie' };
@@ -115,7 +119,9 @@ export const ROUTES = {
 };
 
 export async function handleAdmin(request, d) {
-  const url = new URL(request.url), key = `${request.method} ${url.pathname.replace(/\/+$/, '')}`;
+  const url = new URL(request.url);
+  if (d.hosts !== undefined && !hostAllowed(url.hostname, d.hosts)) return send(404, { error: 'not_found' });   // 没登记的域名：当作没有这个接口
+  const key = `${request.method} ${url.pathname.replace(/\/+$/, '')}`;
   const route = ROUTES[key];
   if (!route) {
     const allow = Object.keys(ROUTES).filter(k => k.slice(k.indexOf(' ') + 1) === url.pathname.replace(/\/+$/, '')).map(k => k.split(' ')[0]);

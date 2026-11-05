@@ -457,6 +457,12 @@
   - 成功：Set-Cookie `nbq_admin=<令牌>`（HttpOnly、Secure、SameSite=Strict、Path=/admin），数据库只存令牌的 sha256。
 - 每个请求 → `adminRequest()`：`admin_session_check`（未撤销、12 小时内、闲置不超过 1 小时、管理员没被停用；否则 401 `admin_session_expired`）→ owner / operator 以 nbq_admin、viewer 以 nbq_viewer 开事务，`set_config('nbq.admin', 管理员 id)`、`nbq.admin_ip`。
 - POST /admin/api/logout → `admin_session_revoke`。
+- **已实现（11-05，#27 第 1 步 PR-A，server/admin/api.mjs）**：`GET /admin/api/health[?db=1]` · `POST /admin/api/login` · `POST /admin/api/logout` · `GET /admin/api/me`（→ `{name, role, cities, perms:[{action,label,need_reason}]}`）。其余接口（§10.3）随数据页逐个接入，每条在 `ROUTES` 里声明所需权限。
+  - 域名白名单 `ADMIN_HOSTS`（生产 = nanbanqiu.app；预览 = *.nanbanqiu-preview.pages.dev）：没登记的域名（含预览站根域名，它和正式站是同一个生产部署但没有 Access）一律 404；没配 = 全部 404。
+  - 防跨站：除 health 外必须带 `X-NBQ-Admin: 1`；POST 还要 `Origin` = 本站、`Content-Type: application/json`、请求体 ≤ 8KB → 否则 403 `csrf` / 415 / 413 / 400 `bad_json`；参数格式不对 422 `invalid`。
+  - 按 IP 限流：同一 IP 15 分钟内登录失败 ≥ 20 次（含不存在的邮箱）→ 429 `rate_limited`（Retry-After）；在算 scrypt 之前检查。邮箱不存在也照算一次 scrypt（耗时不泄露账号是否存在）。
+  - 数据库登录角色 `nbq_admin_api`（NOINHERIT，只属于 nbq_admin / nbq_viewer，只能直接调 6 个门禁函数）；连接只用密钥 `ADMIN_DB_URL`。数据库连不上 503 `db_unavailable`；没见过的错误 500 `server_error`（不带原文）。所有响应 no-store。
+  - 第一个管理员：`node tools/admin_create.mjs --email= --name= --role=owner` 在本机生成 SQL（只含哈希）+ 验证器密钥 + 恢复码，粘到 Supabase SQL Editor 运行。
 - 新管理员：owner 在后台添加（`admin_add`），系统生成临时密码、两步验证二维码（otpauth://）和 10 个恢复码，只显示一次；第一次登录后改密码（至少 12 位）。
 - 管理员：你 + 1 位备用 owner（10-22 决定）；至少保留 1 位 owner，少于 2 位时后台提示（`admin_health`）。离职：`admin_update(停用)`，会话立即失效。
 
