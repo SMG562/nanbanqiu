@@ -54,7 +54,7 @@ try {
     { name: '徽章 · 已庆祝（百场）', act: pg => pg.evaluate(() => { bdgSync(['hundred'], ['hundred']) }), check: pg => pg.evaluate(async () => { const r = await NBQ_NET.get('/api/me/badges'); return !!(r.ok && (r.data.badges || []).some(b => b.code === 'hundred' && b.seen_at)) }) },
     { name: '赛后卡片 · 感受（偏难）', act: (pg, x) => clickAttrs(pg, { 'data-rc': 'feel', 'data-g': x.GF, 'data-v': 'hard' }), check: (pg, x) => pg.evaluate(([me, g]) => (AFTER[g + '|' + me] || {}).feel === 'hard', [x.H, x.GF]) },
     // ---- 举报（11-05 已举报标记刷新后丢）：走前台真实入口——球员卡「举报」打开面板 → 点原因提交；刷新后必须仍认得出「已举报」----
-    { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await sleep(500); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
+    { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
@@ -79,14 +79,20 @@ try {
     await pg.route(url => !/^https:\/\/(nanbanqiu\.app|xosrdkrkfxkdrwldfhac\.supabase\.co)\//.test(url.toString()), r => r.abort());
     const dbg = () => pg.evaluate(() => ({ me: !!ME, stale: typeof NBQ_STALE !== 'undefined' && NBQ_STALE, games: GAMES.length, toast: (document.querySelector('#toast') || {}).textContent, url: location.href }));
     const loggedIn = () => pg.evaluate(() => !!ME && !(typeof NBQ_STALE !== 'undefined' && NBQ_STALE) && Object.keys(VEN).length > 0);
-    await pg.goto('https://nanbanqiu.app/'); await sleep(600);
-    await pg.evaluate(() => { openAuth(null) }); await sleep(300); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await sleep(400); await pg.fill('#otp', '123456');
-    T(`${f} 登录（真实接口读入）`, await until(loggedIn), await pg.evaluate(() => !!ME));
+    // 11-05（#40）：固定 sleep 换成条件重试——页面脚本就绪后，开登录框 → 填手机号 → 发码 → 等验证码框（#otp 在发送成功后才画出来，输入监听再过 350ms 才挂上，所以等 oninput 就绪）；
+    //   页面启动完成时会重画登录框（原来靠 sleep(600) 躲过），重画把元素换掉就整段重来，最多 10 次，不再靠猜时间
+    await pg.goto('https://nanbanqiu.app/'); await pg.waitForFunction(() => typeof openAuth === 'function' && typeof nbqApply === 'function', null, { timeout: 30000 });
+    let otpOk = false;
+    for (let i = 0; i < 10 && !otpOk; i++) {
+      try { await pg.evaluate(() => { openAuth(null) }); await pg.fill('#ph', '0412 345 678', { timeout: 3000 }); await pg.click('[data-a="sendCode"]', { timeout: 3000 }); await pg.waitForFunction(() => { const o = document.getElementById('otp'); return !!o && typeof o.oninput === 'function' }, null, { timeout: 5000 }); await pg.fill('#otp', '123456', { timeout: 3000 }); otpOk = true } catch (_) { await sleep(300) }
+    }
+    T(`${f} 验证码已填入`, otpOk);
+    T(`${f} 登录（真实接口读入）`, await until(loggedIn, 160), await pg.evaluate(() => !!ME));   // 40 秒（原 10 秒：CI 里这个文件整体要 48 秒，负载下读入会超过 10 秒）
     for (const s of SCENARIOS) {
       T(`${f} ${s.name}：做之前不成立`, !(await s.check(pg, ctx0)));
       await s.act(pg, ctx0);
       T(`${f} ${s.name}：做完立刻成立`, await until(() => s.check(pg, ctx0)), await dbg());
-      await pg.reload(); T(`${f} ${s.name}：刷新后重新读入`, await until(loggedIn), await dbg());
+      await pg.reload(); T(`${f} ${s.name}：刷新后重新读入`, await until(loggedIn, 160), await dbg());
       if (s.lost) T(`${f} ${s.name}：刷新后丢失（检查能发现没写服务器）`, !(await s.check(pg, ctx0)));
       else T(`${f} ${s.name}：刷新后还在`, await until(() => s.check(pg, ctx0)), await s.check(pg, ctx0));
     }

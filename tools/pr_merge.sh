@@ -23,6 +23,18 @@ if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以
 else no "不能快进：main 有 PR 之外的新提交。在分支上  git merge origin/main  再推分支（不用强推），等 PR 上的测试对新提交跑完再合并"; fi
 for W in tests-fast tests; do
   L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
+  # 11-05：最新提交只改文档时 tests-fast 的 paths 不触发，没有任何运行记录——自动手动触发一次并等它跑完（--check 只提示，不触发）
+  if [ "$W" = tests-fast ] && { [ "$L" = null ] || [ -z "$L" ]; }; then
+    if [ "$CHECK" = "--check" ]; then echo "ℹ️ tests-fast 没有运行记录：正式合并时会自动手动触发并等待"
+    else
+      echo "ℹ️ tests-fast 没有运行记录（最新提交没碰它的 paths），手动触发 $HEAD 并等待…"
+      gh api -X POST "repos/$R/actions/workflows/tests-fast.yml/dispatches" -f ref="$HEAD" >/dev/null 2>&1 || echo "  触发失败"
+      for _ in $(seq 1 58); do sleep 10
+        L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
+        case "$L" in "completed "*) break;; esac
+      done
+    fi
+  fi
   case "$L" in "completed success "*) yes "$W 通过（运行 ${L##* }）"; CI_IDS="$CI_IDS $W#${L##* }";; "null"*|"") no "$W：这个提交还没有运行记录";; *) no "$W：$L";; esac
 done
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations)" ]; then

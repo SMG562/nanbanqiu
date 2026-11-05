@@ -56,6 +56,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const click = async (attrs, extra = '') => { await pg.evaluate(([a, x]) => { const el = document.createElement('button'); el.id = '__t'; Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); const host = typeof DEV !== 'undefined' ? DEV : document.body; host.appendChild(el); if (x) { const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = x; host.appendChild(t) } el.click(); el.remove(); const t = document.getElementById('applyMsg'); if (t && x) t.remove() }, [attrs, extra]); await pg.settle(700) };
     const mine = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? api.get(i).mine : undefined }, id);
     const st = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? g.status : undefined }, id);
+    const until = async (fn, n = 24) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(300) } return false };   // 11-05（#40）：先等条件成立再断言——固定 settle 在 CI / 并行负载下不够，红的断言每次不一样
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);
@@ -79,13 +80,13 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('连点三次只发一次申请'), S.log.filter(x => /requests$/.test(x)).length === 1, S.log);
     await click({ 'data-a': 'doLeave', 'data-g': G1 });
     // 同意 / 婉拒
-    S.log.length = 0; await click({ 'data-a': 'approve', 'data-g': G2, 'data-u': REQ });
+    S.log.length = 0; await click({ 'data-a': 'approve', 'data-g': G2, 'data-u': REQ }); await until(() => pg.evaluate(([g, u]) => !!PARTS.find(p => p.game_id === g && p.user_id === u && p.status === 'approved'), [G2, REQ]));
     T(tag('同意：POST approve，读入后对方已加入'), S.log.join() === 'POST /api/games/G2/requests/REQ/approve' && await pg.evaluate(([g, u]) => !!PARTS.find(p => p.game_id === g && p.user_id === u && p.status === 'approved'), [G2, REQ]), S.log);
     S.reqStatus = 'pending'; await pg.evaluate(() => nbqRefresh()); S.log.length = 0; await click({ 'data-a': 'reject', 'data-g': G2, 'data-u': REQ });
     T(tag('婉拒（直接）：POST decline，原因 pass'), S.log.join() === 'POST /api/games/G2/requests/REQ/decline' && S.bodies[`POST /api/games/${G2}/requests/${REQ}/decline`].reason === 'pass', [S.log, S.bodies]);
     T(tag('婉拒原因映射：full / friends → known，level → level，其他 → pass'), await pg.evaluate(() => [nbqReason('full'), nbqReason('friends'), nbqReason('level'), nbqReason('next'), nbqReason(undefined)].join()) === 'known,known,level,pass,pass');
     // 取消
-    S.log.length = 0; await click({ 'data-a': 'doCancelGame', 'data-g': G2 });
+    S.log.length = 0; await click({ 'data-a': 'doCancelGame', 'data-g': G2 }); await until(async () => (await st(G2)) === 'cancelled');
     T(tag('取消球局：POST cancel，读入后状态是已取消'), S.log.join() === 'POST /api/games/G2/cancel' && await st(G2) === 'cancelled', [S.log, await st(G2)]);
     // 发局
     S.log.length = 0; const id = await pg.evaluate(([v]) => { const f = { venue_id: v, o: 2, t: '10:00', dur: 90, type: 'doubles', mn: 3.5, mx: 5, note: ' 周六双打 ', tags: new Set(['relax', 'newbie']), miss: 1, instant: false }; return nbqCreate(f) }, [V1]);
@@ -106,13 +107,13 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.evaluate(g => { geOpen(g); NG.type = NG.type === 'doubles' ? 'singles' : 'doubles'; geSave() }, G3); await pg.settle(300);
     T(tag('改局：改玩法暂不支持，提示且不发请求'), /暂时不能改/.test(await toasts()) && !S.log.length, [await toasts(), S.log]);
     await pg.evaluate(() => { NG.edit = null; if (typeof closeSheet === 'function') closeSheet() }).catch(() => {});
-    S.fail = 'game_started'; await pg.evaluate(g => { geOpen(g); document.getElementById('ngNote').value = '再改'; geSave() }, G3); await pg.settle(400);
+    S.fail = 'game_started'; await pg.evaluate(g => { geOpen(g); document.getElementById('ngNote').value = '再改'; geSave() }, G3); await pg.settle(400); await until(async () => /开打/.test(await toasts() || ''));
     T(tag('改局失败（已开打）：提示后端错误码对应的文字'), /开打/.test(await toasts()), await toasts()); S.fail = null;
     await pg.evaluate(() => { NG.edit = null; if (typeof closeSheet === 'function') closeSheet() }).catch(() => {});
-    S.log.length = 0; await click({ 'data-uf': 'widen', 'data-g': G3 }); await pg.settle(300);
+    S.log.length = 0; await click({ 'data-uf': 'widen', 'data-g': G3 }); await pg.settle(300); await until(() => S.log.includes('PATCH /api/games/G3'));
     const wb = S.bodies[`PATCH /api/games/${G3}`] || {};
     T(tag('放宽水平：PATCH 只带 utr_min / utr_max'), S.log.join() === 'PATCH /api/games/G3' && typeof wb.utr_min === 'number' && typeof wb.utr_max === 'number' && Object.keys(wb).length === 2, [S.log, wb]);
-    S.log.length = 0; await click({ 'data-uf': 'delayGo', 'data-g': G3 }); await pg.settle(300);
+    S.log.length = 0; await click({ 'data-uf': 'delayGo', 'data-g': G3 }); await pg.settle(300); await until(async () => S.log.includes('POST /api/games/G3/postpone') && /已顺延/.test(await toasts() || ''));
     T(tag('顺延 1 小时：POST postpone'), S.log.join() === 'POST /api/games/G3/postpone' && /已顺延/.test(await toasts()), [S.log, await toasts()]);
     S.my1 = 'approved'; S.ack1 = 'pending'; await pg.evaluate(() => nbqRefresh());
     T(tag('确认改动：待确认时球局页顶部有提示'), await pg.evaluate(g => /还能来/.test(geBanner(api.get(g))), G1));
@@ -124,7 +125,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     S.me.pact_accepted_at = null; await pg.evaluate(() => nbqRefresh()); S.log.length = 0;
     await pg.evaluate(() => { window.__pactNext = false; pactGate(() => { window.__pactNext = true }) }); await pg.settle(400);
     T(tag('约定：没同意过就不直接继续，等同意'), await pg.evaluate(() => window.__pactNext === false && typeof PACT_NEXT !== 'undefined' && !!PACT_NEXT));
-    await pg.evaluate(() => { const el = document.createElement('button'); el.setAttribute('data-pact', 'ok'); document.body.appendChild(el); el.click(); el.remove() }); await pg.settle(900);   // 约定弹窗里的「同意并继续」
+    await pg.evaluate(() => { const el = document.createElement('button'); el.setAttribute('data-pact', 'ok'); document.body.appendChild(el); el.click(); el.remove() }); await pg.waitForFunction(() => window.__pactNext === true && !!ME.pact_at, null, { timeout: 15000 }).catch(() => { }); await pg.settle(200);   // 约定弹窗里的「同意并继续」；等「同意后读入」成立再断言（原固定等 900ms，CI 慢时抢跑）
     T(tag('约定：同意后先记到数据库（POST /api/me/pact），再继续原来的操作'), S.log.join() === 'POST /api/me/pact' && await pg.evaluate(() => window.__pactNext === true && !!ME.pact_at), S.log);
     // 我的 Club（11-03）：最多 3 个、「完成」按钮在长列表里也看得到、保存走 PUT /api/me/clubs、读回后页面状态来自服务器
     await pg.evaluate(ids => { const v = Object.values(VEN)[0]; ids.forEach((id, i) => { VEN[id] = { ...v, id, name: 'Club ' + (i + 2), short: 'C' + (i + 2) } }) }, [U('2'), U('3'), U('4')]);
@@ -133,11 +134,12 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('Club：最多选 3 个，第 4 个提示'), (await pg.evaluate(() => CL.length)) === 3 && /最多选 3/.test(await toasts() || ''), [await pg.evaluate(() => CL), await toasts()]);
     T(tag('Club：「完成」按钮在屏幕里能看到（不用翻到长列表最下面）'), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 }), await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return b && JSON.stringify(b.getBoundingClientRect()) + ' vh=' + innerHeight }));
     await pg.evaluate(() => document.querySelector('[data-a=saveClubs]').click()); await pg.settle(700);
+    await until(() => pg.evaluate(c => JSON.stringify(ME.home_club_ids) === c && (() => { const b = document.querySelector('[data-a=saveClubs]'); return !b || !b.getClientRects().length || b.getBoundingClientRect().top >= innerHeight })(), JSON.stringify(S.me.club_ids)));
     T(tag('Club：保存 → PUT /api/me/clubs，带 3 个球场'), S.log.includes('PUT /api/me/clubs') && S.bodies['PUT /api/me/clubs'].venue_ids.length === 3, [S.log, S.bodies['PUT /api/me/clubs']]);
     T(tag('Club：读回后我的 Club 来自服务器，且页面上的弹层已关'), JSON.stringify(await pg.evaluate(() => ME.home_club_ids)) === JSON.stringify(S.me.club_ids) && await pg.evaluate(() => { const b = document.querySelector('[data-a=saveClubs]'); return !b || !b.getClientRects().length || b.getBoundingClientRect().top >= innerHeight }), await pg.evaluate(() => ME.home_club_ids));
     // 资料类修改（11-03）：球员卡 / 头像 / 微信号 / 邀约限制 / 性别 / 邮箱要写到服务器，刷新（重读）后不丢。之前只改内存。
     const clk = a => pg.evaluate(a => { const el = document.createElement('button'); for (const k in a) el.setAttribute(k, a[k]); (document.querySelector('.device') || document.body).appendChild(el); el.click(); el.remove() }, a);
-    S.log.length = 0; for (const c of ['#E3262B', '#F07D1A', '#2C98EC']) { await clk({ 'data-avc': c }); await pg.settle(60) } await pg.settle(900);
+    S.log.length = 0; for (const c of ['#E3262B', '#F07D1A', '#2C98EC']) { await clk({ 'data-avc': c }); await pg.settle(60) } await pg.settle(900); await until(() => S.log.includes('PATCH /api/me')); await pg.settle(300);
     T(tag('印章颜色：连点 3 次只存一次，存的是最后选的色名 sky'), S.log.filter(x => x === 'PATCH /api/me').length === 1 && S.bodies['PATCH /api/me'].avatar_color === 'sky', [S.log, S.bodies['PATCH /api/me']]);
     await pg.evaluate(() => nbqRefresh()); await pg.settle(500);
     T(tag('印章颜色：重读后还是 sky（刷新不丢），页面头像画的也是这个色'), await pg.evaluate(() => ME.color === '#2C98EC' && /2C98EC/i.test((document.querySelector('#meSlot .av,.av') || { innerHTML: '' }).innerHTML)), await pg.evaluate(() => ME.color));

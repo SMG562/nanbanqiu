@@ -5,8 +5,17 @@
 R=SMG562/nanbanqiu
 SHA=$(git rev-parse "${1:-HEAD}")
 ok=0
+# 11-05：推 main 只在改了这些路径时才触发 smoke（与 .github/workflows/smoke.yml 的 paths 保持一致，tests/unit/ci_paths 盯着）；
+# 只改 tools / 文档的提交没有 smoke 运行记录是正常的，显示「不适用」，不是 ❌。
+smoke_triggered() {
+  local f; for f in $(git diff-tree --no-commit-id --name-only -r --root "$SHA" 2>/dev/null); do
+    case "$f" in src/*|*.html|sw.js|functions/*|server/*|tools/site.mjs|tools/smoke_prod.mjs) return 0;; esac
+  done; return 1
+}
 for W in tests-fast tests smoke; do
   L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=20" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
-  [ "$L" = "completed success" ] && echo "✅ $W" || { echo "❌ $W：${L:-没有运行记录}"; ok=1; }
+  if [ "$L" = "completed success" ]; then echo "✅ $W"
+  elif [ -z "$L" ] && [ "$W" = smoke ] && ! smoke_triggered; then echo "⚪ smoke：不适用（这个提交没改会触发 smoke 的文件，见 smoke.yml 的 paths；定时冒烟另跑）"
+  else echo "❌ $W：${L:-没有运行记录}"; ok=1; fi
 done
 exit $ok
