@@ -40,7 +40,8 @@ try {
   });
   await new Promise(r => srv.listen(0, '127.0.0.1', r)); const PORT = srv.address().port, URL0 = `http://127.0.0.1:${PORT}/admin`;
 
-  br = await chromium.launch({ executablePath: process.env.NBQ_CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox', '--host-resolver-rules=MAP *.pages.dev 127.0.0.1, MAP evil.test 127.0.0.1'] });
+  const exe = [process.env.NBQ_CHROMIUM, '/opt/pw-browsers/chromium'].find(x => x && fs.existsSync(x));   // 本机有固定路径就用，CI 里用 playwright 自带的
+  br = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox', '--host-resolver-rules=MAP *.pages.dev 127.0.0.1, MAP evil.test 127.0.0.1'] });
   const open = async (url = URL0) => { const ctx = await br.newContext({ viewport: { width: 1360, height: 900 } }), pg = await ctx.newPage(); const pe = []; pg.on('pageerror', e => pe.push(e.message)); await pg.goto(url); return { ctx, pg, pe } };
   const vis = (pg, s) => pg.evaluate(s => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0 }, s);
   const code = () => { clock += 30e3; return AU.totp(SEC, clock) };
