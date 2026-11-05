@@ -20,7 +20,7 @@
  * 退出码：0 = 全部通过；1 = 有失败；2 = 环境不满足（会说明缺什么、怎么装）
  * 报告：tests/reports/<时间>/summary.md、results.json、logs/<测试>.log
  * ===================================================================== */
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -54,6 +54,9 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
+add('static', 'static/input_audit', ['node', path.join(DIR, 'tools/input_audit.mjs')], { pass: [/input_audit: \d+ 个输入框, 0 个问题/], timeout: 60 });
+add('static', 'static/action_audit', ['node', path.join(DIR, 'tools/action_audit.mjs')], { pass: [/action_audit: \d+ 个动作, 0 个未归类, 0 个写法不对/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）
@@ -81,6 +84,7 @@ add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_events', ['node', path.join(HERE, 'pg/api_events.mjs')], { pass: [/api_events: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/venues_seed', ['node', path.join(HERE, 'pg/venues_seed.mjs')], { pass: [/venues_seed: \d+ 通过, 0 失败/], timeout: 300 });
@@ -108,6 +112,8 @@ add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
 add('frontend', 'frontend/late_join', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/late_join.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 开打后 30 分钟内仍可申请（11-04）
+add('frontend', 'frontend/invite_form', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/invite_form.js')], { pass: [/invite_form: \d+ passed, 0 failed/], timeout: 300 });   // 约 TA 表单：滚动不跳、发送条固定、说一句快捷短语
+add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/input_visible.js')], { pass: [/input_visible: \d+ passed, 0 failed/], timeout: 300 });   // 键盘弹出时每个弹层输入框都看得见、点得到
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致
 add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_scroll.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边整页上移 / 卡顿回归
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
@@ -131,10 +137,13 @@ add('frontend', 'frontend/real_write', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/real_invite', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_invite.js')], { pass: [/real_invite: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_chat', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_chat.js')], { pass: [/real_chat: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_safety.js')], { pass: [/real_safety: \d+ 通过, 0 失败/], timeout: 600 });
+add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
 for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
@@ -310,5 +319,10 @@ fs.writeFileSync(path.join(OUT, 'summary.md'), md + '\n');
 fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ stamp: STAMP, quick: QUICK, dir: DIR, files: Object.fromEntries(files.map(f => [f, sha(f)])), results }, null, 2));
 try { fs.writeFileSync(FAILED_FILE, JSON.stringify({ stamp: STAMP, ids: updateFailed(readFailed(), results) }, null, 2) + '\n') } catch { /* 名单写不了不影响测试结果 */ }
 if (!args.keep) fs.rmSync(WORK, { recursive: true, force: true });
+// 11-05：「相关测试全绿」的戳——pre-push 看它（.githooks/pre-push）。只有「--changed=<ref> 不带 --grep/--only、全部通过、工作区干净」才盖戳，内容 = 当时 HEAD 的树。
+try {
+  if (!nFail && args.changed && args.changed !== true && !args.grep && !args.only && !execFileSync('git', ['status', '--porcelain'], { cwd: DIR }).toString().trim())
+    fs.writeFileSync(path.join(DIR, '.git', 'nbq_changed_ok'), execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: DIR }).toString().trim() + '\n');
+} catch (e) { /* 盖不了戳 = 推送时会要求重跑，不影响测试结果 */ }
 console.log(`\n${nFail ? '有 ' + nFail + ' 项失败' : '全部通过'} · 报告：${path.relative(process.cwd(), path.join(OUT, 'summary.md'))}`);
 process.exit(nFail ? 1 : 0);

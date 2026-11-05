@@ -201,11 +201,11 @@ nrSysNotify=function(t,b,tap,n){if(!PUSH.enabled||!('Notification'in window)||No
 wrap('nrSettings',o=>function(){const r=o.apply(this,arguments);if(me())track('notif_settings_open');return r});
 wrap('enablePush',o=>function(){const env=AENV.env;
   if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='safari')return o.apply(this,arguments);            // 先引导添加到主屏幕（a2hs_open）
-  if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='wechat'||!('Notification'in window)){track('push_enable',{result:'unsupported',env});return o.apply(this,arguments)}
-  if(Notification.permission==='denied'){track('push_enable',{result:'denied',env});return o.apply(this,arguments)}
+  if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='wechat'||!('Notification'in window)){track('push_enable',{result:'unsupported',env,from:window.PUSH_FROM||'card'});return o.apply(this,arguments)}
+  if(Notification.permission==='denied'){track('push_enable',{result:'denied',env,from:window.PUSH_FROM||'card'});return o.apply(this,arguments)}
   const rp=Notification.requestPermission;let asked=false;
-  try{Notification.requestPermission=function(){asked=true;const p=rp.apply(Notification,arguments);Promise.resolve(p).then(x=>track('push_enable',{result:x==='granted'?'granted':'denied',env}),()=>track('push_enable',{result:'denied',env}));return p};
-    return o.apply(this,arguments)}finally{Notification.requestPermission=rp;if(!asked)track('push_enable',{result:'unsupported',env})}});
+  try{Notification.requestPermission=function(){asked=true;const p=rp.apply(Notification,arguments);Promise.resolve(p).then(x=>track('push_enable',{result:x==='granted'?'granted':'denied',env,from:window.PUSH_FROM||'card'}),()=>track('push_enable',{result:'denied',env,from:window.PUSH_FROM||'card'}));return p};
+    return o.apply(this,arguments)}finally{Notification.requestPermission=rp;if(!asked)track('push_enable',{result:'unsupported',env,from:window.PUSH_FROM||'card'})}});
 ['openA2HS','openWxGuide'].forEach(n=>wrap(n,o=>function(){const r=o.apply(this,arguments);track('a2hs_open',{env:AENV.env});return r}));
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-em]');if(!b||!me())return;const k=b.dataset.em;
   if(k==='save'){const v=((document.getElementById('emkIn')||{}).value||'').trim();if(emOK(v))track('email_settings_save',{on:true})}

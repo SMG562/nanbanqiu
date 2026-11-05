@@ -386,7 +386,8 @@ a{color:inherit;text-decoration:none}
 .pushcard .ic{width:40px;height:40px;border-radius:12px;background:var(--gs);color:var(--g);display:grid;place-items:center;flex:none}
 .pushcard b{font-size:14.5px}.pushcard p{font-size:12.5px;color:var(--mut)}
 .pushcard .sbtn{flex:none;margin-left:auto}
-
+.pushcard.pnudge{margin:12px 0 4px;text-align:left}
+.pdsteps{margin:10px 0 16px 22px;font-size:14px;line-height:1.7;color:var(--ink,#222)}.pdsteps li{padding-left:2px}
 /* me */
 .club{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line);width:100%;text-align:left}
 .club:first-child{border-top:0}
@@ -1127,6 +1128,20 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .iv-2,.iv-3{height:44px;border-radius:14px;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .iv-2{border:0;background:#EEF1EE;color:#1F2A23}.iv-3{border:0;background:none;color:#8A928A}
 .iv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.iv-acts .iv-go{grid-column:1/-1;margin-top:12px}.iv-acts .iv-3:only-of-type{grid-column:auto}
+
+/* 键盘弹出时（手机端外壳有 .kb）：弹层只留「正在填的那一项 + 发送」，其余选项折起来（.kbhide），摘要一行（.iv-kbsum）代替。
+   原因：键盘 + Safari 工具条占掉大半屏，可见区域只有 200pt 左右，长表单里的输入框会被顶出画面、按钮浮在内容上面（11-05 真机）。
+   不做「固定在底部的浮层按钮」：它会盖住内容。 */
+.iv-kbsum{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
+.iv-kbsum button{border:0;background:none;color:#176B4D;font:inherit;font-size:12.5px;font-weight:700;padding:2px 0 2px 8px;cursor:pointer;flex:none}
+.device.kb .iv .kbhide:not(:focus-within),.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
+.device.kb{--shgap:10px}   /* 打字时顶部不用留「点一下收起」的空，把高度让给表单 */
+.device.kb .iv .iv-kbsum,.device .iv.compact .iv-kbsum{display:flex}
+.device .iv.compact .kbhide{display:none}   /* 精简视图：点过「说一句」之后一直是这个样子，键盘收起也不展开 */
+.iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}
+.iv-warn{margin-top:10px;padding:8px 12px;border-radius:10px;background:#FFF6E0;color:#8A5A00;font-size:12.5px;line-height:1.45}
+.invnext{display:block;width:100%;margin-top:6px;border:0;background:none;color:inherit;opacity:.78;font:inherit;font-size:12.5px;text-align:center;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .iv-foot{text-align:center;font-size:12px;color:#9AA29A;margin-top:10px}
 .iv-card{border-radius:18px;background:#F6F8F5;padding:16px;border:1px solid #E7ECE7}
 .iv-kv{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-top:1px solid #E7ECE7}.iv-kv span{color:#6B746B}.iv-kv b{font-weight:700;text-align:right}
@@ -2048,11 +2063,12 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
   const open=INVITES.find(i=>[i.from,i.to].includes(uid)&&[i.from,i.to].includes(ME.id)&&['pending','counter'].includes(i.status)&&!invExpired(i));
   if(open){const mine=open.status==='pending'?open.from===ME.id:open.to===ME.id;
     return `<button class="invbtn ${mine?'wait':''}" data-iv="view" data-i="${open.id}">${mine?'已约 · 等 TA 回复':open.status==='counter'?'TA 提议了新时间 · 去确认':'TA 约了你 · 去回复'}<small>${esc(invWhen(open))} · ${esc(invWhere(open))}</small></button>`}
+  // 已有一场未开始的球局：不再把「约 TA」换成「查看球局」——想再约一天、或只是同在多人局里想单独约，都应该约得了。球局信息作为一行小字放在按钮下面。
   const next=gamesTogether(ME.id,uid).filter(g=>new Date(g.starts_at)>NOW).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at))[0];
-  if(next){const s=new Date(next.starts_at);return `<button class="invbtn wait" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 有一场 · 查看<small>${esc(venTxt(next.venue_id))}</small></button>`}
   const n=playedCount(ME.id,uid),u=U(uid);
-  return n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
-          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`}
+  const nextRow=next?(()=>{const s=new Date(next.starts_at);return `<button class="invnext" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 已有一场 · ${esc(venTxt(next.venue_id))} · 查看</button>`})():'';
+  return (n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
+          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`)+nextRow}
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
@@ -2074,12 +2090,16 @@ function lastTimeDefaults(f){const last=gamesTogether(ME.id,f.to).filter(g=>new 
 function venueChoices(){const f=IVF,base=f.kind==='counter'?[...new Set([f.orig,...(ME.home_club_ids||[])])]:(ME.home_club_ids||[]);
   const list=[...base];if(f.venue_id&&!list.includes(f.venue_id))list.push(f.venue_id);return list}
 function venueResults(){const o=U(IVF.to)||{};return vpList('iv',IVF,o.home_club_ids||[])}
-function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
+const ivScroller=()=>{let e=document.querySelector('.iv');while(e&&e!==document.body){if(/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight)return e;e=e.parentElement}return null};   // 只给测试用；重画不跳回顶部由 openSheet / openModal 统一保证
+const IV_QP_PLAYED=['上次打得很开心，再来一局','这周有空吗？','想再切磋一下'],IV_QP_NEW=['想认识一下，一起练练','水平差不多，来一场吧','周末有空一起打吗？'];
+function drawInviteForm(){_drawInviteForm()}
+function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
-  INV_OPEN(`<div class="iv">
+  INV_OPEN(`<div class="iv${f.compact?' compact':''}">
     <div class="iv-h"><span class="iv-av">${av(u)}</span><div><b>${counter?'换个时间给 '+esc(u.name):'约 '+esc(cardName(u))+' 打球'}</b><small>${counter?'只能改一次，TA 确认后生成球局':'TA 接受后，就是你们俩的私人球局'}</small></div></div>
+    <div class="kbhide">
     ${f.stranger&&!counter?(()=>{const s=stats(f.to);return `<div class="iv-trust"><span>赴约率 <b>${s.played?Math.round(s.att*100)+'%':'—'}</b></span><span>好评 <b>${s.kudos}</b></span><span>打过 <b>${s.played}</b> 场</span></div>`})():''}
     ${f.hint&&!counter?`<div class="iv-hint2">${esc(f.hint)}</div>`:''}
     <div class="iv-l">哪天</div>
@@ -2090,21 +2110,31 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
     <div class="iv-l">打多久</div>
     <div class="iv-seg">${DURS.map(m=>`<button data-iv="dur" data-v="${m}" class="${f.dur===m?'on':''}">${durLbl(m)}</button>`).join('')}</div>
     <div class="iv-sum"><b>${esc(dayTxt(f.o))}</b><span>${f.t} – ${f.e}</span></div>
+    ${(()=>{const c=ivClash(f);return c?`<div class="iv-warn">${c}</div>`:''})()}
     <div class="iv-l">在哪打</div>
     <div class="iv-chips">${venueChoices().map(v=>`<button data-iv="ven" data-v="${v}" class="${f.venue_id===v?'on':''}">${esc(venTxt(v))}<small>${tag(v)}</small></button>`).join('')}<button data-iv="more" class="${f.search?'on2':''}">其他场地</button></div>
     ${f.search||f.adding?vpHTML('iv',f):''}
     ${counter?'':`<div class="iv-l">玩法</div>
-    <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>
+    <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>`}
+    </div>
+    ${counter?'':`<div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</span><button type="button" data-iv="expand">修改</button></div>
     <div class="iv-l">说一句 <span>选填</span></div>
-    <input id="ivNote" class="iv-in" maxlength="30" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">`}
-    ${f.stranger&&!counter?`<p class="iv-safe">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
+    <input id="ivNote" class="iv-in" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
+    <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
+    ${f.stranger&&!counter?`<p class="iv-safe kbhide">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
     <button class="iv-go" data-iv="${counter?'sendCounter':'send'}">${counter?'发回给 TA 确认':'发送邀约'}</button>
     ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div>`);
   const d=document.querySelector('.iv-days .on');if(d)d.scrollIntoView({block:'nearest',inline:'center'})}
+/* 选的时间和已有球局撞了：只提醒、不拦（可能想换场、或另有安排）。先看和 TA 的球局，再看自己的 */
+function ivClash(f){if(!ME||f.kind==='counter'&&false)return'';const a=dayAt(f.o,f.t),b=dayAt(f.o,f.e);
+  const hit=(uid,pre)=>GAMES.find(g=>g.status!=='cancelled'&&PARTS.some(p=>p.game_id===g.id&&p.user_id===uid&&p.status==='approved')&&new Date(g.starts_at)<b&&new Date(+new Date(g.starts_at)+g.duration_min*6e4)>a);
+  const t=hit(f.to),m=hit(ME.id);const w=g=>`${relDay(new Date(g.starts_at))} ${hm(new Date(g.starts_at))}`;
+  if(t&&PARTS.some(p=>p.game_id===t.id&&p.user_id===ME.id&&p.status==='approved'))return `你们 ${w(t)} 已经有一场了，换个时间约吧`;
+  if(m)return `你这个时间已有一场球局（${w(m)}），确定要约吗？`;return''}
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}
-const invSentHTML=(to,when,where)=>`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(to)))} 回复后会通知你<br>${esc(when)} · ${esc(where)}</p><button class="iv-go" data-iv="close">好的</button></div>`;
+const invSentHTML=(to,when,where)=>`<div class="iv iv-done"><div class="iv-ok">✓</div><b>邀约已发送</b><p>${esc(cardName(U(to)))} 回复后会通知你<br>${esc(when)} · ${esc(where)}</p>${pushNudgeHTML('invite')}<button class="iv-go" data-iv="close">好的</button></div>`;
 function sendInvite(){keepForm();if(!formOK())return;const f=IVF;
   if(NBQ_NET){nbqInviteSend(f,invSentHTML(f.to,`${dayTxt(f.o)} ${f.t}–${f.e}`,venTxt(f.venue_id)));return}   // 真实模式：先调接口
   const inv={id:++NID,from:ME.id,to:f.to,o:f.o,t:f.t,e:f.e,venue_id:f.venue_id,game_type:f.game_type,note:f.note.trim().slice(0,30),status:'pending',at:Date.now(),countered:false};
@@ -2158,6 +2188,8 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'expand':keepForm();IVF.compact=false;drawInviteForm();break;
+    case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
     case'counter':IVF={kind:'counter',to:i.from,o:i.o,t:i.t,e:i.e,dur:toMin(i.e)-toMin(i.t),per:Math.max(0,perOf(i.t)),venue_id:i.venue_id,orig:i.venue_id,search:false,q:'',game_type:i.game_type,note:''};drawInviteForm();break;
@@ -2201,8 +2233,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wx'){wxToggle(el.dataset.g);return}
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
+/* 点了「说一句」就进入精简视图并一直留着：键盘收起（点「完成」）后表单不再展开、位置不跳；要改时间 / 地点点摘要旁的「修改」 */
+document.addEventListener('focusin',e=>{if(e.target.id==='ivNote'&&IVF&&IVF.kind==='new'&&!IVF.compact){IVF.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
-document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
+document.addEventListener('keydown',e=>{if(nbqImeEnter(e))return;   // 中文输入法拼写中的回车只是「确认拼音」
+  if(e.target.id==='ivQ'&&e.key==='Enter'&&!nbqImeEnter(e)&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
 
 /* ---------- 「谁可以约我打球」：所有球友 / 一起打过球的 / 暂不接受 ---------- */
 const IVSET=[['all','所有球友','任何登录的球友都可以约你；每人每天最多约 2 位新球友'],['played','一起打过球的','只有和你同场打过球的人能约你'],['none','暂不接受','球员卡上不显示「约 TA 打球」']];
@@ -2214,6 +2249,31 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ivset]');i
 const INV_DEMO=()=>{let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;const inv={id:++NID,from:'han',to:'jason',o,t:'09:00',e:'10:30',venue_id:'v2',game_type:'singles',note:'上次双打配合很好，想约你单挑一局',status:'pending',at:Date.now(),countered:false};INVITES.unshift(inv);return inv};
 
 
+/* ===== 弹层 / 弹窗里的输入框：通用规则（11-05：「说一句」输入框回车没反应、点选项页面跳回顶部）=====
+   不靠每张表单各写各的，这里统一：
+   1. 键盘右下角的键：有 data-enter 的显示「发送」，其余显示「完成」（enterkeyhint，iOS / 安卓都认）。
+   2. 按回车：有 data-enter="选择器" → 点那个按钮；没有 → 只收起键盘。绝不让回车「没反应」，也不会误提交整张表单。
+      有后果的操作（发邀约、发布球局）不要加 data-enter：回车只收键盘，提交靠看得见的按钮（11-05 你真机试出来的）。
+   3. 中文输入法正在拼写时（isComposing / keyCode 229）的回车是「确认拼音」，一律不处理——否则打到一半就把邀约发出去了。
+   只管 #sheet / #modal 里的单行输入框；别处（聊天 / 场边）自己有回车逻辑，不动。 */
+(function(){
+  const SKIP=/^(checkbox|radio|range|hidden|file|button|submit|color|date|number)$/;
+  const inLayer=el=>!!(el&&el.closest&&el.closest('#sheet,#modal'));
+  const isLine=el=>el&&el.tagName==='INPUT'&&!SKIP.test(el.type||'text');
+  /* 同屏重画时保住用户已经打的字（11-05 排查：新用户资料里点一下 UTR / Club，刚填的「姓氏首字母」就没了——NP.redraw 只记了昵称）。
+     11-05 实测：不能对所有输入框默认恢复——聊天发送后重画本来就要清空，会被「恢复」回去（real_chat 红）。所以只对写了 data-keep 的输入框生效（表单重画但字要留着的才写）。不靠每张表单各记各的：openSheet / openModal 同屏重画前后各调一次。规则：新旧都有同一个 id 的输入框，并且这次重画没有改它的默认值（说明表单没有「故意」改它），
+     就把用户打的字放回去；表单故意清空 / 改值的（默认值变了）不动。 */
+  window.nbqDraftsTake=root=>{const m={};if(!root)return m;root.querySelectorAll('input[id][data-keep],textarea[id][data-keep]').forEach(e=>{if(!SKIP.test(e.type||'text'))m[e.id]={v:e.value,d:e.defaultValue}});return m};
+  window.nbqDraftsPut=(root,m)=>{if(!root||!m)return;Object.keys(m).forEach(id=>{const n=root.querySelector('#'+CSS.escape(id));if(n&&!SKIP.test(n.type||'text')&&n.defaultValue===m[id].d&&n.value!==m[id].v)n.value=m[id].v})};
+  document.addEventListener('focusin',e=>{const el=e.target;if(!isLine(el)||!inLayer(el)||el.hasAttribute('enterkeyhint'))return;el.setAttribute('enterkeyhint',el.dataset.enter?'send':'done')});
+  // iOS Safari：点键盘右下角确认拼音时，compositionend 先触发、随后才来一个 isComposing=false 的 Enter（11-05 真机复现：确认拼音就把邀约发出去了）。
+  // 所以光看 isComposing 不够：刚结束拼写 400ms 内的 Enter 一律当成「确认拼音」，什么都不做（键盘也不收）。
+  let ceAt=0;document.addEventListener('compositionend',()=>{ceAt=Date.now()},true);
+  window.nbqImeEnter=e=>!!(e.isComposing||e.keyCode===229||Date.now()-ceAt<400);
+  document.addEventListener('keydown',e=>{const el=e.target;if(e.key!=='Enter'||e.defaultPrevented||window.nbqImeEnter(e)||!isLine(el)||!inLayer(el))return;
+    e.preventDefault();const sel=el.dataset.enter;el.blur();
+    if(sel){const b=document.querySelector(sel);if(b&&!b.disabled)b.click()}})
+})();
 const CREATE_OPEN=(h,p)=>{const sh=$('#sheet'),on=sh.classList.contains('show')&&sh.querySelector('.ngf'),st=sh.scrollTop;openSheet(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="sh-t">${NG&&NG.edit?'修改球局':'发起球局'}</div><button class="navbtn" data-a="close" style="box-shadow:none;background:var(--bg)">✕</button></div>${NG&&NG.edit?'<p class="sh-s" style="margin:-2px 0 12px">改时间、地点或玩法，会通知已加入的球友</p>':''}${h}`,true);if(on)sh.scrollTop=st},
   CREATE_DONE=(id,o)=>{UI._justMade=id;UI.day=Math.min(o,6);closeSheet();go('disc');setTimeout(()=>{openDetail(id);setTimeout(()=>openShare(id),450)},200)},SX_CARD=u=>openCard(u);
 const CX_BACK=true,CX_SHOW=t=>openSheet(`<div class="cxsheet">${threadHTML(t)}</div>`,true),CX_INBOX=()=>{closeSheet();if(UI.detail)closeDetail();UI.msgTab='chat';go('notif')},CX_CLOSE=()=>closeSheet(),NOTIFY_WHERE=()=>nrWhere();
@@ -2331,6 +2391,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-sx]');if(
     case'gConfirm':{setGender(d.v);GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');const n=GNEXT;GNEXT=null;if(n&&womenOK(ME))setTimeout(n,250);break}
     case'npg':NP.gender=d.v;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));break;
     case'impPick':{const k=ME.id+'|'+d.u+'|'+d.g,u=U(d.u),imp=impOf(u),g=KUDOS.get(k)||[],x=IMPK[d.v];
+      if(nbqOn()){const was=g.includes(d.v),nx=was?g.filter(y=>y!==d.v):[...g.filter(y=>y!=='like'),d.v];   // 真实模式：先写服务器，读回后以服务器为准
+        nbqRecapImp(d.g,d.u,nx).then(ok=>{if(ok)toast(was?'已撤回':`已送出 ${x[1]} ${x[2]}`);const b=document.querySelector('.impg-c [data-u="'+d.u+'"]'),box=b&&b.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT()});break}
       if(g.includes(d.v)){KUDOS.set(k,g.filter(y=>y!==d.v));imp[d.v]=Math.max(0,(imp[d.v]||1)-1);toast('已撤回')}else{KUDOS.set(k,[...g,d.v]);imp[d.v]=(imp[d.v]||0)+1;toast(`已送出 ${x[1]} ${x[2]}`)}
       const box=el.closest('.impg');if(box)box.outerHTML=kudosHTML(d.u);const sm=document.querySelector('.imps[data-u="'+d.u+'"]');if(sm)sm.outerHTML=impressionsHTML(u,sm.dataset.t);INV_RENDER_SOFT();break}
     case'ftag':{F.tags=F.tags||new Set();const k=d.v;if(k==='women'&&ME&&!womenOK(ME)&&!F.tags.has(k)){if(!ME.gender)openGender(()=>{F.tags.add('women');SX_FILTER_REFRESH()});else toast('女生局只对女生开放');return}if(k==='women'&&!ME){toast('女生局需要登录并确认是女生');return}if(F.tags.has(k))F.tags.delete(k);else{if(k==='match')F.tags.delete('relax');if(k==='relax')F.tags.delete('match');F.tags.add(k)}SX_FILTER_REFRESH();break}
@@ -2423,7 +2485,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const lvTxt=f.lv==='any'?'不限':`UTR ${f1(f.mn)} – ${f1(f.mx)}`;
-  return `<div class="iv ngf">
+  return `<div class="iv ngf${f.compact?' compact':''}"><div class="kbhide">
     <div class="iv-l">哪天</div>
     <div class="iv-days">${days.map(o=>{const d=dayAt(o);return `<button data-ng="day" data-v="${o}" class="${f.o===o?'on':''}"><small>${o===0?'今天':o===1?'明天':WD[d.getDay()]}</small><b>${d.getDate()}</b></button>`}).join('')}</div>
     <div class="iv-l">几点开始</div>
@@ -2449,11 +2511,14 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-l">适合 <span>选填</span></div>
     <div class="iv-chips ngtg">${NG_TAGS.filter(k=>k!=='women'||womenOK(ME)).map(k=>`<button data-ng="tag" data-v="${k}" class="${f.tags.has(k)?'on':''}">${TAGS[k][0]}</button>`).join('')}</div>
     ${f.tags.has('women')?'<div class="iv-hint">女生局：只有女生能看到和报名</div>':f.lv==='any'&&f.tags.has('newbie')?'<div class="iv-hint">水平不限，已自动加上「新手友好」</div>':''}
+    </div>
+    <div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${fromMin(toMin(f.t)+f.dur)} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.type]||''}</span><button type="button" data-ng="expand">修改</button></div>
     <div class="iv-l">想对球友说的 <span>选填</span></div>
-    <input id="ngNote" class="iv-in" maxlength="80" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
+    <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
-    ${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
+    <div class="kbhide">${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
     <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场。仅你可见，球友看到的是普通球局</small></span><span class="sw${f.rep?' on':''}"></span></div>
+    </div>
     <button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
     ${f.edit?'':'<div class="iv-foot">发布后可以直接分享到微信群、小红书</div>'}</div>`}
 function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,start:dayAt(NG.o,NG.t),game_type:NG.type,ntrp_min:NG.mn,ntrp_max:NG.mx,spots:NG.type==='doubles'?NG.miss:1,host:ME})}
@@ -2478,9 +2543,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(
     case'pace':{const on=f.tags.has(v);PACE.forEach(p=>f.tags.delete(p[0]));if(!on)f.tags.add(v);break}
     case'tag':{if(f.tags.has(v))f.tags.delete(v);else{f.tags.add(v);if(v==='match'){f.tags.delete('casual');f.tags.delete('drill')}if(v==='casual'||v==='drill')f.tags.delete('match')}break}
     case'noteQ':{const ps=noteParts(f.note);f.note=(noteHas(f.note,v)?ps.filter(x=>x!==v):[...ps,v]).join('，').slice(0,80);break}
+    case'expand':f.compact=false;break;
     case'rep':f.rep=!f.rep;break;case'hide':f.hide=!f.hide;break;case'instant':f.instant=!f.instant;break;
     case'publish':ngPublish();return;
   }drawCreate()},true);
+document.addEventListener('focusin',e=>{if(e.target.id==='ngNote'&&NG&&NG.o!=null&&!NG.compact){NG.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});   // 同约 TA 表单：点了输入框就一直精简
 document.addEventListener('input',e=>{if(e.target.id!=='ngQ'||!NG)return;NG.q=e.target.value;const r=document.getElementById('ngRes');if(r)r.innerHTML=ngVenueList()});
 
 /* ---------- UTR ---------- */
@@ -2563,7 +2630,7 @@ function vpAct(f,act,el){const v=el.dataset.v;
       f.venue_id=id;f.adding=null;f.search=false;f.q='';toast('已添加，核实后会加入公共球场列表');return true}
   }return false}
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='ngAN'||id==='ivAN'){const a=id.slice(0,2),f=a==='ng'?NG:IVF,s=document.getElementById(a+'AS');if(f&&f.adding&&s&&(s.value===''||s.value===f.adding.short)){f.adding.short=autoShort(e.target.value);s.value=f.adding.short}if(f&&f.adding)f.adding.name=e.target.value}});
-document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'&&!nbqImeEnter(e)){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
 
 /* ---------- UTR 水平筛选：一条双滑块，可以选任意区间 ---------- */
 const UR_MAX=13;
@@ -2639,7 +2706,7 @@ function threadHTML(t){const ms=tMsgs(t),closed=gameClosed(t),other=t.type==='dm
   return `<div class="cx-th"><div class="cx-hd">${CX_BACK?`<button class="cx-back" data-cx="inbox">‹</button>`:''}${cxAv(t)}<div><b>${esc(cxTitle(t))}</b><small>${sub}</small></div>${t.type==='game'?`<button class="cx-link" data-cx="toGame" data-g="${t.game_id}">球局</button>`:`<button class="cx-link" data-user="${other.id}">球员卡</button>`}</div>
     <div class="cx-msgs" id="cxMsgs">${h||`<div class="cx-ts">${t.type==='game'?'和同局球友打个招呼吧':'说点什么吧'}</div>`}</div>
     ${closed?`<div class="cx-closed">球局已结束，聊天已关闭</div>`:`<div class="cx-quick">${QUICK.map(q=>`<button data-cx="quick" data-v="${q}">${q}</button>`).join('')}</div>
-    <div class="cx-in"><input id="cxIn" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
+    <div class="cx-in"><input id="cxIn" enterkeyhint="send" maxlength="200" placeholder="${t.type==='game'?'发给同局球友':'发消息给 '+esc(other.name.split(' ')[0])}" autocomplete="off"><button data-cx="send">发送</button></div>
     <div class="cx-foot">不会显示你的手机号 · 只能发文字 · <a data-cx="report">举报</a></div>`}</div>`}
 function openThread(tid){if(NBQ_NET){nbqThreadOpen(tid);return}cxDraw(tid)}   // 真实模式：先在服务器建会话、读消息，再画
 function cxDraw(tid){CXCUR=tid;const t=THREADS.find(x=>x.id===tid);LASTREAD[ME.id+'|'+tid]=Date.now();CX_SHOW(t);INV_RENDER();
@@ -2664,7 +2731,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-cx]');if(
     case'toGame':CX_CLOSE();INV_GAME(d.g);break;
     case'report':toast('已收到举报，我们会尽快核实');break;
   }},true);
-document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'){e.preventDefault();cxSend(e.target.value)}});
+document.addEventListener('keydown',e=>{if(e.target.id==='cxIn'&&e.key==='Enter'&&!nbqImeEnter(e)){e.preventDefault();cxSend(e.target.value)}});
 function seedChat(){THREADS=[];MSGS=[];LASTREAD={};CXCUR=null;const now=Date.now();
   const g=gameThread('g6',true),dm={id:'t1',type:'dm',members:['han','jason']};THREADS.push(dm);
   MSGS.push({tid:g.id,from:'tom',text:'明天 9 点见，我订了 3 号场',at:now-5*36e5},{tid:g.id,from:'grace',text:'好的👌 我带一筒新球',at:now-4.6*36e5},{tid:g.id,from:'jason',text:'收到，8:50 到',at:now-4.2*36e5},{tid:g.id,from:'tom',text:'明天可能有小雨，早上我看一下再说',at:now-40*6e4});
@@ -3196,7 +3263,7 @@ function rcTick(){const now=Date.now();
   GAMES.forEach(g=>{if(g.status==='cancelled')return;const e=rcEnd(g);if(e>now||now-e>RC_WINDOW)return;
     PARTS.filter(p=>p.game_id===g.id&&p.status==='approved').forEach(p=>{const k=g.id+'|'+p.user_id,a=AFTER[k]||(AFTER[k]={});if(a.notified||a.closed)return;
       if(!rcEligible(g,p.user_id,now)){a.notified=true;return}const due=rcQuiet(e+RC_DELAY);if(now<due)return;a.notified=true;
-      if(now-due<864e5)notify(p.user_id,'recap',g.id,p.user_id)})});
+      if(now-due<864e5&&!nbqOn())notify(p.user_id,'recap',g.id,p.user_id)})});
   const t2=Date.now();RCQ.filter(x=>x.at<=t2).forEach(x=>{RCQ.splice(RCQ.indexOf(x),1);
     if(x.kind==='badge'){bdgNotify(x.uid,x.from);return}
     if(x.kind==='follow_game'){const g=GAMES.find(y=>y.id===x.gid);if(!g||g.status!=='open'||new Date(g.starts_at)<=t2||!followHas(x.uid,x.from))return}
@@ -3236,9 +3303,9 @@ function rcRedraw(gid){const el=document.querySelector('.rc');if(el)el.outerHTML
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rc]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rc,gid=b.dataset.g,uid=b.dataset.u,me=ME.id;
   if(k==='open'){rcOpen(gid);return}
   const key=gid+'|'+me,a=AFTER[key]=AFTER[key]||{};
-  if(k==='more'||k==='ok'||k==='less'){setOpin(me,uid,k,gid);rcRedraw(gid);return}
-  if(k==='feel'){a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
-  if(k==='done'){a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
+  if(k==='more'||k==='ok'||k==='less'){if(nbqOn()){nbqRecapPref(gid,uid,k).then(()=>rcRedraw(gid));return}setOpin(me,uid,k,gid);rcRedraw(gid);return}
+  if(k==='feel'){if(nbqOn()){if(a.feel!==b.dataset.v)nbqRecapFeel(gid,b.dataset.v).then(()=>rcRedraw(gid));return}a.feel=a.feel===b.dataset.v?null:b.dataset.v;rcRedraw(gid);return}
+  if(k==='done'){if(nbqOn()){nbqRecapDone(gid).then(ok=>{if(!ok)return;UF_CLOSE();toast('已保存，只有你知道');UF_RENDER()});return}a.closed=true;a.at=Date.now();UF_CLOSE();toast('已保存，只有你知道');UF_RENDER();return}},true);
 
 // ---------- 球局详情里的入口（结束后 7 天内） ----------
 function rcEntryHTML(c){if(!ME)return'';const g=GAMES.find(x=>x.id===c.id);if(!rcEligible(g,ME.id))return'';const a=AFTER[c.id+'|'+ME.id]||{};
@@ -3253,6 +3320,7 @@ const _rcInvBtn=invBtnHTML;invBtnHTML=function(uid){if(!ME||uid===ME.id||blocked
   if(lessHas(uid,ME.id)&&/data-iv="new"/.test(h))h='<div class="invbtn off">TA 暂时不接受邀约</div>';
   return h+(playedTogether(ME.id,uid)?pcPrivHTML(uid):'')};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pcp]');if(!b||!ME)return;e.stopPropagation();const uid=b.dataset.u;
+  if(nbqOn()){nbqPrefSet(uid,b.dataset.pcp).then(()=>{const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)});return}
   setOpin(ME.id,uid,b.dataset.pcp,null);const el=document.querySelector(`.pcp[data-u="${uid}"]`);if(el)el.outerHTML=pcPrivHTML(uid)},true);
 const _rcCan=canInvite;canInvite=function(to){const r=_rcCan(to);if(r)return r;if(lessHas(to,ME.id))return'TA 暂时不接受邀约';return null};
 
@@ -3307,6 +3375,17 @@ function uxDemo(k){const now=Date.now(),r5=t=>Math.ceil(t/3e5)*3e5;
  *   · 分享：一键生成分享图（朋友圈 / 小红书），附一段可以直接复制的文案
  * 徽章墙上的任何一枚都可以点开：已获得的看日期并分享；没获得的看还差多少；别人的只看名称和获得日期。 */
 var BDG={},BDG_T=0,BDG_SHOWN=new Set();
+// 真实模式：「庆祝过」记在本机（刷新后不再重复弹）。服务端 user_badges 的读写还没接，接上前换设备会再庆祝一次
+var BDG_PERSIST=null;   // null = 跟随是否真实模式（NBQ_NET 在后面才声明，不能在这里读）；测试可强制 true / false
+const bdgOn=()=>BDG_PERSIST!==null?BDG_PERSIST:(typeof NBQ_NET!=='undefined'&&!!NBQ_NET);
+var BDG_SRV=false,BDG_FAIL=false,BDG_Q=Promise.resolve();   // 服务器记录读到了 / 读失败了（读失败时退回本机记录）；写服务器排队，保证「先记获得、再记已庆祝」
+function bdgSync(claim,seen){if(!bdgOn()||!BDG_SRV)return;
+  if(claim&&claim.length)BDG_Q=BDG_Q.then(()=>nbqBadgeClaim(claim)).catch(()=>{});
+  (seen||[]).forEach(c=>{BDG_Q=BDG_Q.then(()=>nbqBadgeSeen(c)).catch(()=>{})})}
+const bdgSeenKey=uid=>'nbq_bdg_seen_'+uid;
+function bdgSeenList(uid){try{const a=JSON.parse(localStorage.getItem(bdgSeenKey(uid))||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
+const bdgSeenHas=(uid,code)=>bdgSeenList(uid).includes(code);
+function bdgSeenAdd(uid,code){try{const a=bdgSeenList(uid);if(!a.includes(code)){a.push(code);localStorage.setItem(bdgSeenKey(uid),JSON.stringify(a))}}catch(_){}}
 const BDG_UNIT={first:'场',ten:'场',fifty:'场',hundred:'场',host10:'场',night:'场',early:'场',surface:'种场地',explorer:'个 Club',streak:'周',kudos:'次好评',partner:'场'};
 const BDG_CHAIN=[['first','ten','fifty','hundred']];
 // 连续周（真实球局）
@@ -3319,7 +3398,14 @@ const _bdgStats=stats;stats=function(uid){const s=_bdgStats(uid);s.streak=Math.m
 function bdgInit(){BDG={};BDG_SHOWN=new Set();Object.keys(USERS).forEach(uid=>{const s=stats(uid);BDG[uid]={};s.badges.filter(b=>b.cur).forEach(b=>BDG[uid][b.code]={at:null,seen:true})})}
 function bdgCheck(force){const now=Date.now();if(!force&&now-BDG_T<2000)return;BDG_T=now;
   Object.keys(USERS).forEach(uid=>{const s=stats(uid),r=BDG[uid]=BDG[uid]||{};
-    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{r[b.code]={at:now,seen:false};rcQueue(uid,'badge',null,b.code,now)})})}
+    if(bdgOn()){
+      if(!ME||uid!==ME.id){s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{r[b.code]={at:null,seen:true}});return}   // 真实模式：别人的徽章只用来显示，不庆祝、不记录
+      if(!BDG_SRV&&!BDG_FAIL)return}   // 还没读到服务器上的记录：先不判断，否则会把「早就庆祝过」的当成新获得
+    const claim=[],seen=[];
+    s.badges.filter(b=>b.cur&&!r[b.code]).forEach(b=>{
+      if(bdgOn()&&bdgSeenHas(uid,b.code)){r[b.code]={at:null,seen:true};claim.push(b.code);seen.push(b.code);return}   // 这台设备以前庆祝过（服务器还没有记录）：补记
+      r[b.code]={at:now,seen:false};if(bdgOn())claim.push(b.code);rcQueue(uid,'badge',null,b.code,now)});
+    if(claim.length)bdgSync(claim,seen)})}
 function bdgNotify(uid,code){const b=BADGES.find(x=>x[0]===code);if(!b)return;const n={id:++NID,user_id:uid,kind:'badge',game_id:null,from:uid,badge:code,at:Date.now(),read:false};NOTIFS.unshift(n);
   nrDeliver(n)}
 const bdgPending=()=>ME?Object.entries(BDG[ME.id]||{}).filter(([c,r])=>!r.seen).map(x=>x[0]):[];
@@ -3332,7 +3418,7 @@ const bdgDate=t=>{const d=new Date(t);return `${d.getFullYear()} 年 ${d.getMont
 
 // ---------- 庆祝 / 查看 ----------
 function bdgShow(uid,code,mode){const s=stats(uid),b=s.badges.find(x=>x.code===code);if(!b)return;const self=!!ME&&uid===ME.id,r=(BDG[uid]||{})[code],isNew=self&&r&&!r.seen;
-  if(isNew)r.seen=true;BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
+  if(isNew){r.seen=true;if(bdgOn()){bdgSeenAdd(uid,code);bdgSync(null,[code])}}BDG_SHOWN.add(uid+'|'+code);const u=U(uid),unit=BDG_UNIT[code]||'',nx=self&&b.got?bdgNext(s,code):null,rare=bdgRarity(code);
   // 稀有度只在有意义时显示（一半以下的球友拥有）
   const meta=b.got?`${b.at?bdgDate(b.at)+' 获得':'已获得'}${rare<=50?` · 只有 ${rare}% 的球友有`:''}`:`还差 ${b.target-b.val} ${unit}${rare<=50?` · ${rare}% 的球友已经拿到`:''}`;
   const conf=isNew?`<div class="bfx-cf">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*53)%100}%;--d:${(i%5)*.12}s;--r:${(i*47)%360}deg"></i>`).join('')}</div>`:'';
@@ -3525,9 +3611,11 @@ rcRow=function(gid,uid){const u=U(uid),k=ME.id+'|'+uid+'|'+gid,given=KUDOS.get(k
     ${ask?`<div class="rc-ns"><p>确认 ${esc(u.name.split(' ')[0])} 没有到场？TA 会收到通知，可以申诉。</p><div><button data-rcx="nsok" data-g="${gid}" data-u="${uid}">确认没来</button><button data-rcx="nsno" data-g="${gid}" data-u="${uid}">算了</button></div></div>`:''}</div>`};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx]');if(!b||!ME)return;e.stopPropagation();const k=b.dataset.rcx,gid=b.dataset.g,uid=b.dataset.u,key=ME.id+'|'+uid+'|'+gid,nk=nsKey(gid,uid);
   if(k==='imp'){RC_IMP.has(key)?RC_IMP.delete(key):RC_IMP.add(key)}
+  if(k==='tag'&&nbqOn()){const g=(KUDOS.get(key)||[]).filter(y=>y!=='like'),v=b.dataset.v,nx=g.includes(v)?g.filter(y=>y!==v):[...g,v];nbqRecapImp(gid,uid,nx).then(()=>rcRedraw(gid));return}   // 真实模式：先写服务器
   if(k==='tag'){const u=U(uid),imp=impOf(u),g=KUDOS.get(key)||[],v=b.dataset.v;if(g.includes(v)){KUDOS.set(key,g.filter(y=>y!==v));imp[v]=Math.max(0,(imp[v]||1)-1)}else{KUDOS.set(key,[...g.filter(y=>y!=='like'),v]);imp[v]=(imp[v]||0)+1}}
   if(k==='ns'){RC_NSASK=key}
   if(k==='nsno'){RC_NSASK=null}
+  if(nbqOn()&&(k==='nsok'||k==='nsundo')){RC_NSASK=null;nbqNoshow(gid,uid,k==='nsok').then(ok=>{if(ok)toast(k==='nsok'?'已记录，谢谢反馈':'已撤回');rcRedraw(gid)});return}   // 真实模式：先写服务器
   if(k==='nsok'){RC_NSASK=null;const was=nsConfirmed(gid,uid);(NS[nk]=NS[nk]||new Set()).add(ME.id);
     if(!was&&nsConfirmed(gid,uid)&&!NS_TOLD.has(nk)){NS_TOLD.add(nk);const G=GAMES.find(x=>x.id===gid);notify(uid,'noshow',gid,null)}
     toast('已记录，谢谢反馈')}
@@ -3540,6 +3628,7 @@ function nsAppeal(gid){const g=GAMES.find(x=>x.id===gid),c=V(g),k=nsKey(gid,ME.i
     <div class="uf-l">${[['came','我到了','可能没碰上，或者对方记错了'],['told','我提前说过来不了','在聊天里或私下说过'],['other','其他原因','我们会联系你了解情况']].map(([v,t,d])=>`<button class="uf-r" data-nsa="${v}" data-g="${gid}"><b>${t}</b><small>${d}</small></button>`).join('')}
     <button class="uf-r" data-nsa="ok" data-g="${gid}"><b>没有误会</b><small>下次会提前说</small></button></div></div>`)}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nsa]');if(!b||!ME)return;e.stopPropagation();const v=b.dataset.nsa,k=nsKey(b.dataset.g,ME.id);
+  if(nbqOn()&&v!=='ok'){nbqNoshowAppeal(b.dataset.g,v).then(ok=>{if(ok)toast('已提交，核实期间不计入爽约');UF_CLOSE();UF_RENDER()});return}
   if(v!=='ok'){NS_APPEAL[k]={reason:v,at:Date.now(),status:'pending'};toast('已提交，核实期间不计入爽约')}else toast('好的，谢谢你');UF_CLOSE();UF_RENDER()},true);
 
 // ---------- 等级提升：通知一次 + 获得动画；等级回落不打扰 ----------
@@ -3611,6 +3700,7 @@ const _grRcHTML=rcHTML;rcHTML=function(gid){let h=_grRcHTML(gid);const g=GAMES.f
   if(os.length>1){const all=os.every(u=>(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length);h=h.replace('<div class="rc-q">以后想多遇到吗？</div>',`<div class="rc-q rc-q2"><span>以后想多遇到吗？</span><button data-rcx="all" data-g="${gid}" class="${all?'on':''}">${all?'已给大家点赞':'👍 都点个赞'}</button></div>`)}
   return h};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rcx="all"]');if(!b||!ME)return;e.stopPropagation();const gid=b.dataset.g,g=GAMES.find(x=>x.id===gid);
+  if(nbqOn()){nbqKudosAll(gid,rcOthers(g,ME.id).filter(u=>!(KUDOS.get(ME.id+'|'+u+'|'+gid)||[]).length)).then(()=>rcRedraw(gid));return}
   rcOthers(g,ME.id).forEach(u=>{const k=ME.id+'|'+u+'|'+gid;if(!(KUDOS.get(k)||[]).length)KUDOS.set(k,['like'])});rcRedraw(gid)},true);
 
 
@@ -4285,11 +4375,11 @@ nrSysNotify=function(t,b,tap,n){if(!PUSH.enabled||!('Notification'in window)||No
 wrap('nrSettings',o=>function(){const r=o.apply(this,arguments);if(me())track('notif_settings_open');return r});
 wrap('enablePush',o=>function(){const env=AENV.env;
   if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='safari')return o.apply(this,arguments);            // 先引导添加到主屏幕（a2hs_open）
-  if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='wechat'||!('Notification'in window)){track('push_enable',{result:'unsupported',env});return o.apply(this,arguments)}
-  if(Notification.permission==='denied'){track('push_enable',{result:'denied',env});return o.apply(this,arguments)}
+  if(AN_BUILD==='pwa'&&typeof ENV!=='undefined'&&ENV==='wechat'||!('Notification'in window)){track('push_enable',{result:'unsupported',env,from:window.PUSH_FROM||'card'});return o.apply(this,arguments)}
+  if(Notification.permission==='denied'){track('push_enable',{result:'denied',env,from:window.PUSH_FROM||'card'});return o.apply(this,arguments)}
   const rp=Notification.requestPermission;let asked=false;
-  try{Notification.requestPermission=function(){asked=true;const p=rp.apply(Notification,arguments);Promise.resolve(p).then(x=>track('push_enable',{result:x==='granted'?'granted':'denied',env}),()=>track('push_enable',{result:'denied',env}));return p};
-    return o.apply(this,arguments)}finally{Notification.requestPermission=rp;if(!asked)track('push_enable',{result:'unsupported',env})}});
+  try{Notification.requestPermission=function(){asked=true;const p=rp.apply(Notification,arguments);Promise.resolve(p).then(x=>track('push_enable',{result:x==='granted'?'granted':'denied',env,from:window.PUSH_FROM||'card'}),()=>track('push_enable',{result:'denied',env,from:window.PUSH_FROM||'card'}));return p};
+    return o.apply(this,arguments)}finally{Notification.requestPermission=rp;if(!asked)track('push_enable',{result:'unsupported',env,from:window.PUSH_FROM||'card'})}});
 ['openA2HS','openWxGuide'].forEach(n=>wrap(n,o=>function(){const r=o.apply(this,arguments);track('a2hs_open',{env:AENV.env});return r}));
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-em]');if(!b||!me())return;const k=b.dataset.em;
   if(k==='save'){const v=((document.getElementById('emkIn')||{}).value||'').trim();if(emOK(v))track('email_settings_save',{on:true})}
@@ -4758,7 +4848,10 @@ function renderDetail(){
 }
 
 /* ============================== Sheets ============================== */
-function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);s.scrollTop=0;$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
+/* 弹层原地重画时保住滚动位置（11-05）：表单里点一个选项就整张重画，原来一律把滚动条打回顶部，往下滚了的人被甩回最上面。
+   判断「还是同一屏」：弹层已经开着，并且新旧内容的根元素 class 和标题文字都一样（换到别的屏标题不同，照旧从顶部开始）。 */
+const layerSig=el=>{const r=el.querySelector('.grab')?el.querySelector('.grab').nextElementSibling:el.firstElementChild;return r?r.className+'|'+((r.querySelector('b,.sh-t,h2,h3')||{}).textContent||''):''};
+function openSheet(html,tall=false,dark=false){UI.sheetBack=null;const s=$('#sheet'),was=s.classList.contains('show'),sig0=was?layerSig(s):null,top0=s.scrollTop,dr0=was&&window.nbqDraftsTake?nbqDraftsTake(s):null;s.innerHTML='<div class="grab"></div>'+html;s.classList.toggle('tall',tall);s.classList.toggle('dark',dark);const same=sig0!==null&&sig0===layerSig(s);s.scrollTop=same?top0:0;if(same&&dr0)nbqDraftsPut(s,dr0);$('#sbg').classList.add('show');requestAnimationFrame(()=>s.classList.add('show'))}
 function closeSheet(){if(UI.sheetBack){const f=UI.sheetBack;UI.sheetBack=null;f();return}$('#sheet').classList.remove('show');$('#sbg').classList.remove('show')}
 $('#sbg').onclick=closeSheet;
 /* 弹层手势（11-03）：顶部留白可点收起；把手 / 弹层顶部（内容已在最上面）往下拖，松手时拖过 ~110px 或甩得够快就收起，否则弹回；
@@ -5039,7 +5132,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks')]);   // 屏蔽名单读不到不算失败（按没有屏蔽处理）
+  const [pub,mine,inv,blk,aft,bdg]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges')]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -5050,7 +5143,13 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite)}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}
+// 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
+function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
+  const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
+  try{bdgCheck(true)}catch(_){}}
+async function nbqBadgeClaim(codes){const r=await NBQ_NET.post('/api/me/badges',{codes});if(!r.ok)throw new Error(r.code)}
+async function nbqBadgeSeen(code){const r=await NBQ_NET.post('/api/me/badges/seen',{code});if(!r.ok)throw new Error(r.code)}
 // 没登录：只读公开球局（不带令牌，服务端只给公开的、非女生局的）
 async function nbqLoadPublic(net){
   const r=await net.get('/api/games',null,{noauth:true});if(!r.ok)return{ok:false,code:r.code};
@@ -5088,7 +5187,22 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+
+// 赛后记录（第 6 轮 6d）：我的多遇到 / 少遇到 → OPIN；近 7 天的赛后感受 → AFTER（读不到时保持原样，不清空）
+function nbqApplyAfter(a,me){
+  Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
+  (a.prefs||[]).forEach(x=>{if(x.pref!=='more'&&x.pref!=='less')return;const k=me+'>'+x.target_id,at=nbqMs(x.updated_at)||Date.now();
+    OPIN[k]={v:x.pref,at,gid:x.game_id||null};if(x.pref==='less')LESS_IV[k]=[[at,Infinity]]});
+  // 我给别人留的印象（守时 / 友善…）：以服务器为准，刷新后还在
+  [...KUDOS.keys()].forEach(k=>{if(k.startsWith(me+'|'))KUDOS.delete(k)});
+  (a.impressions||[]).forEach(x=>{const ks=(x.kinds||[]).filter(Boolean);if(ks.length)KUDOS.set(me+'|'+x.to_id+'|'+x.game_id,ks)});
+  // 我反馈过谁没来 / 我对爽约反馈的申诉：以服务器为准
+  Object.keys(NS).forEach(k=>{if(NS[k])NS[k].delete(me)});Object.keys(NS_APPEAL).forEach(k=>{if(k.endsWith('|'+me))delete NS_APPEAL[k]});
+  (a.noshows||[]).forEach(x=>{const k=x.game_id+'|'+x.target_id;(NS[k]=NS[k]||new Set()).add(me)});
+  (a.appeals||[]).forEach(x=>{NS_APPEAL[x.game_id+'|'+me]={reason:x.reason,at:nbqMs(x.created_at)||0,status:x.status||'pending'}});
+  Object.keys(AFTER).forEach(k=>{if(k.endsWith('|'+me))delete AFTER[k]});
+  (a.feels||[]).forEach(f=>{AFTER[f.game_id+'|'+me]={feel:f.feel||null,closed:!!f.closed_at,at:nbqMs(f.closed_at)||0,notified:true,seen:true}})}
 // 数据读入内存后一定要让页面跟着重画：放在 nbqApply 这一个出口里统一做，不靠每个调用的地方各自记得（11-03：刷新后内存里是登录、页面还画着「登录」按钮，就是某个调用处漏了）。
 // 正在输入时不重画（免得打断）；同一时刻多次读入只画一次
 let NBQ_RT=0;
@@ -5209,6 +5323,22 @@ async function nbqInviteWithdraw(i){
   track('invite_withdraw',{invite_id:i.id,what:was});INV_RENDER();if(was==='counter'){toast('已撤回新时间');drawInvite()}else{toast('已撤回');INV_CLOSE()}}
 
 
+/* ---- 赛后（第 6 轮 6d）：感受 / 多遇到·随缘·少遇到 / 好了 都先调接口，成功后重读（以服务器为准）。对方不会收到任何通知 ---- */
+const nbqRecap=(gid,body,key)=>nbqWrite('rc'+(key||gid),n=>n.put('/api/games/'+gid+'/recap',body));
+async function nbqRecapPref(gid,uid,v){const d=await nbqRecap(gid,{prefs:{[uid]:v}},gid+uid);return !!d}
+async function nbqRecapFeel(gid,v){const d=await nbqRecap(gid,{feel:v},gid+'feel');return !!d}
+// 给球友留印象：整组替换（空数组 = 撤回），成功后重读；都点个赞：对同局每位还没点过的人各记一次「友善」
+async function nbqRecapImp(gid,uid,kinds){const d=await nbqRecap(gid,{impressions:{[uid]:kinds}},gid+uid+'imp');return !!d}
+async function nbqKudosAll(gid,uids){if(NBQ_STALE){toast('正在更新数据，请稍等一下再试');return false}const k='kall'+gid;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
+  try{for(const u of uids){const r=await NBQ_NET.post('/api/players/'+u+'/kudos',{game_id:gid});if(!r.ok&&r.code!=='login_required'){toast(apiErrText(r.code));break}}await nbqRefresh();return true}finally{NBQ_BUSY.delete(k)}}
+// 反馈「TA 没来」（可撤回）/ 被反馈后申诉：先调接口，成功后重读；对方是否收到通知由服务器按规则决定，前台不再本地造通知
+async function nbqNoshow(gid,uid,on){const d=await nbqWrite('ns'+gid+uid,n=>on?n.post('/api/games/'+gid+'/noshow',{target_id:uid}):n.del('/api/games/'+gid+'/noshow',{target_id:uid}));
+  if(d)track(on?'noshow_report':'noshow_undo',{game_id:gid,target_uid:uid});return !!d}
+async function nbqNoshowAppeal(gid,reason){const d=await nbqWrite('nsa'+gid,n=>n.post('/api/games/'+gid+'/appeal',{reason}));if(d)track('noshow_appeal',{game_id:gid,reason});return !!d}
+async function nbqRecapDone(gid){return !!(await nbqRecap(gid,{done:true},gid+'done'))}
+async function nbqPrefSet(uid,v){const d=await nbqWrite('pref'+uid,n=>n.put('/api/players/'+uid+'/pref',{pref:v}));return !!d}
+
+
 /* ---- 屏蔽 / 举报（第 6 轮 6c）：先调接口，成功才改页面；屏蔽名单登录时读入，刷新不丢 ---- */
 async function nbqBlock(uid,on){const d=await nbqWrite('blk'+uid,n=>on?n.post('/api/blocks',{user_id:uid}):n.del('/api/blocks/'+uid));
   if(!d)return false;track(on?'user_block':'user_unblock',{target_uid:uid});return true}
@@ -5300,7 +5430,8 @@ async function nbqPushSub(){NBQ_PUSH_WHY='';if(!NBQ_NET||!ME)return false;
 // 重新打开页面时，先看这台设备是不是已经订阅过：是 → 马上显示「已开启」、不再露出「开启提醒」卡片（订阅 / 上报要等 Service Worker 就绪，慢）
 async function nbqPushState(){try{if(!NBQ_NET||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
   const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();
-  if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}}catch(e){}}
+  if(sub&&!PUSH.enabled){PUSH.enabled=true;if(typeof render==='function')render()}
+  nbqPushHeal()}catch(e){}}   // 已允许通知：再核对服务器里有没有这台设备，没有就静默补订阅（0496）
 // 推送自检（11-03）：本人设备订阅状态 + 最近提醒去向；把本机推送地址放请求体里，让服务器标出「这台设备」
 async function nbqPushDiag(){if(!NBQ_NET||!ME)return null;let ep=null;
   try{if('serviceWorker'in navigator&&'PushManager'in window){const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();ep=sub?sub.endpoint:null}}catch(_){}
@@ -5343,6 +5474,70 @@ function nbqOpenFromPush(force){if(!ME||(!force&&(NBQ_PUSH_DONE||!NBQ_PUSH_N)))r
   if(typeof go==='function'&&typeof UI!=='undefined'&&typeof NR_PLAT!=='undefined'&&NR_PLAT==='mobile'){try{closeSheet&&closeSheet();UI.detail&&closeDetail&&closeDetail()}catch(e){}UI.msgTab='ntf';go('notif')}}
 // 页面已经开着时点推送：Service Worker 不再让页面整个重新加载（会闪过入口页、发现页），而是发一条消息过来，这里读新通知再切到通知页
 if(NBQ_NET&&'serviceWorker'in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(!e.data||e.data.type!=='nbq_open_notif')return;if(e.data.kind==='chat'&&e.data.thread_id){nbqOpenThreadFromPush(e.data.thread_id);return}nbqPullNotifs().then(()=>nbqOpenFromPush(true))});
+/* ===================== 推送引导与状态（11-04） =====================
+ * 目标不是「让人装 App、开权限」，而是「有人回复时不错过」。所以：
+ *  ① 引导只出现在用户刚做完一件「要等对方回复」的事之后：发出申请（原有，见 openApplied）· 发出邀约 · 发布球局；
+ *  ② 状态：on / ask / need_install / denied / wechat / unsupported。权限（Notification.permission）和订阅（pushManager）是两件事，分开看；
+ *  ③ 被系统拒绝（denied）后不再弹窗，给「去系统设置打开」的指引；
+ *  ④ 已授权但订阅丢了 / 被推送服务判定失效（服务器收到 404 / 410 会清掉这台设备）：启动时静默补订阅，不弹窗（nbqPushHeal）；
+ *  ⑤ 初始化只检测，不主动请求权限；请求权限只发生在用户点「开启提醒」之后。 */
+function pushState(){
+  if(typeof ENV!=='undefined'&&ENV==='wechat')return'wechat';
+  if(PUSH&&PUSH.enabled)return'on';
+  if(typeof ENV!=='undefined'&&ENV==='safari')return'need_install';   // 在浏览器标签里：iPhone 上只有「添加到主屏幕」后的 App 能收推送
+  if(!('Notification'in window)||!('PushManager'in window))return'unsupported';
+  if(Notification.permission==='denied')return'denied';
+  return'ask'}
+const PN_TXT={game:['有人申请，第一时间知道','不开着南伴球，也会提醒你'],invite:['对方回复，不错过','接受、回复或换时间，都会提醒你']};
+const PN_BTN={ask:['开启提醒','enablePush','i-bell'],need_install:['放到主屏幕','a2hs','i-plus'],denied:['怎么开','pushDenied','i-bell'],wechat:['怎么换','wxguide','i-share']};
+function pushNudgeHTML(why){
+  if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME)return'';   // 电脑端不推送（11-03 你定的），只有手机端引导
+  const st=pushState();if(st==='on'||st==='unsupported')return'';
+  const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st];
+  const sub=st==='need_install'?'放到主屏幕后，才能像 App 一样收提醒':st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
+  return `<div class="pushcard pnudge" data-pn="${why}"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${sub}</p></div><button class="pc-go" data-a="${b[1]}" data-pf="${why}"><svg><use href="#${b[2]}"/></svg>${b[0]}</button></div>`}
+// 记下是从哪个引导点进来的（push_enable 埋点带 from）
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-pf]');if(b)window.PUSH_FROM=b.dataset.pf},true);
+// 被拒绝后：不再弹系统窗口，指引去系统设置
+function openPushDenied(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
+  const steps=ios?['打开 iPhone 的「设置」','点「通知」，找到「南伴球」','打开「允许通知」']:['长按桌面上的南伴球图标，点「应用信息」','点「通知」','打开「允许通知」'];
+  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：</p></div>
+  <ol class="pdsteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+  <button class="btn btn-p" data-a="pushRecheck">我已打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
+function pushRecheck(){
+  if(typeof NBQ_NET==='undefined'||!NBQ_NET){PUSH.enabled=true;closeSheet();render();return}
+  if(!('Notification'in window)||Notification.permission!=='granted'){toast('还没检测到，打开后再点一次');return}
+  closeSheet();nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()})}
+{const _ep=enablePush;enablePush=function(){
+  if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&'Notification'in window&&Notification.permission==='denied'&&!(typeof ENV!=='undefined'&&(ENV==='wechat'||ENV==='safari'))){
+    try{track('push_enable',{result:'denied',env:AENV.env,from:window.PUSH_FROM||'card'})}catch(_){}openPushDenied();return}
+  return _ep.apply(this,arguments)}}
+// 启动时静默补订阅：已允许通知，但服务器里没有这台设备（订阅丢了、被推送服务判为失效、重装过）→ 重新订阅一次。不弹窗，只做一次
+let NBQ_HEAL_DONE=false;
+async function nbqPushHeal(){
+  if(NBQ_HEAL_DONE||typeof NBQ_NET==='undefined'||!NBQ_NET||!ME||typeof NR_PLAT==='undefined'||NR_PLAT!=='mobile')return;
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)||Notification.permission!=='granted')return;
+  NBQ_HEAL_DONE=true;
+  try{const r=await nbqPushDiag();if(!r||!Array.isArray(r.devices))return;   // 读不到就不动，不能把「读失败」当成「没订阅」
+    if(r.devices.some(d=>d.this&&d.push)){if(!PUSH.enabled){PUSH.enabled=true;render()}return}
+    const reg=await navigator.serviceWorker.getRegistration(),sub=reg&&await reg.pushManager.getSubscription();
+    if(sub)try{await sub.unsubscribe()}catch(_){}
+    const ok=await nbqPushSub();try{track('push_enable',{result:ok?'heal_ok':'heal_fail:'+NBQ_PUSH_WHY,env:AENV.env,from:'startup'})}catch(_){}
+    PUSH.enabled=!!ok;render()}catch(_){}}
+/* ===================== iPhone Safari：先装后登录（11-04） =====================
+ * iPhone 上，浏览器（Safari）和「添加到主屏幕」的 App 不共用登录和设置：在 Safari 里登录再添加到主屏幕，要重新登录一次。
+ * 所以「要登录」的那一刻，先建议添加到主屏幕、从桌面图标打开后再登录——只登一次，也才能收到提醒。
+ * 不强迫：可以选「先在浏览器里用」，同一次打开里不再问。只对真实环境的 iPhone Safari 生效（演示、安卓、已是主屏幕 App 的都不变）。 */
+let PN_AUTH=null;
+{if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
+  openAuth=function(next,why){
+    let seen=false;try{seen=sessionStorage.getItem('nbq_a2hs_first')==='1'}catch(_){}
+    if(!seen&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
+      PN_AUTH={next,why};
+      openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
+      <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
+    return _oa.call(this,next,why)}}}
+function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}
 /* 测试环境横幅（11-03）：分支预览域名连的是测试库（nanbanqiu-staging），页面顶上固定一条细横幅，标签页标题加「【测试】」，
  * 免得把测试数据当成正式数据，也免得在正式站上误以为是测试。正式站和演示模式不显示。 */
 (function(){if(typeof NBQ_ENV==='undefined'||NBQ_ENV!=='staging'||typeof document==='undefined')return;
@@ -5426,7 +5621,7 @@ function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="hei
   setTimeout(()=>{const o=$('#otp');if(!o)return;o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},350)}
 function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,6);
   const draw=()=>openSheet(`<div class="sh-t">欢迎来到南伴球 👋</div><p class="sh-s">填一次就好，发起人会看到</p>
-  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
+  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" data-keep maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
@@ -5486,7 +5681,7 @@ function openShare(id){const c=api.get(id);
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
-  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>
+  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>${pushNudgeHTML('game')}
   <p class="sh-tip sh-note">对方首次点开，微信可能提示「未备案」，点「继续」即可</p>
   <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
@@ -5628,6 +5823,9 @@ DEV.addEventListener('click',e=>{
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'enablePush':enablePush();break;
+    case'pushDenied':openPushDenied();break;
+    case'pushRecheck':pushRecheck();break;
+    case'authAnyway':authAnyway();break;
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;
     case'a2hs':openA2HS();break;
@@ -6125,7 +6323,7 @@ function App(el,init){
       </div>
       <div class="bar"><div class="box"><span class="hint" style="right:60px">在 ${esc(S.court)} 发一条…</span><input maxlength="${CFG.settings.post_max_len}" data-cin><button class="send" data-csend disabled>${ic('up')}</button></div></div>`;
     const ci=v.querySelector('[data-cin]'),cs=v.querySelector('[data-csend]'),ch=v.querySelector('.hint');
-    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!cs.disabled)cs.click()}};
+    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!cs.disabled)cs.click()}};
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
     $('.sheet').innerHTML=`<div class="grab"></div>
       <div class="sh-top">${av(U(x),34)}<div class="who">${unb(U(x)).replace('class="un"','')}<small>${x.w?(x.area?`<span class="pl ar">${esc(x.w)} 附近</span>`:`<span class="pl" data-court="${esc(x.w)}">${esc(x.w)}</span>`)+'<i>·</i>':''}${lifeRing(x.t)}<span>${a}</span></small></div><span class="sp"></span>${x.mine&&x.pic?`<button class="ib2" data-share title="分享图片">${ic('share')}</button>`:''}<button class="ib2" data-menu>${ic('dots')}</button><button class="ib2 shx" data-shut>${ic('x')}</button></div>
@@ -6139,7 +6337,7 @@ function App(el,init){
     const hs=$('.sheet .hs');if(hs)hs.onscroll=()=>{const k=Math.round(hs.scrollLeft/hs.clientWidth);el.querySelectorAll('.sheet .hd2 i').forEach((d,i)=>d.classList.toggle('on',i===k))};
     if(x.mine){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
     const ri=$('[data-rin]'),rb=$('[data-rsend]'),rh=$('.sheet .hint');
-    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!rb.disabled)rb.click()};
+    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!rb.disabled)rb.click()};
       ri.onblur=()=>setTimeout(()=>{if(S.rto&&!ri.value&&AE()!==ri)clearRto()},220)}};
   const rtoHint=v=>{const h=$('.sheet .hint');if(!h)return;h.textContent=v;h.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'})};
   const setRto=(n,row)=>{S.rto=n;el.querySelectorAll('.sheet .rr.tgt').forEach(r=>r.classList.remove('tgt'));row.classList.add('tgt');rtoHint(`回复 ${n}…`);const ri=$('[data-rin]');if(ri)ri.focus({preventScroll:true})};
@@ -6366,7 +6564,7 @@ function App(el,init){
   const tcode=tp=>tp&&S.T[tp]&&S.T[tp].user?'user':tp||null;
   const subEv=(id,photos,tk,court,later,via)=>track('sb_post_submit',{post_id:id,photos,topic_kind:tk,court:!!court,later:!!later,via});
   const fromBar=(o={})=>{const q=S.hq||{};openCompose(Object.assign({ph:q.t,topic:q.tp,sc:q.sc},o))};
-  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!sendB.disabled)sendB.click()};
+  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!sendB.disabled)sendB.click()};
   const qtp=$('[data-qtp]');
   const drawQ=()=>{const T=S.qtp&&S.T[S.qtp];qtp.innerHTML=`${T?`<span class="qt">#${esc(T.t)}<button data-qtx aria-label="不带这个话题">${ic('x')}</button></span>`:''}<span class="sp"></span><button class="qx" data-qx>展开${ic('chev','cv')}</button>`};
   const qOpen=()=>{if(el.classList.contains('qing'))return;S.qhq=S.hq;S.qtp=S.hq&&S.hq.tp||null;drawQ();el.classList.add('qing');closeLp()};

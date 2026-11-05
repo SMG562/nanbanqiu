@@ -19,7 +19,8 @@ export const RULES = [
   // 前台
   [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
   [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write']],
-  [/^src\/shared\/script\/0495/, ['unit/nbq_net', 'frontend/real_data', 'frontend/real_write', 'frontend/real_invite', 'frontend/real_chat', 'frontend/real_safety']],
+  [/^src\/shared\/script\/0495/, ['frontend/e2e_fullstack', 'unit/nbq_net', 'frontend/real_data', 'frontend/real_write', 'frontend/real_invite', 'frontend/real_chat', 'frontend/real_safety', 'frontend/real_after']],
+  [/^src\/shared\/script\/0290/, ['frontend/real_after']],
   [/^src\/shared\/script\/0150/, ['frontend/real_invite']],
   [/^src\/shared\/script\/0190/, ['frontend/real_chat', 'frontend/dom_integrity']],
   [/^src\/shared\/script\/0(050|060)/, ['frontend/dom_integrity']],
@@ -32,7 +33,8 @@ export const RULES = [
   // 后台
   [/^src\/admin\/|^南伴球_后台/, ['admin/', 'e2e/sb']],
   // 数据库
-  [/^schema\.sql$/, ['schema/', 'pg/']],
+  [/^schema\.sql$/, ['schema/', 'pg/', 'frontend/e2e_fullstack']],
+  [/^server\/api\//, ['pg/api', 'frontend/e2e_fullstack']],
   // 服务端
   [/^server\/seed\/|^tools\/venues_seed\.mjs$|^src\/shared\/script\/0080-数据\.js$/, ['pg/venues_seed']],
   [/^server\/api\/|^functions\/api\/|^worker\/|^package(-lock)?\.json$/, ['unit/api', 'pg/api', 'frontend/site']],

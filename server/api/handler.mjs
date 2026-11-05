@@ -223,6 +223,17 @@ const ROUTES = {
     const blocks = (await q('select blocked_id as user_id, created_at from blocks where blocker_id = nbq_uid() order by created_at desc limit 200')).rows;
     return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  // 赛后读回（11-04 第 6 轮 6d）：我的多遇到 / 少遇到、近 7 天的赛后感受、我给的印象、我的没到场反馈、我的申诉。全部是我自己的数据（RLS）
+  'GET /api/me/after': (req, d, p) => act(req, d, p, async q => {
+    const prefs = (await q(`select target_id, pref, game_id, updated_at from player_prefs where user_id = nbq_uid() order by updated_at desc limit 500`)).rows;
+    const feels = (await q(`select f.game_id, f.feel, f.closed_at from game_feel f join games g on g.id = f.game_id
+                            where f.user_id = nbq_uid() and g.starts_at + make_interval(mins => g.duration_min) > now() - interval '8 days' order by f.game_id limit 200`)).rows;
+    const impressions = (await q(`select i.game_id, i.to_id, i.kinds::text[] as kinds from impressions i join games g on g.id = i.game_id
+                                  where i.from_id = nbq_uid() and g.starts_at > now() - interval '15 days' limit 500`)).rows;
+    const noshows = (await q(`select n.game_id, n.target_id from noshow_reports n join games g on g.id = n.game_id
+                              where n.reporter_id = nbq_uid() and g.starts_at > now() - interval '15 days' limit 200`)).rows;
+    const appeals = (await q(`select game_id, reason, status, created_at from noshow_appeals where user_id = nbq_uid() order by created_at desc limit 50`)).rows;
+    return { prefs, feels, impressions, noshows, appeals } }, { body: false }),
   'GET /api/notifications': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return send(401, { error: 'login_required' }); if (!w.uid) return send(401, { error: 'login_required' });
     const rows = await d.db.asUser(w.uid, async q => (await q(`select id::float8 as id, kind, game_id, invite_id, actor_id, read_at, created_at from notifications where user_id = nbq_uid() order by created_at desc limit 100`)).rows);
@@ -291,6 +302,13 @@ const ROUTES = {
     const r = await q(`update users set ${keys.map((k, i) => `${k} = $${i + 1}`).join(', ')} where id = nbq_uid() returning ${ME_COLS}`, vals);
     if (!r.rows[0]) throw Object.assign(new Error('not_found'), { code: 'P0001' });
     return { user: r.rows[0] } }),
+  'GET /api/me/badges': (req, d, p) => act(req, d, p, async q => ({ badges: (await q('select code, earned_at, seen_at from user_badges where user_id = nbq_uid() order by earned_at')).rows }), { body: false }),
+  'POST /api/me/badges': (req, d, p) => act(req, d, p, async (q, b) => {
+    const c = b.codes; if (!Array.isArray(c) || c.length > 20 || !c.every(x => typeof x === 'string' && x.length <= 20)) throw bad();
+    await q('select api_badges_claim($1::text[])', [c]); return { ok: true } }),
+  'POST /api/me/badges/seen': (req, d, p) => act(req, d, p, async (q, b) => {
+    if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
+    await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
   'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
     await q('delete from user_clubs where user_id = nbq_uid()'); for (const v of ids) await q('insert into user_clubs(user_id, venue_id) values (nbq_uid(), $1)', [v]);

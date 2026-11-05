@@ -72,7 +72,7 @@ function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="hei
   setTimeout(()=>{const o=$('#otp');if(!o)return;o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},350)}
 function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,6);
   const draw=()=>openSheet(`<div class="sh-t">欢迎来到南伴球 👋</div><p class="sh-s">填一次就好，发起人会看到</p>
-  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
+  <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" data-keep maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
   <div class="lab">性别 <span>选填 · 只用于女生局，不显示在球员卡上</span></div><div class="opt eq">${[['f','女生'],['m','男生'],['x','不透露']].map(([k,l])=>`<button data-sx="npg" data-v="${k}" class="${(NP.gender||'x')===k?'on':''}">${l}</button>`).join('')}</div>
@@ -132,7 +132,7 @@ function openShare(id){const c=api.get(id);
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
-  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>
+  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>${pushNudgeHTML('game')}
   <p class="sh-tip sh-note">对方首次点开，微信可能提示「未备案」，点「继续」即可</p>
   <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。

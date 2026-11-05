@@ -221,6 +221,11 @@
 - 写入：pact_accepted_at = now()，pact_version = 1
 - 事件：pact_accept（前端）
 
+### GET /api/me/badges · POST /api/me/badges `{codes[] ≤ 20}` · POST /api/me/badges/seen `{code}`
+- 读：`{badges:[{code, earned_at, seen_at}]}`，只有自己的（RLS）
+- 写：`api_badges_claim` 只收白名单 12 个 code（first / ten / fifty / hundred / host10 / night / early / surface / explorer / streak / kudos / partner），已有的不改；`api_badge_seen` 只记一次 seen_at
+- 徽章规则在前台算，服务端只记录；codes 不是数组 / 超过 20 个 / code 不是文字 → 422 invalid
+
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks
 - 事件：home_clubs_save / loc_suburb_pick（前端）
@@ -406,6 +411,8 @@
 - 检查：选 other 必须写说明 422 `report_note_required`；同一对象未处理时重复 409 `report_duplicate`；每天 5 次 429 `report_daily_limit`
 - 被举报人不知道是谁举报的
 - 事件：report_submit（前端，不含说明）
+
+### GET /api/me/after · 赛后读回 `{prefs:[{target_id,pref,game_id,updated_at}], feels:[{game_id,feel,closed_at}], impressions, noshows, appeals}`（11-04 6d；只返回自己的：全部多遇到 / 少遇到、近 8 天的赛后感受、近 15 天给的印象与没到场反馈、申诉；登录时读入前台）
 
 ### GET /api/blocks · 我屏蔽的人 `{blocks:[{user_id, created_at}], profiles}`（只返回我屏蔽的，不返回谁屏蔽了我；登录时读入前台屏蔽名单）
 
