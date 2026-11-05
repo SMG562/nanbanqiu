@@ -17,4 +17,11 @@ T('合并：真机项都勾了 → 过', checkBody(TBL + RISK + HW_OK, SRC, { me
 T('合并：较大风险但描述里没有真机项 → 不过', checkBody(TBL + RISK, SRC, { merge: true }).length > 0);
 T('合并：小修小补不要求真机两项', checkBody(TBL + '- [ ] 较大风险　- [x] 小修小补\n', SRC, { merge: true }).length === 0);
 T('不带 merge：真机项没勾也不挡 CI', checkBody(TBL + RISK + HW, SRC).length === 0);
+// 11-05：「你来做」里用到本 PR 才有的文件 → 必须写「已同步到电脑」
+const FILES2 = [...SRC, 'server/migrations/x.sql', 'tools/admin_create.mjs'];
+const TODO = '## 你来做\n1. 运行 `server/migrations/x.sql`\n2. 本机 `node tools/admin_create.mjs` 和 `tools/site.mjs`\n';
+T('「你来做」用到本 PR 新文件、没写已同步 → 不过，且点名文件', (r => r.some(x => /已同步到电脑/.test(x) && /x\.sql/.test(x) && /admin_create/.test(x) && !/site\.mjs/.test(x)))(checkBody(TBL + RISK + TODO, FILES2)), checkBody(TBL + RISK + TODO, FILES2));
+T('只同步了一部分 → 仍不过（点名没同步的那个）', (r => r.some(x => /admin_create/.test(x) && !/x\.sql、/.test(x)))(checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql\n', FILES2)));
+T('全部写了已同步 → 过', checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2).length === 0, checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2));
+T('「你来做」只提 main 上已有的文件 → 不要求', checkBody(TBL + RISK + '## 你来做\n- 看 `tools/site.mjs`\n', FILES2).length === 0);
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

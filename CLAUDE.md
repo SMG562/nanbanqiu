@@ -16,6 +16,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - 不删除文件、不 `push --force`；每轮一次提交并推送，再把改过的文件同步到用户电脑的「文稿/南伴球」文件夹（10-27 用户说：往电脑存文件默认全部同意，不用问；只写改过的，不删任何东西）。
 ## 工程规矩（一行一条；来历、命令、例子见 `开发规矩.md`，做到相关的事再打开）
 - **同步到 Mac 必须回读核对**：`sync_files.sh <ref>` → `device_commit_files` → `sync_verify.sh <ref> --paths` → `device_stage_files` → `sync_verify.sh <ref>`。改了发送程序：先 `sync_verify.sh --deploy` 一致，再给用户 `node tools/deploy_notify.mjs --expect=<node tools/worker_version.mjs 的指纹>`（测试环境加 `--env=staging`，两个环境都要部署）。线上版本只认 `/version.json`、`/api/version`。
+- **给用户的步骤只引用他电脑上已有的文件**（11-05）：用到还没合并的 PR 分支里的文件 → `sync_files.sh --branch=<分支> <文件…>` 写到电脑、`sync_verify.sh --branch=<分支> [--paths] <文件…>` 回读，PR 描述写「已同步到电脑：…」（`pr_body_check` 拦）。
 - **上线闸门**：说「通过 / 已上线」前 `bash tools/gate.sh <提交号>` 三项全绿；没跑、被取消、看的不是这个提交号 = 没过，如实说。
 - **发布流程 B**：风险较大（登录账号、推送、数据读写与迁移、启动流程、Service Worker）走「分支 → 预览站（staging 库）→ 用户真机 → PR 合并」，PR 清单用模板；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**（只快进、核对测试 / db-parity；main 有新提交就在分支 `git merge origin/main`，不强推），PR 上测过的提交到 main 不重跑（11-04）。
 - **两个库**：正式 `nanbanqiu-au`、测试 `nanbanqiu-staging`（分支预览 `*.nanbanqiu-preview.pages.dev` 自动连测试库）。改库结构 / 默认值 / 迁移：迁移可重复运行并**处理已有数据** → **先正式库跑迁移、再合并前端** → Actions `db-parity`（REST 触发，confirm=production）输出 ✅ 才算正式库也成立。
