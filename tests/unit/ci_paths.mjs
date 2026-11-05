@@ -85,6 +85,11 @@ const PR = pushPaths('tests.yml', 'pull_request');
 T('tests.yml 的 pull_request.paths 和 push.paths 完全一致（否则有的改动 PR 上不测、合并后却被复用）', !!PR && JSON.stringify(PR) === JSON.stringify(FULL), { PR, FULL });
 const rd = f => { try { return fs.readFileSync(f, 'utf8') } catch { return '' } };
 const reuse = rd(path.join(ROOT, 'tools', 'ci_reuse.sh')), merge = rd(path.join(ROOT, 'tools', 'pr_merge.sh')), tests = rd(path.join(WF, 'tests.yml')), fastY = rd(path.join(WF, 'tests-fast.yml'));
+// 11-05：「没有运行记录」时 jq 输出「null  null」而不是「null」；用 = null 判断就永远不会自动触发 tests-fast（PR #43 合并时撞上）
+T('pr_merge.sh：判断「没有运行记录」用 null* 前缀匹配，不用 = null', /case "\$L" in null\*\|""\) true;;/.test(merge) && !/\[ "\$L" = null \]/.test(merge));
+{ const { execSync } = await import('child_process');
+  const cond = L => execSync(`L='${L}'; W=tests-fast; if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then echo yes; else echo no; fi`, { shell: '/bin/bash' }).toString().trim();
+  T('pr_merge.sh 的判断：「null  null」「null」「」都算没有记录；「completed success 123」不算', cond('null  null') === 'yes' && cond('null') === 'yes' && cond('') === 'yes' && cond('completed success 123') === 'no' && cond('in_progress  123') === 'no') }
 T('复用只按完全相同的提交号查（head_sha），只认通过的运行，不认重拍截图基准的运行', reuse.includes('head_sha=$SHA') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
 const testIf = /needs: reuse\n\s+if: \$\{\{ !cancelled\(\) && needs.reuse.outputs.hit != '1' \}\}/;
 T('两个工作流都只在「推到 main」时开复用检查；没检查 / 检查出错照常测试，只有命中才跳过', /reuse:[^\n]*\n\s+if: github.event_name == 'push'\n/.test(tests) && /reuse:[^\n]*\n\s+if: github.ref == 'refs\/heads\/main' && github.event_name == 'push'\n/.test(fastY)

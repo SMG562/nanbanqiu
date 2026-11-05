@@ -24,7 +24,8 @@ else no "不能快进：main 有 PR 之外的新提交。在分支上  git merge
 for W in tests-fast tests; do
   L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
   # 11-05：最新提交只改文档时 tests-fast 的 paths 不触发，没有任何运行记录——自动手动触发一次并等它跑完（--check 只提示，不触发）
-  if [ "$W" = tests-fast ] && { [ "$L" = null ] || [ -z "$L" ]; }; then
+  # 没有运行记录时 jq 输出的是「null  null」（三个字段都是 null），不是「null」——11-05 因此从没自动触发过
+  if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then
     if [ "$CHECK" = "--check" ]; then echo "ℹ️ tests-fast 没有运行记录：正式合并时会自动手动触发并等待"
     else
       echo "ℹ️ tests-fast 没有运行记录（最新提交没碰它的 paths），手动触发 $HEAD 并等待…"
