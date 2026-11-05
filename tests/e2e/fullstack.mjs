@@ -53,6 +53,8 @@ try {
     { name: '赛后卡片 · 确认没来', act: (pg, x) => clickAttrs(pg, { 'data-rcx': 'nsok', 'data-g': x.GF, 'data-u': x.P }), check: (pg, x) => pg.evaluate(([me, p, g]) => !!(NS[g + '|' + p] && NS[g + '|' + p].has(me)), [x.H, x.P, x.GF]) },
     { name: '徽章 · 已庆祝（百场）', act: pg => pg.evaluate(() => { bdgSync(['hundred'], ['hundred']) }), check: pg => pg.evaluate(async () => { const r = await NBQ_NET.get('/api/me/badges'); return !!(r.ok && (r.data.badges || []).some(b => b.code === 'hundred' && b.seen_at)) }) },
     { name: '赛后卡片 · 感受（偏难）', act: (pg, x) => clickAttrs(pg, { 'data-rc': 'feel', 'data-g': x.GF, 'data-v': 'hard' }), check: (pg, x) => pg.evaluate(([me, g]) => (AFTER[g + '|' + me] || {}).feel === 'hard', [x.H, x.GF]) },
+    // ---- 举报（11-05 已举报标记刷新后丢）：走前台真实入口——球员卡「举报」打开面板 → 点原因提交；刷新后必须仍认得出「已举报」----
+    { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await sleep(500); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
@@ -62,7 +64,7 @@ try {
   const exe = [process.env.NBQ_CHROMIUM, '/opt/pw-browsers/chromium'].find(x => x && fs.existsSync(x));   // 本机有固定路径就用，CI 里用 playwright 自带的
   br = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
-    await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); for (const t of ['impressions', 'noshow_reports', 'game_feel', 'player_prefs', 'player_pref_mutes', 'user_badges']) await admin.query(`delete from ${t}`); await admin.query('delete from game_participants where user_id = $1 and game_id = $2', [H, G]);   // 两个文件各自从干净状态开始
+    await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); for (const t of ['impressions', 'noshow_reports', 'game_feel', 'player_prefs', 'player_pref_mutes', 'user_badges', 'reports']) await admin.query(`delete from ${t}`); await admin.query('delete from game_participants where user_id = $1 and game_id = $2', [H, G]);   // 两个文件各自从干净状态开始
     const W = f.includes('Web'), ctx = await br.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), perr = []; pg.on('pageerror', e => perr.push(e.message));
     const AT = await token(AH);

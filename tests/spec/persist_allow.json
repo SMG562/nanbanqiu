@@ -9,8 +9,7 @@
   "NR_SYS": "local：系统通知类型表",
   "NR_CHAT": "local：私信通知 5 分钟去重",
   "INV_TOLD": "local：邀约过期只提示一次",
-  "XHSP": "local：海报图预生成缓存",
-  "REPORTS": "todo：「已举报」标记刷新后丢（举报本身已写服务器 nbqReportSend）"
+  "XHSP": "local：海报图预生成缓存"
  },
  "entries": [
   {

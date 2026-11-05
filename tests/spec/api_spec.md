@@ -412,6 +412,8 @@
 - 被举报人不知道是谁举报的
 - 事件：report_submit（前端，不含说明）
 
+### GET /api/reports/mine · 我举报过谁 `{reports:[{target_type,target_id,reason,created_at}]}`（11-05；只返回自己的、处理中 open 的，已处理的不再返回即可重新举报；不含说明和举报人；登录时读入前台「已举报」标记，刷新 / 换设备后还在；不需要迁移，RLS rp_mine）
+
 ### GET /api/me/after · 赛后读回 `{prefs:[{target_id,pref,game_id,updated_at}], feels:[{game_id,feel,closed_at}], impressions, noshows, appeals}`（11-04 6d；只返回自己的：全部多遇到 / 少遇到、近 8 天的赛后感受、近 15 天给的印象与没到场反馈、申诉；登录时读入前台）
 
 ### GET /api/blocks · 我屏蔽的人 `{blocks:[{user_id, created_at}], profiles}`（只返回我屏蔽的，不返回谁屏蔽了我；登录时读入前台屏蔽名单）

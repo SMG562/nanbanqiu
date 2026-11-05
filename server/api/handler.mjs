@@ -217,6 +217,9 @@ const ROUTES = {
     if (why === 'other' && !sb && !(note || '').trim()) throw Object.assign(new Error('report_note_required'), { code: 'P0001' });
     await q(`insert into reports(reporter_id, target_type, target_id, reason, note, source, via, context_ref) values (nbq_uid(), $1, $2, $3, $4, 'in_app', $5, $6)`, [tt, tid, why, note || null, via, str(b.context_ref)]);
     return { ok: true } }),
+  // 我举报过谁（11-05）：只返回处理中（open）的、只有自己的（RLS rp_mine）；前台刷新 / 换设备后据此认出「已举报」，不返回说明和举报人
+  'GET /api/reports/mine': (req, d, p) => act(req, d, p, async q => ({
+    reports: (await q(`select target_type, target_id, reason, created_at from reports where reporter_id = nbq_uid() and status = 'open' order by created_at desc limit 200`)).rows }), { body: false }),
   'POST /api/blocks': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.user_id) || '')) throw bad(); await q('select api_block($1)', [b.user_id]); return { ok: true } }),
   // 我屏蔽的人（屏蔽名单；11-04 第 6 轮）：只返回我屏蔽的，不返回谁屏蔽了我
   'GET /api/blocks': (req, d, p) => act(req, d, p, async q => {

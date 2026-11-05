@@ -147,6 +147,14 @@ try {
   r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: Q, reason: 'harass', via: 'card', status: 'actioned', reporter_id: H });
   { const row = (await admin.query(`select reporter_id, status from reports where target_id = $1`, [Q])).rows[0]; T('举报：多传的 reporter_id / status 被忽略（举报人=自己、状态=open）', row && row.reporter_id === P && row.status === 'open', row); }
 
+  // 我的举报读回（11-05）：刷新 / 换设备后前台要知道「我举报过谁」（处理中的才算），只返回自己的
+  r = await call('GET', '/api/reports/mine', tP); T('我的举报读回：→ 200，有我举报过的两个对象（H、Q），只含处理中', r.s === 200 && Array.isArray(r.j.reports) && r.j.reports.length === 2 && r.j.reports.every(x => x.target_type === 'user' && [H, Q].includes(x.target_id) && x.reason && x.created_at) && !('reporter_id' in r.j.reports[0]) && !('note' in r.j.reports[0]), r.j);
+  r = await call('GET', '/api/reports/mine', tH); T('我的举报读回：被举报的人看不到别人举报了自己（只返回自己的）', r.s === 200 && r.j.reports.length === 0, r.j);
+  r = await call('GET', '/api/reports/mine', null); T('我的举报读回：没登录 → 401', r.s === 401, r);
+  await admin.query(`update reports set status = 'actioned' where reporter_id = $1 and target_id = $2`, [P, Q]);
+  r = await call('GET', '/api/reports/mine', tP); T('我的举报读回：已处理的不再返回（可以重新举报）', r.s === 200 && r.j.reports.length === 1 && r.j.reports[0].target_id === H, r.j);
+  await admin.query(`update reports set status = 'open' where reporter_id = $1 and target_id = $2`, [P, Q]);
+
   r = await call('POST', '/api/blocks', tP, { user_id: Q }); T('屏蔽：→ 200', r.s === 200, r);
   r = await call('POST', '/api/threads', tP, { user_id: Q }); T('屏蔽后不能再开对话 → 403 blocked', r.s === 403 && r.j.error === 'blocked', r);
   r = await call('DELETE', `/api/blocks/${Q}`, tP); T('取消屏蔽 → 200', r.s === 200, r);
