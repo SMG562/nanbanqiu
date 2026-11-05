@@ -73,8 +73,10 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const shown = () => pg.evaluate(() => { const e = document.querySelector('[data-rp]'); const host = e && e.closest('#sheet,#modal,.modal,.mback'); return !!(e && host && (host.classList.contains('show') || host.closest('.show'))) });   // 面板留在页面里，只是去掉 show 类
     await pg.settle(600);
     T(tag('举报成功：面板关闭并提示'), /24 小时/.test(await toasts()) && !(await shown()), [await toasts(), await shown()]);
-    S.fail = 'report_duplicate'; await pg.evaluate(h => { REPORTS.length = 0; repOpen('user', h, 'card') }, HOST); await pg.settle(400); await pg.click('[data-rp="harass"]'); await pg.settle(700);
-    T(tag('重复举报：提示服务器的原因，面板还在、不记本地'), (await toasts()) === (await pg.evaluate(() => apiErrText('report_duplicate'))) && (await pg.evaluate(() => REPORTS.length)) === 0, [await toasts(), await pg.evaluate(() => REPORTS.length)]);
+    // 别的设备已经举报过、这台设备不知道：提交时服务器回 409 → 提示原因、关掉面板、向服务器读回后本机认得出「已举报」（11-05；原先面板留着、不记）
+    S.fail = 'report_duplicate'; await pg.evaluate(h => { REPORTS.length = 0; repOpen('user', h, 'card') }, HOST); await pg.settle(400); await pg.click('[data-rp="harass"]'); await pg.settle(900);
+    T(tag('重复举报（别的设备已举报）：提示服务器的原因'), (await toasts()) === (await pg.evaluate(() => apiErrText('report_duplicate'))), await toasts());
+    T(tag('重复举报：面板关闭，本机读回后认得出「已举报」'), !(await shown()) && (await pg.evaluate(h => !!repOpenOf('user', h), HOST)), [await shown(), await pg.evaluate(() => REPORTS.length)]);
     // 刷新后「已举报」还在（11-05）：清空内存 → 重新读入 → 还能识别出我举报过 HOST，再点举报直接提示「已经举报过」、不弹面板；没举报过的人不受影响
     S.fail = null; S.log.length = 0;
     await pg.evaluate(async () => { UF_CLOSE(); REPORTS.length = 0; const r = await nbqLoadAll(NBQ_NET); nbqApply(r) }); await pg.settle(500);   // 先关掉上一步（重复举报）故意留着的面板
@@ -82,6 +84,12 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('刷新后：没举报过的人不显示已举报'), await pg.evaluate(o => !repOpenOf('user', o), OLD));
     await pg.evaluate(h => { repOpen('user', h, 'card') }, HOST); await pg.settle(400);
     T(tag('刷新后再点举报：提示已举报过，不再弹原因面板'), /已经举报过/.test(await toasts()) && !(await shown()), [await toasts(), await shown()]);
+    // 后台已处理完（驳回 / 采取措施），这个页面一直开着没刷新：服务器上已没有「处理中」，再点举报应先问服务器、允许重新举报，不能还提示「正在处理」
+    S.reports.length = 0; await pg.evaluate(() => { UF_CLOSE(); document.querySelector('#toast').textContent = '' }); await pg.settle(300);
+    await pg.evaluate(h => { repOpen('user', h, 'card') }, HOST); await pg.settle(800);
+    T(tag('后台处理后（页面没刷新）再点举报：弹原因面板、可以重新举报'), (await shown()) && !/已经举报过/.test((await toasts()) || '') && (await pg.evaluate(h => !repOpenOf('user', h), HOST)), [await shown(), await toasts()]);
+    S.log.length = 0; await pg.click('[data-rp="harass"]'); await pg.settle(800);
+    T(tag('重新举报：POST 成功，本机又记为「已举报」'), S.log.join() === 'POST /api/reports' && (await pg.evaluate(h => !!repOpenOf('user', h), HOST)), [S.log]);
     T(tag('全程没有页面报错'), errs.length === 0, errs);
     await ctx.close();
   }

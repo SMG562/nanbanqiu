@@ -150,6 +150,9 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
 function nbqApplyReports(list,me){
   REPORTS=REPORTS.filter(r=>r.reporter_id!==me);
   list.forEach(x=>{REPORTS.push({id:'srv'+x.target_type+x.target_id,reporter_id:me,target_type:x.target_type,target_id:x.target_id,reason:x.reason,note:null,via:null,ctx:null,source:'in_app',status:'open',created_at:nbqMs(x.created_at)||Date.now()})})}
+// 向服务器重读「我的举报」（真实模式）；读到返回 true，读不到返回 false 且不动本机记录
+async function nbqReportsPull(){if(!NBQ_NET||!ME)return false;const r=await NBQ_NET.get('/api/reports/mine');
+  if(!r.ok||!Array.isArray(r.data.reports))return false;nbqApplyReports(r.data.reports,ME.id);return true}
 // 赛后记录（第 6 轮 6d）：我的多遇到 / 少遇到 → OPIN；近 7 天的赛后感受 → AFTER（读不到时保持原样，不清空）
 function nbqApplyAfter(a,me){
   Object.keys(OPIN).forEach(k=>delete OPIN[k]);Object.keys(LESS_IV).forEach(k=>delete LESS_IV[k]);
@@ -305,7 +308,11 @@ async function nbqBlock(uid,on){const d=await nbqWrite('blk'+uid,n=>on?n.post('/
   if(!d)return false;track(on?'user_block':'user_unblock',{target_uid:uid});return true}
 async function nbqReportSend(c,reason,note){const k='rep'+c.type+c.id;if(NBQ_BUSY.has(k))return false;NBQ_BUSY.add(k);
   try{const r=await NBQ_NET.post('/api/reports',{target_type:c.type,target_id:c.id,reason,note:note||'',via:c.via,...(c.ctx?{context_ref:String(c.ctx)}:{})});
-    if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));return false}return true}
+    if(!r.ok){
+      if(r.code==='report_duplicate'){   // 服务器上已有这条处理中的举报（多半是别的设备举报的）：读回让本机认得出，关掉面板
+        await nbqReportsPull();if(!repOpenOf(c.type,c.id))REPORTS.unshift({id:'dup'+c.type+c.id,reporter_id:ME.id,target_type:c.type,target_id:c.id,reason:reason,note:null,via:c.via,ctx:c.ctx,source:'in_app',status:'open',created_at:Date.now()});
+        REPCUR=null;UF_CLOSE();toast(apiErrText(r.code));return false}
+      if(r.code!=='login_required')toast(apiErrText(r.code));return false}return true}
   finally{NBQ_BUSY.delete(k)}}
 
 /* ---- 聊天（第 6 轮 6b）：会话列表 / 消息读自服务器；发消息先调接口，成功才显示；每 45 秒（和通知一起）读会话列表，开着会话时每 8 秒读新消息 ---- */

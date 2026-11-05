@@ -8,13 +8,18 @@ const REP_REASONS=[['pact_violation','违反球友约定','不尊重人、越界
   ['no_show','爽约','说好来却没来，也没提前说'],['fake_profile','冒用身份','资料不实，或冒用别人'],['other','其他','写在上面的补充说明里']];
 var REPORTS=[];let REPCUR=null;
 const repOpenOf=(type,id)=>ME&&REPORTS.find(r=>r.reporter_id===ME.id&&r.target_type===type&&r.target_id===id&&r.status==='open');
-function repOpen(type,id,via,ctx){if(!ME)return;
-  if(repOpenOf(type,id)){toast('你已经举报过，我们正在处理');return}
+function repPanel(type,id,via,ctx){
   REPCUR={type,id,via,ctx:ctx||null};const who=type==='user'?(U(id)||{}).name:'';
   UF_OPEN(`<div class="softno rep"><div class="sn-h">${type==='user'?'举报 '+esc(who||''):'举报这局的聊天'}</div>
     <p class="sn-p">不会告诉对方是谁举报的，我们会在 24 小时内处理。</p>
     <input class="sn-note" id="repNote" maxlength="200" placeholder="补充说明（选填）">
     <div class="sn-list">${REP_REASONS.map(([k,a,b])=>`<button data-rp="${k}"><b>${a}</b><small>${b}</small></button>`).join('')}</div></div>`)}
+function repOpen(type,id,via,ctx){if(!ME)return;
+  if(repOpenOf(type,id)){
+    // 真实模式：本机记着「处理中」，但后台可能已处理完（页面开着没刷新）→ 先问服务器，已处理就允许重新举报；问不到时按本机记的来
+    if(NBQ_NET){nbqReportsPull().then(ok=>{if(ok&&!repOpenOf(type,id))repPanel(type,id,via,ctx);else toast('你已经举报过，我们正在处理')});return}
+    toast('你已经举报过，我们正在处理');return}
+  repPanel(type,id,via,ctx)}
 async function repSubmit(reason){const c=REPCUR;if(!c||!ME)return;const el=document.getElementById('repNote'),note=(el&&el.value||'').trim().slice(0,200);
   if(reason==='other'&&!note){if(el){el.focus();el.placeholder='请简单说一下发生了什么'}return}
   if(NBQ_NET&&!await nbqReportSend(c,reason,note))return;   // 真实模式：服务器收下才算（重复 / 超限会提示原因，面板留着）

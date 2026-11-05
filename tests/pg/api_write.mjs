@@ -154,6 +154,17 @@ try {
   await admin.query(`update reports set status = 'actioned' where reporter_id = $1 and target_id = $2`, [P, Q]);
   r = await call('GET', '/api/reports/mine', tP); T('我的举报读回：已处理的不再返回（可以重新举报）', r.s === 200 && r.j.reports.length === 1 && r.j.reports[0].target_id === H, r.j);
   await admin.query(`update reports set status = 'open' where reporter_id = $1 and target_id = $2`, [P, Q]);
+  // 生命周期（11-05）：后台处理（驳回 / 采取措施）后同一个人可以再举报同一对象，新的一条是 open，旧的不再返回；未处理时重复 → 409 且不占当天次数
+  { const hits = async () => Number((await admin.query(`select count(*) from rate_hits where subject = $1 and grp = 'report'`, [P])).rows[0].count);
+    for (const st of ['dismissed', 'actioned']) {
+      await admin.query(`update reports set status = $3, handled_at = now() where reporter_id = $1 and target_id = $2 and status = 'open'`, [P, Q, st]);
+      r = await call('GET', '/api/reports/mine', tP); T(`后台${st === 'dismissed' ? '驳回' : '处理'}后：读回里没有这个对象了`, r.s === 200 && !r.j.reports.some(x => x.target_id === Q), r.j);
+      r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: Q, reason: 'harass', via: 'card' }); T(`后台${st === 'dismissed' ? '驳回' : '处理'}后：可以再次举报同一个人 → 200`, r.s === 200 && r.j.ok === true, r);
+      r = await call('GET', '/api/reports/mine', tP); T('再次举报后：读回里这个对象只有一条（新的 open）', r.s === 200 && r.j.reports.filter(x => x.target_id === Q).length === 1, r.j);
+    }
+    { const n0 = await hits(); r = await call('POST', '/api/reports', tP, { target_type: 'user', target_id: Q, reason: 'harass', via: 'card' }); T('未处理时重复举报 → 409 report_duplicate', r.s === 409 && r.j.error === 'report_duplicate', r);
+      T('重复举报失败不占当天举报次数', (await hits()) === n0, [n0, await hits()]); }
+    T('同一对象的历史举报都留着（旧的已处理、新的 open），后台能看到来龙去脉', (await admin.query(`select count(*)::int c, count(*) filter (where status = 'open')::int o from reports where reporter_id = $1 and target_id = $2`, [P, Q])).rows[0].c === 3); }
 
   r = await call('POST', '/api/blocks', tP, { user_id: Q }); T('屏蔽：→ 200', r.s === 200, r);
   r = await call('POST', '/api/threads', tP, { user_id: Q }); T('屏蔽后不能再开对话 → 403 blocked', r.s === 403 && r.j.error === 'blocked', r);
