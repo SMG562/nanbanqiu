@@ -33,6 +33,8 @@ if (p1 !== p2) die('两次输入的密码不一样，请重新运行');
 let hash; try { hash = hashPassword(p1) } catch (e) { die(e.message === 'password_too_short' ? `密码至少 12 位（这次是 ${[...p1].length} 位），请重新运行` : e.message) }
 const secret = newTotpSecret(), rc = newRecoveryCodes();
 console.log(`
+⚠️  下面的密钥和恢复码只给你自己：不要截图、不要发给任何人（包括 Claude）。SQL 只贴进 Supabase SQL Editor。
+
 -- ===== 复制从这里到「复制到这里结束」，粘到 Supabase SQL Editor 运行 =====
 insert into admin_users(email, name, role, password_hash, totp_secret, recovery_hashes, password_changed_at)
 values ('${email}', '${name}', '${role}', '${hash}', '${secret}', array[${rc.hashes.map(h => `'${h}'`).join(', ')}], now())
