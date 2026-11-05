@@ -54,6 +54,13 @@ const body = s => s.slice(s.indexOf('do $$'), s.indexOf('create table if not exi
 T('schema.sql 里的后台接口一节与迁移文件一致（只差迁移记录）', sql.includes(body(mig).trim()), 0);
 T('迁移记录里登记了 20261105_admin_api', /insert into schema_migrations\(version\) values \('20261105_admin_api'\)/.test(mig) && /'20261105_admin_api'/.test(sql));
 
+// ---- 只用在 Cloudflare 上验证过的模块（Pages 把所有函数打成一个 Worker：一个不支持的模块会让整个部署失败，连前台 /api 一起）----
+// crypto：11-05 探针在分支预览实测 scryptSync 可用；pg：前台 /api 早已在用。新增模块先在分支预览验证，再加进这张表
+const OK_MODS = new Set(['crypto', 'node:crypto', 'pg']);
+const mods = f => [...rd(f).matchAll(/(?:^|\n)\s*import\s[^'"]*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g)].map(m => m[1] || m[2]).filter(x => !x.startsWith('.'));
+const bad = ['server/admin/api.mjs', 'server/admin/auth.mjs', 'server/admin/connect.mjs', 'functions/admin/api/[[path]].js'].flatMap(f => mods(f).filter(m => !OK_MODS.has(m)).map(m => f + ' → ' + m));
+T('后台接口只 import 验证过的模块（crypto、pg 和本仓库文件）', !bad.length, bad);
+
 // ---- 响应不泄露 ----
 T('接口代码不 console.log 请求内容（日志只记路由名和错误码）', !/console\.(log|info|debug)/.test(apis) && !/console\.error\([^)]*(await |\.text\(|body|password|email)/.test(apis));
 console.log(`admin_api_routes: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

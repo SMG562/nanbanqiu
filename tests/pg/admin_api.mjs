@@ -20,6 +20,9 @@ T('域名白名单：解析去空格、小写、丢空项', JSON.stringify(HL) =
 T('域名白名单：正式站、分支预览、测试环境放行', ['nanbanqiu.app', 'NANBANQIU.APP', 'staging.nanbanqiu-preview.pages.dev', 'admin-api-a.nanbanqiu-preview.pages.dev'].every(h => API.hostAllowed(h, HL)));
 T('域名白名单：预览站根域名（和正式站是同一个生产部署，但没有 Access）不放行；仿冒后缀也不放行', !['nanbanqiu-preview.pages.dev', 'evil-nanbanqiu-preview.pages.dev', 'nanbanqiu.app.evil.com', 'www.nanbanqiu.app', 'x.nanbanqiu-preview.pages.dev.evil.com', ''].some(h => API.hostAllowed(h, HL)));
 T('域名白名单：没配（空）= 什么都不放行', !API.hostAllowed('nanbanqiu.app', API.parseHosts(undefined)) && !API.hostAllowed('nanbanqiu.app', []));
+T('IP 校验：IPv4 / IPv6 认得出', ['1.2.3.4', '255.255.255.255', '0.0.0.0', '2001:db8::1', '::1', '2001:0db8:0000:0000:0000:ff00:0042:8329', '::ffff:1.2.3.4'].every(API.isIp));
+T('IP 校验：坏的一律不认（含注入、超长、主机名）', !['', '1.2.3', '256.1.1.1', '1.2.3.4.5', 'not-an-ip', "1.1.1.1'; drop", 'example.com', '1.2.3.4/24', '[::1]', ':::', 'g::1', '1'.repeat(50), null, 5].some(API.isIp));
+T('后台接口不再 import node:net', !/from ['"]node:net|import\(['"]node:net/.test((await import('fs')).readFileSync(path.join(DIR, 'server/admin/api.mjs'), 'utf8')));
 T('isAdminPath：只认 /admin/api 和 /admin/api/…', API.isAdminPath('/admin/api') && API.isAdminPath('/admin/api/me') && !API.isAdminPath('/admin') && !API.isAdminPath('/admin/apix') && !API.isAdminPath('/api/me'));
 
 const c = startCluster(); let su, pool, apiPool;
@@ -84,6 +87,8 @@ try {
   r = await call('POST', '/admin/api/logout', { origin: 'https://evil.example' }); T('CSRF：退出也要 Origin 一致', r.s === 403, r);
   r = await call('POST', '/admin/api/login', { ctype: 'text/plain', raw: '{}' }); T('Content-Type 不是 JSON → 415', r.s === 415, r);
   r = await call('POST', '/admin/api/login', { raw: '{"a":"' + 'x'.repeat(9000) + '"}' }); T('请求体超过 8KB → 413', r.s === 413, r.s);
+  r = await call('POST', '/admin/api/login', { raw: '{"a":"' + '中'.repeat(3000) + '"}' }); T('请求体按字节算：3000 个汉字（约 9KB）→ 413', r.s === 413, r.s);
+  r = await call('POST', '/admin/api/login', { raw: '{}', headers: { 'Content-Length': '999999' } }); T('Content-Length 声明超过 8KB → 不读直接 413', r.s === 413, r.s);
   r = await call('POST', '/admin/api/login', { raw: '{bad' }); T('JSON 解析失败 → 400', r.s === 400 && r.j.error === 'bad_json', r);
   r = await call('POST', '/admin/api/login', { raw: '[1,2]' }); T('JSON 是数组 → 400', r.s === 400, r);
   const before = (await one(`select count(*)::int n from admin_audit_log`)).n;

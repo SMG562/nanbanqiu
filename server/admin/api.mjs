@@ -6,7 +6,6 @@
 //     · 每条路由在 ROUTES 里声明所需权限（admin_perms 的动作）：接口层先查，数据库函数再查一次（数据页接入时沿用）
 //     · 只在登记过的域名上提供（ADMIN_HOSTS）：预览站根域名和正式站是同一个生产部署，但只有正式站前面有 Cloudflare Access → 没登记的域名一律 404；没配 = 全部 404
 //     · 登录失败按 IP 限流（含不存在的邮箱）；所有响应 no-store；错误体只有错误码，不带数据库原文；日志只记错误码，不记请求内容
-import { isIP } from 'node:net';
 import { acquire, adminLogin, adminLogout, adminRequest, adminAttemptCheck, adminAttemptNote, COOKIE } from './auth.mjs';
 
 export const ADMIN_BASE = '/admin/api';
@@ -39,7 +38,11 @@ const cookieToken = req => {
   }
   return null;
 };
-const ipOf = req => { const h = (req.headers.get('CF-Connecting-IP') || '').trim(); return h && isIP(h) ? h : null };   // 只信 Cloudflare 填的头；没有 / 不是 IP 就当没有
+// 只信 Cloudflare 填的头；没有 / 不是 IP 就当没有。不用 node:net（Pages 把所有函数打成一个 Worker，没验证过的 Node 模块可能让整个部署失败）
+const V4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+export const isIp = h => { if (typeof h !== 'string' || !h || h.length > 45) return false; if (V4.test(h)) return true;
+  if (!/^[0-9a-fA-F:.]+$/.test(h) || !h.includes(':')) return false; try { return new URL(`http://[${h}]/`).hostname.length > 2 } catch (_) { return false } };
+const ipOf = req => { const h = (req.headers.get('CF-Connecting-IP') || '').trim(); return isIp(h) ? h : null };
 
 function fail(e, route) {
   const code = String(e && e.code || '');
@@ -57,8 +60,10 @@ const bad = () => Object.assign(new Error('invalid'), { code: 'invalid' });
 
 async function readJson(req) {
   if (!/^application\/json\b/i.test(req.headers.get('Content-Type') || '')) throw Object.assign(new Error('unsupported'), { http: send(415, { error: 'unsupported_media_type' }) });
+  const tooBig = () => Object.assign(new Error('too_large'), { http: send(413, { error: 'too_large' }) });
+  if (+(req.headers.get('Content-Length') || 0) > MAX_BODY) throw tooBig();            // 先看声明的长度，超了不读
   const t = await req.text();
-  if (t.length > MAX_BODY) throw Object.assign(new Error('too_large'), { http: send(413, { error: 'too_large' }) });
+  if (new TextEncoder().encode(t).length > MAX_BODY) throw tooBig();                    // 按字节算（中文一个字 3 字节）
   try { const b = JSON.parse(t || '{}'); if (b && typeof b === 'object' && !Array.isArray(b)) return b } catch (_) { }
   throw Object.assign(new Error('bad_json'), { http: send(400, { error: 'bad_json' }) });
 }
