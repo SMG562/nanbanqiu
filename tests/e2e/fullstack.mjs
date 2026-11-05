@@ -58,7 +58,8 @@ try {
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
-    { name: '（自检）只改内存的动作', lost: true, act: pg => pg.evaluate(() => { window.__mem = 1; localStorage.removeItem('e2e_mem'); ME.__e2e = 1; USERS[ME.id].__e2e = 1 }), check: pg => pg.evaluate(() => !!(ME && ME.__e2e)) },
+    // 11-05：标记放在 window 上（同样只在内存、刷新就丢）。原来放在 ME 上：后台读入把 ME 整个换掉时标记跟着丢，「做完立刻成立」偶发红（PR #42 CI）
+    { name: '（自检）只改内存的动作', lost: true, act: pg => pg.evaluate(() => { window.__e2eMem = 1; localStorage.removeItem('e2e_mem') }), check: pg => pg.evaluate(() => window.__e2eMem === 1) },
   ];
 
   const exe = [process.env.NBQ_CHROMIUM, '/opt/pw-browsers/chromium'].find(x => x && fs.existsSync(x));   // 本机有固定路径就用，CI 里用 playwright 自带的
