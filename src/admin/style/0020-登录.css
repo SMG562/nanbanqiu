@@ -8,3 +8,19 @@
 .otp{display:flex;gap:8px}.otp input{text-align:center;font-size:18px;font-weight:700;padding:0}
 .lg .go{width:100%;height:44px;border-radius:12px;background:var(--g);color:#fff;font-weight:700;margin-top:22px}
 .lg .fine{font-size:11.5px;color:var(--mut);text-align:center;margin-top:14px;line-height:1.6}
+/* 真 / 演示模式（判定在 page 里的 data-mode）：默认按真模式显示，演示的假输入只在 data-mode=demo 出现 */
+.lg-demo{display:none}
+html[data-mode=demo] .lg-demo{display:block}
+html[data-mode=demo] .lg-real{display:none}
+#boot{display:none;min-height:100%;place-items:center;color:var(--mut);font-size:14px}
+html[data-boot] #boot{display:grid}
+html[data-boot] #login{display:none}
+.lg .lg-alt{display:block;margin:10px auto 0;background:none;border:0;color:var(--g);font-size:12.5px;font-weight:600;cursor:pointer;padding:4px 6px}
+.lg .lg-err{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(208,59,59,.1);color:var(--crit);font-size:12.5px;line-height:1.5}
+.lg .lg-err[hidden]{display:none}
+.lg .go[disabled]{opacity:.6;cursor:progress}
+.soon{font-style:normal;margin-left:auto;font-size:10.5px;font-weight:600;color:var(--mut);background:var(--sf2);border-radius:99px;padding:1px 7px}
+.nodata{max-width:520px;margin:48px auto;text-align:center}
+.nodata h2{font-size:17px;margin:0 0 8px}.nodata p{color:var(--mut);font-size:13px;line-height:1.7;margin:0}
+.acct-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}.acct-top .av{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px}
+html[data-mode=real] .filters{display:none}

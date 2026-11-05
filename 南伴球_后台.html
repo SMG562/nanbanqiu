@@ -22,6 +22,22 @@ svg.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-wid
 .otp{display:flex;gap:8px}.otp input{text-align:center;font-size:18px;font-weight:700;padding:0}
 .lg .go{width:100%;height:44px;border-radius:12px;background:var(--g);color:#fff;font-weight:700;margin-top:22px}
 .lg .fine{font-size:11.5px;color:var(--mut);text-align:center;margin-top:14px;line-height:1.6}
+/* 真 / 演示模式（判定在 page 里的 data-mode）：默认按真模式显示，演示的假输入只在 data-mode=demo 出现 */
+.lg-demo{display:none}
+html[data-mode=demo] .lg-demo{display:block}
+html[data-mode=demo] .lg-real{display:none}
+#boot{display:none;min-height:100%;place-items:center;color:var(--mut);font-size:14px}
+html[data-boot] #boot{display:grid}
+html[data-boot] #login{display:none}
+.lg .lg-alt{display:block;margin:10px auto 0;background:none;border:0;color:var(--g);font-size:12.5px;font-weight:600;cursor:pointer;padding:4px 6px}
+.lg .lg-err{margin:12px 0 0;padding:9px 12px;border-radius:10px;background:rgba(208,59,59,.1);color:var(--crit);font-size:12.5px;line-height:1.5}
+.lg .lg-err[hidden]{display:none}
+.lg .go[disabled]{opacity:.6;cursor:progress}
+.soon{font-style:normal;margin-left:auto;font-size:10.5px;font-weight:600;color:var(--mut);background:var(--sf2);border-radius:99px;padding:1px 7px}
+.nodata{max-width:520px;margin:48px auto;text-align:center}
+.nodata h2{font-size:17px;margin:0 0 8px}.nodata p{color:var(--mut);font-size:13px;line-height:1.7;margin:0}
+.acct-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}.acct-top .av{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px}
+html[data-mode=real] .filters{display:none}
 /* ---------- 框架 ---------- */
 #app{display:none;min-height:100%}
 .side{position:fixed;inset:0 auto 0 0;width:224px;background:var(--sf);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;z-index:5}
@@ -299,13 +315,25 @@ table.clk tbody tr{cursor:pointer}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="logo" viewBox="0 0 100 100"><clipPath id="lgclip"><rect width="100" height="100" rx="24"/></clipPath><g clip-path="url(#lgclip)"><defs><linearGradient id="lgf1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E7E59"/><stop offset="1" stop-color="#0E5139"/></linearGradient><radialGradient id="lgf1v" cx="30%" cy="18%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="100" height="100" fill="url(#lgf1)"/><rect width="100" height="100" fill="url(#lgf1v)"/><defs><mask id="lgf2" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><circle cx="67" cy="66" r="19.7" fill="#000"/></mask></defs><g mask="url(#lgf2)"><g transform="translate(40 40)"><defs><radialGradient id="lgf3g" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#EEFB9A"/><stop offset=".45" stop-color="#D3EE4C"/><stop offset=".85" stop-color="#B9DA30"/><stop offset="1" stop-color="#9EC021"/></radialGradient> <filter id="lgf3s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.38"/></filter> <filter id="lgf3f" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.54" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35"/><feComposite in2="SourceGraphic" operator="in"/></filter> <clipPath id="lgf3c"><circle r="26"/></clipPath></defs> <circle cx="1.56" cy="4.42" r="25.48" fill="#03140D" opacity="0.36" filter="url(#lgf3s)"/><circle r="26" fill="url(#lgf3g)"/><g clip-path="url(#lgf3c)"><rect x="-26" y="-26" width="52" height="52" fill="#fff" opacity="0.22" filter="url(#lgf3f)"/><g transform="rotate(-22)"><g transform="translate(0 0.65)"><path d="M-17.40 -19.32 C-7.80 -8.84 -7.80 8.84 -17.40 19.32" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="3.90" stroke-linecap="round"/><path d="M17.40 -19.32 C7.80 -8.84 7.80 8.84 17.40 19.32" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="3.90" stroke-linecap="round"/></g><path d="M-17.40 -19.32 C-7.80 -8.84 -7.80 8.84 -17.40 19.32" fill="none" stroke="#FBFDF3" stroke-width="2.21" stroke-linecap="round"/><path d="M17.40 -19.32 C7.80 -8.84 7.80 8.84 17.40 19.32" fill="none" stroke="#FBFDF3" stroke-width="2.21" stroke-linecap="round"/></g> <ellipse cx="-8.32" cy="-10.40" rx="10.92" ry="6.76" fill="#fff" opacity=".24" transform="rotate(-28 -8.32 -10.40)" filter="url(#lgf3s)"/> <circle r="25.6" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/></g></g></g><g transform="translate(67 66)"><defs><radialGradient id="lgf4g" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="#EEFB9A"/><stop offset=".45" stop-color="#D3EE4C"/><stop offset=".85" stop-color="#B9DA30"/><stop offset="1" stop-color="#9EC021"/></radialGradient> <filter id="lgf4s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.15"/></filter> <filter id="lgf4f" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 -.35"/><feComposite in2="SourceGraphic" operator="in"/></filter> <clipPath id="lgf4c"><circle r="16.5"/></clipPath></defs> <circle cx="0.99" cy="2.81" r="16.169999999999998" fill="#03140D" opacity="0.42" filter="url(#lgf4s)"/><circle r="16.5" fill="url(#lgf4g)"/><g clip-path="url(#lgf4c)"><rect x="-16.5" y="-16.5" width="33" height="33" fill="#fff" opacity="0.22" filter="url(#lgf4f)"/><g transform="rotate(28)"><g transform="translate(0 0.41)"><path d="M-11.04 -12.26 C-4.95 -5.61 -4.95 5.61 -11.04 12.26" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="2.48" stroke-linecap="round"/><path d="M11.04 -12.26 C4.95 -5.61 4.95 5.61 11.04 12.26" fill="none" stroke="rgba(70,100,0,.35)" stroke-width="2.48" stroke-linecap="round"/></g><path d="M-11.04 -12.26 C-4.95 -5.61 -4.95 5.61 -11.04 12.26" fill="none" stroke="#FBFDF3" stroke-width="1.40" stroke-linecap="round"/><path d="M11.04 -12.26 C4.95 -5.61 4.95 5.61 11.04 12.26" fill="none" stroke="#FBFDF3" stroke-width="1.40" stroke-linecap="round"/></g> <ellipse cx="-5.28" cy="-6.60" rx="6.93" ry="4.29" fill="#fff" opacity=".24" transform="rotate(-28 -5.28 -6.60)" filter="url(#lgf4s)"/> <circle r="16.1" fill="none" stroke="#000" stroke-opacity=".08" stroke-width=".8"/></g></g></g></symbol></defs></svg>
 
+<!-- 运行模式（唯一的判定处）：默认「真」；只有本机文件（file:）和预览站根域名是「演示」（本机回环地址 127.0.0.1 / localhost 加 ?demo=1 也行，给测试用；公网域名不认）。真模式下不显示任何模拟数据（src/admin/script/0290）。写成带 type 的标签：页面报错上报必须是第一个无属性的 script 标签（static/admin_perms 检查） -->
+<script type="text/javascript">(function(){var d=document.documentElement,h=location.hostname,demo=location.protocol==='file:'||h==='nanbanqiu-preview.pages.dev'||((h==='127.0.0.1'||h==='localhost')&&/[?&]demo=1(&|$)/.test(location.search));d.setAttribute('data-mode',demo?'demo':'real');if(!demo)d.setAttribute('data-boot','1')})()</script>
 <!-- ===================== 登录 ===================== -->
-<div id="login"><form class="lg" onsubmit="return doLogin(event)">
+<div id="boot" role="status" aria-live="polite"><span>正在确认登录状态…</span></div>
+<div id="login"><form class="lg" onsubmit="return onLogin(event)" novalidate>
   <div class="brand"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><div><b>南伴球 · 后台</b><span>Nanbanqiu Admin</span></div></div>
+  <div class="lg-demo">
   <label>邮箱</label><input type="email" value="han@nanbanqiu.app" autocomplete="username">
   <label>密码</label><input type="password" value="••••••••••" autocomplete="current-password">
   <label>两步验证码</label><div class="otp"><input maxlength="1" value="4"><input maxlength="1" value="8"><input maxlength="1" value="2"><input maxlength="1" value="9"><input maxlength="1" value="1"><input maxlength="1" value="6"></div>
   <label>演示身份</label><select id="demoRole" class="role-sel"><option value="owner">超级管理员（Han）</option><option value="operator">运营（Amy）</option><option value="viewer">只读（Leo）</option></select>
+  </div>
+  <div class="lg-real">
+  <label for="lgEmail">邮箱</label><input id="lgEmail" type="email" autocomplete="username" maxlength="254" spellcheck="false" autocapitalize="off">
+  <label for="lgPw">密码</label><input id="lgPw" type="password" autocomplete="current-password" maxlength="256">
+  <label for="lgCode" id="lgCodeLab">两步验证码（6 位数字）</label><input id="lgCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="32" spellcheck="false">
+  <button type="button" class="lg-alt" id="lgAlt">没有手机？改用恢复码</button>
+  <p class="lg-err" id="lgErr" role="alert" hidden></p>
+  </div>
   <button class="go" type="submit">登录</button>
   <p class="fine">仅限受邀的管理员 · 登录和所有操作都会记录在操作日志<br>连续 5 次输错会锁定 15 分钟 · 12 小时或闲置 1 小时后要重新登录<br>没有手机时可以用恢复码登录</p>
 </form></div>
@@ -3408,4 +3436,105 @@ const _sbAct=act;act=function(d){if(!/^sb(pk|px|rh|ro|rd)$/.test(d.act||''))retu
     if(k==='sbrh'){S.audit.unshift([admWho(),'sb.hide',`${x.kind}：${x.text}`,now])}
     else S.audit.unshift([admWho(),k==='sbro'?'sb.report_action':'sb.report_dismiss',`${x.kind}：${x.text}`,now])}
   render()};
+/* =====================================================================
+ * 真登录与真模式外壳（#27 PR-B1）。必须是 admin.list 的最后一个脚本：下面三处包住 render / drawNav / logout，要在所有前面的包装之外。
+ *   模式只在 page 里的一处判定（data-mode）：默认「真」；本机文件（file:）和预览站根域名才是「演示」。
+ *   真模式的铁律：不显示任何模拟数字。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
+ *   新加的页面不用记得去标，天然是占位。导航角标（待审核数、风险数）也来自模拟数据，真模式下不画。
+ *   登录：邮箱 + 密码 + 验证码（或恢复码）→ POST /admin/api/login；令牌只在 httpOnly Cookie 里，这里拿不到也不存任何凭证。
+ * ===================================================================== */
+const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
+const RL={me:null,busy:false,recovery:false,touchAt:0};
+const REAL_PAGES={account:()=>realAccountPage()};
+const REAL_NOTE={review:'举报队列是 #27 第 2 步，球场审核在后面的步骤。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
+if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
+
+// ---------- 接口 ----------
+// 返回 {ok,status,body,error,retry}；网络不通 / 超时 status=0。带自定义头 X-NBQ-Admin（服务端的防跨站请求要求），Origin 由浏览器自己带
+async function admApi(method,path,body){
+  const init={method,credentials:'same-origin',headers:{'X-NBQ-Admin':'1'}};
+  if(body!==undefined){init.headers['Content-Type']='application/json';init.body=JSON.stringify(body)}
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);init.signal=ac.signal;
+  try{const r=await fetch('/admin/api'+path,init);let j=null;try{j=await r.json()}catch(_){}
+    return {ok:r.ok,status:r.status,body:j,error:(j&&j.error)||null,retry:(j&&j.retry_after)||null}}
+  catch(_){return {ok:false,status:0,body:null,error:'network',retry:null}}
+  finally{clearTimeout(tm)}}
+// 错误 → 给人看的话。服务不可用 / 网络不通不能说成「密码不对」
+function realErr(r){const e=r.error;
+  if(r.status===0)return '网络不通，检查网络后再试';
+  if(e==='admin_locked'||e==='rate_limited'){const m=r.retry?Math.max(1,Math.ceil(r.retry/60)):15;return `输错次数太多，请 ${m} 分钟后再试`}
+  if(e==='db_unavailable'||r.status===503)return '服务暂时不可用，请稍后再试（不是密码的问题）';
+  if(r.status===404)return '这个网址没有开通后台';
+  if(e==='csrf')return '请求被拒绝，请刷新页面后再试';
+  if(e==='invalid')return '请检查填写的内容';
+  if(r.status===413||r.status===415||e==='bad_json')return '请求格式不对，请刷新页面后再试';
+  if(ADMIN_ERR[e])return ADMIN_ERR[e];
+  return `出错了，请稍后再试（${e||r.status}）`}
+
+// ---------- 登录页 ----------
+const lgErr=m=>{const p=$('#lgErr');p.textContent=m||'';p.hidden=!m};
+const lgBusy=b=>{RL.busy=b;const g=document.querySelector('#login .go');g.disabled=b;g.textContent=b?'登录中…':'登录'};
+function lgRecoveryUI(){const c=$('#lgCode');$('#lgCodeLab').textContent=RL.recovery?'恢复码（xxxx-xxxx，用过即作废）':'两步验证码（6 位数字）';
+  $('#lgAlt').textContent=RL.recovery?'改用验证码':'没有手机？改用恢复码';c.inputMode=RL.recovery?'text':'numeric';c.autocomplete=RL.recovery?'off':'one-time-code';c.maxLength=RL.recovery?32:6}
+function onLogin(e){e.preventDefault();if(NBQ_MODE==='demo')return doLogin(e);realLogin();return false}
+async function realLogin(){
+  if(RL.busy)return;                                                       // 防连点：验证码同一个 30 秒只能用一次，第二次必然失败
+  const email=$('#lgEmail').value.trim(),pw=$('#lgPw').value,code=$('#lgCode').value.trim();
+  if(!email||!pw||!code)return lgErr('请填写邮箱、密码和'+(RL.recovery?'恢复码':'验证码'));
+  if(!RL.recovery&&!/^\d{6}$/.test(code))return lgErr('验证码是 6 位数字');
+  lgErr('');lgBusy(true);
+  const r=await admApi('POST','/login',RL.recovery?{email,password:pw,recovery:code}:{email,password:pw,code});
+  $('#lgPw').value='';$('#lgCode').value='';                               // 不管成败都清掉密码和验证码
+  if(!r.ok){lgBusy(false);lgErr(realErr(r));$('#lgPw').focus();return}
+  const m=await admApi('GET','/me');lgBusy(false);
+  if(!meOk(m)){lgErr(m.ok?'服务返回的内容不对，请稍后再试':realErr(m));return}
+  $('#lgEmail').value='';enterApp(m.body)}
+document.getElementById('lgAlt').addEventListener('click',()=>{RL.recovery=!RL.recovery;lgRecoveryUI();$('#lgCode').value='';lgErr('');$('#lgCode').focus()});
+
+// ---------- 进入 / 离开后台 ----------
+// /me 必须是带 role 的 JSON 才算登录成功（200 但内容不对 = 前面有什么东西截了请求，当错误处理，不能崩）
+const meOk=r=>!!(r&&r.ok&&r.body&&typeof r.body==='object'&&typeof r.body.role==='string');
+const realRole=r=>['owner','operator','viewer'].includes(r)?r:'viewer';       // 不认识的角色按最小权限
+function realPaintMe(){const m=RL.me,nm=String(m.name||'').trim()||'管理员',box=document.querySelector('.side .me');
+  box.querySelector('.av').textContent=[...nm][0]||'?';box.querySelector('b').textContent=nm;box.querySelector('small').textContent=ROLE_NAME[S.role]||S.role}
+function enterApp(me){RL.me=me;S.role=realRole(me.role);RL.touchAt=Date.now();
+  document.documentElement.removeAttribute('data-boot');$('#login').style.display='none';$('#app').style.display='block';
+  realPaintMe();S.page='account';render()}
+function toLogin(msg){RL.me=null;RL.busy=false;RL.recovery=false;
+  document.documentElement.removeAttribute('data-boot');
+  $('#app').style.display='none';$('#page').innerHTML='';$('#nav').innerHTML='';$('#drw').innerHTML='';   // 退出后页面上不留上一位管理员的内容
+  $('#login').style.display='grid';for(const i of ['#lgEmail','#lgPw','#lgCode'])$(i).value='';
+  lgBusy(false);lgRecoveryUI();lgErr(msg||'')}
+// 离开页面一段时间 / 切换页面时确认会话还在（服务端闲置 1 小时作废）；顺便刷新权限
+async function realTouch(){if(!RL.me||Date.now()-RL.touchAt<20000)return;RL.touchAt=Date.now();
+  const r=await admApi('GET','/me');if(!RL.me)return;
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(meOk(r)){RL.me=r.body;S.role=realRole(r.body.role);realPaintMe();render()}}
+if(NBQ_MODE==='real'){
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)realTouch()});
+  document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-pg]'))realTouch()},true);
+}
+
+// ---------- 页面 ----------
+function realPlaceholder(k){return `<div class="card nodata"><h2>${esc(TITLES[k]||'这一页')}：还没接真数据</h2><p>这一页现在不显示任何数字，免得把演示数据当成真的。${esc(REAL_NOTE[k]||'接入计划见 Issue #27。')}</p></div>`}
+function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[],nm=String(m.name||'').trim()||'管理员';
+  return `<div class="grid g12"><div class="card"><div class="acct-top"><span class="av">${esc([...nm][0]||'?')}</span><div><b>${esc(nm)}</b><br><span class="pill nodot">${esc(ROLE_NAME[S.role]||S.role)}</span></div></div>
+  <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
+  <div class="ch"><b>你能做的事</b><small>共 ${perms.length} 项 · ✎ = 必须填理由</small></div>
+  <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div></div>`}
+
+// ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
+const _realRender=render;
+render=function(){if(NBQ_MODE!=='real')return _realRender.apply(this,arguments);
+  if(!RL.me)return;drawNav();$('#pt').textContent=TITLES[S.page]||'后台';
+  const f=REAL_PAGES[S.page];$('#page').innerHTML=f?f():realPlaceholder(S.page)};
+const _realDrawNav=drawNav;
+drawNav=function(){if(NBQ_MODE!=='real')return _realDrawNav.apply(this,arguments);
+  $('#nav').innerHTML=PAGES.map(p=>p[0]==='h'?`<div class="navh">${esc(p[1])}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${esc(p[0])}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]||''}</svg>${esc(p[1])}${REAL_PAGES[p[0]]?'':'<em class="soon">待接入</em>'}</button>`).join('')};
+const _realLogout=logout;
+logout=async function(){if(NBQ_MODE!=='real')return _realLogout.apply(this,arguments);
+  const r=await admApi('POST','/logout',{});toLogin(r.ok?'已退出登录':'已在本机退出；网络没通，服务器上的登录会在 12 小时内自动失效')};
+
+// ---------- 启动：先问服务器「我是谁」，期间不显示登录页（不闪），也不显示后台 ----------
+if(NBQ_MODE==='real'){lgRecoveryUI();(async()=>{const r=await admApi('GET','/me');if(meOk(r))enterApp(r.body);else toLogin(r.ok?'服务返回的内容不对，请稍后再试':r.status===401?'':realErr(r))})()}
 </script></body></html>

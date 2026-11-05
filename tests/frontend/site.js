@@ -47,7 +47,8 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     ['admin.html', { width: 1440, height: 900 }, () => getComputedStyle(document.querySelector('#login')).display !== 'none' && /演示身份/.test(document.body.innerText)]]) {
     const ctx = await b.newContext({ viewport: vp }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort()); await ctx.route(/^http:\/\/127\.0\.0\.1/, r => r.continue());   // 外部 CDN 不连，只看本站（preload 默认拦掉所有 http，本站放行）
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-    await pg.goto(`${base}/${name === 'index.html' ? '' : name}`); await pg.waitForTimeout(1200);
+    await pg.goto(`${base}/${name === 'index.html' ? '' : name}${name === 'admin.html' ? '?demo=1' : ''}`);   // 后台页：本机回环地址默认是真模式；?demo=1 = 预览站根域名上的演示模式
+     await pg.waitForTimeout(1200);
     if (name === 'web.html') { await pg.click('#tabs [data-tab="side"]'); await pg.waitForTimeout(800) }
     const ok = await pg.evaluate(check).catch(e => String(e));
     T(`${name}：http 打开能跑${name === 'web.html' ? '（含场边）' : ''}`, ok === true, ok);

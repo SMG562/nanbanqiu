@@ -42,4 +42,5 @@ admin/script/0250-场边_配置页.js
 admin/script/0260-场边_编辑话题.js
 admin/script/0270-场边_并入与交互.js
 admin/script/0280-场边_待审核.js
+admin/script/0290-真登录与真模式.js
 admin/page/0030-结尾.html
