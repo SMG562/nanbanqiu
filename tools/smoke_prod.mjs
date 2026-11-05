@@ -44,7 +44,7 @@ if (SHA && !process.argv.includes('--no-wait')) {
       if ([301, 302, 303, 307, 308].includes(r.status) && loc) { const n = new URL(loc, u); if (/cloudflareaccess\.com$/.test(n.hostname)) return 'access'; if (n.origin !== new URL(BASE).origin) return 'away:' + n.hostname; u = n.href; continue }
       if (r.status === 401 || r.status === 403) return 'denied'; const t = await r.text(); return r.status + (/演示身份|管理后台/.test(t) ? ':admin' : ':other') }
     return 'loop' };
-  for (const p of ['/admin', '/admin.html']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } }
+  for (const p of ['/admin', '/admin.html', '/admin/api/me', '/admin/api/health']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } }
 // ③ 浏览器
 const require = createRequire(import.meta.url); let chromium;
 try { ({ chromium } = require('playwright')) } catch { try { ({ chromium } = require(execSync('npm root -g', { encoding: 'utf8' }).trim() + '/playwright')) } catch { } }

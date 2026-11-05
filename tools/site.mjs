@@ -46,7 +46,7 @@ export const latestMigration = () => migrations().pop() || null;
 export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json'];
 // Pages Functions 只在这些路径上运行（其余静态文件直接给，不算函数调用次数）：
 //   /（跳城市网址）· /melbourne/ 等（按宽度载入手机版 / 网页版）· 旧 /pwa.html /web.html（导航请求跳城市网址）· server/site_route.mjs · 正式站 /materials 回首页 · /api · 分享短链接 /g、/p
-export const ROUTES = { version: 1, include: ['/', '/melbourne', '/melbourne/', '/sydney', '/sydney/', '/pwa', '/pwa.html', '/web', '/web.html', '/materials', '/materials.html', '/api/*', '/g/*', '/p/*'], exclude: [] };
+export const ROUTES = { version: 1, include: ['/', '/melbourne', '/melbourne/', '/sydney', '/sydney/', '/pwa', '/pwa.html', '/web', '/web.html', '/materials', '/materials.html', '/api/*', '/admin/api/*', '/g/*', '/p/*'], exclude: [] };
 
 // 预览站的 manifest：仓库里的 manifest 是给正式站用的（根网址 / 就是应用）；预览站的根是入口页，
 // 应用在 /pwa.html，所以「添加到主屏幕」后要从 /pwa.html 打开（不然会打开入口页）

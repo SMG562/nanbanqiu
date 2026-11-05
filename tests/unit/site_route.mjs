@@ -51,5 +51,9 @@ T('functions/_middleware.js 用 siteRoute，不归它管时 next()', /siteRoute/
 T('worker/index.mjs 也用 siteRoute', /siteRoute\(request\)/.test(fs.readFileSync(path.join(ROOT, 'worker', 'index.mjs'), 'utf8')));
 const S = await import(path.join(ROOT, 'tools', 'site.mjs')), inc = S.ROUTES.include;
 T('_routes.json：/、/materials、/api/*、/g/*、/p/* 经过函数；没有 /*（静态文件不算函数调用）', ['/', '/melbourne/', '/sydney/', '/pwa.html', '/web.html', '/materials', '/materials.html', '/api/*', '/g/*', '/p/*'].every(x => inc.includes(x)) && !inc.includes('/*') && inc.length <= 100, inc);
-T('functions/ 下每个子目录入口都在 _routes.json 里（新加函数忘了登记会 404）', fs.readdirSync(path.join(ROOT, 'functions')).filter(d => fs.statSync(path.join(ROOT, 'functions', d)).isDirectory()).every(d => inc.includes(`/${d}/*`)));
+// 11-05：嵌套目录也要登记（functions/admin/api/ → /admin/api/*，或更宽的 /admin/*）；只在顶层目录里找会漏掉 /admin/api
+const fnDirs = []; const walk = (d, rel) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (e.isDirectory()) { if (rel || true) walk(path.join(d, e.name), rel + '/' + e.name) } else if (rel && !e.name.startsWith('_')) { if (!fnDirs.includes(rel)) fnDirs.push(rel) } } };
+walk(path.join(ROOT, 'functions'), '');
+T('functions/ 下每个放了函数的目录（含嵌套）都在 _routes.json 里，自己或某个上级目录的 /…/*（新加函数忘了登记会 404）', fnDirs.length >= 3 && fnDirs.every(rel => { const parts = rel.split('/').filter(Boolean); return parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }), fnDirs.filter(rel => { const parts = rel.split('/').filter(Boolean); return !parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }));
+T('嵌套检查有效：把 /admin/api/* 拿掉就会报', !(() => { const rel = '/admin/api', parts = rel.split('/').filter(Boolean), inc2 = inc.filter(x => x !== '/admin/api/*'); return parts.some((_, k) => inc2.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) })());
 console.log(`site_route: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -54,6 +54,7 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+add('static', 'static/admin_api_routes', ['node', path.join(HERE, 'static/admin_api_routes.mjs'), DIR], { pass: [/admin_api_routes: \d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
 add('static', 'static/input_audit', ['node', path.join(DIR, 'tools/input_audit.mjs')], { pass: [/input_audit: \d+ 个输入框, 0 个问题/], timeout: 60 });
 add('static', 'static/action_audit', ['node', path.join(DIR, 'tools/action_audit.mjs')], { pass: [/action_audit: \d+ 个动作, 0 个未归类, 0 个写法不对/], timeout: 60 });
@@ -82,6 +83,7 @@ add('pg', 'pg/privacy', ['node', path.join(HERE, 'pg/privacy.mjs')], { pass: [/p
 add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass: [/sb_schema: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });

@@ -45,13 +45,37 @@ export const newSessionToken = () => { const t = crypto.randomBytes(32).toString
 export const tokenHash = t => sha256(String(t));
 export const COOKIE = token => `nbq_admin=${token}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${12 * 3600}`;
 
+// 连接来源：pg 的 Pool（pool.connect() / release()），或 Workers 里的 connect 函数（返回 pg.Client，end() 结束）
+export async function acquire(src) {
+  if (typeof src === 'function') { const c = await src(); return { db: c, release: () => c.end().catch(() => { }) } }
+  const c = await src.connect(); return { db: c, release: () => c.release() };
+}
+// 后台接口的数据库登录角色（nbq_admin_api）自己就能调 6 个门禁函数（schema ㉚），不再切成 nbq_service：拿到后台接口的代码也碰不到前台那一套权限
+let DUMMY; const dummyHash = () => (DUMMY ||= hashPassword('dummy-password-for-timing'));
+const codeOf = e => { if (!e.code || /^[0-9A-Z]{5}$/.test(e.code)) e.code = e.message; return e };
+
+// 这个 IP 最近失败太多 → 抛 rate_limited（detail = 还要等几秒）。在算 scrypt 之前调用
+export async function adminAttemptCheck(src, ip) {
+  const { db, release } = await acquire(src);
+  try { await db.query('begin'); await db.query('select admin_attempt_check($1)', [ip]); await db.query('commit') }
+  catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
+}
+// 失败后记一笔，单独提交（失败的登录事务会回滚，记在里面会丢）
+export async function adminAttemptNote(src, ip) {
+  const { db, release } = await acquire(src);
+  try { await db.query('begin'); await db.query('select admin_attempt_note($1)', [ip]); await db.query('commit') }
+  catch (e) { await db.query('rollback').catch(() => { }) } finally { await release() }
+}
+
 // 登录：{email, password, code（6 位两步验证码）| recovery（恢复码）} → {token} 或抛出错误码（admin_bad_login / admin_locked）
-//   不管哪一步错，对外都只说「邮箱、密码或验证码不对」，避免猜出哪个账号存在
-export async function adminLogin(pool, { email, password, code, recovery, ip = null, ua = null, now = Date.now() }) {
-  const db = await pool.connect();
+//   不管哪一步错，对外都只说「邮箱、密码或验证码不对」，避免猜出哪个账号存在；邮箱不存在 / 已停用时也照样算一次 scrypt，耗时和密码错误差不多
+export async function adminLogin(src, { email, password, code, recovery, ip = null, ua = null, now = Date.now() }) {
+  const { db, release } = await acquire(src);
   try {
-    await db.query('begin'); await db.query('set local role nbq_service');
-    const a = (await db.query('select admin_login_begin($1) j', [email])).rows[0].j;
+    await db.query('begin');
+    let a;
+    try { a = (await db.query('select admin_login_begin($1) j', [email])).rows[0].j }
+    catch (e) { if (e.message === 'admin_bad_login') verifyPassword(password, dummyHash()); throw e }
     let ok = verifyPassword(password, a.password_hash), step = null, rh = null;
     if (ok && recovery) rh = recoveryHash(recovery);
     else if (ok) { step = verifyTotp(a.totp_secret, code, now, a.totp_last_step); ok = step != null }
@@ -60,22 +84,22 @@ export async function adminLogin(pool, { email, password, code, recovery, ip = n
     await db.query('commit');
     if (!r.ok) { const e = new Error('admin_bad_login'); e.code = 'admin_bad_login'; throw e }
     return { token: s.token, role: a.role, cookie: COOKIE(s.token) };
-  } catch (e) { await db.query('rollback').catch(() => { }); if (!e.code || /^[0-9A-Z]{5}$/.test(e.code)) e.code = e.message; throw e } finally { db.release() }
+  } catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
 }
 // 每个后台请求：校验 Cookie 里的令牌 → 以对应数据库角色、带上管理员 id 开事务执行 fn(db, admin)
-export async function adminRequest(pool, token, fn, { ip = null } = {}) {
-  const db = await pool.connect();
+export async function adminRequest(src, token, fn, { ip = null } = {}) {
+  const { db, release } = await acquire(src);
   try {
-    await db.query('begin'); await db.query('set local role nbq_service');
+    await db.query('begin');
     const a = (await db.query('select admin_session_check($1) j', [tokenHash(token || '')])).rows[0].j;
     await db.query('commit');
     await db.query('begin'); await db.query(`set local role ${a.db_role === 'nbq_viewer' ? 'nbq_viewer' : 'nbq_admin'}`);
     await db.query(`select set_config('nbq.admin', $1, true), set_config('nbq.admin_ip', $2, true)`, [a.id, ip || '']);
     const out = await fn(db, a); await db.query('commit'); return out;
-  } catch (e) { await db.query('rollback').catch(() => { }); if (!e.code || /^[0-9A-Z]{5}$/.test(e.code)) e.code = e.message; throw e } finally { db.release() }
+  } catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
 }
-export async function adminLogout(pool, token) {
-  const db = await pool.connect();
-  try { await db.query('begin'); await db.query('set local role nbq_service'); await db.query('select admin_session_revoke($1)', [tokenHash(token || '')]); await db.query('commit') }
-  finally { db.release() }
+export async function adminLogout(src, token) {
+  const { db, release } = await acquire(src);
+  try { await db.query('begin'); await db.query('select admin_session_revoke($1)', [tokenHash(token || '')]); await db.query('commit') }
+  catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
 }

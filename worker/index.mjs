@@ -9,13 +9,17 @@ import { makeVerifier } from '../server/api/jwt.mjs';
 import { makeDb } from '../server/api/db.mjs';
 import { connectFromEnv } from '../server/api/connect.mjs';
 import { SUPABASE } from '../server/headers.mjs';
+import { handleAdmin, isAdminPath } from '../server/admin/api.mjs';
+import { connectAdminFromEnv } from '../server/admin/connect.mjs';
 
 // /api/*：令牌验证 + 连数据库（Hyperdrive 或密钥 DB_URL；都没配时 /api/health 正常、要数据库的接口返回 503 db_unavailable）
 let deps;
 const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null });
 
+let adminDeps;
 export default {
   async fetch(request, env) {
+    if (isAdminPath(new URL(request.url).pathname)) return handleAdmin(request, (adminDeps ||= { connect: connectAdminFromEnv(env) }));
     if (/^\/api(\/|$)/.test(new URL(request.url).pathname)) return handleApi(request, apiDeps(env));
     const m = new URL(request.url).pathname.match(/^\/(g|p)\/([A-Za-z0-9]+)\/?$/);
     if (m && (request.method === 'GET' || request.method === 'HEAD')) return sharePage(m[1], m[2], request, env, data);
