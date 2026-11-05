@@ -280,6 +280,30 @@ try {
   tr = runTool(['--email=a@b.co', '--name=H'], 'aaaaaaaaaaaaaaaa\nbbbbbbbbbbbbbbbb\n'); T('创建工具：两次输入不一样 → 退出码 1', tr.status === 1 && !/insert into/.test(tr.stdout));
   for (const bad of ["--email=x'y@b.co", '--email=a@b.co;drop', '--email=nope']) { tr = runTool([bad, '--name=H'], 'aaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaa\n'); T('创建工具：拒绝可疑邮箱 ' + bad, tr.status === 1 && !/insert into/.test(tr.stdout)) }
   tr = runTool(['--email=a@b.co', "--name=O'Brien"], ''); T('创建工具：拒绝名字里的引号（防止拼出坏 SQL）', tr.status === 1);
+  tr = runTool(['--email=你的邮箱', '--name=H'], ''); T('创建工具：邮箱格式不对时点名哪里错（11-05 用户照抄了占位）', tr.status === 1 && /邮箱格式不对：你的邮箱/.test(tr.stderr), tr.stderr);
+  tr = runTool(['--email=a@b.co', '--name=a\\b'], ''); T('创建工具：拒绝名字里的反斜杠', tr.status === 1);
+  // 真终端（pty）：提示语看得见、密码不回显、退格有效（11-05 用户实测：readline 终端模式把提示语擦掉了，只剩空行）
+  const py = `
+import pty, os, time, select, sys
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp('node', ['node', sys.argv[1], '--email=t@e.co', '--name=Han Liu'])
+out = b''
+def rd(t):
+    global out
+    end = time.time() + t
+    while time.time() < end:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if r:
+            try: out += os.read(fd, 4096)
+            except OSError: return
+rd(1.5); first = out
+os.write(fd, b'supersecretpwX'); os.write(fd, b'\\x7f'); os.write(fd, b'1234\\r'); rd(1.5); os.write(fd, b'supersecretpw1234\\r'); rd(4)
+o = out.decode('utf8', 'replace')
+print('P1' if '后台登录密码'.encode() in first else 'NOP1', 'P2' if '再输一遍' in o else 'NOP2', 'ECHO' if 'supersecret' in o else 'NOECHO', 'SQL' if 'insert into admin_users' in o else 'NOSQL')
+`;
+  const pt = spawnSync('python3', ['-c', py, path.join(DIR, 'tools/admin_create.mjs')], { encoding: 'utf8', timeout: 30000 });
+  T('创建工具（真终端）：两行提示都看得见、密码不回显、退格有效、生成了 SQL', pt.stdout.trim() === 'P1 P2 NOECHO SQL', [pt.stdout, pt.stderr.slice(0, 200)]);
   tr = runTool(['--email=a@b.co', '--name=H', '--role=root'], ''); T('创建工具：拒绝未知角色', tr.status === 1);
 
   // ---------- 两种连接方式等价 ----------
