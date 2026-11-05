@@ -66,7 +66,12 @@ try {
   r = await call('GET', '/admin/api/health?db=1', { csrf: false });
   T('health?db=1：以 nbq_admin_api 真连数据库', r.s === 200 && r.j.db === true, r);
   r = await call('GET', '/admin/api/health?db=1', { csrf: false, d: { connect: null } });
-  T('health?db=1：没配数据库 → 503 且 ok=false', r.s === 503 && r.j.ok === false && r.j.db === false, r);
+  T('health?db=1：没配数据库 → 503 且 ok=false，why=not_configured', r.s === 503 && r.j.ok === false && r.j.db === false && r.j.why === 'not_configured', r);
+  { const E = (code, message) => Object.assign(new Error(message), { code });
+    const cases = [[E('28P01', 'password authentication failed for user "nbq_admin_api.abc"'), 'bad_password'], [E('28000', 'role not allowed to login'), 'login_not_allowed'], [E('XX000', 'Tenant or user not found'), 'user_not_found'], [E('ENOTFOUND', 'getaddrinfo ENOTFOUND db.example'), 'network'], [E(undefined, 'Invalid URL'), 'bad_url'], [E('42501', 'x'), 'other:42501']];
+    T('health 的 why：6 种情况分类正确', cases.every(([e, w]) => API.dbWhy(e) === w), cases.map(([e]) => API.dbWhy(e)));
+    r = await call('GET', '/admin/api/health?db=1', { csrf: false, d: { connect: async () => { throw E('28P01', 'password authentication failed for user "nbq_admin_api.secretref" host 10.0.0.1') } } });
+    T('health 的 why：只给类别，响应里没有用户名、地址、原文', r.s === 503 && r.j.why === 'bad_password' && !/secretref|10\.0\.0\.1|password authentication/.test(r.text), r.text) }
   r = await call('GET', '/admin/api/nope'); T('未知路径 → 404', r.s === 404 && r.j.error === 'not_found', r);
   r = await call('DELETE', '/admin/api/me', { raw: '' }); T('已知路径错误方法 → 405 并带 Allow', r.s === 405 && /GET/.test(r.h.get('Allow') || ''), r);
   r = await call('GET', '/admin/api/me');

@@ -31,6 +31,15 @@ export const ADMIN_STATUS = {
 const DB_DOWN = new Set(['db_not_configured', '28P01', '28000', '3D000', '57P03', '53300']);
 const isDbDown = e => DB_DOWN.has(String(e && e.code || '')) || /^(ECONN|ENOTFOUND|ETIMEDOUT|EAI_|EHOSTUNREACH)/.test(String(e && e.code || '')) || /connection (terminated|timeout)|tenant or user not found/i.test(String(e && e.message || ''));
 
+// 连不上数据库时只给粗略类别（排查用；不含地址、用户名、密码、报错原文）。和前台 /api/health 的 why 同一套
+export const dbWhy = e => { const c = String(e && e.code || ''), m = String(e && e.message || '');
+  if (c === '28P01') return 'bad_password';
+  if (c === '28000') return 'login_not_allowed';                                      // 角色没开 login，或连接池不认
+  if (/tenant or user not found/i.test(m)) return 'user_not_found';                   // 用户名要写成 nbq_admin_api.<项目编号>
+  if (c === '3D000') return 'bad_database';
+  if (/^(ECONN|ENOTFOUND|ETIMEDOUT|EAI_|EHOSTUNREACH)/.test(c) || /connection (terminated|timeout)/i.test(m)) return 'network';
+  if (/invalid|parse|url/i.test(m) && !c) return 'bad_url';
+  return 'other:' + (/^[0-9A-Z]{5}$/.test(c) ? c : 'x') };
 const cookieToken = req => {
   for (const part of (req.headers.get('Cookie') || '').split(';')) {
     const i = part.indexOf('='); if (i < 0) continue;
@@ -91,8 +100,8 @@ export const ROUTES = {
   'GET /admin/api/health': { name: 'health', public: true, noCsrf: true, run: async (req, d) => {
     const out = { ok: true, db: null };
     if (new URL(req.url).searchParams.get('db') === '1') {
-      if (!d.connect) { out.db = false; out.ok = false }
-      else { try { const { db, release } = await acquire(d.connect); try { await db.query('select 1') } finally { await release() } out.db = true } catch (e) { out.db = false; out.ok = false } }
+      if (!d.connect) { out.db = false; out.ok = false; out.why = 'not_configured' }
+      else { try { const { db, release } = await acquire(d.connect); try { await db.query('select 1') } finally { await release() } out.db = true } catch (e) { out.db = false; out.ok = false; out.why = dbWhy(e) } }
     }
     return send(out.ok ? 200 : 503, out);
   } },
