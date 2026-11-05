@@ -102,7 +102,7 @@ function App(el,init){
       </div>
       <div class="bar"><div class="box"><span class="hint" style="right:60px">在 ${esc(S.court)} 发一条…</span><input maxlength="${CFG.settings.post_max_len}" data-cin><button class="send" data-csend disabled>${ic('up')}</button></div></div>`;
     const ci=v.querySelector('[data-cin]'),cs=v.querySelector('[data-csend]'),ch=v.querySelector('.hint');
-    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!cs.disabled)cs.click()}};
+    ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!cs.disabled)cs.click()}};
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
     $('.sheet').innerHTML=`<div class="grab"></div>
       <div class="sh-top">${av(U(x),34)}<div class="who">${unb(U(x)).replace('class="un"','')}<small>${x.w?(x.area?`<span class="pl ar">${esc(x.w)} 附近</span>`:`<span class="pl" data-court="${esc(x.w)}">${esc(x.w)}</span>`)+'<i>·</i>':''}${lifeRing(x.t)}<span>${a}</span></small></div><span class="sp"></span>${x.mine&&x.pic?`<button class="ib2" data-share title="分享图片">${ic('share')}</button>`:''}<button class="ib2" data-menu>${ic('dots')}</button><button class="ib2 shx" data-shut>${ic('x')}</button></div>
@@ -116,7 +116,7 @@ function App(el,init){
     const hs=$('.sheet .hs');if(hs)hs.onscroll=()=>{const k=Math.round(hs.scrollLeft/hs.clientWidth);el.querySelectorAll('.sheet .hd2 i').forEach((d,i)=>d.classList.toggle('on',i===k))};
     if(x.mine){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
     const ri=$('[data-rin]'),rb=$('[data-rsend]'),rh=$('.sheet .hint');
-    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!rb.disabled)rb.click()};
+    if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!rb.disabled)rb.click()};
       ri.onblur=()=>setTimeout(()=>{if(S.rto&&!ri.value&&AE()!==ri)clearRto()},220)}};
   const rtoHint=v=>{const h=$('.sheet .hint');if(!h)return;h.textContent=v;h.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'})};
   const setRto=(n,row)=>{S.rto=n;el.querySelectorAll('.sheet .rr.tgt').forEach(r=>r.classList.remove('tgt'));row.classList.add('tgt');rtoHint(`回复 ${n}…`);const ri=$('[data-rin]');if(ri)ri.focus({preventScroll:true})};
@@ -343,7 +343,7 @@ function App(el,init){
   const tcode=tp=>tp&&S.T[tp]&&S.T[tp].user?'user':tp||null;
   const subEv=(id,photos,tk,court,later,via)=>track('sb_post_submit',{post_id:id,photos,topic_kind:tk,court:!!court,later:!!later,via});
   const fromBar=(o={})=>{const q=S.hq||{};openCompose(Object.assign({ph:q.t,topic:q.tp,sc:q.sc},o))};
-  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!sendB.disabled)sendB.click()};
+  inp.oninput=drawComposer;inp.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!sendB.disabled)sendB.click()};
   const qtp=$('[data-qtp]');
   const drawQ=()=>{const T=S.qtp&&S.T[S.qtp];qtp.innerHTML=`${T?`<span class="qt">#${esc(T.t)}<button data-qtx aria-label="不带这个话题">${ic('x')}</button></span>`:''}<span class="sp"></span><button class="qx" data-qx>展开${ic('chev','cv')}</button>`};
   const qOpen=()=>{if(el.classList.contains('qing'))return;S.qhq=S.hq;S.qtp=S.hq&&S.hq.tp||null;drawQ();el.classList.add('qing');closeLp()};

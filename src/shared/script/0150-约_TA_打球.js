@@ -51,11 +51,12 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
   const open=INVITES.find(i=>[i.from,i.to].includes(uid)&&[i.from,i.to].includes(ME.id)&&['pending','counter'].includes(i.status)&&!invExpired(i));
   if(open){const mine=open.status==='pending'?open.from===ME.id:open.to===ME.id;
     return `<button class="invbtn ${mine?'wait':''}" data-iv="view" data-i="${open.id}">${mine?'已约 · 等 TA 回复':open.status==='counter'?'TA 提议了新时间 · 去确认':'TA 约了你 · 去回复'}<small>${esc(invWhen(open))} · ${esc(invWhere(open))}</small></button>`}
+  // 已有一场未开始的球局：不再把「约 TA」换成「查看球局」——想再约一天、或只是同在多人局里想单独约，都应该约得了。球局信息作为一行小字放在按钮下面。
   const next=gamesTogether(ME.id,uid).filter(g=>new Date(g.starts_at)>NOW).sort((a,b)=>new Date(a.starts_at)-new Date(b.starts_at))[0];
-  if(next){const s=new Date(next.starts_at);return `<button class="invbtn wait" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 有一场 · 查看<small>${esc(venTxt(next.venue_id))}</small></button>`}
   const n=playedCount(ME.id,uid),u=U(uid);
-  return n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
-          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`}
+  const nextRow=next?(()=>{const s=new Date(next.starts_at);return `<button class="invnext" data-iv="gameOf" data-g="${next.id}">你们${relDay(s)} ${hm(s)} 已有一场 · ${esc(venTxt(next.venue_id))} · 查看</button>`})():'';
+  return (n?`<button class="invbtn" data-iv="new" data-u="${uid}">再约一局<small>你们一起打过 ${n} 场</small></button>`
+          :`<button class="invbtn soft" data-iv="new" data-u="${uid}">约 TA 打球</button>`)+nextRow}
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
@@ -77,12 +78,16 @@ function lastTimeDefaults(f){const last=gamesTogether(ME.id,f.to).filter(g=>new 
 function venueChoices(){const f=IVF,base=f.kind==='counter'?[...new Set([f.orig,...(ME.home_club_ids||[])])]:(ME.home_club_ids||[]);
   const list=[...base];if(f.venue_id&&!list.includes(f.venue_id))list.push(f.venue_id);return list}
 function venueResults(){const o=U(IVF.to)||{};return vpList('iv',IVF,o.home_club_ids||[])}
-function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
+const ivScroller=()=>{let e=document.querySelector('.iv');while(e&&e!==document.body){if(/(auto|scroll)/.test(getComputedStyle(e).overflowY)&&e.scrollHeight>e.clientHeight)return e;e=e.parentElement}return null};   // 只给测试用；重画不跳回顶部由 openSheet / openModal 统一保证
+const IV_QP_PLAYED=['上次打得很开心，再来一局','这周有空吗？','想再切磋一下'],IV_QP_NEW=['想认识一下，一起练练','水平差不多，来一场吧','周末有空一起打吗？'];
+function drawInviteForm(){_drawInviteForm()}
+function _drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=ME.home_club_ids||[];
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);   // 今天还来得及就从今天起，否则从明天起，共 7 天
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const tag=v=>counter&&v===f.orig?'原地点':VEN[v]&&VEN[v].custom?'自己填写':VEN[v]?surfTxt(VEN[v]):'';
-  INV_OPEN(`<div class="iv">
+  INV_OPEN(`<div class="iv${f.compact?' compact':''}">
     <div class="iv-h"><span class="iv-av">${av(u)}</span><div><b>${counter?'换个时间给 '+esc(u.name):'约 '+esc(cardName(u))+' 打球'}</b><small>${counter?'只能改一次，TA 确认后生成球局':'TA 接受后，就是你们俩的私人球局'}</small></div></div>
+    <div class="kbhide">
     ${f.stranger&&!counter?(()=>{const s=stats(f.to);return `<div class="iv-trust"><span>赴约率 <b>${s.played?Math.round(s.att*100)+'%':'—'}</b></span><span>好评 <b>${s.kudos}</b></span><span>打过 <b>${s.played}</b> 场</span></div>`})():''}
     ${f.hint&&!counter?`<div class="iv-hint2">${esc(f.hint)}</div>`:''}
     <div class="iv-l">哪天</div>
@@ -93,17 +98,27 @@ function drawInviteForm(){const f=IVF,u=U(f.to),counter=f.kind==='counter',mine=
     <div class="iv-l">打多久</div>
     <div class="iv-seg">${DURS.map(m=>`<button data-iv="dur" data-v="${m}" class="${f.dur===m?'on':''}">${durLbl(m)}</button>`).join('')}</div>
     <div class="iv-sum"><b>${esc(dayTxt(f.o))}</b><span>${f.t} – ${f.e}</span></div>
+    ${(()=>{const c=ivClash(f);return c?`<div class="iv-warn">${c}</div>`:''})()}
     <div class="iv-l">在哪打</div>
     <div class="iv-chips">${venueChoices().map(v=>`<button data-iv="ven" data-v="${v}" class="${f.venue_id===v?'on':''}">${esc(venTxt(v))}<small>${tag(v)}</small></button>`).join('')}<button data-iv="more" class="${f.search?'on2':''}">其他场地</button></div>
     ${f.search||f.adding?vpHTML('iv',f):''}
     ${counter?'':`<div class="iv-l">玩法</div>
-    <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>
+    <div class="iv-seg">${['singles','rally'].map(k=>`<button data-iv="type" data-v="${k}" class="${f.game_type===k?'on':''}">${TYPE[k]}</button>`).join('')}</div>`}
+    </div>
+    ${counter?'':`<div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${f.e} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.game_type]}</span><button type="button" data-iv="expand">修改</button></div>
     <div class="iv-l">说一句 <span>选填</span></div>
-    <input id="ivNote" class="iv-in" maxlength="30" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">`}
-    ${f.stranger&&!counter?`<p class="iv-safe">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
+    <input id="ivNote" class="iv-in" maxlength="30" enterkeyhint="done" autocomplete="off" placeholder="比如：上次双打很开心，想约你单挑一局" value="${esc(f.note)}">
+    <div class="iv-qp">${(f.stranger?IV_QP_NEW:IV_QP_PLAYED).map((t,k)=>`<button type="button" data-iv="qp" data-v="${k}">${t}</button>`).join('')}</div>`}
+    ${f.stranger&&!counter?`<p class="iv-safe kbhide">第一次约 TA：建议选有人的公共球场，见面前在聊天里确认一下 · <a data-a="safety">安全须知</a></p>`:''}
     <button class="iv-go" data-iv="${counter?'sendCounter':'send'}">${counter?'发回给 TA 确认':'发送邀约'}</button>
     ${counter?'<button class="iv-3" data-iv="back" style="width:100%;margin-top:8px">返回</button>':`<div class="iv-foot">48 小时内有效 · 不会显示在发现页</div>`}</div>`);
   const d=document.querySelector('.iv-days .on');if(d)d.scrollIntoView({block:'nearest',inline:'center'})}
+/* 选的时间和已有球局撞了：只提醒、不拦（可能想换场、或另有安排）。先看和 TA 的球局，再看自己的 */
+function ivClash(f){if(!ME||f.kind==='counter'&&false)return'';const a=dayAt(f.o,f.t),b=dayAt(f.o,f.e);
+  const hit=(uid,pre)=>GAMES.find(g=>g.status!=='cancelled'&&PARTS.some(p=>p.game_id===g.id&&p.user_id===uid&&p.status==='approved')&&new Date(g.starts_at)<b&&new Date(+new Date(g.starts_at)+g.duration_min*6e4)>a);
+  const t=hit(f.to),m=hit(ME.id);const w=g=>`${relDay(new Date(g.starts_at))} ${hm(new Date(g.starts_at))}`;
+  if(t&&PARTS.some(p=>p.game_id===t.id&&p.user_id===ME.id&&p.status==='approved'))return `你们 ${w(t)} 已经有一场了，换个时间约吧`;
+  if(m)return `你这个时间已有一场球局（${w(m)}），确定要约吗？`;return''}
 function keepForm(){if(!IVF)return;const n=document.getElementById('ivNote');if(n)IVF.note=n.value;const q=document.getElementById('ivQ');if(q)IVF.q=q.value;vpKeep('iv',IVF)}
 function formOK(){const f=IVF;if(!f.venue_id){toast('选一个场地吧');return false}
   if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return false}if(toMin(f.e)<=toMin(f.t)){toast('结束时间要晚于开始时间');return false}return true}
@@ -161,6 +176,8 @@ function invAct(act,el){const i=IVP&&invOf(IVP.id);
     case'more':keepForm();IVF.search=!IVF.search;IVF.adding=null;IVF.q='';drawInviteForm();break;
     case'customVen':keepForm();{const id=customVenue(IVF.q);if(id){IVF.venue_id=id;IVF.q='';IVF.search=false}}drawInviteForm();break;
     case'type':keepForm();IVF.game_type=el.dataset.v;drawInviteForm();break;
+    case'expand':keepForm();IVF.compact=false;drawInviteForm();break;
+    case'qp':{const t=(IVF.stranger?IV_QP_NEW:IV_QP_PLAYED)[+el.dataset.v];if(t){IVF.note=t;const n=document.getElementById('ivNote');if(n){n.value=t;n.blur()}}}break;
     case'send':sendInvite();break;
     case'accept':if(NBQ_NET)nbqInviteAccept(i);else finishAccept(i);break;
     case'counter':IVF={kind:'counter',to:i.from,o:i.o,t:i.t,e:i.e,dur:toMin(i.e)-toMin(i.t),per:Math.max(0,perOf(i.t)),venue_id:i.venue_id,orig:i.venue_id,search:false,q:'',game_type:i.game_type,note:''};drawInviteForm();break;
@@ -204,8 +221,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-iv]');if(
   if(a==='wx'){wxToggle(el.dataset.g);return}
   if(a==='wxSave'){const v=(document.getElementById('wxId')||{}).value;if(v&&v.trim()){if(nbqCardBlocked())return;ME.wechat=v.trim();if(nbqOn())nbqPatchMe('wx',{wechat_id:ME.wechat});INV_RENDER()}return}
   invAct(a,el)},true);
+/* 点了「说一句」就进入精简视图并一直留着：键盘收起（点「完成」）后表单不再展开、位置不跳；要改时间 / 地点点摘要旁的「修改」 */
+document.addEventListener('focusin',e=>{if(e.target.id==='ivNote'&&IVF&&IVF.kind==='new'&&!IVF.compact){IVF.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});
 document.addEventListener('input',e=>{if(e.target.id!=='ivQ'||!IVF)return;IVF.q=e.target.value;const r=document.getElementById('ivRes');if(r)r.innerHTML=venueResults()});
-document.addEventListener('keydown',e=>{if(e.target.id==='ivQ'&&e.key==='Enter'&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
+document.addEventListener('keydown',e=>{if(nbqImeEnter(e))return;   // 中文输入法拼写中的回车只是「确认拼音」
+  if(e.target.id==='ivQ'&&e.key==='Enter'&&!nbqImeEnter(e)&&IVF&&IVF.q.trim()){e.preventDefault();const hit=document.querySelector('#ivRes [data-iv]');if(hit)hit.click()}});
 
 /* ---------- 「谁可以约我打球」：所有球友 / 一起打过球的 / 暂不接受 ---------- */
 const IVSET=[['all','所有球友','任何登录的球友都可以约你；每人每天最多约 2 位新球友'],['played','一起打过球的','只有和你同场打过球的人能约你'],['none','暂不接受','球员卡上不显示「约 TA 打球」']];

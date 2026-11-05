@@ -17,7 +17,7 @@ fi
 staged=$(git -c core.quotePath=false diff --cached --name-only)
 if echo "$staged" | grep -qE '^(src/|tools/|tests/(static|spec|lint|unit)/|南伴球_|schema\.sql|server/|sw\.js|manifest)'; then
   node tools/build.mjs --check || { echo "提交前检查：HTML 和 src 拼出来的不一样 → 跑 node tools/build.mjs 再 add"; fail=1; }
-  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,static/persist_audit,static/action_audit,unit/ 2>&1)
+  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,static/persist_audit,static/action_audit,static/input_audit,unit/ 2>&1)
   echo "$out" | grep -qE '全部通过' || { echo "$out" | grep -vE '^\s*$' | tail -15; echo "提交前检查：静态检查没过（报告见上）"; fail=1; }
 fi
 

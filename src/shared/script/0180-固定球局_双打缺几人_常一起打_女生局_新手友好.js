@@ -105,7 +105,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
   const d0=firstFree(0)?0:1,days=Array.from({length:7-d0},(_,k)=>d0+k);
   const P=PERIODS[f.per],slots=[];for(let m=P[1];m<=P[2];m+=30)slots.push(fromMin(m));
   const lvTxt=f.lv==='any'?'不限':`UTR ${f1(f.mn)} – ${f1(f.mx)}`;
-  return `<div class="iv ngf">
+  return `<div class="iv ngf${f.compact?' compact':''}"><div class="kbhide">
     <div class="iv-l">哪天</div>
     <div class="iv-days">${days.map(o=>{const d=dayAt(o);return `<button data-ng="day" data-v="${o}" class="${f.o===o?'on':''}"><small>${o===0?'今天':o===1?'明天':WD[d.getDay()]}</small><b>${d.getDate()}</b></button>`}).join('')}</div>
     <div class="iv-l">几点开始</div>
@@ -131,11 +131,14 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-l">适合 <span>选填</span></div>
     <div class="iv-chips ngtg">${NG_TAGS.filter(k=>k!=='women'||womenOK(ME)).map(k=>`<button data-ng="tag" data-v="${k}" class="${f.tags.has(k)?'on':''}">${TAGS[k][0]}</button>`).join('')}</div>
     ${f.tags.has('women')?'<div class="iv-hint">女生局：只有女生能看到和报名</div>':f.lv==='any'&&f.tags.has('newbie')?'<div class="iv-hint">水平不限，已自动加上「新手友好」</div>':''}
+    </div>
+    <div class="iv-kbsum"><span>${esc(dayTxt(f.o))} ${f.t}–${fromMin(toMin(f.t)+f.dur)} · ${esc(venTxt(f.venue_id)||'还没选场地')} · ${TYPE[f.type]||''}</span><button type="button" data-ng="expand">修改</button></div>
     <div class="iv-l">想对球友说的 <span>选填</span></div>
-    <input id="ngNote" class="iv-in" maxlength="80" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
+    <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
-    ${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
+    <div class="kbhide">${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
     <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场。仅你可见，球友看到的是普通球局</small></span><span class="sw${f.rep?' on':''}"></span></div>
+    </div>
     <button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
     ${f.edit?'':'<div class="iv-foot">发布后可以直接分享到微信群、小红书</div>'}</div>`}
 function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,start:dayAt(NG.o,NG.t),game_type:NG.type,ntrp_min:NG.mn,ntrp_max:NG.mx,spots:NG.type==='doubles'?NG.miss:1,host:ME})}
@@ -160,9 +163,11 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(
     case'pace':{const on=f.tags.has(v);PACE.forEach(p=>f.tags.delete(p[0]));if(!on)f.tags.add(v);break}
     case'tag':{if(f.tags.has(v))f.tags.delete(v);else{f.tags.add(v);if(v==='match'){f.tags.delete('casual');f.tags.delete('drill')}if(v==='casual'||v==='drill')f.tags.delete('match')}break}
     case'noteQ':{const ps=noteParts(f.note);f.note=(noteHas(f.note,v)?ps.filter(x=>x!==v):[...ps,v]).join('，').slice(0,80);break}
+    case'expand':f.compact=false;break;
     case'rep':f.rep=!f.rep;break;case'hide':f.hide=!f.hide;break;case'instant':f.instant=!f.instant;break;
     case'publish':ngPublish();return;
   }drawCreate()},true);
+document.addEventListener('focusin',e=>{if(e.target.id==='ngNote'&&NG&&NG.o!=null&&!NG.compact){NG.compact=true;const r=e.target.closest('.iv');if(r)r.classList.add('compact')}});   // 同约 TA 表单：点了输入框就一直精简
 document.addEventListener('input',e=>{if(e.target.id!=='ngQ'||!NG)return;NG.q=e.target.value;const r=document.getElementById('ngRes');if(r)r.innerHTML=ngVenueList()});
 
 /* ---------- UTR ---------- */
@@ -245,7 +250,7 @@ function vpAct(f,act,el){const v=el.dataset.v;
       f.venue_id=id;f.adding=null;f.search=false;f.q='';toast('已添加，核实后会加入公共球场列表');return true}
   }return false}
 document.addEventListener('input',e=>{const id=e.target.id;if(id==='ngAN'||id==='ivAN'){const a=id.slice(0,2),f=a==='ng'?NG:IVF,s=document.getElementById(a+'AS');if(f&&f.adding&&s&&(s.value===''||s.value===f.adding.short)){f.adding.short=autoShort(e.target.value);s.value=f.adding.short}if(f&&f.adding)f.adding.name=e.target.value}});
-document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='ngQ'&&e.key==='Enter'&&!nbqImeEnter(e)){e.preventDefault();const b=document.querySelector('#ngRes [data-ng]');b&&b.click()}});
 
 /* ---------- UTR 水平筛选：一条双滑块，可以选任意区间 ---------- */
 const UR_MAX=13;

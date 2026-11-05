@@ -88,6 +88,7 @@ pwa/script/0110-API.js
 pwa/script/0120-渲染.js
 shared/script/0140-渲染.js
 shared/script/0150-约_TA_打球.js
+shared/script/0155-弹层输入框通用规则.js
 pwa/script/0130-约_TA_打球.js
 shared/script/0160-约_TA_打球.js
 shared/script/0170-固定球局_双打缺几人_常一起打_女生局_新手友好.js

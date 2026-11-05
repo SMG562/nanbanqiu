@@ -18,3 +18,17 @@
 .iv-2,.iv-3{height:44px;border-radius:14px;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 .iv-2{border:0;background:#EEF1EE;color:#1F2A23}.iv-3{border:0;background:none;color:#8A928A}
 .iv-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.iv-acts .iv-go{grid-column:1/-1;margin-top:12px}.iv-acts .iv-3:only-of-type{grid-column:auto}
+
+/* 键盘弹出时（手机端外壳有 .kb）：弹层只留「正在填的那一项 + 发送」，其余选项折起来（.kbhide），摘要一行（.iv-kbsum）代替。
+   原因：键盘 + Safari 工具条占掉大半屏，可见区域只有 200pt 左右，长表单里的输入框会被顶出画面、按钮浮在内容上面（11-05 真机）。
+   不做「固定在底部的浮层按钮」：它会盖住内容。 */
+.iv-kbsum{display:none;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:#4A544C;background:#F1F5F1;border-radius:10px;padding:8px 12px;margin-top:4px}
+.iv-kbsum button{border:0;background:none;color:#176B4D;font:inherit;font-size:12.5px;font-weight:700;padding:2px 0 2px 8px;cursor:pointer;flex:none}
+.device.kb .iv .kbhide:not(:focus-within),.device.kb .iv .iv-h,.device.kb .iv .iv-qp,.device.kb .iv .iv-foot{display:none}
+.device.kb{--shgap:10px}   /* 打字时顶部不用留「点一下收起」的空，把高度让给表单 */
+.device.kb .iv .iv-kbsum,.device .iv.compact .iv-kbsum{display:flex}
+.device .iv.compact .kbhide{display:none}   /* 精简视图：点过「说一句」之后一直是这个样子，键盘收起也不展开 */
+.iv-qp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.iv-qp button{border:1px solid #DDE2DD;background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;color:#4A544C;cursor:pointer}
+.iv-warn{margin-top:10px;padding:8px 12px;border-radius:10px;background:#FFF6E0;color:#8A5A00;font-size:12.5px;line-height:1.45}
+.invnext{display:block;width:100%;margin-top:6px;border:0;background:none;color:inherit;opacity:.78;font:inherit;font-size:12.5px;text-align:center;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
