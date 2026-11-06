@@ -87,6 +87,7 @@ add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass:
 add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')], { pass: [/admin_reports: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_venues', ['node', path.join(HERE, 'pg/admin_venues.mjs')], { pass: [/admin_venues: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/admin_users', ['node', path.join(HERE, 'pg/admin_users.mjs')], { pass: [/admin_users: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });

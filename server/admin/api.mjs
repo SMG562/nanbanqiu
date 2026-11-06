@@ -189,6 +189,27 @@ export const ROUTES = {
       if (v.status !== 'pending') throw Object.assign(new Error('state_changed'), { code: 'state_changed' });
       await db.query('select admin_venue_review($1::uuid, $2, $3::uuid)', [b.id, b.action, b.merge_into ?? null]); return { ok: true } }, b);
   } },
+  // ---------- 球友列表（#27 第 3 步，只读）----------
+  // 查询参数：q（昵称包含 / 编号 #0062 或 62）、status（六种状态之一）、offset（每页 50）。限城市的管理员只看自己城市的人。
+  // 权限用 user.status（运营 / owner）：只读角色在库里本来就看不到个人名单（nbq_viewer 只有统计），所以不能用 page.view。
+  // 手机号只给后四位（admin_user_phone 视图）；完整号码只有 owner 走 admin_reveal_phone，这里不碰。
+  'GET /admin/api/users': { name: 'users', perm: 'user.status', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, q = (sp.get('q') || '').trim().slice(0, 40), st = sp.get('status') || '', off = sp.get('offset') ?? '0';
+    if (st && !['active', 'review', 'limited', 'suspended', 'banned', 'deleted'].includes(st)) return fail(bad(), 'users');
+    if (!/^\d{1,6}$/.test(off)) return fail(bad(), 'users');
+    const no = /^#?(\d{1,9})$/.exec(q), like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+    return authed(req, d, route, async (db, a) => {
+      const c = a.cities ?? null;
+      const rows = (await db.query(`select u.member_no::int as member_no, u.nickname, u.last_initial, u.home_city as city, u.status, u.status_since, u.status_until, u.utr::float as utr, u.level, u.gender,
+               u.created_at, u.last_active_at, u.signup_source, p.phone_tail
+          from users u join admin_user_phone p on p.id = u.id
+         where ($1::text[] is null or u.home_city = any($1::text[])) and ($2 = '' or u.status = $2)
+           and ($3 = '' or u.nickname ilike $4 or ($5::bigint is not null and u.member_no = $5::bigint))
+         order by u.member_no desc offset $6::int limit 51`, [c, st, q, like, no ? no[1] : null, off])).rows;
+      const cnt = (await db.query(`select u.status, count(*)::int n from users u where ($1::text[] is null or u.home_city = any($1::text[])) group by 1`, [c])).rows;
+      return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
+    });
+  } },
 };
 
 export async function handleAdmin(request, d) {

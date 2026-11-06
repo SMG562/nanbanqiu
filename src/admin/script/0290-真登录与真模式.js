@@ -7,7 +7,7 @@
  * ===================================================================== */
 const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
-const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage()};
+const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage()};
 const REAL_NOTE={review:'待审核。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
@@ -183,6 +183,40 @@ if(NBQ_MODE==='real'){document.addEventListener('click',e=>{const b=e.target.clo
   if(k==='reject')return vgPost('/venues/review',{id,action:'reject'},'已驳回');
   if(k==='merge'){const s=document.querySelector(`[data-vgsel="${id}"]`);return vgPost('/venues/review',{id,action:'merge',merge_into:s&&s.value},'已合并')}});
   document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('[data-vgsel]');if(s)VG.sel[s.dataset.vgsel]=s.value})}
+
+
+// ---------- 球友（#27 第 3 步，只读）：搜索 · 按状态筛 · 每页 50 ----------
+const UP={rows:[],counts:{},more:false,q:'',st:'',loading:false,loaded:false,err:null,gen:0,tm:0};
+const UP_ST={active:'正常',review:'待核实',limited:'受限',suspended:'暂停',banned:'封禁',deleted:'已注销'};
+async function upLoad(more){const g=++UP.gen;UP.loading=true;UP.err=null;
+  const r=await admApi('GET','/users?q='+encodeURIComponent(UP.q)+'&status='+UP.st+'&offset='+(more?UP.rows.length:0));
+  if(g!==UP.gen)return;UP.loading=false;
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(r.ok&&r.body&&Array.isArray(r.body.users)){UP.rows=more?UP.rows.concat(r.body.users):r.body.users;UP.more=!!r.body.more;UP.counts=r.body.counts||{};UP.loaded=true}
+  else UP.err=r.status===403?'你的角色不能查看球友':r.ok?'服务返回的内容不对，请稍后再试':realErr(r);
+  if(RL.me&&S.page==='users'){const had=document.activeElement&&document.activeElement.matches&&document.activeElement.matches('[data-upq]');render();
+    if(had){const el=document.querySelector('[data-upq]');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}}}}
+const upDate=t=>{if(!t)return '—';const d=new Date(t);return isNaN(d)?'—':d.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'})};
+function realUsersPage(){
+  if(!UP.loaded&&!UP.loading&&!UP.err)upLoad(false);
+  const total=Object.values(UP.counts).reduce((a,b)=>a+b,0);
+  const chips=`<button class="btn sm${UP.st===''?' p':''}" data-up="st" data-v="">全部 ${total}</button>`+Object.keys(UP_ST).map(k=>`<button class="btn sm${UP.st===k?' p':''}" data-up="st" data-v="${k}">${UP_ST[k]} ${UP.counts[k]||0}</button>`).join('');
+  const row=u=>`<tr><td class="mono">#${String(u.member_no).padStart(4,'0')}</td><td><b style="font-weight:600">${esc(u.nickname)}${u.last_initial?' '+esc(u.last_initial)+'.':''}</b></td><td>${esc((CITY_ADM&&CITY_ADM[u.city]&&CITY_ADM[u.city].name)||u.city||'—')}</td>
+    <td>${esc(UP_ST[u.status]||u.status)}${u.status==='suspended'&&u.status_until?'<br><small style="color:var(--mut)">到 '+upDate(u.status_until)+'</small>':''}</td><td>UTR ${u.utr} · L${u.level}</td><td class="mono">${esc(u.phone_tail||'')}</td><td>${upDate(u.created_at)}</td><td>${upDate(u.last_active_at)}</td><td>${esc(u.signup_source||'—')}</td></tr>`;
+  return `<div class="card"><div class="ch"><b>球友</b><small>${UP.loaded?'共 '+total+' 人':'读取中…'}</small></div>
+  <div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${chips}</div>
+  <input class="search" data-upq style="width:100%;max-width:320px" placeholder="搜昵称或编号（如 62）" value="${esc(UP.q)}">
+  ${UP.err?`<p class="cap" style="color:var(--crit)">${esc(UP.err)} <button class="btn sm" data-up="reload">重试</button></p>`:''}
+  ${UP.loaded?(UP.rows.length?`<table><thead><tr><th>编号</th><th>昵称</th><th>城市</th><th>状态</th><th>UTR · 等级</th><th>手机</th><th>注册</th><th>最近活跃</th><th>来源</th></tr></thead><tbody>${UP.rows.map(row).join('')}</tbody></table>`:'<div class="empty">没有符合条件的球友</div>'):''}
+  ${UP.more?`<div class="rowacts" style="margin-top:8px"><button class="btn sm" data-up="more"${UP.loading?' disabled':''}>再加载 50 个</button></div>`:''}
+  <p class="cap">这里只读。手机号只显示后四位；封禁 / 恢复等操作在后面的步骤接入。</p></div>`}
+if(NBQ_MODE==='real'){
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-up]');if(!b||b.disabled)return;const k=b.dataset.up;
+    if(k==='st'){UP.st=b.dataset.v;UP.loaded=false;UP.rows=[];render();upLoad(false)}
+    else if(k==='more')upLoad(true);
+    else if(k==='reload'){UP.err=null;UP.loaded=false;render()}});
+  document.addEventListener('input',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i||e.isComposing)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)});
+  document.addEventListener('compositionend',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)})}
 
 // ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
 const _realRender=render;
