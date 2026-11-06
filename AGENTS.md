@@ -7,6 +7,7 @@
 3. [`docs/constitution.md`](docs/constitution.md) — 十条底线；[`docs/README.md`](docs/README.md) — 文档地图
 4. [`docs/adr/`](docs/adr/README.md) — 已定下的架构决定；与之冲突时**停下来问**，不要自己绕开
 5. 你的任务对应的 GitHub Issue
+6. [`.claude/skills/`](.claude/skills) — 前台状态、空状态文案、协作者踩坑清单（`collaborator-pitfalls`）；不支持 skill 的工具直接当文档读
 
 ## 硬规则（摘要，以 CLAUDE.md 为准）
 - 协作者只走「分支 → PR」，不推 `main`；不碰正式库、密钥和部署。

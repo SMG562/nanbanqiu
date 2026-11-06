@@ -36,3 +36,6 @@
 /src/shared/script/0140-渲染.js                        @SMG562
 /src/shared/script/0155-弹层输入框通用规则.js          @SMG562
 /src/shared/script/0495-接口调用.js                    @SMG562
+
+# AI 助手的 skill 和权限：所有协作者的助手都会读，改动要所有者批准
+/.claude/                   @SMG562

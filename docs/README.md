@@ -6,6 +6,7 @@
 |---|---|---|
 | 项目的底线 | [`docs/constitution.md`](constitution.md) | 所有者 |
 | 助手 / 新人怎么开工 | `AGENTS.md` → `CLAUDE.md` | 所有者 |
+| 新人踩坑自查、前台状态、空状态文案 | `.claude/skills/`（`collaborator-pitfalls` 等） | 所有者 |
 | 怎么协作、评审、拆 PR | `CONTRIBUTING.md`、`协作实践.md` | 所有者 |
 | 为什么这么设计（架构决定） | [`docs/adr/`](adr/README.md) | 提议人写、所有者批准 |
 | 业务规则 | `业务规则.md` | 所有者 |

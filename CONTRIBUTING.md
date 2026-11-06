@@ -7,7 +7,8 @@
 ## 第一次上手
 1. `git clone` 后 `git config core.hooksPath .githooks`
 2. 读 `CLAUDE.md`、`开发规矩.md`、`tests/README.md`；跑一遍 `node tools/build.mjs && node tools/lint.mjs`
-3. 领一个小 Issue，完整走一遍「分支 → PR → CI → 所有者审 → 合并」
+3. 照 Issue #68 的上手清单做；你的 AI 助手先读 `AGENTS.md`，并用 `.claude/skills/collaborator-pitfalls` 自查
+4. 领一个小 Issue，完整走一遍「分支 → PR → CI → 所有者审 → 合并」
 
 ## 日常流程
 - **领任务**：在 GitHub Issue 里指定自己为负责人（assignee）；已有人领的不要重复做。大改动、动公共层或数据库前，先在 Issue 里说一声。
