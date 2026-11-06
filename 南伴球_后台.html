@@ -3013,7 +3013,7 @@ function notifCard(){const C=X3.ctx(),{dk}=MM().range,L=N3().filter(n=>n.t>=C.t0
  *   真实环境里服务端同样拦（admin_ 函数），这里只是让管理员一眼看清。演示：登录页选身份
  * ===================================================================== */
 const ADMIN_PERMS=[["page.view","查看统计和名单",["owner","operator","viewer"],false],["audit.view","查看操作日志",["owner","operator"],false],["user.status","待核实 / 受限 / 暂停 / 恢复正常",["owner","operator"],true],["user.ban","永久封禁、恢复已封禁或已注销的账号",["owner"],true],["user.reset","重置昵称 / 头像",["owner","operator"],true],["user.gender","性别：清除 / 解除男改女限制",["owner","operator"],true],["user.notify","给球友发通知",["owner","operator"],false],["phone.reveal","查看完整手机号",["owner"],true],["report.handle","处理举报",["owner","operator"],false],["message.read","查看被举报的对话",["owner","operator"],true],["message.hide","隐藏消息 / 评价",["owner","operator"],true],["venue.review","审核球场",["owner","operator"],false],["risk.handle","处理风险提醒",["owner","operator"],false],["data.export","导出统计（不含用户 ID）",["owner","operator"],false],["data.export_ids","导出带用户 ID 的数据",["owner"],true],["rules.edit","修改风险 / 频率规则",["owner"],true],["admin.manage","管理管理员",["owner"],true],["city.manage","城市上线状态和资料",["owner"],true],["city.waitlist","导出「开放时通知我」名单",["owner"],true],["sideline.config","场边：改话题、引导文案、排期，发布 / 退回版本",["owner","operator"],false]];
-const ADMIN_ERR={"admin_bad_login":"邮箱、密码或验证码不对","admin_locked":"输错次数太多，请 15 分钟后再试","admin_session_expired":"登录已过期，请重新登录","admin_forbidden":"你的角色不能做这件事","admin_reason_required":"请填写理由（至少 4 个字）","admin_last_owner":"至少要保留一位超级管理员","admin_city_not_ready":"这个城市还没准备好：检查清单里还有没通过的项","admin_config_stale":"别人刚发布了新版本，请刷新后再改"};
+const ADMIN_ERR={"admin_bad_login":"邮箱、密码或验证码不对","admin_locked":"输错次数太多，请 15 分钟后再试","admin_session_expired":"登录已过期，请重新登录","admin_forbidden":"你的角色不能做这件事","admin_reauth_failed":"密码或验证码不对（验证码刚用过时，等下一个再试）","admin_reason_required":"请填写理由（至少 4 个字）","admin_last_owner":"至少要保留一位超级管理员","admin_city_not_ready":"这个城市还没准备好：检查清单里还有没通过的项","admin_config_stale":"别人刚发布了新版本，请刷新后再改"};
 const ROLE_NAME={owner:'超级管理员',operator:'运营',viewer:'只读'},ROLE_WHO={owner:'Han',operator:'Amy',viewer:'Leo'};
 const VIEWER_PAGES=new Set(['overview','cards','games','venues','regions','life','after','grow','traffic','growth','platform','env','events']);   // 只读：只看统计（数据库 nbq_viewer 读不到球友、举报、风险）；页面上的昵称换成「某球友」
 S.role=S.role||'owner';
@@ -3500,7 +3500,7 @@ function realPaintMe(){const m=RL.me,nm=String(m.name||'').trim()||'管理员',b
 function enterApp(me){RL.me=me;S.role=realRole(me.role);RL.touchAt=Date.now();
   document.documentElement.removeAttribute('data-boot');$('#login').style.display='none';$('#app').style.display='block';
   realPaintMe();S.page='account';render()}
-function toLogin(msg){RL.me=null;RL.busy=false;RL.recovery=false;
+function toLogin(msg){rcClose();RL.me=null;RL.busy=false;RL.recovery=false;
   document.documentElement.removeAttribute('data-boot');
   $('#app').style.display='none';$('#page').innerHTML='';$('#nav').innerHTML='';$('#drw').innerHTML='';   // 退出后页面上不留上一位管理员的内容
   $('#login').style.display='grid';for(const i of ['#lgEmail','#lgPw','#lgCode'])$(i).value='';
@@ -3521,7 +3521,33 @@ function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[]
   return `<div class="grid g12"><div class="card"><div class="acct-top"><span class="av">${esc([...nm][0]||'?')}</span><div><b>${esc(nm)}</b><br><span class="pill nodot">${esc(ROLE_NAME[S.role]||S.role)}</span></div></div>
   <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
   <div class="ch"><b>你能做的事</b><small>共 ${perms.length} 项 · ✎ = 必须填理由</small></div>
-  <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div></div>`}
+  <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div>${rcCard()}</div>`}
+
+// ---------- 重新生成恢复码（#27）：先再输一次密码 + 当前验证码，旧码全部作废，新码只显示这一次 ----------
+const rcCard=()=>`<div class="card"><div class="ch"><b>恢复码</b><small>手机丢了、没法收验证码时用</small></div>
+  <p class="cap" style="margin:0 0 12px">每个恢复码只能用一次。用掉的多了、或者怀疑泄露了，就在这里换一批新的：<b>旧的 10 个会立刻全部作废</b>。需要再输一次密码和当前的验证码。日常登录请用验证码，不要用恢复码。</p>
+  <button class="btn sm" data-rgn="open">重新生成恢复码</button></div>`;
+function rcDlg(html){let d=document.getElementById('admR');if(!d){d=document.createElement('div');d.id='admR';document.body.appendChild(d)}
+  d.innerHTML=`<div class="admr-bg"></div><div class="admr">${html}</div>`;d.classList.add('show');d.onkeydown=null;d.onclick=null;return d}
+function rcClose(){const d=document.getElementById('admR');if(d){d.classList.remove('show');d.innerHTML=''}}                      // 关掉就清空，新码不留在页面里
+function rcAsk(msg){const d=rcDlg(`<b>重新生成恢复码</b><p class="cap">旧的恢复码会<b>立刻全部作废</b>。请再输一次密码和手机验证器里现在的 6 位数字。</p>
+  <input class="search" id="rcPw" type="password" autocomplete="current-password" maxlength="256" placeholder="登录密码" style="width:100%;margin-bottom:8px">
+  <input class="search" id="rcCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="验证码（6 位数字）" style="width:100%">
+  <div class="admr-e" id="rcErr">${esc(msg||'')}</div>
+  <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" data-rgn="close">取消</button><button class="btn p" data-rgn="go" id="rcGo">重新生成</button></div>`);
+  d.onkeydown=ev=>{if(ev.key==='Enter'&&!ev.isComposing)$('#rcGo').click();if(ev.key==='Escape')rcClose()};setTimeout(()=>{const i=$('#rcPw');i&&i.focus()},30)}
+async function rcGo(){const pw=$('#rcPw').value,code=$('#rcCode').value.trim(),err=$('#rcErr'),go=$('#rcGo');
+  if(!pw||!/^\d{6}$/.test(code)){err.textContent='请输入密码和 6 位数字的验证码';return}
+  go.disabled=true;go.textContent='换码中…';
+  const r=await admApi('POST','/account/recovery',{password:pw,code});
+  if(r.status===401){rcClose();return toLogin('登录已过期，请重新登录')}
+  if(r.ok&&r.body&&Array.isArray(r.body.codes)&&r.body.codes.length===10){
+    rcDlg(`<b>新的恢复码</b><p class="cap" style="color:var(--crit)"><b>旧的恢复码已全部作废。</b>下面 10 个只显示这一次：请现在抄在纸上，别存在电脑里，别截图。</p>
+      <div class="mono" style="columns:2;font-size:15px;line-height:1.9;margin:6px 0 4px">${r.body.codes.map((c,i)=>`${String(i+1).padStart(2)}. ${esc(c)}<br>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn p" data-rgn="close">我已抄好，关闭</button></div>`);admToast('已换成新的恢复码');return}
+  rcAsk(r.status===403&&r.error==='admin_reauth_failed'?ADMIN_ERR.admin_reauth_failed:realErr(r))}
+if(NBQ_MODE==='real')document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-rgn]');if(!b||b.disabled)return;
+  const k=b.dataset.rgn;if(k==='open')rcAsk();else if(k==='close')rcClose();else if(k==='go')rcGo()});
 
 // ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
 const _realRender=render;

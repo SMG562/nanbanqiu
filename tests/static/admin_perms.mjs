@@ -17,7 +17,7 @@ T('看对话、看手机号、改状态、封禁都必须填理由', ['message.r
 const sec = spec.slice(spec.indexOf('### 10.4'), spec.indexOf('\n---', spec.indexOf('### 10.4')));
 const SPA = Object.fromEntries([...sec.matchAll(/^\| (admin_[a-z_]+) \| \d{3} \| ([^|]+) \|/gm)].map(m => [m[1], m[2].trim()]));
 const SP = SPA;
-T(`规格 §10.4 后台错误码 ${Object.keys(SPA).length} 个，含 admin_config_stale`, Object.keys(SPA).length === 8 && 'admin_config_stale' in SPA);   // R4 加了 admin_city_not_ready
+T(`规格 §10.4 后台错误码 ${Object.keys(SPA).length} 个，含 admin_config_stale`, Object.keys(SPA).length === 9 && 'admin_config_stale' in SPA && 'admin_reauth_failed' in SPA);   // R4 加了 admin_city_not_ready；11-06 加了 admin_reauth_failed
 T('后台页面 ADMIN_ERR 与规格逐字相同', JSON.stringify(FERR) === JSON.stringify(SP), { 页面: FERR, 规格: SP });
 const used = new Set([...sql.matchAll(/nbq_err\('(admin_[a-z_]+)'/g)].map(m => m[1]));
 T('数据库用到的后台错误码都在规格里', [...used].every(c => c in SPA), [...used].filter(c => !(c in SPA)));

@@ -86,6 +86,23 @@ export async function adminLogin(src, { email, password, code, recovery, ip = nu
     return { token: s.token, role: a.role, cookie: COOKIE(s.token) };
   } catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
 }
+// 重新生成恢复码：已登录 + 再证明一次是本人（密码 + 当前验证码）→ 整批替换旧码，新码明文只在返回值里出现这一次。
+//   失败（密码或验证码不对）与登录共用失败计数（连错 5 次锁 15 分钟）；验证码刚被登录用过时要等下一个（防重放）
+export async function adminRegenRecovery(src, token, { password, code, ip = null, now = Date.now() }) {
+  const { db, release } = await acquire(src);
+  try {
+    await db.query('begin');
+    const s = (await db.query('select admin_session_check($1) j', [tokenHash(token || '')])).rows[0].j;
+    const a = (await db.query('select admin_reauth_begin($1) j', [s.id])).rows[0].j;
+    let ok = verifyPassword(password, a.password_hash), step = null;
+    if (ok) { step = verifyTotp(a.totp_secret, code, now, a.totp_last_step); ok = step != null }
+    const rc = ok ? newRecoveryCodes() : null;
+    const r = (await db.query('select admin_recovery_regen($1,$2,$3,$4,$5) j', [s.id, ok, step, rc && rc.hashes, ip])).rows[0].j;
+    await db.query('commit');
+    if (!r.ok) { const e = new Error('admin_reauth_failed'); e.code = 'admin_reauth_failed'; throw e }
+    return { codes: rc.codes };
+  } catch (e) { await db.query('rollback').catch(() => { }); throw codeOf(e) } finally { await release() }
+}
 // 每个后台请求：校验 Cookie 里的令牌 → 以对应数据库角色、带上管理员 id 开事务执行 fn(db, admin)
 export async function adminRequest(src, token, fn, { ip = null } = {}) {
   const { db, release } = await acquire(src);

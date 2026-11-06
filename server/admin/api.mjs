@@ -6,7 +6,7 @@
 //     · 每条路由在 ROUTES 里声明所需权限（admin_perms 的动作）：接口层先查，数据库函数再查一次（数据页接入时沿用）
 //     · 只在登记过的域名上提供（ADMIN_HOSTS）：预览站根域名和正式站是同一个生产部署，但只有正式站前面有 Cloudflare Access → 没登记的域名一律 404；没配 = 全部 404
 //     · 登录失败按 IP 限流（含不存在的邮箱）；所有响应 no-store；错误体只有错误码，不带数据库原文；日志只记错误码，不记请求内容
-import { acquire, adminLogin, adminLogout, adminRequest, adminAttemptCheck, adminAttemptNote, COOKIE } from './auth.mjs';
+import { acquire, adminLogin, adminLogout, adminRegenRecovery, adminRequest, adminAttemptCheck, adminAttemptNote, COOKIE } from './auth.mjs';
 
 export const ADMIN_BASE = '/admin/api';
 export const isAdminPath = p => p === ADMIN_BASE || p.startsWith(ADMIN_BASE + '/');
@@ -22,7 +22,7 @@ const MAX_BODY = 8192;
 // 数据库抛出的错误码 → HTTP 状态。表里没有的一律当服务器错误（不把没见过的码原样交出去）；schema 里所有 admin_ 开头的码必须在这里（tests/static/admin_api_routes.mjs）
 export const ADMIN_STATUS = {
   admin_bad_login: 401, admin_session_expired: 401,
-  admin_forbidden: 403,
+  admin_forbidden: 403, admin_reauth_failed: 403,
   admin_locked: 429, rate_limited: 429,
   admin_reason_required: 422, invalid: 422,
   not_found: 404,
@@ -130,6 +130,14 @@ export const ROUTES = {
     name: a.name, role: a.role, cities: a.cities ?? null,
     perms: (await db.query('select action, label, need_reason from admin_perms where $1 = any(roles) order by action', [a.role])).rows,
   })) },
+  // 重新生成恢复码（需要再输一次密码 + 当前验证码）。不走 authed()：要在同一个事务里先验会话、再验密码和验证码、再换码
+  'POST /admin/api/account/recovery': { name: 'account_recovery', perm: 'page.view', body: true, run: async (req, d, b) => {   // page.view：所有角色都有（只改自己的恢复码）
+    if (!d.connect) return send(503, { error: 'db_unavailable' });
+    const token = cookieToken(req); if (!token) return send(401, { error: 'admin_session_expired' }, { 'Set-Cookie': CLEAR_COOKIE });
+    if (!strIn(b.password, 256) || !(typeof b.code === 'string' && /^\d{6}$/.test(b.code))) return fail(bad(), 'account_recovery');
+    try { const r = await adminRegenRecovery(d.connect, token, { password: b.password, code: b.code, ip: ipOf(req), now: d.now ? d.now() : Date.now() }); return send(200, { codes: r.codes }) }
+    catch (e) { return fail(e, 'account_recovery') }
+  } },
 };
 
 export async function handleAdmin(request, d) {

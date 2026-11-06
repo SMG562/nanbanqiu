@@ -164,6 +164,32 @@ try {
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
+
+  // ================= 7c. 重新生成恢复码（#27）：再输密码 + 验证码 · 新码只显示一次 · 旧码作废 · 关掉就清空 =================
+  {
+    const R0 = AU.newRecoveryCodes(); await mk('rc@x.com', 'Rita', 'operator', R0.hashes);
+    const { ctx, pg, pe } = await open(); await loginAs(pg, 'rc@x.com');
+    await pg.click('#nav [data-pg="account"]');
+    T('7c.1 「我的账号」页有恢复码卡片，说明旧码会全部作废', await until(() => vis(pg, '[data-rgn="open"]')) && /旧的 10 个会立刻全部作废/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
+    await pg.click('[data-rgn="open"]'); await until(() => vis(pg, '#rcPw'));
+    await pg.fill('#rcPw', 'wrong password!!'); await pg.fill('#rcCode', code()); await pg.click('#rcGo');
+    const e72 = await until(async () => /密码或验证码不对/.test(await pg.evaluate(() => document.getElementById('rcErr')?.textContent || '')), 120), h72 = (await one(`select recovery_hashes h from admin_users where email='rc@x.com'`)).h;
+    T('7c.2 密码错：提示「密码或验证码不对」，旧码没动', e72 && JSON.stringify(h72) === JSON.stringify(R0.hashes), [e72, h72.length, await pg.evaluate(() => document.getElementById('rcErr')?.textContent)]);
+    await pg.fill('#rcPw', PW); await pg.fill('#rcCode', '12'); await pg.click('#rcGo');
+    T('7c.3 验证码不是 6 位：本地提示，不发请求', /6 位数字/.test(await pg.evaluate(() => document.getElementById('rcErr').textContent)));
+    await pg.fill('#rcPw', PW); await pg.fill('#rcCode', code()); await pg.click('#rcGo');
+    T('7c.4 密码和验证码都对：显示 10 个新码，并说明旧码已作废', await until(() => pg.evaluate(() => /新的恢复码/.test(document.getElementById('admR')?.innerText || '')), 120));
+    const shown = await pg.evaluate(() => (document.getElementById('admR').innerText.match(/\b[0-9a-f]{4}-[0-9a-f]{4}\b/g) || []));
+    const h1 = (await one(`select recovery_hashes h from admin_users where email='rc@x.com'`)).h;
+    T('7c.5 页面上的 10 个码就是库里新的 10 个（只比哈希），旧码一个不剩', shown.length === 10 && new Set(shown).size === 10 && JSON.stringify([...h1].sort()) === JSON.stringify(shown.map(AU.recoveryHash).sort()) && h1.every(h => !R0.hashes.includes(h)), [shown, h1.length]);
+    T('7c.6 留痕：recovery.regen 一条', +(await one(`select count(*) n from admin_audit_log where action='recovery.regen'`)).n === 1);
+    await pg.click('[data-rgn="close"]');
+    T('7c.7 关掉后新码不留在页面里', await pg.evaluate((c) => !document.body.innerText.includes(c) && !document.body.innerHTML.includes(c), shown[0]));
+    const loginRec = rc => pg.evaluate(async rc => (await fetch('/admin/api/login', { method: 'POST', credentials: 'same-origin', headers: { 'X-NBQ-Admin': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'rc@x.com', password: 'correct horse battery', recovery: rc }) })).status, rc);
+    T('7c.8 旧恢复码登录 → 401；新恢复码登录 → 200', await loginRec(R0.codes[0]) === 401 && await loginRec(shown[0]) === 200);
+    T('7c.9 没有页面报错', !pe.length, pe); await ctx.close();
+  }
+
   // ================= 8. 会话过期 → 回登录页 =================
   {
     const { ctx, pg } = await open(); await loginAs(pg, 'a3@x.com');

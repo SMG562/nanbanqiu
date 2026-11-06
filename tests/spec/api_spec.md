@@ -502,6 +502,7 @@
 | admin_locked | 429 | 输错次数太多，请 15 分钟后再试 |
 | admin_session_expired | 401 | 登录已过期，请重新登录 |
 | admin_forbidden | 403 | 你的角色不能做这件事 |
+| admin_reauth_failed | 403 | 密码或验证码不对（验证码刚用过时，等下一个再试） |
 | admin_reason_required | 422 | 请填写理由（至少 4 个字） |
 | admin_last_owner | 409 | 至少要保留一位超级管理员 |
 | admin_city_not_ready | 409 | 这个城市还没准备好：检查清单里还有没通过的项 |

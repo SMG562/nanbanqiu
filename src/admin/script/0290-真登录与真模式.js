@@ -62,7 +62,7 @@ function realPaintMe(){const m=RL.me,nm=String(m.name||'').trim()||'管理员',b
 function enterApp(me){RL.me=me;S.role=realRole(me.role);RL.touchAt=Date.now();
   document.documentElement.removeAttribute('data-boot');$('#login').style.display='none';$('#app').style.display='block';
   realPaintMe();S.page='account';render()}
-function toLogin(msg){RL.me=null;RL.busy=false;RL.recovery=false;
+function toLogin(msg){rcClose();RL.me=null;RL.busy=false;RL.recovery=false;
   document.documentElement.removeAttribute('data-boot');
   $('#app').style.display='none';$('#page').innerHTML='';$('#nav').innerHTML='';$('#drw').innerHTML='';   // 退出后页面上不留上一位管理员的内容
   $('#login').style.display='grid';for(const i of ['#lgEmail','#lgPw','#lgCode'])$(i).value='';
@@ -83,7 +83,33 @@ function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[]
   return `<div class="grid g12"><div class="card"><div class="acct-top"><span class="av">${esc([...nm][0]||'?')}</span><div><b>${esc(nm)}</b><br><span class="pill nodot">${esc(ROLE_NAME[S.role]||S.role)}</span></div></div>
   <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
   <div class="ch"><b>你能做的事</b><small>共 ${perms.length} 项 · ✎ = 必须填理由</small></div>
-  <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div></div>`}
+  <table><tbody>${perms.map(p=>`<tr><td>${esc(p.label)}${p.need_reason?' <span title="必须填理由">✎</span>':''}</td><td class="r mono"><small>${esc(p.action)}</small></td></tr>`).join('')}</tbody></table></div>${rcCard()}</div>`}
+
+// ---------- 重新生成恢复码（#27）：先再输一次密码 + 当前验证码，旧码全部作废，新码只显示这一次 ----------
+const rcCard=()=>`<div class="card"><div class="ch"><b>恢复码</b><small>手机丢了、没法收验证码时用</small></div>
+  <p class="cap" style="margin:0 0 12px">每个恢复码只能用一次。用掉的多了、或者怀疑泄露了，就在这里换一批新的：<b>旧的 10 个会立刻全部作废</b>。需要再输一次密码和当前的验证码。日常登录请用验证码，不要用恢复码。</p>
+  <button class="btn sm" data-rgn="open">重新生成恢复码</button></div>`;
+function rcDlg(html){let d=document.getElementById('admR');if(!d){d=document.createElement('div');d.id='admR';document.body.appendChild(d)}
+  d.innerHTML=`<div class="admr-bg"></div><div class="admr">${html}</div>`;d.classList.add('show');d.onkeydown=null;d.onclick=null;return d}
+function rcClose(){const d=document.getElementById('admR');if(d){d.classList.remove('show');d.innerHTML=''}}                      // 关掉就清空，新码不留在页面里
+function rcAsk(msg){const d=rcDlg(`<b>重新生成恢复码</b><p class="cap">旧的恢复码会<b>立刻全部作废</b>。请再输一次密码和手机验证器里现在的 6 位数字。</p>
+  <input class="search" id="rcPw" type="password" autocomplete="current-password" maxlength="256" placeholder="登录密码" style="width:100%;margin-bottom:8px">
+  <input class="search" id="rcCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="验证码（6 位数字）" style="width:100%">
+  <div class="admr-e" id="rcErr">${esc(msg||'')}</div>
+  <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" data-rgn="close">取消</button><button class="btn p" data-rgn="go" id="rcGo">重新生成</button></div>`);
+  d.onkeydown=ev=>{if(ev.key==='Enter'&&!ev.isComposing)$('#rcGo').click();if(ev.key==='Escape')rcClose()};setTimeout(()=>{const i=$('#rcPw');i&&i.focus()},30)}
+async function rcGo(){const pw=$('#rcPw').value,code=$('#rcCode').value.trim(),err=$('#rcErr'),go=$('#rcGo');
+  if(!pw||!/^\d{6}$/.test(code)){err.textContent='请输入密码和 6 位数字的验证码';return}
+  go.disabled=true;go.textContent='换码中…';
+  const r=await admApi('POST','/account/recovery',{password:pw,code});
+  if(r.status===401){rcClose();return toLogin('登录已过期，请重新登录')}
+  if(r.ok&&r.body&&Array.isArray(r.body.codes)&&r.body.codes.length===10){
+    rcDlg(`<b>新的恢复码</b><p class="cap" style="color:var(--crit)"><b>旧的恢复码已全部作废。</b>下面 10 个只显示这一次：请现在抄在纸上，别存在电脑里，别截图。</p>
+      <div class="mono" style="columns:2;font-size:15px;line-height:1.9;margin:6px 0 4px">${r.body.codes.map((c,i)=>`${String(i+1).padStart(2)}. ${esc(c)}<br>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn p" data-rgn="close">我已抄好，关闭</button></div>`);admToast('已换成新的恢复码');return}
+  rcAsk(r.status===403&&r.error==='admin_reauth_failed'?ADMIN_ERR.admin_reauth_failed:realErr(r))}
+if(NBQ_MODE==='real')document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-rgn]');if(!b||b.disabled)return;
+  const k=b.dataset.rgn;if(k==='open')rcAsk();else if(k==='close')rcClose();else if(k==='go')rcGo()});
 
 // ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
 const _realRender=render;
