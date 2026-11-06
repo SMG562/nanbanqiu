@@ -7,6 +7,8 @@
 /开发规矩.md                @SMG562
 /CONTRIBUTING.md           @SMG562
 /协作实践.md                @SMG562
+/AGENTS.md                 @SMG562
+/docs/adr/                 @SMG562
 /.github/                  @SMG562
 /.githooks/                @SMG562
 /tools/                    @SMG562
@@ -23,3 +25,10 @@
 /业务规则.md                @SMG562
 /进度记录.md                @SMG562
 /出事处理手册.md            @SMG562
+
+# 公共层（CLAUDE.md 称「shared 01xx/02xx、弹窗、通用监听」）：改一处可能影响几十个页面，必须所有者审。
+# 下面是目前确认属于公共层的文件；发现新的公共文件时，加到这里。
+/src/shared/script/0130-API.js                         @SMG562
+/src/shared/script/0140-渲染.js                        @SMG562
+/src/shared/script/0155-弹层输入框通用规则.js          @SMG562
+/src/shared/script/0495-接口调用.js                    @SMG562

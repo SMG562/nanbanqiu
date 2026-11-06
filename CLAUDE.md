@@ -8,6 +8,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 
 - **多人协作（11-06 起）**：仓库所有者是 SMG562；其他协作者先读 `CONTRIBUTING.md`。下面凡标「**仅所有者**」的条款，GitHub 账号不是 SMG562 时一律不适用（判断：`gh api user --jq .login`，拿不到就问用户）；协作者只走「分支 → PR」，不推 main、不碰正式库和部署、不往别人电脑写文件。
 - 用中文回复，简洁；汇报只写结果、用户需要知道的和下一步。
+- **架构决定先读 `docs/adr/`**：碰到公共接口、库结构、目录结构、新依赖，或与已有 ADR 冲突，先停下来在 Issue 里问，不要自己绕开；所有 AI 工具的入口是 `AGENTS.md`（指向本文件）。
 - **三个页面都改 `src/`**（前台：shared 两端共用 / pwa / web；page、style、script、side=场边；后台：admin/），改完 `node tools/build.mjs` 拼出三个 HTML、`node tools/lint.mjs` 检查；不要直接改 南伴球_PWA.html / 南伴球_Web.html / 南伴球_后台.html。
 - 测试：说明见 `tests/README.md`；分工见下面「CI 分工」。看结果：`bash tests/lib/ci_status.sh`。
 - **【仅所有者】接上 GitHub 仓库（add_repo、clone）、提交、`git push` 到 main：用户 10-27 说默认全部同意，不用问，直接做**（.claude/settings.json 里也放行了这些操作；强推仍禁止）。

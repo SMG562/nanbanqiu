@@ -20,9 +20,21 @@ body:
       description: grep 出所有修改入口，不是从接口文档列。没有就写「无」
     validations: { required: true }
   - type: textarea
+    id: migration
+    attributes:
+      label: Migration Proposal（要改库时必填，不改就写「无」）
+      description: 要建 / 改的表、字段、类型、默认值、约束、索引；对已有数据怎么处理；为什么需要。协作者可以写迁移 SQL，但正式库只有所有者执行
+    validations: { required: true }
+  - type: textarea
+    id: adr
+    attributes:
+      label: 是否碰到 docs/adr/ 里的决定，或需要新写一条 ADR
+      description: 涉及公共接口、库结构原则、目录结构、登录 / 数据 / 隐私做法、选用或替换服务时，先在这里说明
+    validations: { required: true }
+  - type: textarea
     id: split
     attributes:
-      label: 拆成几个 PR（每个 ≤ 200 行手写改动；大功能：扩展库 → 界面（开关关）→ 打开开关）
+      label: 拆成几个 PR（目标 ≤ 200 行手写改动，硬上限 500；大功能：扩展库 → 界面（开关关）→ 打开开关）
     validations: { required: true }
   - type: textarea
     id: risk
