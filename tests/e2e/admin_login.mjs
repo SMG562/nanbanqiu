@@ -151,16 +151,16 @@ try {
     for (const k of keys) {
       await pg.evaluate(k => { S.page = k; render() }, k);
       const r = await pg.evaluate(() => ({ t: document.getElementById('page').innerText, all: document.getElementById('app').textContent, badge: document.querySelectorAll('#nav button i').length, feed: !!document.getElementById('feed') }));
-      if (k === 'account' || k === 'review') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
+      if (k === 'account' || k === 'review' || k === 'venues') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
       else if (/还没接真数据/.test(r.t)) placeholder++; else bad.push(k + ':不是占位');
       const leak = mock.filter(m => r.all.includes(m)); if (leak.length) bad.push(k + ':出现模拟数据 ' + leak.slice(0, 3));
       if (r.badge || r.feed) bad.push(k + ':有模拟的角标 / 动态');
     }
-    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 2, bad);
+    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」「球场」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 3, bad);
     T('7.2 筛选条（日期范围、设备、导出 CSV）真模式下不显示', !(await vis(pg, '.filters')));
     // 从界面点：点导航里的占位页
-    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核、场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
-    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
+    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核在「球场」页、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核在「球场」页；场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
+    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」「球场」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review', 'venues'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
@@ -190,6 +190,33 @@ try {
     T('7b.6 刷新后还在：仍是「已处理」，操作按钮没了（以服务器为准，不是本地改的）', await until(async () => /已处理/.test(await page())) && !(await vis(pg, `[data-rp="ok"][data-id="${RID}"]`)), await page());
     T('7b.7 处理留痕：操作日志有 report.handle', +(await one(`select count(*) n from admin_audit_log where action='report.handle' and target=$1`, [RID])).n === 1);
     T('7b.8 没有页面报错', !pe.length, pe); await ctx.close();
+  }
+
+  // ================= 7c. 球场审核（#27 第 3 步）：待核对坐标 · 用户添加的球场 · 刷新后还在 =================
+  {
+    await su.query(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)') on conflict do nothing`);
+    const mkV = async (n, st, geo, lng = 145) => (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status,geo_source) values ($1,$1,'Brighton','3186',$2::geography,'{hard}',$3,$4) returning id`, [n, `POINT(${lng} -37.9)`, st, geo])).id;
+    const V1 = await mkV('待核球场甲', 'active', 'suburb_centroid'), V2 = await mkV('待核球场乙', 'active', 'suburb_centroid', 145.05), V0 = await mkV('已核球场', 'active', 'admin', 145.1);
+    const VP = await mkV('用户新球场', 'pending', 'google', 145.0003);
+    const { ctx, pg, pe } = await open(); await loginAs(pg, 'a7@x.com');
+    const page = () => pg.evaluate(() => document.getElementById('page').innerText);
+    await pg.click('#nav [data-pg="venues"]');
+    T('7c.1 球场页读到真数据：待核对的球场、待审核的球场都在，已核对的不在', await until(async () => /待核球场甲/.test(await page())) && /待核球场乙/.test(await page()) && /用户新球场/.test(await page()) && !/已核球场/.test(await page()) && /已核对 1 \/ 3/.test(await page()), await page());
+    T('7c.2 待审核球场旁边列出 300 米内已收录的球场（可合并）', /附近已有：.*待核球场甲/.test(await page()), await page());
+    T('7c.3 页面没有演示数据（演示球场名、演示数字都不出现）', !/Glen Iris|Brighton TC|Hawksburn/.test(await page()));
+    await pg.click(`[data-vg="ok"][data-id="${V1}"]`);
+    T('7c.4 点「位置没错」：服务器标成已核对，页面上这一行没了', await until(async () => (await one(`select geo_source from venues where id=$1`, [V1])).geo_source === 'admin') && await until(async () => !(await vis(pg, `[data-vg="ok"][data-id="${V1}"]`)) && /已核对 2 \/ 3/.test(await page())), await page());
+    await pg.click(`[data-vg="move"][data-id="${V2}"]`); await until(() => vis(pg, '[data-vgin]'));
+    await pg.fill('[data-vgin]', '随便写'); await pg.click('[data-vgok]');
+    T('7c.5 坐标格式不对：提示格式，不发请求', /纬度, 经度/.test(await pg.evaluate(() => document.querySelector('[data-vgerr]').textContent)) && (await one(`select geo_source from venues where id=$1`, [V2])).geo_source === 'suburb_centroid');
+    await pg.fill('[data-vgin]', '-37.8136, 144.9631'); await pg.click('[data-vgok]');
+    T('7c.6 填谷歌地图坐标：服务器位置改了、页面这一行没了', await until(async () => { const v = await one(`select st_y(location::geometry) la, st_x(location::geometry) lo, geo_source from venues where id=$1`, [V2]); return Math.abs(v.la + 37.8136) < 1e-6 && Math.abs(v.lo - 144.9631) < 1e-6 && v.geo_source === 'admin' }) && await until(async () => !(await vis(pg, `[data-vg="move"][data-id="${V2}"]`))), await page());
+    await pg.click(`[data-vg="approve"][data-id="${VP}"]`);
+    T('7c.7 点「通过」：服务器球场变公开，页面显示没有待审核', await until(async () => (await one(`select status from venues where id=$1`, [VP])).status === 'active') && await until(async () => /没有待审核的球场/.test(await page()) ), await page());
+    await pg.reload(); await until(() => vis(pg, '#app')); await pg.click('#nav [data-pg="venues"]');
+    T('7c.8 刷新后还在：待审核仍为空、待核对已全部核对（以服务器为准，不是本地改的）', await until(async () => /没有待审核的球场/.test(await page()) && /所有球场的位置都核对过了/.test(await page()) && /已核对 4 \/ 4/.test(await page())) && !/待核球场甲|待核球场乙/.test(await page()), await page());
+    T('7c.9 操作留痕：geo_confirm、geo_move、approve 各一条', (await one(`select count(distinct detail->>'action')::int n from admin_audit_log where action='venue.review' and detail->>'action' in ('geo_confirm','geo_move','approve')`)).n === 3);
+    T('7c.10 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
   // ================= 8. 会话过期 → 回登录页 =================

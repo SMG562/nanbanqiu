@@ -158,6 +158,37 @@ export const ROUTES = {
     if (!UUID.test(b.id || '') || !strIn(b.reason, 300)) return fail(bad(), 'reports_messages');
     return authed(req, d, route, async db => ({ messages: (await db.query('select id::text, sender_name, body, created_at, hidden from admin_report_messages($1::uuid, $2)', [b.id, b.reason])).rows }), b);
   } },
+  // ---------- 球场审核（#27 第 3 步）----------
+  // 一次给两份：geo = 坐标还是「区中心估值」的公开球场（待核对，最多 200）；pending = 用户添加待审核的球场（最多 100，附 300 米内已收录的球场，合并时选）。
+  // 限城市的管理员只看自己城市的。不返回添加人的手机号 / id，只给昵称。
+  'GET /admin/api/venues': { name: 'venues', perm: 'venue.review', run: (req, d, b, route) => authed(req, d, route, async (db, a) => {
+    const c = a.cities ?? null;
+    const geo = (await db.query(`select v.id, v.name, v.short_name, v.suburb, round(st_y(v.location::geometry)::numeric, 6)::float as lat, round(st_x(v.location::geometry)::numeric, 6)::float as lng
+        from venues v where v.status = 'active' and v.geo_source = 'suburb_centroid' and ($1::text[] is null or v.city = any($1::text[])) order by v.suburb nulls last, v.name limit 200`, [c])).rows;
+    const pending = (await db.query(`select v.id, v.name, v.short_name, v.suburb, round(st_y(v.location::geometry)::numeric, 6)::float as lat, round(st_x(v.location::geometry)::numeric, 6)::float as lng,
+               v.added_at, (select nickname from users where id = v.added_by) as added_by_name,
+               coalesce((select jsonb_agg(jsonb_build_object('id', n.id, 'name', n.name, 'dist_m', round(st_distance(n.location, v.location))::int) order by st_distance(n.location, v.location))
+                           from venues n where n.status = 'active' and n.id <> v.id and st_dwithin(n.location, v.location, 300)), '[]'::jsonb) as near
+        from venues v where v.status = 'pending' and ($1::text[] is null or v.city = any($1::text[])) order by v.added_at nulls last, v.name limit 100`, [c])).rows;
+    const t = (await db.query(`select count(*) filter (where geo_source = 'suburb_centroid')::int as todo, count(*)::int as total from venues v where v.status = 'active' and ($1::text[] is null or v.city = any($1::text[]))`, [c])).rows[0];
+    return { geo, pending, geo_todo: t.todo, active_total: t.total };
+  }) },
+  // 核对坐标：lat / lng 都不填 = 位置没错，只标成已核对；填了 = 改到新位置（数据库函数挡范围、写日志）
+  'POST /admin/api/venues/geo': { name: 'venues_geo', perm: 'venue.review', body: true, run: (req, d, b, route) => {
+    const num = x => typeof x === 'number' && Number.isFinite(x);
+    if (!UUID.test(b.id || '') || (b.lat == null) !== (b.lng == null) || (b.lat != null && !(num(b.lat) && num(b.lng)))) return fail(bad(), 'venues_geo');
+    return authed(req, d, route, async db => { await db.query('select admin_venue_geo($1::uuid, $2::float8, $3::float8)', [b.id, b.lat ?? null, b.lng ?? null]); return { ok: true } }, b);
+  } },
+  // 用户添加的球场：通过 / 合并到已有球场 / 驳回。只有「待审核」的能处理（别人刚处理过 → 409 state_changed）
+  'POST /admin/api/venues/review': { name: 'venues_review', perm: 'venue.review', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || !['approve', 'merge', 'reject'].includes(b.action) || (b.action === 'merge' ? !UUID.test(b.merge_into || '') : b.merge_into != null)) return fail(bad(), 'venues_review');
+    return authed(req, d, route, async (db, a) => {
+      const v = (await db.query(`select status, city from venues where id = $1::uuid`, [b.id])).rows[0];
+      if (!v) throw Object.assign(new Error('not_found'), { code: 'not_found' });
+      if (a.cities && !a.cities.includes(v.city)) throw Object.assign(new Error('admin_forbidden'), { code: 'admin_forbidden' });   // 城市范围先于状态判断（行级安全下范围外的球场本来就读不到 → 上面的 404）
+      if (v.status !== 'pending') throw Object.assign(new Error('state_changed'), { code: 'state_changed' });
+      await db.query('select admin_venue_review($1::uuid, $2, $3::uuid)', [b.id, b.action, b.merge_into ?? null]); return { ok: true } }, b);
+  } },
 };
 
 export async function handleAdmin(request, d) {
