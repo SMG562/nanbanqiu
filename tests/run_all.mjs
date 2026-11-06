@@ -54,6 +54,7 @@ add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR]
 add('static', 'static/api_err', ['node', path.join(HERE, 'static/api_err.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/xss_static', ['node', path.join(HERE, 'static/xss_static.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/admin_perms', ['node', path.join(HERE, 'static/admin_perms.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
+add('static', 'static/qr_encode', ['node', path.join(HERE, 'static/qr_encode.mjs'), DIR], { pass: [/qr_encode: \d+ 通过, 0 失败/], timeout: 60 });
 add('static', 'static/admin_api_routes', ['node', path.join(HERE, 'static/admin_api_routes.mjs'), DIR], { pass: [/admin_api_routes: \d+ passed, 0 failed/], timeout: 60 });
 add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
 add('static', 'static/input_audit', ['node', path.join(DIR, 'tools/input_audit.mjs')], { pass: [/input_audit: \d+ 个输入框, 0 个问题/], timeout: 60 });
