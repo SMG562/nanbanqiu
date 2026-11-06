@@ -1,0 +1,25 @@
+# 谁必须审：下面这些改动需要所有者（SMG562）批准。
+# 要让它生效：GitHub → Settings → Branches → main 的保护规则里勾选「Require review from Code Owners」。
+# 其余文件：按 CONTRIBUTING.md 的分工，由 Issue 负责人自己负责，互相评审。
+
+# 闸门与规矩（改了它们等于改游戏规则）
+/CLAUDE.md                 @SMG562
+/开发规矩.md                @SMG562
+/CONTRIBUTING.md           @SMG562
+/协作实践.md                @SMG562
+/.github/                  @SMG562
+/.githooks/                @SMG562
+/tools/                    @SMG562
+/.claude/                  @SMG562
+
+# 数据库与部署：正式库只有所有者能执行
+/schema.sql                @SMG562
+/server/migrations/        @SMG562
+/wrangler.jsonc            @SMG562
+/worker/                   @SMG562
+/notify-worker/            @SMG562
+
+# 业务规则与进度：产品决策归所有者
+/业务规则.md                @SMG562
+/进度记录.md                @SMG562
+/出事处理手册.md            @SMG562
