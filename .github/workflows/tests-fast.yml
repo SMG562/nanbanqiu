@@ -39,7 +39,7 @@ jobs:
     outputs:
       hit: ${{ steps.r.outputs.hit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
       - id: r
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -54,10 +54,10 @@ jobs:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: 系统依赖（PostgreSQL 16 + PostGIS）
@@ -66,7 +66,7 @@ jobs:
           sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3
           pip install --break-system-packages -q pglast || pip install -q pglast
       - name: 依赖缓存（PGlite、pg）
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .nbq-cache
           key: nbq-fast-${{ runner.os }}-${{ hashFiles('tests/pg/package.json', 'tests/schema/package.json', 'tests/lint/package.json') }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: 上传报告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: reports-${{ github.run_number }}
           path: tests/reports/

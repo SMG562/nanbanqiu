@@ -1,7 +1,7 @@
 // PR 描述核对（11-04）：改了前台 / 接口 / 库的 PR，描述里必须有「入口清单」（这份用户可改数据的全部修改入口 × 是否写服务器 × 读回在哪 × 测试），
 //   否则 CI 变红；合并时（--merge）还要求真机两项「刷新后还在」「换设备登录还在」已勾（较大风险的 PR）。
 // 用法：node tools/pr_body_check.mjs <PR号> [--merge]　　或被测试 import：checkBody(body, files, {merge})
-import { execFileSync } from 'child_process'; import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process'; import { fileURLToPath } from 'url'; import { realpathSync } from 'fs';
 const CODE = /^(src\/|server\/|schema\.sql|sw\.js|worker\/)/;
 const ticked = (b, re) => new RegExp(`- \\[[xX]\\][^\\n]*${re}`).test(b);
 const has = (b, re) => new RegExp(`- \\[[ xX]\\][^\\n]*${re}`).test(b);
@@ -30,7 +30,7 @@ export function checkBody(body, files, { merge = false } = {}) {
   }
   return bad;
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const n = process.argv[2], merge = process.argv.includes('--merge'), R = process.env.GITHUB_REPOSITORY || 'SMG562/nanbanqiu';
   if (!n) { console.error('用法：node tools/pr_body_check.mjs <PR号> [--merge]'); process.exit(2) }
   const gh = a => JSON.parse(execFileSync('gh', ['api', ...a], { encoding: 'utf8', maxBuffer: 1 << 26 }));
