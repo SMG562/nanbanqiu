@@ -59,6 +59,8 @@ add('static', 'static/admin_api_routes', ['node', path.join(HERE, 'static/admin_
 add('static', 'static/persist_audit', ['node', path.join(DIR, 'tools/persist_audit.mjs')], { pass: [/persist_audit: \d+ 处改动已登记, 0 处未登记；\d+ 个无读回仓库已登记, 0 个未登记/], timeout: 60 });
 add('static', 'static/input_audit', ['node', path.join(DIR, 'tools/input_audit.mjs')], { pass: [/input_audit: \d+ 个输入框, 0 个问题/], timeout: 60 });
 add('static', 'static/action_audit', ['node', path.join(DIR, 'tools/action_audit.mjs')], { pass: [/action_audit: \d+ 个动作, 0 个未归类, 0 个写法不对/], timeout: 60 });
+add('static', 'static/migration_audit', ['node', path.join(DIR, 'tools/migration_audit.mjs')], { pass: [/migration_audit: \d+ 个迁移（旧迁移基线 \d+ 个，检查 \d+ 个）, 0 个问题/], timeout: 60 });
+add('static', 'static/doc_budget', ['node', path.join(DIR, 'tools/doc_budget.mjs')], { pass: [/doc_budget: \d+ 份文档, 0 份超预算, 0 份缺失/], timeout: 60 });
 // 两个前台 HTML = src/ 拼出来的（R0）
 add('static', 'static/build', ['node', path.join(HERE, 'static/build.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台脚本的代码检查：没定义的名字、重复声明……（R0，ESLint 版本见 tests/lint/package.json）

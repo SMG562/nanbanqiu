@@ -17,8 +17,13 @@ fi
 staged=$(git -c core.quotePath=false diff --cached --name-only)
 if echo "$staged" | grep -qE '^(src/|tools/|tests/(static|spec|lint|unit)/|南伴球_|schema\.sql|server/|sw\.js|manifest)'; then
   node tools/build.mjs --check || { echo "提交前检查：HTML 和 src 拼出来的不一样 → 跑 node tools/build.mjs 再 add"; fail=1; }
-  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,static/persist_audit,static/action_audit,static/input_audit,unit/ 2>&1)
+  out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,static/persist_audit,static/action_audit,static/input_audit,static/migration_audit,static/doc_budget,unit/ 2>&1)
   echo "$out" | grep -qE '全部通过' || { echo "$out" | grep -vE '^\s*$' | tail -15; echo "提交前检查：静态检查没过（报告见上）"; fail=1; }
+fi
+
+# 2b. 核心文档体量预算（改文档的提交也查；超了拆分 / 精简，不是调高上限）
+if echo "$staged" | grep -qE '\.md$|tests/spec/doc_budget\.json'; then
+  node tools/doc_budget.mjs | grep -E '^(❌|⚠|doc_budget)' ; node tools/doc_budget.mjs >/dev/null || { echo "提交前检查：文档超预算（见上）"; fail=1; }
 fi
 
 # 3. 进度记录保持精简（约 15KB；超过 20KB 提醒，不拦）

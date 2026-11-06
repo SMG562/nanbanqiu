@@ -87,6 +87,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}   # PR：测 PR 最新提交本身（不是临时合并结果）；合并只快进，main 上就是这个提交
+      - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
 
       - name: 腾磁盘（一年数据量性能测试会写满 runner 的盘）
         run: |

@@ -2,7 +2,7 @@
 
 仓库所有者：SMG562（负责正式库、部署、密钥、进度记录、最终合并）。协作者：按下面走 PR。
 
-细则、来历和评审清单见 [协作实践.md](协作实践.md)（小批量、评审标准、功能开关、迁移分步、测试实践、完成的定义、事故复盘）。
+底线见 [docs/constitution.md](docs/constitution.md)，文档地图见 [docs/README.md](docs/README.md)。细则、来历和评审清单见 [协作实践.md](协作实践.md)（小批量、评审标准、功能开关、迁移分步、测试实践、完成的定义、事故复盘）。
 
 ## 第一次上手
 1. `git clone` 后 `git config core.hooksPath .githooks`

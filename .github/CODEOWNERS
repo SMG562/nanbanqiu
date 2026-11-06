@@ -9,6 +9,10 @@
 /协作实践.md                @SMG562
 /AGENTS.md                 @SMG562
 /docs/adr/                 @SMG562
+/docs/constitution.md      @SMG562
+/docs/README.md            @SMG562
+/tests/spec/migration_baseline.json  @SMG562
+/tests/spec/doc_budget.json          @SMG562
 /.github/                  @SMG562
 /.githooks/                @SMG562
 /tools/                    @SMG562

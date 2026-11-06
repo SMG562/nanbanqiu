@@ -55,6 +55,8 @@ jobs:
       TZ: Australia/Melbourne
     steps:
       - uses: actions/checkout@v4
+      - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
