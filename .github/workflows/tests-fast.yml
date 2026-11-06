@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: 系统依赖（PostgreSQL 16 + PostGIS）
