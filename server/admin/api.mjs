@@ -210,6 +210,30 @@ export const ROUTES = {
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
   } },
+  // ---------- 球局列表（#27 第 3 步，只读）----------
+  // 查询参数：when（upcoming 未开始 / past 已过 / all，默认 upcoming）、status、q（发起人昵称 / 球场名 / 分享码）、offset（每页 50）。限城市的管理员只看自己城市。
+  // 发起人用 left join：限城市的管理员看不到别的城市的用户行（行级安全），发起人在别的城市时球局照样列出、发起人显示「—」。
+  // 私人球局（visibility = private）不给一句话备注和自填场地，只给「私人」标记；不给任何人的手机号 / 微信。权限 report.handle（运营 / owner）：只读角色库里看不到个人内容。
+  'GET /admin/api/games': { name: 'games', perm: 'report.handle', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, q = (sp.get('q') || '').trim().slice(0, 40), st = sp.get('status') || '', when = sp.get('when') || 'upcoming', off = sp.get('offset') ?? '0';
+    if ((st && !['open', 'full', 'cancelled', 'completed'].includes(st)) || !['upcoming', 'past', 'all'].includes(when) || !/^\d{1,6}$/.test(off)) return fail(bad(), 'games');
+    const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
+    return authed(req, d, route, async (db, a) => {
+      const c = a.cities ?? null;
+      const rows = (await db.query(`select g.share_code, g.starts_at, g.duration_min, g.game_type::text as game_type, g.capacity, g.status::text as status, g.visibility, g.join_mode, g.tags, g.city, g.created_at, g.cancelled_at, g.created_device,
+               case when g.visibility = 'public' then g.note end as note, case when g.visibility = 'public' then coalesce(v.name, g.venue_name) end as venue,
+               h.nickname as host, h.member_no::int as host_no,
+               (select count(*)::int from game_participants p where p.game_id = g.id and p.status = 'approved') as joined,
+               (select count(*)::int from game_participants p where p.game_id = g.id and p.status = 'pending') as pending
+          from games g left join users h on h.id = g.host_id left join venues v on v.id = g.venue_id
+         where ($1::text[] is null or g.city = any($1::text[])) and ($2 = '' or g.status::text = $2)
+           and (case $3 when 'upcoming' then g.starts_at >= now() when 'past' then g.starts_at < now() else true end)
+           and ($4 = '' or h.nickname ilike $5 or g.share_code = $4 or (g.visibility = 'public' and coalesce(v.name, g.venue_name) ilike $5))
+         order by case when $3 = 'upcoming' then g.starts_at end asc, g.starts_at desc offset $6::int limit 51`, [c, st, when, q, like, off])).rows;
+      const cnt = (await db.query(`select g.status::text as status, count(*)::int n from games g where ($1::text[] is null or g.city = any($1::text[])) and (case $2 when 'upcoming' then g.starts_at >= now() when 'past' then g.starts_at < now() else true end) group by 1`, [c, when])).rows;
+      return { games: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
+    });
+  } },
 };
 
 export async function handleAdmin(request, d) {

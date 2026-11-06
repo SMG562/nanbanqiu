@@ -151,16 +151,16 @@ try {
     for (const k of keys) {
       await pg.evaluate(k => { S.page = k; render() }, k);
       const r = await pg.evaluate(() => ({ t: document.getElementById('page').innerText, all: document.getElementById('app').textContent, badge: document.querySelectorAll('#nav button i').length, feed: !!document.getElementById('feed') }));
-      if (k === 'account' || k === 'review' || k === 'venues' || k === 'users') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
+      if (k === 'account' || k === 'review' || k === 'venues' || k === 'users' || k === 'games') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
       else if (/还没接真数据/.test(r.t)) placeholder++; else bad.push(k + ':不是占位');
       const leak = mock.filter(m => r.all.includes(m)); if (leak.length) bad.push(k + ':出现模拟数据 ' + leak.slice(0, 3));
       if (r.badge || r.feed) bad.push(k + ':有模拟的角标 / 动态');
     }
-    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」「球场」「球友」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 4, bad);
+    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」「球场」「球友」「球局」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 5, bad);
     T('7.2 筛选条（日期范围、设备、导出 CSV）真模式下不显示', !(await vis(pg, '.filters')));
     // 从界面点：点导航里的占位页
     await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核在「球场」页、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核在「球场」页；场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
-    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」「球场」「球友」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review', 'venues', 'users'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
+    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」「球场」「球友」「球局」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review', 'venues', 'users', 'games'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
@@ -234,6 +234,29 @@ try {
     await pg.fill('[data-upq]', '列表丙');
     T('7d.4 搜昵称：只剩匹配的，输入框没有被重画丢焦点', await until(async () => /列表丙/.test(await page()) && !/列表甲/.test(await page())) && await pg.evaluate(() => document.activeElement && document.activeElement.hasAttribute('data-upq')), await page());
     T('7d.5 没有页面报错', !pe.length, pe); await ctx.close();
+  }
+
+  // ================= 7e. 球局列表（#27 第 3 步，只读）：真数据 · 状态筛选 · 搜索 · 私人球局不露备注 =================
+  {
+    await su.query(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)') on conflict do nothing`);
+    const hostId = (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at,home_city) values ('+61488000777','球局发起人',5,'m',now(),'melb') returning id`)).id;
+    const vid = (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status,geo_source,city) values ('球局测试场','球局测试场','Brighton','3186','POINT(145 -37.9)'::geography,'{hard}','active','admin','melb') returning id`)).id;
+    const mkG = async (code, hrs, note, vis = 'public') => (await one(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max,note,visibility) values ($1,$2,$3,now()+($4||' hours')::interval,90,'doubles',4,3,6,$5,$6) returning id`, [code, hostId, vid, String(hrs), note, vis])).id;
+    await mkG('E2E001', 6, '公开球局备注'); const gc = await mkG('E2E002', 8, '要取消的'); await mkG('E2E003', 10, '私人备注绝不能出现', 'private');
+    await su.query(`update games set status='cancelled' where id=$1`, [gc]);
+    const { ctx, pg, pe } = await open(); await loginAs(pg, 'a7@x.com');
+    const page = () => pg.evaluate(() => document.getElementById('page').innerText);
+    await pg.click('#nav [data-pg="games"]');
+    T('7e.1 球局页读到真数据：公开球局的球场、备注、发起人都在；私人球局不露备注', await until(async () => /E2E001/.test(await page())) && /球局测试场/.test(await page()) && /公开球局备注/.test(await page()) && /球局发起人/.test(await page()) && /E2E003/.test(await page()) && !/私人备注绝不能出现/.test(await page()), await page());
+    T('7e.2 页面没有演示数据', !/Glen Iris|Hawksburn|Brighton TC/.test(await page()), (await page()).slice(0, 200));
+    await pg.click('[data-gp="st"][data-v="cancelled"]');
+    T('7e.3 点「已取消」：只剩取消的那场', await until(async () => /E2E002/.test(await page()) && !/E2E001/.test(await page())), await page());
+    await pg.click('[data-gp="st"][data-v=""]'); await until(async () => /E2E001/.test(await page()));
+    await pg.fill('[data-gpq]', 'E2E001');
+    T('7e.4 搜分享码：只剩匹配的，输入框没丢焦点', await until(async () => /E2E001/.test(await page()) && !/E2E002/.test(await page())) && await pg.evaluate(() => document.activeElement && document.activeElement.hasAttribute('data-gpq')), await page());
+    await pg.click('[data-gp="when"][data-v="past"]');
+    T('7e.5 切到「已过」：这几场都不在', await until(async () => !/E2E001/.test(await page())), await page());
+    T('7e.6 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
   // ================= 8. 会话过期 → 回登录页 =================

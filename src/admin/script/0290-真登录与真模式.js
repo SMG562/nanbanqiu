@@ -7,7 +7,7 @@
  * ===================================================================== */
 const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
-const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage()};
+const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage(),games:()=>realGamesPage()};
 const REAL_NOTE={review:'待审核。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
@@ -217,6 +217,48 @@ if(NBQ_MODE==='real'){
     else if(k==='reload'){UP.err=null;UP.loaded=false;render()}});
   document.addEventListener('input',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i||e.isComposing)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)});
   document.addEventListener('compositionend',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)})}
+
+
+// ---------- 球局（#27 第 3 步，只读）：未开始 / 已过 / 全部 · 按状态筛 · 搜发起人 / 球场 / 分享码 ----------
+const GP={rows:[],counts:{},more:false,q:'',st:'',when:'upcoming',loading:false,loaded:false,err:null,gen:0,tm:0};
+const GP_ST={open:'招募中',full:'已满',cancelled:'已取消',completed:'已结束'};
+const GP_TYPE={singles:'单打',doubles:'双打',rally:'拉球'};
+const GP_TZ={syd:'Australia/Sydney'};
+async function gpLoad(more){const g=++GP.gen;GP.loading=true;GP.err=null;
+  const r=await admApi('GET','/games?when='+GP.when+'&status='+GP.st+'&q='+encodeURIComponent(GP.q)+'&offset='+(more?GP.rows.length:0));
+  if(g!==GP.gen)return;GP.loading=false;
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(r.ok&&r.body&&Array.isArray(r.body.games)){GP.rows=more?GP.rows.concat(r.body.games):r.body.games;GP.more=!!r.body.more;GP.counts=r.body.counts||{};GP.loaded=true}
+  else GP.err=r.status===403?'你的角色不能查看球局':r.ok?'服务返回的内容不对，请稍后再试':realErr(r);
+  if(RL.me&&S.page==='games'){const had=document.activeElement&&document.activeElement.matches&&document.activeElement.matches('[data-gpq]');render();
+    if(had){const el=document.querySelector('[data-gpq]');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}}}}
+const gpTime=(t,city)=>{const d=new Date(t);return isNaN(d)?'—':d.toLocaleString('zh-CN',{timeZone:GP_TZ[city]||'Australia/Melbourne',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+function gpReload(){GP.loaded=false;GP.rows=[];render();gpLoad(false)}
+function realGamesPage(){
+  if(!GP.loaded&&!GP.loading&&!GP.err)gpLoad(false);
+  const total=Object.values(GP.counts).reduce((a,b)=>a+b,0);
+  const whens=[['upcoming','未开始'],['past','已过'],['all','全部']].map(([k,n])=>`<button class="btn sm${GP.when===k?' p':''}" data-gp="when" data-v="${k}">${n}</button>`).join('');
+  const chips=`<button class="btn sm${GP.st===''?' p':''}" data-gp="st" data-v="">全部状态 ${total}</button>`+Object.keys(GP_ST).map(k=>`<button class="btn sm${GP.st===k?' p':''}" data-gp="st" data-v="${k}">${GP_ST[k]} ${GP.counts[k]||0}</button>`).join('');
+  const row=g=>`<tr><td>${esc(gpTime(g.starts_at,g.city))}<br><small style="color:var(--mut)">${g.duration_min} 分钟</small></td>
+    <td>${g.visibility==='private'?'<small style="color:var(--mut)">私人球局</small>':esc(g.venue||'—')}${g.note?'<br><small style="color:var(--mut)">'+esc(g.note)+'</small>':''}</td>
+    <td>${esc(GP_TYPE[g.game_type]||g.game_type)}</td><td>${g.host?esc(g.host)+' <small class="mono" style="color:var(--mut)">#'+String(g.host_no).padStart(4,'0')+'</small>':'—'}</td>
+    <td>${g.joined} / ${g.capacity}${g.pending?'<br><small style="color:var(--mut)">待处理申请 '+g.pending+'</small>':''}</td><td>${esc(GP_ST[g.status]||g.status)}${g.status==='cancelled'&&g.cancelled_at?'<br><small style="color:var(--mut)">'+esc(gpTime(g.cancelled_at,g.city))+'</small>':''}</td>
+    <td class="mono">${esc(g.share_code)}</td></tr>`;
+  return `<div class="card"><div class="ch"><b>球局</b><small>${GP.loaded?'共 '+total+' 场':'读取中…'}</small></div>
+  <div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${whens}</div><div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${chips}</div>
+  <input class="search" data-gpq style="width:100%;max-width:320px" placeholder="搜发起人、球场或分享码" value="${esc(GP.q)}">
+  ${GP.err?`<p class="cap" style="color:var(--crit)">${esc(GP.err)} <button class="btn sm" data-gp="reload">重试</button></p>`:''}
+  ${GP.loaded?(GP.rows.length?`<table><thead><tr><th>时间</th><th>球场</th><th>类型</th><th>发起人</th><th>人数</th><th>状态</th><th>分享码</th></tr></thead><tbody>${GP.rows.map(row).join('')}</tbody></table>`:'<div class="empty">没有符合条件的球局</div>'):''}
+  ${GP.more?`<div class="rowacts" style="margin-top:8px"><button class="btn sm" data-gp="more"${GP.loading?' disabled':''}>再加载 50 场</button></div>`:''}
+  <p class="cap">这里只读。私人球局不显示场地和备注；取消 / 隐藏等操作在后面的步骤接入。</p></div>`}
+if(NBQ_MODE==='real'){
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gp]');if(!b||b.disabled)return;const k=b.dataset.gp;
+    if(k==='when'){GP.when=b.dataset.v;gpReload()}
+    else if(k==='st'){GP.st=b.dataset.v;gpReload()}
+    else if(k==='more')gpLoad(true);
+    else if(k==='reload'){GP.err=null;gpReload()}});
+  const gpQ=e=>{const i=e.target.closest&&e.target.closest('[data-gpq]');if(!i||e.isComposing)return;GP.q=i.value;clearTimeout(GP.tm);GP.tm=setTimeout(()=>{GP.loaded=false;GP.rows=[];gpLoad(false)},350)};
+  document.addEventListener('input',gpQ);document.addEventListener('compositionend',gpQ)}
 
 // ---------- 包住三个入口（真模式：不走任何模拟数据的画法） ----------
 const _realRender=render;
