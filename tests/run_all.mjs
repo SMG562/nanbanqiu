@@ -95,6 +95,7 @@ add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass:
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
+add('pg', 'pg/admin_utr', ['node', path.join(HERE, 'pg/admin_utr.mjs')], { pass: [/admin_utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR 后台 #101
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/e2e_admin_login', ['node', path.join(HERE, 'e2e/admin_login.mjs')], { pass: [/admin_login: \d+ 通过, 0 失败/], timeout: 600 });   // #27 B1 后台真登录 + 真模式外壳（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）；放 frontend 档：CI 的浏览器档才有 Chromium + PostgreSQL
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });

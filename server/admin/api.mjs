@@ -200,7 +200,7 @@ export const ROUTES = {
     const no = /^#?(\d{1,9})$/.exec(q), like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
     return authed(req, d, route, async (db, a) => {
       const c = a.cities ?? null;
-      const rows = (await db.query(`select u.member_no::int as member_no, u.nickname, u.last_initial, u.home_city as city, u.status, u.status_since, u.status_until, u.utr::float as utr, u.level, u.gender,
+      const rows = (await db.query(`select u.member_no::int as member_no, u.nickname, u.last_initial, u.home_city as city, u.status, u.status_since, u.status_until, u.utr::float as utr, u.utr_estimated, (u.utr_profile is not null) as utr_linked, u.level, u.gender,
                u.created_at, u.last_active_at, u.signup_source, p.phone_tail
           from users u join admin_user_phone p on p.id = u.id
          where ($1::text[] is null or u.home_city = any($1::text[])) and ($2 = '' or u.status = $2)
@@ -210,6 +210,26 @@ export const ROUTES = {
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
   } },
+  // ---------- 我的 UTR（#101，只读）----------
+  // 概况：在册（不含注销 / 封禁）的正式 / 自评 / 关联主页人数、近 30 天确认过的人、近 7 天改动次数和人数。
+  // 需要留意（最多 100 人）：近 7 天改了 3 次以上 · 30 天内正式→正式一次跳 ≥ 2（自评换成正式是正常的，不算）· 同一个主页编号关联了 2 个以上账号（带编号，方便去 UTR 核实）。
+  // 权限同球友列表（user.status）；限城市的管理员只算、只看自己城市的人（users 的行级安全），也看不出别的城市有人关联了同一个主页。
+  'GET /admin/api/utr': { name: 'utr', perm: 'user.status', run: (req, d, b, route) => authed(req, d, route, async (db, a) => {
+    const c = a.cities ?? null, mine = `u.status not in ('deleted', 'banned') and ($1::text[] is null or u.home_city = any($1::text[]))`;
+    const s = (await db.query(`select count(*)::int as total, count(*) filter (where not u.utr_estimated)::int as official, count(*) filter (where u.utr_estimated)::int as self,
+        count(*) filter (where u.utr_profile is not null)::int as linked, count(*) filter (where u.utr_at > now() - interval '30 days')::int as updated_30d from users u where ${mine}`, [c])).rows[0];
+    const ch = (await db.query(`select count(*)::int as n, count(distinct x.user_id)::int as people from utr_changes x join users u on u.id = x.user_id where x.at > now() - interval '7 days' and ${mine}`, [c])).rows[0];
+    const flags = (await db.query(`with often as (select x.user_id, count(*)::int n from utr_changes x where x.at > now() - interval '7 days' group by 1 having count(*) >= 3),
+        jump as (select distinct on (x.user_id) x.user_id, x.old_utr::float as o, x.new_utr::float as n from utr_changes x
+                  where x.at > now() - interval '30 days' and x.old_est = false and x.new_est = false and abs(x.new_utr - x.old_utr) >= 2 order by x.user_id, x.at desc),
+        dup as (select u.utr_profile as p from users u where u.utr_profile is not null and ${mine} group by 1 having count(*) >= 2)
+      select u.member_no::int as member_no, u.nickname, u.last_initial, u.utr::float as utr, u.utr_estimated, often.n as often_n, jump.o as jump_from, jump.n as jump_to,
+             case when dup.p is not null then u.utr_profile end as dup_profile
+        from users u left join often on often.user_id = u.id left join jump on jump.user_id = u.id left join dup on dup.p = u.utr_profile
+       where ${mine} and (often.user_id is not null or jump.user_id is not null or dup.p is not null)
+       order by u.member_no desc limit 100`, [c])).rows;
+    return { summary: { ...s, changes_7d: ch.n, changers_7d: ch.people }, flags };
+  }) },
   // ---------- 球局列表（#27 第 3 步，只读）----------
   // 查询参数：when（upcoming 未开始 / past 已过 / all，默认 upcoming）、status、q（发起人昵称 / 球场名 / 分享码）、offset（每页 50）。限城市的管理员只看自己城市。
   // 发起人用 left join：限城市的管理员看不到别的城市的用户行（行级安全），发起人在别的城市时球局照样列出、发起人显示「—」。

@@ -7218,6 +7218,14 @@ revoke execute on function users_utr_wipe() from public, anon, authenticated, nb
 drop trigger if exists trg_users_utr_wipe on users;
 create trigger trg_users_utr_wipe before update of anonymized_at on users for each row execute function users_utr_wipe();
 
+-- 我的 UTR（#101）后台只读：运营看 UTR 类型、是否关联主页、改动历史，用来发现虚报和多个账号关联同一个主页。可重复运行，只加不改。
+--   · users 新加的两列（utr_profile、utr_at）补给 nbq_admin 读：schema ④ 的批量授权只覆盖当时已有的列
+--   · utr_changes：nbq_admin 可读（行级安全 adm_read）；只读角色 nbq_viewer 不给（它只看统计，不看个人）
+--   · 限城市的管理员：接口查询都 join users，users 上的 adm_city 限制照样生效
+grant select (utr_profile, utr_at) on users to nbq_admin;
+grant select on utr_changes to nbq_admin;
+drop policy if exists adm_read on utr_changes; create policy adm_read on utr_changes for select to nbq_admin using (true);
+
 -- 迁移记录（11-03）：每个迁移文件结尾保证记录表存在并记一行自己；/api/version 会报「库里执行到哪一版」，冒烟测试核对它等于代码里最新的迁移。
 create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
 alter table schema_migrations enable row level security;
@@ -7242,5 +7250,6 @@ insert into schema_migrations(version) values
   ('20261107_user_rackets'),
   ('20261107_wipe_rackets'),
   ('20261110_my_utr'),
-  ('20261111_utr_events')
+  ('20261111_utr_events'),
+  ('20261112_utr_admin')
 on conflict do nothing;

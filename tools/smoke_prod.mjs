@@ -26,7 +26,8 @@ if (SHA && !process.argv.includes('--no-wait')) {
 }
 // ② 接口
 { const h = await get('/api/health').catch(() => ({ s: 0 })); T('/api/health 200', h.s === 200, h);
-  const v = await get('/api/version').catch(() => ({ s: 0 })); T('/api/version 200', v.s === 200, v); }
+  const v = await get('/api/version').catch(() => ({ s: 0 })); T('/api/version 200', v.s === 200, v);
+  const ut = await get('/api/me/utr').catch(() => ({ s: 0 })); T('/api/me/utr 已上线（没登录 → 401）', ut.s === 401, ut.s); }
 // 数据库迁移：代码里的每一个迁移，库里的 schema_migrations 都要有记录；缺哪个就报哪个（没跑的迁移）
 { let code = null, db = null; try { code = JSON.parse((await get('/version.json')).t).migrations } catch { }
   try { db = JSON.parse((await get('/api/version')).t).schema } catch { }
