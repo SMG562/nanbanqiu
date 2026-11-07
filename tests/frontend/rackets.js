@@ -38,7 +38,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const until = async (fn, n = 30) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(200) } return false };
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的球拍（DOM），不是内存
-    const tiles = () => pg.evaluate(() => [...document.querySelectorAll('.rk .rk-row')].map(t => t.classList.contains('rk-add') ? '+' : (t.querySelector('.pill') && /主力/.test(t.querySelector('.pill').textContent) ? '*' : '') + (t.querySelector('.v small').textContent !== '其他品牌' ? t.querySelector('.v small').textContent + '/' : '') + t.querySelector('.v b').textContent).join(' '));
+    const tiles = () => pg.evaluate(() => [...document.querySelectorAll('.rk .rk-row')].map(t => t.classList.contains('rk-add') ? '+' : (t.querySelector('.rk-main') ? '*' : '') + (t.querySelector('.rk-br') ? t.querySelector('.rk-br').textContent + '/' : '') + t.querySelector('.rk-se').textContent).join(' '));
     const tap = sel => pg.evaluate(s => { const e = document.querySelector(s); if (!e) return false; e.click(); return true }, sel);
     const putN = () => S.puts.length;
     const sheetOpen = () => pg.evaluate(W => W ? document.querySelector('#mbg').classList.contains('show') && !!document.querySelector('#modal .rk-pk') : document.querySelector('#sheet').classList.contains('show') && !!document.querySelector('#sheet .rk-pk'), W);
