@@ -1,0 +1,74 @@
+name: staging-migrate
+# 手动触发：把某个分支里的迁移执行到「测试库」（#60 方案 A，所有者 11-07 批准；#87 §7.5）。
+# 安全边界（所有者定的要求）：
+#   · 只在 main 上运行（staging 环境只允许 main；下面还有一道 ref 检查）。工作流文件和检查脚本都来自 main。
+#   · 输入 ref = 要执行迁移的分支：只从它检出 server/migrations/*.sql，不执行它的任何其他文件。
+#   · 只执行文件名匹配 ^2026[0-9]{4}_[a-z0-9_]+\.sql$ 且 tools/migration_audit.mjs（main 的版本）通过的文件，按文件名顺序；
+#     schema_migrations 里已经记过的跳过（迁移本身可重复运行，重复触发也无害）。
+#   · 只连 staging 环境的 Secret NBQ_DB_URL_STAGING（所有者自己填，连接串不经过任何人）；运行前要所有者在 GitHub 批准。
+#   · 连接串只经环境变量传给 psql，日志不打印；结果（执行 / 跳过了哪些、schema_migrations 现状）写在 Summary。
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '要执行迁移的分支名（例如 claude/festive-curie-unyojz-a4）'
+        required: true
+permissions:
+  contents: read
+concurrency: { group: staging-migrate, cancel-in-progress: false }   # 同一时间只跑一个，不并发改测试库
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging   # NBQ_DB_URL_STAGING 在这个环境里；运行前需要所有者批准，只允许 main
+    steps:
+      - name: 只在 main 上运行，分支名只许常见字符
+        env: { REF: "${{ inputs.ref }}" }
+        run: |
+          [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::只能从 main 运行（现在是 $GITHUB_REF）"; exit 1; }
+          printf '%s' "$REF" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' && ! printf '%s' "$REF" | grep -q '\.\.' \
+            || { echo "::error::分支名不合法"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { ref: main, fetch-depth: 0, persist-credentials: false }
+      - name: 只取该分支的 server/migrations/*.sql
+        env: { REF: "${{ inputs.ref }}" }
+        run: |
+          git fetch -q origin "refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }
+          git checkout origin/nbq-target -- server/migrations
+          if git status --porcelain | grep -v '^.. server/migrations/'; then echo "::error::检出了迁移目录以外的文件，停止"; exit 1; fi
+          ls server/migrations | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt
+          echo "候选 $(wc -l < /tmp/files.txt) 个迁移；来源 $REF @ $(git rev-parse --short origin/nbq-target)"
+      - name: 迁移检查（main 上的 migration_audit）
+        run: node tools/migration_audit.mjs
+      - name: 缺 Secret 就明说
+        env: { U: "${{ secrets.NBQ_DB_URL_STAGING }}" }
+        run: '[ -n "$U" ] || { echo "::error::staging 环境里还没有 NBQ_DB_URL_STAGING"; exit 1; }'
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: 执行到测试库
+        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}", REF: "${{ inputs.ref }}" }
+        run: |
+          set -o pipefail
+          q() { psql "$PGURL" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
+          done_list=$(q -c "select version from schema_migrations" 2>/dev/null || true)
+          # 记录表迁移必须最先（和 tools/migrate_bundle.mjs 一样）
+          { grep 'schema_migrations' /tmp/files.txt || true; grep -v 'schema_migrations' /tmp/files.txt || true; } > /tmp/order.txt
+          ran=(); skipped=()
+          while read -r f; do
+            v="${f%.sql}"
+            if printf '%s\n' "$done_list" | grep -qxF "$v"; then skipped+=("$v"); continue; fi
+            echo "▶ $f"
+            q -f "server/migrations/$f" > /tmp/psql.log 2>&1 || { tail -n 20 /tmp/psql.log; echo "::error::$f 执行失败，停在这里（之前的文件已生效；迁移可重复运行，修好后重新触发即可）"; exit 1; }
+            ran+=("$v")
+          done < /tmp/order.txt
+          {
+            echo "## 测试库迁移：$REF @ $(git rev-parse --short origin/nbq-target)"
+            echo "**本次执行（${#ran[@]}）**：${ran[*]:-无}"
+            echo
+            echo "**已执行过、跳过（${#skipped[@]}）**"
+            echo
+            echo '### schema_migrations 最近 10 条'
+            echo '```'
+            q -c "select version || '  ' || to_char(applied_at at time zone 'Australia/Melbourne', 'YYYY-MM-DD HH24:MI') from schema_migrations order by applied_at desc, version desc limit 10"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "执行 ${#ran[@]} 个，跳过 ${#skipped[@]} 个"
