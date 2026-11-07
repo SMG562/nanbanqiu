@@ -1,29 +1,19 @@
-# 依赖更新（#62）：每周一次，更新 PR 走现有 CI；安全更新由 GitHub 单独触发（需在网页开启 Dependabot security updates）。
-# GitHub Actions 已固定到提交号，这里让 Dependabot 在新版本出来时提 PR（同时更新注释里的版本号）。
+# 依赖更新（#62）：安全更新由 GitHub 单独、即时触发（需在网页开启 Dependabot security updates），不受下面的节奏影响。
+# 11-07 省 Actions 额度：每个更新单独开 PR、每个都跑一遍浏览器测试（11-07 一次 9 个 ≈ 120 分钟）→
+#   改为每月一次，同一生态的所有更新合并成一个 PR（npm 四个目录一个、Actions 一个），一次测完。
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
-    open-pull-requests-limit: 3
+    schedule: { interval: monthly, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 1
     labels: [协作体系]
+    groups:
+      actions: { patterns: ["*"] }
   - package-ecosystem: npm
-    directory: /
-    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
-    open-pull-requests-limit: 3
+    directories: [/, /tests/lint, /tests/pg, /tests/schema]
+    schedule: { interval: monthly, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 1
     labels: [协作体系]
-  - package-ecosystem: npm
-    directory: /tests/lint
-    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
-    open-pull-requests-limit: 2
-    labels: [协作体系]
-  - package-ecosystem: npm
-    directory: /tests/pg
-    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
-    open-pull-requests-limit: 2
-    labels: [协作体系]
-  - package-ecosystem: npm
-    directory: /tests/schema
-    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
-    open-pull-requests-limit: 2
-    labels: [协作体系]
+    groups:
+      npm: { patterns: ["*"] }

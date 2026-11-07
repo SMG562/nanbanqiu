@@ -9,7 +9,7 @@ W="$1"; SHA="${2:-$GITHUB_SHA}"; OUT="${GITHUB_OUTPUT:-/dev/stdout}"
 ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&per_page=100" --jq "[.workflow_runs[]
   | select(.path==\".github/workflows/$W.yml\" and .status==\"completed\" and .conclusion==\"success\" and (.id|tostring)!=\"$GITHUB_RUN_ID\"
            and (.event==\"pull_request\" or .event==\"push\" or .event==\"workflow_dispatch\")
-           and ((.display_title // \"\")|test(\"visual-baseline\")|not))] | sort_by(.created_at) | last | .id // empty" 2>/dev/null)
+           and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))] | sort_by(.created_at) | last | .id // empty" 2>/dev/null)
 if [ -n "$ID" ]; then
   echo "hit=1" >> "$OUT"
   echo "这个提交（${SHA:0:7}）已在运行 [$ID](https://github.com/$GITHUB_REPOSITORY/actions/runs/$ID) 用同一套测试通过，本次不重跑。" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"

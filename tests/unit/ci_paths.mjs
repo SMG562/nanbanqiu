@@ -92,9 +92,13 @@ T('pr_merge.sh：判断「没有运行记录」用 null* 前缀匹配，不用 =
   const cond = L => execSync(`L='${L}'; W=tests-fast; if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then echo yes; else echo no; fi`, { shell: '/bin/bash' }).toString().trim();
   T('pr_merge.sh 的判断：「null  null」「null」「」都算没有记录；「completed success 123」不算', cond('null  null') === 'yes' && cond('null') === 'yes' && cond('') === 'yes' && cond('completed success 123') === 'no' && cond('in_progress  123') === 'no') }
 T('复用只按完全相同的提交号查（head_sha），只认通过的运行，不认重拍截图基准的运行', reuse.includes('head_sha=$SHA') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
-const testIf = /needs: reuse\n\s+if: \$\{\{ !cancelled\(\) && needs.reuse.outputs.hit != '1' \}\}/;
+const testIf = /needs: reuse\n\s+if: \$\{\{ !cancelled\(\) && needs.reuse.outputs.hit != '1'( && !\(github.event_name == 'pull_request' && github.event.pull_request.draft\))? \}\}/;
 T('两个工作流都只在「推到 main」时开复用检查；没检查 / 检查出错照常测试，只有命中才跳过', /reuse:[^\n]*\n\s+if: github.event_name == 'push'\n/.test(tests) && /reuse:[^\n]*\n\s+if: github.ref == 'refs\/heads\/main' && github.event_name == 'push'\n/.test(fastY)
   && testIf.test(tests) && testIf.test(fastY));
+{ const gate = fs.readFileSync(path.join(ROOT, 'tools/gate.sh'), 'utf8'), mark = '未测：草稿';   // 11-07 省额度：草稿 PR 不测，但运行结论仍是 success → 必须靠标题排除，否则会被当成「测过」
+  T('草稿 PR 不跑浏览器测试，运行标题带「未测：草稿」，复用 / 合并 / 上线闸门都排除它', /hit != '1' && !\(github.event_name == 'pull_request' && github.event.pull_request.draft\)/.test(tests)
+    && tests.includes("github.event.pull_request.draft && '" + mark) && reuse.includes('visual-baseline|' + mark) && gate.includes('visual-baseline|' + mark)
+    && merge.split('visual-baseline|' + mark).length === 3) }
 T('PR 测的是 PR 最新提交本身，且和推 main 跑同一条命令', tests.includes('github.event.pull_request.head.sha') && tests.includes('[ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]'));
 T('合并脚本只快进（把测过的提交号推成 main）、不强推，并核对测试 / db-parity / 工作区', merge.includes('merge-base --is-ancestor origin/main') && merge.includes('git push origin "$SHA:refs/heads/main"') && !/git push[^\n]*(--force|\s-f\s)/.test(merge) && merge.includes('db-parity') && merge.includes('status --porcelain'));
 

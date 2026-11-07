@@ -23,7 +23,7 @@ clone 后先启用提交前检查：`git config core.hooksPath .githooks`（拼�
 - **上线闸门**：说「通过 / 已上线」前 `bash tools/gate.sh <提交号>` 三项全绿；没跑、被取消、看的不是这个提交号 = 没过，如实说。
 - **发布流程 B**：风险较大（登录账号、推送、数据读写与迁移、启动流程、Service Worker）走「分支 → 预览站（staging 库）→ 用户真机 → PR 合并」，PR 清单用模板；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**（只快进、核对测试 / db-parity；main 有新提交就在分支 `git merge origin/main`，不强推），PR 上测过的提交到 main 不重跑（11-04）。
 - **两个库**：正式 `nanbanqiu-au`、测试 `nanbanqiu-staging`（分支预览 `*.nanbanqiu-preview.pages.dev` 自动连测试库）。改库结构 / 默认值 / 迁移：迁移可重复运行并**处理已有数据** → **先正式库跑迁移、再合并前端** → Actions `db-parity`（REST 触发，confirm=production）输出 ✅ 才算正式库也成立。
-- **CI 分工（省 token）**：本地只跑相关的（`--changed`，已提交用 `--changed=origin/main`，自动跳过截图；改了测试入口会选中全部 → 改用 `--grep=`）；PR 自动跑浏览器快速测试，合并前不手动跑完整档（每周日自动）；等 CI 放后台轮询、读注解，不干等；截图基准用 tests.yml 的 visual-baseline 在 CI 重拍。
+- **CI 分工（省 token）**：本地只跑相关的（`--changed`，已提交用 `--changed=origin/main`，自动跳过截图；改了测试入口会选中全部 → 改用 `--grep=`）；PR 先开**草稿**（`--draft`，只跑 tests-fast），改完、本地测过再点 Ready 才跑浏览器测试（草稿运行标「未测：草稿」，合并 / 复用 / 闸门都不认）；改动攒成一次推送，别连推（被取消的运行也计费）；合并前不手动跑完整档（每周日自动）；等 CI 放后台轮询、读注解，不干等；截图基准用 tests.yml 的 visual-baseline 在 CI 重拍。
 - **推 main 前**：`git diff --stat origin/main..HEAD` 只含预期文件；`.githooks/pre-push` 拦大量删除；不用 worktree 分支直推 main；在临时仓库跑 git 的测试必须去掉 `GIT_*` 变量。
 - **前台数据边界**：接口数据只走 `nbqFrom*` 转换，枚举用 `nbqEnum`（`enum_cover` 测试盯着）；用户能改的资料必须写服务器，测试「改 → 重读 → 还在」。
 - **用户能改的数据：按「入口清单」做，不按「接口清单」做**（11-04 6d 漏了球员卡上的印象、徽章已庆祝只在内存）：开工前 grep 这份数据的**所有**修改入口（仓库名 `KUDOS.set` 之类），列「入口 × 写服务器 × 刷新后还在」表放进 PR 描述；`node tools/persist_audit.mjs`（提交前自动跑）拦「改了内存却没写服务器 / 整仓库没读回」，欠账在 `tests/spec/persist_allow.json` 里 `todo:` 列着，不准当没事；测试必含「清空内存 → 重读 → 还在」；用户报一处，同一仓库的其他入口一起查。
