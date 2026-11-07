@@ -8,7 +8,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
 
 // 前台球友能碰的表（多了少了都要在这里登记，测试会提醒）
 const USER_TABLES = ['sb_topics', 'sb_posts', 'sb_photos', 'sb_replies', 'sb_balls', 'sb_hides', 'cities', 'countries', 'legal_docs', 'users', 'games', 'game_participants', 'invites', 'notifications', 'player_prefs', 'player_pref_mutes', 'follow_notices', 'game_feel', 'user_clubs',
-  'user_suburb_picks', 'user_devices', 'push_subscriptions', 'thread_reads', 'blocks', 'game_series', 'user_badges', 'user_level_log', 'user_rackets', 'impressions', 'noshow_reports',
+  'user_suburb_picks', 'user_devices', 'push_subscriptions', 'thread_reads', 'blocks', 'game_series', 'user_badges', 'user_level_log', 'user_rackets', 'utr_changes', 'impressions', 'noshow_reports',
   'noshow_appeals', 'reports', 'threads', 'messages', 'game_changes', 'venues', 'suburbs', 'suburb_aliases', 'service_areas', 'venue_fees', 'hitting_walls',
   'venue_reviews', 'venue_suggestions', 'area_demand'];
 const USER_VIEWS = ['public_profiles', 'player_cards', 'api_game_cards', 'my_private_contacts'];
