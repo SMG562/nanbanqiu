@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: 确认词
         run: '[ "${{ inputs.confirm }}" = "production" ] || { echo "::error::确认词不对（要输入 production），已停止"; exit 1; }'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: 缺 Secret 就明说
         env: { A: "${{ secrets.NBQ_DB_URL_STAGING }}", B: "${{ secrets.NBQ_DB_URL_PROD }}" }
         run: |

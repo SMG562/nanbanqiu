@@ -1,0 +1,29 @@
+# 依赖更新（#62）：每周一次，更新 PR 走现有 CI；安全更新由 GitHub 单独触发（需在网页开启 Dependabot security updates）。
+# GitHub Actions 已固定到提交号，这里让 Dependabot 在新版本出来时提 PR（同时更新注释里的版本号）。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 3
+    labels: [协作体系]
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 3
+    labels: [协作体系]
+  - package-ecosystem: npm
+    directory: /tests/lint
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 2
+    labels: [协作体系]
+  - package-ecosystem: npm
+    directory: /tests/pg
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 2
+    labels: [协作体系]
+  - package-ecosystem: npm
+    directory: /tests/schema
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: Australia/Melbourne }
+    open-pull-requests-limit: 2
+    labels: [协作体系]
