@@ -120,6 +120,7 @@ add('frontend', 'frontend/verify2', ['node', '-r', PRELOAD, path.join(HERE, 'fro
 add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pages.js')], { pass: [/PASS pages/], timeout: 300 });
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
+add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起

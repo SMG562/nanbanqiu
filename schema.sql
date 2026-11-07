@@ -815,6 +815,7 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('gender_set','我的','保存性别（不记录值）','first, changed','client','active',null),
  ('club_add_open','我的','打开添加 Club','','client','active',null),
  ('home_clubs_save','我的','保存我的 Club','n','client','active',null),
+ ('utr_save','我的','我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号）','mode(off/self), linked, change(up/down/same)','client','active',null),
  ('community_open','我的','打开微信约球群','','client','active',null),
  ('series_end','我的','停止每周发布','game_id','client','active',null),
  ('follow_open','打完之后','打开「TA 发了新球局」','game_id','client','active',null),
@@ -874,7 +875,7 @@ update event_definitions set status='deprecated'
    'impression_give', 'recap_done', 'noshow_report', 'noshow_undo', 'noshow_appeal', 'badge_view', 'badge_share', 'level_view', 'level_info_open',
    'notif_open', 'notif_settings_open', 'push_enable', 'email_settings_save', 'pact_view', 'pact_accept', 'soon_open', 'safety_open', 'contact_open',
    'report_open', 'report_submit', 'user_block', 'user_unblock', 'chat_open', 'chat_send', 'gender_open', 'gender_set', 'club_add_open',
-   'home_clubs_save', 'community_open', 'series_end', 'follow_open',
+   'home_clubs_save', 'utr_save', 'community_open', 'series_end', 'follow_open',
    'sb_post_view', 'sb_post_submit', 'sb_reply_send', 'sb_ball', 'sb_photo_view', 'sb_topic_view', 'sb_court_view', 'sb_hide', 'sb_post_delete', 'sb_replies_toggle', 'sb_share', 'sb_album_open',
    'apply_expired', 'game_start_check', 'game_counted', 'recap_notify',
    'follow_notify', 'less_effect', 'noshow_confirm', 'badge_earned', 'level_up', 'notif_deliver', 'women_apply_blocked', 'account_status_change']);
@@ -7238,5 +7239,6 @@ insert into schema_migrations(version) values
   ('20261106_admin_venue_geo'),
   ('20261107_user_rackets'),
   ('20261107_wipe_rackets'),
-  ('20261110_my_utr')
+  ('20261110_my_utr'),
+  ('20261111_utr_events')
 on conflict do nothing;

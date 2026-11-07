@@ -116,6 +116,7 @@
 | gender_set | 我的 | C | 保存性别（不记录值） | first, changed |
 | club_add_open | 我的 | C | 打开添加 Club | — |
 | home_clubs_save | 我的 | C | 保存我的 Club | n |
+| utr_save | 我的 | C | 我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号） | mode(off/self), linked, change(up/down/same) |
 | community_open | 我的 | C | 打开微信约球群 | — |
 | series_end | 我的 | C | 停止每周发布 | game_id |
 | follow_open | 打完之后 | C | 打开「TA 发了新球局」 | game_id |
