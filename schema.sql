@@ -815,6 +815,10 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('gender_set','我的','保存性别（不记录值）','first, changed','client','active',null),
  ('club_add_open','我的','打开添加 Club','','client','active',null),
  ('home_clubs_save','我的','保存我的 Club','n','client','active',null),
+ ('racket_picker_open','我的','打开选拍弹层（添一把 / 换一把；从系列返回不算）','mode(add/swap), slot(1-3)','client','active',null),
+ ('racket_brand_pick','我的','选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）','brand','client','active',null),
+ ('racket_save','我的','球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库','action(add/swap/main/remove), source(catalog/other), n_after','client','active',null),
+ ('racket_invalid','我的','手写拍子名当场没通过校验（不发请求、不记文字）','reason(empty/long/link/at/digits/dup)','client','active',null),
  ('community_open','我的','打开微信约球群','','client','active',null),
  ('series_end','我的','停止每周发布','game_id','client','active',null),
  ('follow_open','打完之后','打开「TA 发了新球局」','game_id','client','active',null),
@@ -875,6 +879,7 @@ update event_definitions set status='deprecated'
    'notif_open', 'notif_settings_open', 'push_enable', 'email_settings_save', 'pact_view', 'pact_accept', 'soon_open', 'safety_open', 'contact_open',
    'report_open', 'report_submit', 'user_block', 'user_unblock', 'chat_open', 'chat_send', 'gender_open', 'gender_set', 'club_add_open',
    'home_clubs_save', 'community_open', 'series_end', 'follow_open',
+   'racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid',
    'sb_post_view', 'sb_post_submit', 'sb_reply_send', 'sb_ball', 'sb_photo_view', 'sb_topic_view', 'sb_court_view', 'sb_hide', 'sb_post_delete', 'sb_replies_toggle', 'sb_share', 'sb_album_open',
    'apply_expired', 'game_start_check', 'game_counted', 'recap_notify',
    'follow_notify', 'less_effect', 'noshow_confirm', 'badge_earned', 'level_up', 'notif_deliver', 'women_apply_blocked', 'account_status_change']);
@@ -7245,5 +7250,6 @@ insert into schema_migrations(version) values
   ('20261106_admin_venue_geo'),
   ('20261107_user_rackets'),
   ('20261107_wipe_rackets'),
-  ('20261108_racket_catalog')
+  ('20261108_racket_catalog'),
+  ('20261109_racket_events')
 on conflict do nothing;
