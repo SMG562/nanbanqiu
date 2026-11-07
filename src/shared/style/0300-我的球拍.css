@@ -1,0 +1,51 @@
+/* 我的球拍（#60）：克制 —— 整栏只有标题前一个图标；行里只用字：品牌是小号大写字距标签，系列是主角；
+   只有主力行右侧一个绿色「主力」标签，其余行没有箭头、没有图标框，整行可点。 */
+.rk-h{display:inline-flex;align-items:center;gap:6px}
+.rk-hi{width:16px;height:16px;color:var(--g);flex:none}
+.rk .rk-row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 18px;border:0;border-top:1px solid var(--line);background:none;
+  font:inherit;color:var(--ink);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.rk .rk-row:first-child{border-top:0}
+.rk .rk-row:active{background:#F7F8F7}
+.rk .rk-row:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-back:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.rk .rk-row .v{flex:1;min-width:0}
+.rk-br{display:block;margin-bottom:3px;font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.rk-se{display:block;font-size:16.5px;font-weight:650;line-height:1.25;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-main{flex:none;font-size:11.5px;font-weight:600;line-height:1;letter-spacing:.04em;color:var(--g);background:var(--gss);border:1px solid var(--gs);border-radius:999px;padding:5px 10px}
+.rk .rk-add{min-height:54px;gap:8px;color:var(--g);font-size:15px;font-weight:600}
+.rk-plus{font-size:19px;font-weight:400;line-height:1;width:16px;text-align:center}
+.rk-hint{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--mut)}
+.rk-off{padding:16px 18px;font-size:13.5px;color:var(--mut)}
+.rk-card{padding-bottom:4px}.rk-card .rk .rk-row{padding:11px 16px;min-height:58px}.rk-card .rk-se{font-size:15px}.rk-card .rk .rk-add{min-height:48px;font-size:14px}
+.rk-card .rk .rk-row:hover{background:#FAFBFA}
+
+/* 弹层 */
+.rk-pk.busy{pointer-events:none}
+.rk-pk.busy .rk-chip:not(.busy),.rk-pk.busy .rk-act:not(.busy){opacity:.45}
+.rk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}
+.rk-chip{position:relative;min-height:54px;padding:9px 14px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-size:15px;font-weight:600;
+  text-align:left;display:flex;flex-direction:column;justify-content:center;gap:1px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s,transform .15s}
+.rk-chip:active{transform:scale(.98);background:var(--gss);border-color:var(--gs)}
+.rk-chip.brand{font-size:13.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.rk-chip.oth{border-style:dashed;color:var(--ink2);font-weight:500}
+.rk-chip[disabled]{background:#F6F7F6;color:var(--mut);cursor:default;transform:none}
+.rk-chip small{font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--mut)}
+.rk-chip.busy::after,.rk-act.busy::after{content:"";position:absolute;right:14px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;border:2px solid var(--gs);border-top-color:var(--g);animation:rkspin .7s linear infinite}
+@keyframes rkspin{to{transform:rotate(360deg)}}
+.rk-nav{display:flex;align-items:center;gap:2px}
+.rk-nav>div{margin:0}
+.rk-back{width:36px;height:36px;margin-left:-10px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:none;color:var(--ink2);cursor:pointer}
+.rk-back svg{width:22px;height:22px}.rk-back:active{background:#F0F2F0}
+.rk-field{display:block;margin-top:14px}
+.rk-lab{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin:0 2px 6px}
+.rk-meta{display:flex;justify-content:space-between;gap:10px;min-height:20px;margin:6px 2px 12px;font-size:12.5px}
+.rk-err{color:#C4320A}.rk-n{color:var(--mut);font-variant-numeric:tabular-nums;margin-left:auto}
+.rk-save[disabled]{opacity:.45}
+.rk-hero{padding:2px 0 16px}
+.rk-hero .rk-br{margin-bottom:5px}
+.rk-ht{display:flex;align-items:center;gap:10px}.rk-ht>b{margin:0;min-width:0;word-break:break-word}
+.rk-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.rk-act{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:14px 16px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.rk-act:first-child{border-top:0}.rk-act:active{background:#F6F7F6}
+.rk-act b{font-size:15px;font-weight:600}.rk-act small{font-size:12.5px;color:var(--mut)}
+.rk-act.danger b{color:#D92D20}
+@media (prefers-reduced-motion:reduce){.rk-chip{transition:none}.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
