@@ -76,7 +76,7 @@ try {
   r = await call('GET', '/api/me/rackets', tQ); T('球拍：失败后原来的还在', rk(r.j.rackets) === '1:-/老拍 2:Head/Speed', r);
   r = await call('PUT', '/api/me/rackets', tQ, '{bad'); T('球拍：JSON 不对 → 400', r.s === 400 && r.j.error === 'bad_json', r);
   r = await call('PUT', '/api/me/rackets', tQ, { rackets: [] }); T('球拍：全部移除', r.s === 200 && r.j.rackets.length === 0, r);
-  // 产品库（#60 A4，暂定）：不用登录就能读，只给可选的；按 catalog_id 保存只转 id
+  // 产品库（#60 A4，ADR 0009）：不用登录就能读，只给可选的；按 catalog_id 保存只转 id
   await admin.query(`update racket_catalog set status = 'hidden' where brand = 'Wilson' and series = 'Burn'`);
   r = await call('GET', '/api/rackets/catalog', null); const cl = (r.j && r.j.catalog) || [];
   T('产品库：没登录也能读，只有可选的，带缓存头', r.s === 200 && cl.length === 24 && !cl.some(x => x.series === 'Burn') && cl.every(x => UUIDre.test(x.id) && x.brand && x.series) && /max-age=3600/.test(r.h.get('cache-control') || ''), [r.s, cl.length, r.h.get('cache-control')]);

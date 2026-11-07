@@ -232,7 +232,7 @@
 - 写：`[{brand, series}, …]` 整组替换，数组顺序 = slot（1 = 主力），最多 3 把；brand 为空 / 省略 = 「其他」；返回 `[{slot, brand, series}]`
 - 清洗：去控制字符、连续空白并成一个、去首尾空白（含全角空格）；同一把（品牌 + 系列，不分大小写）重复 → 失败
 - 校验（将来球员卡公开，一次到位）：各 ≤ 30 字、系列必填、拒绝 http / www、@ / ＠、连续 6 位以上数字 → 422 invalid，detail = `rackets`（不是数组 / 超过 3 把 / 元素不是对象）· `brand` · `series` · `duplicate`；失败时原来的不丢
-- 产品库（#60 A4，暂定）：`GET /api/rackets/catalog` 不用登录，`{catalog:[{id, brand, series}]}` 只给 active，缓存 1 小时。PUT 的元素可以是 `{catalog_id}`（只转 id；隐藏的只有本来就有的人能留、合并掉的跟到新条目，不合法 → 422 detail `catalog_id`）或 `{brand, series}`（按品牌 + 系列 / 整串 / 别名不分大小写自动归到产品库，名字换成产品库的写法）。返回和 GET 都带 `catalog_id`（自由文字归不上为 null）
+- 产品库（#60 A4，ADR 0009）：`GET /api/rackets/catalog` 不用登录，`{catalog:[{id, brand, series}]}` 只给 active，缓存 1 小时。PUT 的元素可以是 `{catalog_id}`（只转 id；隐藏的只有本来就有的人能留、合并掉的跟到新条目，不合法 → 422 detail `catalog_id`）或 `{brand, series}`（按品牌 + 系列 / 整串 / 别名不分大小写自动归到产品库，名字换成产品库的写法）。返回和 GET 都带 `catalog_id`（自由文字归不上为 null）
 
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks

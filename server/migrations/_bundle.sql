@@ -524,7 +524,7 @@ grant select, insert on schema_migrations to nbq_service;
 insert into schema_migrations(version) values ('20261107_wipe_rackets') on conflict do nothing;
 
 -- ===== 20261108_racket_catalog.sql =====
--- 球拍产品库（#60 A4，暂定实现：依据 #60 的提案，静默期到 2026-11-10；所有者可整体推翻）。可重复运行，只加不改。
+-- 球拍产品库（#60 A4，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
 --   · racket_catalog：品牌 + 系列 + 别名；status active（可选）/ hidden（不再出现在选择列表，已选的人不受影响）/ merged（并到 merged_into）
 --   · user_rackets.catalog_id：选自产品库或自由文字自动匹配上的，记 id；匹配不上为空（后台「待归类」）。brand / series 仍存显示用的名字
 --     （产品库改名时由后台函数同步，M1）

@@ -100,7 +100,7 @@ try {
   e1 = null; try { await q(wipe); await q(wipe) } catch (e) { e1 = e.message } T('A2 迁移连跑两次不报错', e1 === null, e1);
   T('A2 迁移后 job_anonymize_deleted 与 schema.sql 一致且含删球拍', (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc === src0 && /delete from user_rackets/.test(src0));
 
-  // ===== A4 产品库（暂定实现，#60）=====
+  // ===== A4 产品库（#60，ADR 0009）=====
   // 上面「A1 迁移连跑两次」会把 api_set_rackets 换回 A1 版；按迁移顺序再执行一次 A4（正式库也是按这个顺序跑整包）
   const cat4 = fs.readFileSync(path.join(DIR, 'server/migrations/20261108_racket_catalog.sql'), 'utf8'); await q(cat4);
   const C = await q(`select id, brand, series from racket_catalog order by sort`), cat = (b, s2) => C.rows.find(x => x.brand === b && x.series === s2).id;

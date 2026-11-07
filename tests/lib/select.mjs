@@ -45,6 +45,7 @@ export const RULES = [
   [/^server\/site_route\.mjs$|^functions\/_middleware\.js$/, ['unit/site_route', 'frontend/site']],
   [/^sw\.js$|^manifest\.webmanifest$/, ['frontend/a2hs', 'frontend/site', 'unit/site_route']],
   [/^tools\/(site|build|lint)\./, ['static/build', 'static/lint', 'frontend/site', 'unit/site_route']],
+  [/^tools\/weekly_metrics\.mjs$/, ['unit/weekly_metrics']],                                              // 11-07：研发周报
   [/^tests\/spec\//, ['static/check', 'schema/', 'admin/consist']],
   [/^tests\/visual\//, ['visual/']],
   [/^tests\/场边\//, ['side_design']],
