@@ -21,8 +21,12 @@ git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/nu
 git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev/null
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
 else no "不能快进：main 有 PR 之外的新提交。在分支上  git merge origin/main  再推分支（不用强推），等 PR 上的测试对新提交跑完再合并"; fi
+# 11-07：只改 *.md 的 PR（没有任何文件会触发 tests / tests-fast 的 paths）不需要测试运行，别为文档白烧 25 分钟 Actions
+CHG=$(git diff --name-only "$(git merge-base origin/main "$SHA" 2>/dev/null || echo origin/main)" "$SHA" 2>/dev/null)
+DOCS_ONLY=0; [ -n "$CHG" ] && ! echo "$CHG" | grep -qvE '\.md$' && DOCS_ONLY=1
 for W in tests-fast tests; do
-  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
+  if [ "$DOCS_ONLY" = 1 ]; then yes "$W：只改了 *.md 文档，不触发测试，不需要运行记录"; continue; fi
+  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
   # 11-05：最新提交只改文档时 tests-fast 的 paths 不触发，没有任何运行记录——自动手动触发一次并等它跑完（--check 只提示，不触发）
   # 没有运行记录时 jq 输出的是「null  null」（三个字段都是 null），不是「null」——11-05 因此从没自动触发过
   if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then
@@ -31,7 +35,7 @@ for W in tests-fast tests; do
       echo "ℹ️ tests-fast 没有运行记录（最新提交没碰它的 paths），手动触发 $HEAD 并等待…"
       gh api -X POST "repos/$R/actions/workflows/tests-fast.yml/dispatches" -f ref="$HEAD" >/dev/null 2>&1 || echo "  触发失败"
       for _ in $(seq 1 58); do sleep 10
-        L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
+        L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=50" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
         case "$L" in "completed "*) break;; esac
       done
     fi
