@@ -22,14 +22,14 @@ FIELDS = ('id', 'slug', 'title', 'lines', 'style', 'tone', 'demo', 'concept', 'u
 
 def load_posters():
     out = {}
-    for f in sorted(glob.glob(os.path.join(HERE, 'posters', 'p[0-9][0-9]_*.py'))):
+    for f in sorted(glob.glob(os.path.join(HERE, 'posters', 'p[0-9][0-9]*_*.py'))):
         spec = importlib.util.spec_from_file_location(os.path.basename(f)[:-3], f)
         m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
         meta = m.META
         missing = [k for k in FIELDS if k not in meta]
         if missing: sys.exit(f'{os.path.basename(f)}：META 缺 {missing}')
         if meta['id'] in out: sys.exit(f'编号重复：{meta["id"]}')
-        if os.path.basename(f)[1:3] != f'{meta["id"]:02d}' or meta['slug'].replace('-', '_') not in f:
+        if os.path.basename(f).split('_')[0][1:] != f'{meta["id"]:02d}' or meta['slug'].replace('-', '_') not in f:
             sys.exit(f'{os.path.basename(f)}：文件名要写成 p{meta["id"]:02d}_{meta["slug"].replace("-", "_")}.py')
         out[meta['id']] = (meta, m)
     return out
