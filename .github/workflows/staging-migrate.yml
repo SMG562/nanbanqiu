@@ -1,5 +1,8 @@
 name: staging-migrate
-# 手动触发：把某个分支里的迁移执行到「测试库」（#60 方案 A，所有者 11-07 批准；#87 §7.5）。
+# 把迁移执行到「测试库」（#60 方案 A；#98 方案 B，所有者 11-07 批准）。两种触发：
+#   · 自动（主要）：迁移文件合并进 main 后，按这次 push 的提交执行 → 测试库始终跟着 main。
+#   · 手动（少数情况）：没合并的分支必须用真机看库结构变化时，输入 ref = 分支名。
+#   两种都要 staging 环境的审批人批准后才执行。
 # 安全边界（所有者定的要求）：
 #   · 只在 main 上运行（staging 环境只允许 main；下面还有一道 ref 检查）。工作流文件和检查脚本都来自 main。
 #   · 输入 ref = 要执行迁移的分支：只从它检出 server/migrations/*.sql，不执行它的任何其他文件。
@@ -9,11 +12,15 @@ name: staging-migrate
 #   · 只连 staging 环境的 Secret NBQ_DB_URL_STAGING（所有者自己填，连接串不经过任何人）；运行前要所有者在 GitHub 批准。
 #   · 连接串只经环境变量传给 psql，日志不打印；结果（执行 / 跳过了哪些、schema_migrations 现状）写在 Summary。
 on:
+  push:
+    branches: [main]
+    paths: ['server/migrations/*.sql']
   workflow_dispatch:
     inputs:
       ref:
-        description: '要执行迁移的分支名（例如 claude/festive-curie-unyojz-a4）'
-        required: true
+        description: '要执行迁移的分支名（不填 = main）'
+        required: false
+        default: main
 permissions:
   contents: read
 concurrency: { group: staging-migrate, cancel-in-progress: false }   # 同一时间只跑一个，不并发改测试库
@@ -24,17 +31,18 @@ jobs:
     environment: staging   # NBQ_DB_URL_STAGING 在这个环境里；运行前需要所有者批准，只允许 main
     steps:
       - name: 只在 main 上运行，分支名只许常见字符
-        env: { REF: "${{ inputs.ref }}" }
+        env: { REF: "${{ inputs.ref || 'main' }}" }
         run: |
           [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::只能从 main 运行（现在是 $GITHUB_REF）"; exit 1; }
           printf '%s' "$REF" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' && ! printf '%s' "$REF" | grep -q '\.\.' \
             || { echo "::error::分支名不合法"; exit 1; }
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with: { ref: main, fetch-depth: 0, persist-credentials: false }
+        with: { ref: "${{ github.event_name == 'push' && github.sha || 'main' }}", fetch-depth: 0, persist-credentials: false }   # 自动：就用这次 push 的提交
       - name: 只取该分支的 server/migrations/*.sql
-        env: { REF: "${{ inputs.ref }}" }
+        env: { REF: "${{ inputs.ref || 'main' }}", EV: "${{ github.event_name }}" }
         run: |
-          git fetch -q origin "refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }
+          if [ "$EV" = push ]; then git update-ref refs/remotes/origin/nbq-target HEAD
+          else git fetch -q origin "+refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }; fi
           git checkout origin/nbq-target -- server/migrations
           if git status --porcelain | grep -v '^.. server/migrations/'; then echo "::error::检出了迁移目录以外的文件，停止"; exit 1; fi
           ls server/migrations | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt
@@ -61,7 +69,7 @@ jobs:
           sed 's|^|server/migrations/|' /tmp/todo.txt | xargs node tools/staging_migrate_check.mjs \
             || { echo "::error::上面这些迁移超出了「改表结构」，staging-migrate 不执行；请所有者看过后手动执行"; exit 1; }
       - name: 执行到测试库
-        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}", REF: "${{ inputs.ref }}", ACTOR: "${{ github.triggering_actor }}" }
+        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}", REF: "${{ inputs.ref || 'main' }}", ACTOR: "${{ github.triggering_actor }}" }
         run: |
           q() { psql "$PGURL" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
           ran=()
