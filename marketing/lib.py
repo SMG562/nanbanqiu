@@ -197,3 +197,14 @@ def face(cx, cy, s=1.0, mood='smile', look=0, ink='#0B3B2A'):
     mouth = f'<path d="M{-11*s:.1f} {32*s:.1f} Q0 {45*s:.1f} {11*s:.1f} {32*s:.1f}" fill="none" stroke="{ink}" stroke-width="{5*s:.1f}" stroke-linecap="round"/>'
     blush = ''.join(f'<ellipse cx="{x:.1f}" cy="{24*s:.1f}" rx="{15*s:.1f}" ry="{9*s:.1f}" fill="#E8643C" opacity=".35"/>' for x in (-e - 30 * s, e + 30 * s))
     return f'<g transform="translate({cx} {cy})">{blush}{eyes}{mouth}</g>'
+
+
+def photo(path, x=0, y=0, w=None, h=None, fit='slice'):
+    """把一张照片 / AI 生图（marketing/photos/ 下的 jpg/png/webp）铺成底图，嵌进 SVG。
+    fit='slice' 铺满裁切（像 CSS cover），'meet' 完整放下。"""
+    import base64, os
+    full = path if os.path.isabs(path) else os.path.join(os.path.dirname(__file__), 'photos', path)
+    ext = os.path.splitext(full)[1].lower().lstrip('.').replace('jpg', 'jpeg')
+    data = base64.b64encode(open(full, 'rb').read()).decode()
+    return (f'<image href="data:image/{ext};base64,{data}" x="{x}" y="{y}" width="{w or W}" height="{h or H}" '
+            f'preserveAspectRatio="xMidYMid {fit}"/>')
