@@ -84,6 +84,7 @@ try {
   await q(`insert into user_devices(user_id,platform) values ($1,'mobile')`, [F]);
   await q(`insert into player_prefs(user_id,target_id,pref) values ($1,$2,'less'),($2,$1,'more')`, [F, G]);
   await q(`insert into gender_changes(user_id,from_g,to_g) values ($1,'m','f')`, [F]);
+  await q(`insert into user_rackets(user_id,slot,brand,series) values ($1,1,'Head','Speed'),($1,2,null,'老拍'),($2,1,'Wilson','Blade')`, [F, G]);
   const gf = (await one(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('pv2',$1,$2,now()-interval '40 days',90,'singles',2,3,7) returning id`, [G, V])).id;
   await q(`insert into impressions(game_id,from_id,to_id,kinds) values ($1,$2,$3,'{ontime}'),($1,$3,$2,'{kind}')`, [gf, F, G]);
   await q(`insert into email_outbox(user_id,to_email,kind,merge_key,subject,send_after) values ($1,'fay@x.com','result','k','s',now()),($1,'fay@x.com','result','k2','s',now())`, [F]);
@@ -94,6 +95,7 @@ try {
   const fu = await one(`select * from users where id=$1`, [F]);
   T('性别、注册设备 / IP、退订 token 清空', fu.gender === null && fu.signup_device === null && fu.signup_ip === null && fu.email_unsub_token === null && fu.nickname === '已注销' && fu.email === null);
   T('旧推送订阅、设备、改性别记录删除', +(await one(`select (select count(*) from push_subscriptions where user_id=$1)+(select count(*) from user_devices where user_id=$1)+(select count(*) from gender_changes where user_id=$1) n`, [F])).n === 0);
+  T('我的球拍：注销匿名化后删除，别人的不动（#60 A2）', +(await one(`select count(*) from user_rackets where user_id=$1`, [F])).count === 0 && +(await one(`select count(*) from user_rackets where user_id=$1`, [G])).count === 1);
   T('本人设的偏好删除；别人对 TA 的保留', !(await one(`select 1 x from player_prefs where user_id=$1`, [F])) && !!(await one(`select 1 x from player_prefs where user_id=$1 and target_id=$2`, [G, F])));
   T('印象保留计入汇总（两个方向）', +(await one(`select count(*) from impressions where game_id=$1`, [gf])).count === 2);
   const ob = (await q(`select to_email, status, skip_reason from email_outbox where user_id=$1 order by merge_key`, [F])).rows;

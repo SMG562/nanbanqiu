@@ -94,6 +94,11 @@ try {
   let e1 = null; try { await q(mig); await q(mig) } catch (e) { e1 = e.message } T('迁移连跑两次不报错', e1 === null, e1);
   T('迁移重跑后数据还在', fmt(await mine(A)) === '1:Prince/TF40 315');
   T('schema_migrations 记了本迁移', +(await q(`select count(*) from schema_migrations where version='20261107_user_rackets'`)).rows[0].count === 1);
+  // A2：注销匿名化删球拍的迁移也可重复，跑完后函数和 schema.sql 里的一模一样（迁移里是整段函数，别跟 schema 走岔）
+  const src0 = (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc;
+  const wipe = fs.readFileSync(path.join(DIR, 'server/migrations/20261107_wipe_rackets.sql'), 'utf8');
+  e1 = null; try { await q(wipe); await q(wipe) } catch (e) { e1 = e.message } T('A2 迁移连跑两次不报错', e1 === null, e1);
+  T('A2 迁移后 job_anonymize_deleted 与 schema.sql 一致且含删球拍', (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc === src0 && /delete from user_rackets/.test(src0));
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

@@ -4340,7 +4340,7 @@ end $$;
 drop trigger if exists trg_users_opt_out_detach on users;
 create trigger trg_users_opt_out_detach after update of analytics_opt_out on users for each row execute function users_opt_out_detach();
 
--- ④ 注销满 30 天匿名化：补上性别、注册设备 / IP、退订 token、待发邮件里的邮箱、旧推送订阅、本人设的偏好（少遇到 / 多遇到，只有本人可见）
+-- ④ 注销满 30 天匿名化：补上性别、注册设备 / IP、退订 token、待发邮件里的邮箱、旧推送订阅、本人设的偏好（少遇到 / 多遇到，只有本人可见）、我的球拍（11-07 迁移 20261107_wipe_rackets）
 --   保留：球局记录、聊天（显示「已注销」）、给别人 / 收到的印象和好评（计入汇总，本来就不显示是谁给的）
 create or replace function job_anonymize_deleted(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$
 declare t0 timestamptz := clock_timestamp(); n int;
@@ -4355,6 +4355,7 @@ begin
   delete from push_subscriptions s using users u where u.id = s.user_id and u.anonymized_at = p_now;
   delete from player_prefs p using users u where u.id = p.user_id and u.anonymized_at = p_now;
   delete from gender_changes g using users u where u.id = g.user_id and u.anonymized_at = p_now;
+  delete from user_rackets r using users u where u.id = r.user_id and u.anonymized_at = p_now;   -- 我的球拍（#60 A2）：注销即删，不保留
   update email_outbox e set to_email = 'deleted', status = case when e.status = 'queued' then 'skipped' else e.status end,
          skip_reason = case when e.status = 'queued' then 'email_bad' else e.skip_reason end
     from users u where u.id = e.user_id and u.anonymized_at = p_now;
@@ -7150,5 +7151,6 @@ insert into schema_migrations(version) values
   ('20261104_late_join'),
   ('20261105_admin_api'),
   ('20261106_admin_venue_geo'),
-  ('20261107_user_rackets')
+  ('20261107_user_rackets'),
+  ('20261107_wipe_rackets')
 on conflict do nothing;
