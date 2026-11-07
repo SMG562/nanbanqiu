@@ -1236,6 +1236,57 @@ button.me[data-a=umenu] .av{width:34px;height:34px}button.me[data-a=umenu]:hover
 .ntf .ivtag{display:inline-block;font-size:11px;font-weight:700;color:#0F5A3F;background:#EAF4EE;border-radius:6px;padding:1px 6px;margin-top:5px}
 .npadult{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--mut);line-height:1.5;cursor:pointer}.npadult input{margin-top:3px;accent-color:var(--g);flex:none}.npadult a,.fine a{color:inherit;text-decoration:underline}
 .lt{font-size:11px;font-weight:500;color:var(--mut);margin-left:6px;white-space:nowrap}
+/* 我的球拍（#60）：克制 —— 整栏只有标题前一个图标；行里只用字：品牌是小号大写字距标签，系列是主角；
+   只有主力行右侧一个绿色「主力」标签，其余行没有箭头、没有图标框，整行可点。 */
+.rk-h{display:inline-flex;align-items:center;gap:6px}
+.rk-hi{width:16px;height:16px;color:var(--g);flex:none}
+.rk .rk-row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 18px;border:0;border-top:1px solid var(--line);background:none;
+  font:inherit;color:var(--ink);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.rk .rk-row:first-child{border-top:0}
+.rk .rk-row:active{background:#F7F8F7}
+.rk .rk-row:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-back:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.rk .rk-row .v{flex:1;min-width:0}
+.rk-br{display:block;margin-bottom:3px;font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.rk-se{display:block;font-size:16.5px;font-weight:650;line-height:1.25;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-main{flex:none;font-size:11.5px;font-weight:600;line-height:1;letter-spacing:.04em;color:var(--g);background:var(--gss);border:1px solid var(--gs);border-radius:999px;padding:5px 10px}
+.rk .rk-add{min-height:54px;gap:8px;color:var(--g);font-size:15px;font-weight:600}
+.rk-plus{font-size:19px;font-weight:400;line-height:1;width:16px;text-align:center}
+.rk-hint{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--mut)}
+.rk-off{padding:16px 18px;font-size:13.5px;color:var(--mut)}
+.rk-card{padding-bottom:4px}.rk-card .rk .rk-row{padding:11px 16px;min-height:58px}.rk-card .rk-se{font-size:15px}.rk-card .rk .rk-add{min-height:48px;font-size:14px}
+.rk-card .rk .rk-row:hover{background:#FAFBFA}
+
+/* 弹层 */
+.rk-pk.busy{pointer-events:none}
+.rk-pk.busy .rk-chip:not(.busy),.rk-pk.busy .rk-act:not(.busy){opacity:.45}
+.rk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}
+.rk-chip{position:relative;min-height:54px;padding:9px 14px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-size:15px;font-weight:600;
+  text-align:left;display:flex;flex-direction:column;justify-content:center;gap:1px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s,transform .15s}
+.rk-chip:active{transform:scale(.98);background:var(--gss);border-color:var(--gs)}
+.rk-chip.brand{font-size:13.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.rk-chip.oth{border-style:dashed;color:var(--ink2);font-weight:500}
+.rk-chip[disabled]{background:#F6F7F6;color:var(--mut);cursor:default;transform:none}
+.rk-chip small{font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--mut)}
+.rk-chip.busy::after,.rk-act.busy::after{content:"";position:absolute;right:14px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;border:2px solid var(--gs);border-top-color:var(--g);animation:rkspin .7s linear infinite}
+@keyframes rkspin{to{transform:rotate(360deg)}}
+.rk-nav{display:flex;align-items:center;gap:2px}
+.rk-nav>div{margin:0}
+.rk-back{width:36px;height:36px;margin-left:-10px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:none;color:var(--ink2);cursor:pointer}
+.rk-back svg{width:22px;height:22px}.rk-back:active{background:#F0F2F0}
+.rk-field{display:block;margin-top:14px}
+.rk-lab{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin:0 2px 6px}
+.rk-meta{display:flex;justify-content:space-between;gap:10px;min-height:20px;margin:6px 2px 12px;font-size:12.5px}
+.rk-err{color:#C4320A}.rk-n{color:var(--mut);font-variant-numeric:tabular-nums;margin-left:auto}
+.rk-save[disabled]{opacity:.45}
+.rk-hero{padding:2px 0 16px}
+.rk-hero .rk-br{margin-bottom:5px}
+.rk-ht{display:flex;align-items:center;gap:10px}.rk-ht>b{margin:0;min-width:0;word-break:break-word}
+.rk-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.rk-act{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:14px 16px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.rk-act:first-child{border-top:0}.rk-act:active{background:#F6F7F6}
+.rk-act b{font-size:15px;font-weight:600}.rk-act small{font-size:12.5px;color:var(--mut)}
+.rk-act.danger b{color:#D92D20}
+@media (prefers-reduced-motion:reduce){.rk-chip{transition:none}.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
 </style>
 </head>
 <body>
@@ -4709,6 +4760,7 @@ function profileHTML(){
     ${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
     ${often.map(([id,n])=>{const v=VEN[id];return `<div class="club"><span class="ci" style="background:#F0F2F0;color:var(--mut)"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>最近打过 ${n} 次</small></span><button class="pill p-gray" data-a="addClub" data-v="${id}">+ Home</button></div>`}).join('')}
     ${!myClubIds().length&&!often.length?`<button class="club" data-a="editClubs" style="width:100%;border:0;background:none;font:inherit;text-align:left;cursor:pointer"><span class="ci"><svg><use href="#i-plus"/></svg></span><span class="v"><b>添加我的 Club</b><small>会员 Club 可多选，主 Club 显示在球员卡上</small></span></button>`:''}<div style="height:6px"></div></div>
+  ${rkSectionHTML('web')}
   ${partnersHTML()}
   <div class="card" style="padding:4px 0">
     <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
@@ -5170,7 +5222,7 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk,aft,bdg,rpt]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine')]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
+  const [pub,mine,inv,blk,aft,bdg,rpt,rk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine'),typeof NBQ_RACKETS_ON!=='undefined'&&NBQ_RACKETS_ON?net.get('/api/me/rackets'):null]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
   put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
@@ -5181,7 +5233,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null}}
+  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
 // 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
 function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
   const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
@@ -5222,10 +5274,11 @@ function nbqClear(){Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=
   SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
 function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
+  const rk0=ME&&ME.id===r.me?ME.rackets:undefined;   // 我的球拍：这次没读到就沿用之前的（同一个人），不清空
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 
 // 我的举报（11-05）：处理中的举报以服务器为准（刷新 / 换设备后还认得出「已举报」）；读不到（null）时保持原样，不清空
 function nbqApplyReports(list,me){
@@ -5596,6 +5649,108 @@ function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){
     d.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483000;height:18px;line-height:18px;font:600 11px/18px system-ui,sans-serif;text-align:center;color:#fff;background:#C2410C;pointer-events:none';
     (document.body||document.documentElement).appendChild(d)};
   if(document.body)add();else addEventListener('DOMContentLoaded',add)})();
+/* ============================== 我的球拍（#60 PR-B） ==============================
+ * 个人页三个槽位，1 号是主力；只记「品牌 + 系列」，是身份展示不是器材档案（不做稀有度 / 进度 / 红点）。
+ * 数据：挂在 ME.rackets（[{brand|null, series}]，顺序 = 槽位）。真实模式只认服务器：读入走 nbqLoadAll → nbqApply → nbqRacketsIn；
+ *   写入走 nbqWrite(PUT /api/me/rackets) 整组替换，成功后用服务器返回的列表；读不到（undefined）时不许改，免得拿空列表把服务器上的冲掉。
+ * 演示模式（NBQ_NET 为空）：只改内存。快照（nbq_snap）随 USERS 一起存，刷新不先闪空槽。
+ * 开关 NBQ_RACKETS_ON：正式站默认关（上线闸门过了由所有者打开，见 #60 PR-D）；测试环境（分支预览，连测试库）开；
+ *   任何设备可用 localStorage nbq_ff_rackets=1 单独打开（真机预看、自动化测试）。关着时不显示入口、也不读接口。 */
+const NBQ_RACKETS_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_rackets')==='1'}catch(_){return false}})();
+const RK_MAX=3,RK_LEN=30;
+// 预设：热门品牌 + 系列（只用文字，不用品牌标志）。列表只在前台，服务器只校验长度和字符，改列表不用迁移
+const RK_BRANDS=[['Wilson',['Pro Staff','Blade','Clash','Ultra','Burn','Shift']],['Babolat',['Pure Drive','Pure Aero','Pure Strike']],['Head',['Speed','Radical','Gravity','Prestige','Extreme','Boom']],
+  ['Yonex',['EZONE','VCORE','Percept']],['Dunlop',['CX','SX','FX']],['Prince',['Phantom','Textreme']],['Tecnifibre',['TF40','T-Fight']]];
+// 与服务器 nbq_racket_text / nbq_racket_bad 同一套规则（服务器为准，这里只为了当场提示）
+const rkClean=s=>String(s==null?'':s).replace(/[\u0000-\u001f\u007f-\u009f]/g,'').replace(/[\s　 ]+/g,' ').trim();
+const rkBad=s=>/http|www/i.test(s)||/[@＠]/.test(s)||/[0-9０-９]{6,}/.test(s);
+const rkKey=r=>(r.brand||'').toLowerCase()+'\u001f'+String(r.series).toLowerCase();
+// 接口 → 前台：[{slot, brand, series}] → 按 slot 排好的 [{brand|null, series}]；不是数组返回 null（= 没读到）
+function nbqFromRackets(rows){if(!Array.isArray(rows))return null;
+  return rows.filter(r=>r&&typeof r.series==='string'&&r.series).sort((a,b)=>(+a.slot||0)-(+b.slot||0)).slice(0,RK_MAX).map(r=>({brand:typeof r.brand==='string'&&r.brand?r.brand:null,series:r.series}))}
+// 读入（nbqApply 调用）：读到了 → 以服务器为准；没读到 → 保留这次之前的（同一个人），不清空
+function nbqRacketsIn(me,list,old){if(!me)return;if(Array.isArray(list)){me.rackets=list;return}if(!Array.isArray(me.rackets)&&Array.isArray(old))me.rackets=old}
+// 当前的球拍：null = 真实模式还没读到（不显示槽位、不许改）
+const rkList=()=>{if(!ME)return null;if(Array.isArray(ME.rackets))return ME.rackets;if(typeof nbqOn==='function'&&nbqOn())return null;return ME.rackets=[]};
+
+/* ---- 画：一栏一个图标（标题前），行里只用字 —— 品牌是小号大写字距标签，系列是主角；只有主力行带「主力」标签 ---- */
+const RK_ICO='<svg class="rk-hi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><g transform="rotate(45 14 10)"><ellipse cx="14" cy="8.6" rx="4.4" ry="6.1" stroke-width="1.7"/><path d="M12 4.2v8.8M14 2.6v12M16 4.2v8.8M9.9 6.6h8.2M9.7 9h8.6M9.9 11.4h8.2" stroke-width=".7" opacity=".6"/><path d="M14 14.7v2.2" stroke-width="1.5"/><path d="M14 17v5.2" stroke-width="2.6"/></g></svg>';
+const rkName=r=>(r.brand?r.brand+' ':'')+r.series;
+function rkRow(r,i){
+  return `<button class="rk-row${i===0?' main':''}" data-a="rkSlot" data-i="${i}" aria-label="${i===0?'主力拍：':''}${esc(rkName(r))}，点开可以换一把、设为主力或移除">`+
+    `<span class="v">${r.brand?`<small class="rk-br">${esc(r.brand)}</small>`:''}<b class="rk-se">${esc(r.series)}</b></span>${i===0?'<span class="rk-main">主力</span>':''}</button>`}
+function rkAddRow(n){
+  return `<button class="rk-row rk-add" data-a="rkSlot" data-i="${n}"><span class="rk-plus" aria-hidden="true">+</span><span>添加球拍</span>${n?'':'<small class="rk-hint">第一把是主力</small>'}</button>`}
+// 个人页的一节：pwa = 分组标题 + 白色分组；web = 一张卡片
+function rkSectionHTML(kind){if(!NBQ_RACKETS_ON||!ME)return '';
+  const L=rkList(),rows=L===null?`<div class="rk-off">断线了。球拍等会儿再看。</div>`:L.map(rkRow).join('')+(L.length<RK_MAX?rkAddRow(L.length):'');
+  const h=`<span class="rk-h">${RK_ICO}我的球拍</span>`;
+  return kind==='web'?`<div class="card rk-card"><div class="ch-h">${h}</div><div class="rk">${rows}</div></div>`
+    :`<div class="sec-t">${h}</div><div class="group rk">${rows}</div>`}
+
+/* ---- 弹层（PWA 底部弹层 / 网页端弹窗，同一份内容）---- */
+const RK={i:0,mode:'add',brand:null,step:'brand'};
+const rkSheet=()=>typeof openSheet==='function';
+const rkCls=()=>rkSheet()?{t:'sh-t',s:'sh-s'}:{t:'m-t',s:'m-s'};
+function rkShow(html){html=`<div class="rk-pk">${html}</div>`;if(rkSheet())openSheet(html);else openModal(`<div class="m-b">${html}</div>`,'sm')}
+const rkHide=()=>{if(rkSheet())closeSheet();else closeModal()};
+// 包里别的槽位已有的（换一把时，被换掉的那把不算）
+const rkTaken=()=>{const L=rkList()||[];return new Set(L.filter((_,j)=>!(RK.mode==='swap'&&j===RK.i)).map(rkKey))};
+function rkBack(){return `<button class="rk-back" data-a="rkBack" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
+function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:null;
+  if(RK.step==='brand'){
+    const sub=RK.mode==='swap'?`换掉 ${esc(rkName(cur))}`:RK.i===0||!L.length?'这把会是你的主力。':'品牌和系列，点一下就好。';
+    rkShow(`<div class="${c.t}">${RK.mode==='swap'?'换一把':'添一把球拍'}</div><p class="${c.s}">${sub}</p>
+      <div class="rk-grid">${RK_BRANDS.map(([b])=>`<button class="rk-chip brand" data-a="rkBrand" data-b="${esc(b)}">${esc(b)}</button>`).join('')}<button class="rk-chip oth" data-a="rkOther">其他品牌</button></div>`);return}
+  if(RK.step==='series'){const tk=rkTaken(),list=(RK_BRANDS.find(x=>x[0]===RK.brand)||[,[]])[1];
+    rkShow(`<div class="rk-nav">${rkBack()}<div class="${c.t}">${esc(RK.brand)}</div></div><p class="${c.s}">选系列，点一下就保存。</p>
+      <div class="rk-grid">${list.map(s=>{const k=rkKey({brand:RK.brand,series:s}),own=tk.has(k),same=cur&&rkKey(cur)===k;
+        return `<button class="rk-chip" data-a="rkSeries" data-s="${esc(s)}"${own||same?' disabled':''}>${esc(s)}${own?'<small>已在包里</small>':same?'<small>现在这把</small>':''}</button>`}).join('')}<button class="rk-chip oth" data-a="rkOther">其他系列</button></div>`);return}
+  // 「其他」：唯一的输入框。回车只收键盘；保存按钮不绑回车
+  const ph=RK.brand?'系列 / 型号，例如 Pro Staff 97':'品牌和型号，例如 Diadem Elevate';
+  rkShow(`<div class="rk-nav">${rkBack()}<div class="${c.t}">${RK.brand?esc(RK.brand)+' · 其他系列':'其他品牌'}</div></div>
+    <label class="rk-field"><span class="rk-lab">拍子名称</span><input id="rkName" class="inp" maxlength="${RK_LEN}" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" placeholder="${ph}"></label>
+    <div class="rk-meta"><span class="rk-err" id="rkErr" role="alert"></span><span class="rk-n" id="rkN">0/${RK_LEN}</span></div>
+    <button class="btn btn-p rk-save" data-a="rkSave" disabled>保存</button>`);
+  const i=$('#rkName'),sv=document.querySelector('[data-a="rkSave"]');if(!i)return;
+  i.addEventListener('input',()=>{const v=rkClean(i.value);$('#rkN').textContent=[...i.value].length+'/'+RK_LEN;$('#rkErr').textContent='';if(sv)sv.disabled=!v});
+  i.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))i.blur()})}
+function rkSlotSheet(i){const L=rkList()||[],r=L[i],c=rkCls();
+  rkShow(`<div class="rk-hero">${r.brand?`<small class="rk-br">${esc(r.brand)}</small>`:''}<div class="rk-ht"><b class="${c.t}">${esc(r.series)}</b>${i===0?'<span class="rk-main">主力</span>':''}</div></div>
+    <div class="rk-acts">${i>0?`<button class="rk-act" data-a="rkMain"><b>设为主力</b><small>和现在的主力换个位置</small></button>`:''}
+      <button class="rk-act" data-a="rkSwap"><b>换一把</b></button><button class="rk-act danger" data-a="rkDel"><b>移除</b></button></div>`)}
+
+/* ---- 写：整组替换。真实模式走 nbqWrite（快照期间 / 连点 / 失败提示都在里面），成功后以服务器返回为准 ---- */
+async function rkCommit(next,done,btn){const L=rkList();
+  if(L===null){toast('球拍还没读到，稍等一下再试');return false}
+  const list=next.slice(0,RK_MAX).map(r=>({brand:r.brand||null,series:r.series}));
+  const pk=document.querySelector('.rk-pk');if(pk)pk.classList.add('busy');if(btn)btn.classList.add('busy');
+  try{
+    if(nbqOn()){const d=await nbqWrite('rackets',n=>n.put('/api/me/rackets',{rackets:list}));if(d===null)return false;
+      const got=nbqFromRackets(d.rackets);if(ME&&got)ME.rackets=got}
+    else ME.rackets=list;
+    rkHide();toast(done);render();return true}
+  finally{if(pk)pk.classList.remove('busy');if(btn)btn.classList.remove('busy')}}
+function rkPut(r,btn){const L=[...(rkList()||[])];
+  if(RK.mode==='swap'){L[RK.i]=r;return rkCommit(L,'已换上 '+rkName(r),btn)}
+  L.push(r);return rkCommit(L,L.length===1?'主力拍已就位':'已放进包里',btn)}
+// 事件（两端 0270 的 switch 转过来）
+function rkAct(a){const d=a.dataset,L=rkList();
+  switch(d.a){
+    case'rkSlot':{if(L===null){toast('球拍还没读到，稍等一下再试');return}const i=+d.i||0;
+      if(L[i]){RK.i=i;rkSlotSheet(i);return}RK.i=L.length;RK.mode='add';RK.brand=null;RK.step='brand';rkDraw();return}
+    case'rkSwap':RK.mode='swap';RK.brand=null;RK.step='brand';rkDraw();return;
+    case'rkBrand':RK.brand=d.b;RK.step='series';rkDraw();return;
+    case'rkOther':RK.step='other';rkDraw();setTimeout(()=>{const i=$('#rkName');if(i)i.focus()},rkSheet()?320:60);return;
+    case'rkBack':RK.step=RK.step==='other'&&RK.brand?'series':'brand';if(RK.step==='brand')RK.brand=null;rkDraw();return;
+    case'rkSeries':return void rkPut({brand:RK.brand,series:d.s},a);
+    case'rkSave':{const i=$('#rkName'),e=$('#rkErr'),v=rkClean(i&&i.value);
+      const err=!v?'写一下拍子的名字':[...v].length>RK_LEN?`最多 ${RK_LEN} 个字`:rkBad(v)?'名字里不能有链接、@ 或一长串数字':rkTaken().has(rkKey({brand:RK.brand,series:v}))?'这把已经在包里了':'';
+      if(err){if(e)e.textContent=err;return}if(i)i.blur();return void rkPut({brand:RK.brand,series:v},a)}
+    case'rkMain':{if(!L||!L[RK.i]||!RK.i)return;const n=[...L];[n[0],n[RK.i]]=[n[RK.i],n[0]];   // 和 1 号位交换，不做拖拽排序
+      return void rkCommit(n,'已设为主力',a)}
+    case'rkDel':{if(!L||!L[RK.i])return;const r=L[RK.i];return void rkCommit(L.filter((_,j)=>j!==RK.i),'已移除 '+rkName(r),a)}
+  }}
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
@@ -5794,6 +5949,7 @@ document.addEventListener('click',e=>{
     case'openLanding':UI.landing=api.get(g).share_code;history.replaceState(null,'','#/g/'+UI.landing);render();scrollTo(0,0);break;
     case'enablePush':enablePush();break;
     case'editClubs':openClubs();break;
+    case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeModal();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'logout':sbaLogout();ME=null;UI.sel=null;$('#umenu').classList.remove('show');toast('已退出登录');render();break;

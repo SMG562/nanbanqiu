@@ -93,6 +93,7 @@ add('pg', 'pg/admin_users', ['node', path.join(HERE, 'pg/admin_users.mjs')], { p
 add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { pass: [/admin_games: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/e2e_admin_login', ['node', path.join(HERE, 'e2e/admin_login.mjs')], { pass: [/admin_login: \d+ 通过, 0 失败/], timeout: 600 });   // #27 B1 后台真登录 + 真模式外壳（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）；放 frontend 档：CI 的浏览器档才有 Chromium + PostgreSQL
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
@@ -118,6 +119,7 @@ add('frontend', 'frontend/verify2', ['node', '-r', PRELOAD, path.join(HERE, 'fro
 add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pages.js')], { pass: [/PASS pages/], timeout: 300 });
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
+add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序

@@ -113,6 +113,15 @@
   "sx:dlPoster": "baseline",
   "a:readAll": "baseline",
   "a:pushRecheck": "write:push_onboarding（授权后补订阅）",
-  "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）"
+  "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）",
+  "a:rkSlot": "nav：打开空槽的选拍弹层 / 已有那把的操作弹层",
+  "a:rkSwap": "nav：换一把 → 回到选品牌",
+  "a:rkBrand": "nav：选品牌 → 系列",
+  "a:rkOther": "nav：其他 → 输入框",
+  "a:rkBack": "nav：弹层里返回上一步",
+  "a:rkSeries": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
+  "a:rkSave": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
+  "a:rkMain": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
+  "a:rkDel": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）"
  }
 }

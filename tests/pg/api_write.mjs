@@ -58,6 +58,24 @@ try {
   r = await call('GET', '/api/me/badges', tP); T('徽章：别人看不到我的', r.s === 200 && r.j.badges.length === 0, r);
   r = await call('POST', '/api/me/badges', tQ, { codes: 'first' }); T('徽章：codes 不是数组 → 422', r.s === 422, r);
   r = await call('POST', '/api/me/badges/seen', tQ, { code: 5 }); T('徽章：code 不是文字 → 422', r.s === 422, r);
+  // 我的球拍（#60 A3）：GET / PUT /api/me/rackets 接线；规则本身由 pg/rackets 测
+  const rk = x => (x || []).map(o => `${o.slot}:${o.brand ?? '-'}/${o.series}`).join(' ');
+  r = await call('GET', '/api/me/rackets', null); T('球拍：没登录 → 401', r.s === 401 && r.j.error === 'login_required', r);
+  r = await call('PUT', '/api/me/rackets', null, { rackets: [] }); T('球拍：没登录写 → 401', r.s === 401, r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：一开始是空数组', r.s === 200 && Array.isArray(r.j.rackets) && r.j.rackets.length === 0, r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ brand: 'Head', series: 'Speed' }, { series: '老拍', extra: 'x' }] });
+  T('球拍：保存 → 返回保存后的列表（多余字段不转发）', r.s === 200 && rk(r.j.rackets) === '1:Head/Speed 2:-/老拍', r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：重读 → 还在，按 slot 排', r.s === 200 && rk(r.j.rackets) === '1:Head/Speed 2:-/老拍', r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ series: '老拍' }, { brand: 'Head', series: 'Speed' }] }); T('球拍：设为主力（交换）', r.s === 200 && rk(r.j.rackets) === '1:-/老拍 2:Head/Speed', r);
+  r = await call('GET', '/api/me/rackets', tP); T('球拍：别人读不到我的', r.s === 200 && r.j.rackets.length === 0, r);
+  for (const [n, body] of [['rackets 不是数组', { rackets: 'Head' }], ['超过 3 把', { rackets: [1, 2, 3, 4].map(i => ({ series: 'S' + i })) }], ['元素不是对象', { rackets: ['Head'] }],
+    ['元素是数组', { rackets: [['Head']] }], ['series 不是文字', { rackets: [{ series: 5 }] }], ['brand 不是文字', { rackets: [{ brand: 1, series: 'x' }] }], ['缺 rackets', {}]]) {
+    r = await call('PUT', '/api/me/rackets', tQ, body); T('球拍：' + n + ' → 422 invalid', r.s === 422 && r.j.error === 'invalid', r) }
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ series: '加微信 1234567' }] }); T('球拍：数据库校验不过 → 422，detail 指出字段', r.s === 422 && r.j.error === 'invalid' && r.j.detail === 'series', r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ series: 'A' }, { series: 'a ' }] }); T('球拍：重复 → 422 duplicate', r.s === 422 && r.j.detail === 'duplicate', r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：失败后原来的还在', rk(r.j.rackets) === '1:-/老拍 2:Head/Speed', r);
+  r = await call('PUT', '/api/me/rackets', tQ, '{bad'); T('球拍：JSON 不对 → 400', r.s === 400 && r.j.error === 'bad_json', r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [] }); T('球拍：全部移除', r.s === 200 && r.j.rackets.length === 0, r);
   r = await call('GET', '/api/me/badges', null); T('徽章：没登录 → 401', r.s === 401, r);
   r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
 
