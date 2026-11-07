@@ -5,6 +5,7 @@ name: staging-migrate
 #   · 输入 ref = 要执行迁移的分支：只从它检出 server/migrations/*.sql，不执行它的任何其他文件。
 #   · 只执行文件名匹配 ^2026[0-9]{4}_[a-z0-9_]+\.sql$ 且 tools/migration_audit.mjs（main 的版本）通过的文件，按文件名顺序；
 #     schema_migrations 里已经记过的跳过（迁移本身可重复运行，重复触发也无害）。
+#   · 要执行的文件再过一道 tools/staging_migrate_check.mjs（main 的版本）：角色 / 权限 / 外联 / 内部 schema / 动态 SQL 等一律不执行，留给所有者手动执行。
 #   · 只连 staging 环境的 Secret NBQ_DB_URL_STAGING（所有者自己填，连接串不经过任何人）；运行前要所有者在 GitHub 批准。
 #   · 连接串只经环境变量传给 psql，日志不打印；结果（执行 / 跳过了哪些、schema_migrations 现状）写在 Summary。
 on:
@@ -44,31 +45,44 @@ jobs:
         env: { U: "${{ secrets.NBQ_DB_URL_STAGING }}" }
         run: '[ -n "$U" ] || { echo "::error::staging 环境里还没有 NBQ_DB_URL_STAGING"; exit 1; }'
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-      - name: 执行到测试库
-        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}", REF: "${{ inputs.ref }}" }
+      - name: 列出这次要执行的迁移（已记在 schema_migrations 的跳过）
+        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}" }
         run: |
-          set -o pipefail
           q() { psql "$PGURL" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
-          done_list=$(q -c "select version from schema_migrations" 2>/dev/null || true)
+          has=$(q -c "select to_regclass('public.schema_migrations') is not null") || { echo "::error::连不上测试库"; exit 1; }   # 连不上就停，不当成「都没执行过」
+          [ "$has" = t ] && q -c "select version from schema_migrations" > /tmp/done.txt || : > /tmp/done.txt
           # 记录表迁移必须最先（和 tools/migrate_bundle.mjs 一样）
-          { grep 'schema_migrations' /tmp/files.txt || true; grep -v 'schema_migrations' /tmp/files.txt || true; } > /tmp/order.txt
-          ran=(); skipped=()
+          { grep 'schema_migrations' /tmp/files.txt || true; grep -v 'schema_migrations' /tmp/files.txt || true; } | while read -r f; do
+            grep -qxF "${f%.sql}" /tmp/done.txt || echo "$f"; done > /tmp/todo.txt
+          echo "要执行 $(wc -l < /tmp/todo.txt) 个：$(tr '\n' ' ' < /tmp/todo.txt)"
+      - name: 安全检查（main 上的 staging_migrate_check：角色 / 权限 / 外联 / 内部 schema / 动态 SQL 等只能所有者手动执行）
+        run: |
+          [ -s /tmp/todo.txt ] || { echo "没有要执行的迁移"; exit 0; }
+          sed 's|^|server/migrations/|' /tmp/todo.txt | xargs node tools/staging_migrate_check.mjs \
+            || { echo "::error::上面这些迁移超出了「改表结构」，staging-migrate 不执行；请所有者看过后手动执行"; exit 1; }
+      - name: 执行到测试库
+        env: { PGURL: "${{ secrets.NBQ_DB_URL_STAGING }}", REF: "${{ inputs.ref }}", ACTOR: "${{ github.triggering_actor }}" }
+        run: |
+          q() { psql "$PGURL" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
+          ran=()
           while read -r f; do
-            v="${f%.sql}"
-            if printf '%s\n' "$done_list" | grep -qxF "$v"; then skipped+=("$v"); continue; fi
             echo "▶ $f"
             q -f "server/migrations/$f" > /tmp/psql.log 2>&1 || { tail -n 20 /tmp/psql.log; echo "::error::$f 执行失败，停在这里（之前的文件已生效；迁移可重复运行，修好后重新触发即可）"; exit 1; }
-            ran+=("$v")
-          done < /tmp/order.txt
+            ran+=("${f%.sql}")
+          done < /tmp/todo.txt
           {
-            echo "## 测试库迁移：$REF @ $(git rev-parse --short origin/nbq-target)"
+            echo "## 测试库迁移：$REF @ $(git rev-parse --short origin/nbq-target)（触发：$ACTOR）"
             echo "**本次执行（${#ran[@]}）**：${ran[*]:-无}"
             echo
-            echo "**已执行过、跳过（${#skipped[@]}）**"
+            echo "**已执行过、跳过**：$(( $(wc -l < /tmp/files.txt) - ${#ran[@]} )) 个"
             echo
+            echo '### 本次执行的文件 sha256（事后核对用）'
+            echo '```'
+            while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/todo.txt
+            echo '```'
             echo '### schema_migrations 最近 10 条'
             echo '```'
             q -c "select version || '  ' || to_char(applied_at at time zone 'Australia/Melbourne', 'YYYY-MM-DD HH24:MI') from schema_migrations order by applied_at desc, version desc limit 10"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "执行 ${#ran[@]} 个，跳过 ${#skipped[@]} 个"
+          echo "执行 ${#ran[@]} 个"
