@@ -99,6 +99,34 @@ try {
   const wipe = fs.readFileSync(path.join(DIR, 'server/migrations/20261107_wipe_rackets.sql'), 'utf8');
   e1 = null; try { await q(wipe); await q(wipe) } catch (e) { e1 = e.message } T('A2 迁移连跑两次不报错', e1 === null, e1);
   T('A2 迁移后 job_anonymize_deleted 与 schema.sql 一致且含删球拍', (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc === src0 && /delete from user_rackets/.test(src0));
+
+  // ===== A4 产品库（暂定实现，#60）=====
+  // 上面「A1 迁移连跑两次」会把 api_set_rackets 换回 A1 版；按迁移顺序再执行一次 A4（正式库也是按这个顺序跑整包）
+  const cat4 = fs.readFileSync(path.join(DIR, 'server/migrations/20261108_racket_catalog.sql'), 'utf8'); await q(cat4);
+  const C = await q(`select id, brand, series from racket_catalog order by sort`), cat = (b, s2) => C.rows.find(x => x.brand === b && x.series === s2).id;
+  T('A4 种子：25 条，全部可选', C.rows.length === 25 && +(await q(`select count(*) from racket_catalog where status <> 'active'`)).rows[0].count === 0, C.rows.length);
+  const D = id(3); await q(`insert into users(id,phone_e164,nickname,utr) values ($1,'+61400000003','Dee',5)`, [D]);
+  const cid = async u => (await q(`select slot, brand, series, catalog_id from user_rackets where user_id=$1 order by slot`, [u])).rows;
+  r = await set(D, [{ catalog_id: cat('Wilson', 'Blade') }]);
+  T('A4 按 catalog_id 选：名字用产品库的，记 id', r.ok && r.v[0].brand === 'Wilson' && r.v[0].series === 'Blade' && r.v[0].catalog_id === cat('Wilson', 'Blade'), r);
+  r = await set(D, [{ brand: 'wilson', series: ' BLADE ' }, { series: 'head speed' }, { brand: 'Diadem', series: 'Elevate' }]);
+  T('A4 自由文字自动归类：品牌 + 系列不分大小写 / 只写一整串 / 匹配不上的保持原样', r.ok && JSON.stringify(r.v.map(x => [x.brand, x.series, !!x.catalog_id])) === JSON.stringify([['Wilson', 'Blade', true], ['Head', 'Speed', true], ['Diadem', 'Elevate', false]]), r);
+  await q(`update racket_catalog set aliases = '{ps97}' where id = $1`, [cat('Wilson', 'Pro Staff')]);
+  r = await set(D, [{ series: 'PS97' }]); T('A4 别名也能归类', r.ok && r.v[0].catalog_id === cat('Wilson', 'Pro Staff') && r.v[0].series === 'Pro Staff', r);
+  r = await set(D, [{ catalog_id: cat('Head', 'Speed') }, { brand: 'HEAD', series: 'speed' }]); T('A4 产品库的和自由文字写的是同一把 → duplicate', bad(r, 'duplicate'), r);
+  r = await set(D, [{ catalog_id: 'not-a-uuid' }]); T('A4 catalog_id 格式不对 → invalid / catalog_id', bad(r, 'catalog_id'), r);
+  r = await set(D, [{ catalog_id: '00000000-0000-4000-8000-000000000000' }]); T('A4 catalog_id 不存在 → invalid / catalog_id', bad(r, 'catalog_id'), r);
+  await set(D, [{ catalog_id: cat('Wilson', 'Burn') }]); await q(`update racket_catalog set status = 'hidden' where id = $1`, [cat('Wilson', 'Burn')]);
+  r = await set(D, [{ catalog_id: cat('Wilson', 'Burn') }, { catalog_id: cat('Head', 'Boom') }]); T('A4 隐藏的：本来就有的人能留着', r.ok && r.v.length === 2, r);
+  r = await set(A, [{ catalog_id: cat('Wilson', 'Burn') }]); T('A4 隐藏的：没有的人不能新选', bad(r, 'catalog_id'), r);
+  const M = (await q(`insert into racket_catalog(brand, series, status, merged_into) values ('Wilson','ProStaff','merged',$1) returning id`, [cat('Wilson', 'Pro Staff')])).rows[0].id;
+  r = await set(D, [{ catalog_id: M }]); T('A4 合并掉的条目：跟到合并后的那条', r.ok && r.v[0].catalog_id === cat('Wilson', 'Pro Staff') && r.v[0].series === 'Pro Staff', r);
+  r = await as(D, `select count(*)::int v from racket_catalog`); T('A4 前台不能直接读产品库表（走接口层）', !r.ok && /permission denied/.test(r.err), r);
+  r = await as(D, `select nbq_racket_match('Wilson','Blade') v`); T('A4 匹配函数前台不能直接调', !r.ok && /permission denied/.test(r.err), r);
+  await q(`insert into user_rackets(user_id, slot, brand, series) values ($1, 2, 'Head', 'Gravity')`, [D]);
+  e1 = null; try { await q(cat4); await q(cat4) } catch (e) { e1 = e.message } T('A4 迁移连跑两次不报错', e1 === null, e1);
+  T('A4 迁移重跑：种子不重复，隐藏的不被改回', +(await q(`select count(*) from racket_catalog where status <> 'merged'`)).rows[0].count === 25 && (await q(`select status from racket_catalog where id=$1`, [cat('Wilson', 'Burn')])).rows[0].status === 'hidden');
+  T('A4 迁移给已有的自由文字补上 catalog_id', (await cid(D)).find(x => x.slot === 2).catalog_id === cat('Head', 'Gravity'), await cid(D));
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

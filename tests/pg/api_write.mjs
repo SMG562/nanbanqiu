@@ -76,6 +76,15 @@ try {
   r = await call('GET', '/api/me/rackets', tQ); T('球拍：失败后原来的还在', rk(r.j.rackets) === '1:-/老拍 2:Head/Speed', r);
   r = await call('PUT', '/api/me/rackets', tQ, '{bad'); T('球拍：JSON 不对 → 400', r.s === 400 && r.j.error === 'bad_json', r);
   r = await call('PUT', '/api/me/rackets', tQ, { rackets: [] }); T('球拍：全部移除', r.s === 200 && r.j.rackets.length === 0, r);
+  // 产品库（#60 A4，暂定）：不用登录就能读，只给可选的；按 catalog_id 保存只转 id
+  await admin.query(`update racket_catalog set status = 'hidden' where brand = 'Wilson' and series = 'Burn'`);
+  r = await call('GET', '/api/rackets/catalog', null); const cl = (r.j && r.j.catalog) || [];
+  T('产品库：没登录也能读，只有可选的，带缓存头', r.s === 200 && cl.length === 24 && !cl.some(x => x.series === 'Burn') && cl.every(x => UUIDre.test(x.id) && x.brand && x.series) && /max-age=3600/.test(r.h.get('cache-control') || ''), [r.s, cl.length, r.h.get('cache-control')]);
+  const blade = cl.find(x => x.brand === 'Wilson' && x.series === 'Blade');
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ catalog_id: blade.id, brand: 'x', series: 'ignored' }, { series: 'head speed' }] });
+  T('球拍：按 catalog_id 保存（只转 id）+ 自由文字自动归类，返回带 catalog_id', r.s === 200 && rk(r.j.rackets) === '1:Wilson/Blade 2:Head/Speed' && r.j.rackets[0].catalog_id === blade.id && UUIDre.test(r.j.rackets[1].catalog_id || ''), r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：重读带 catalog_id', r.s === 200 && r.j.rackets[0].catalog_id === blade.id, r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ catalog_id: 'nope' }] }); T('球拍：catalog_id 不是 uuid 又没 series → 422', r.s === 422, r);
   r = await call('GET', '/api/me/badges', null); T('徽章：没登录 → 401', r.s === 401, r);
   r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
 
