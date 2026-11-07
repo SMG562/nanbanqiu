@@ -22,24 +22,21 @@ function nbqRacketsIn(me,list,old){if(!me)return;if(Array.isArray(list)){me.rack
 // 当前的球拍：null = 真实模式还没读到（不显示槽位、不许改）
 const rkList=()=>{if(!ME)return null;if(Array.isArray(ME.rackets))return ME.rackets;if(typeof nbqOn==='function'&&nbqOn())return null;return ME.rackets=[]};
 
-/* ---- 画 ---- */
-// 通用球拍（自己画的，不像任何品牌）：拍面椭圆 + 线床 + 拍喉 + 握把；线床按椭圆算好，不用 clipPath（同页多份不撞 id）
-const RK_SVG=(()=>{const cx=24,cy=27,rx=16.5,ry=21.5,ln=[];
-  for(const x of [14.5,19.2,24,28.8,33.5]){const d=ry*Math.sqrt(1-((x-cx)/rx)**2)-1.6;ln.push(`M${x} ${(cy-d).toFixed(1)}V${(cy+d).toFixed(1)}`)}
-  for(const y of [12,17,22,27,32,37,42]){const d=rx*Math.sqrt(1-((y-cy)/ry)**2)-1.6;ln.push(`M${(cx-d).toFixed(1)} ${y}H${(cx+d).toFixed(1)}`)}
-  return `<svg viewBox="0 0 48 96" fill="none" aria-hidden="true"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="currentColor" fill-opacity=".06"/><path d="${ln.join('')}" stroke="currentColor" stroke-width=".9" stroke-opacity=".5"/>`+
-    `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" stroke="currentColor" stroke-width="2.6"/><path d="M12.4 42.6Q20 55 22 62.5M35.6 42.6Q28 55 26 62.5" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>`+
-    `<rect x="21.2" y="61" width="5.6" height="27" rx="2.6" fill="currentColor"/><rect x="20.2" y="86.5" width="7.6" height="4.5" rx="1.8" fill="currentColor"/></svg>`})();
+/* ---- 画：和「我的 Club」同一套列表行，一把一行；主力用标签标出，不用插图 ---- */
+// 小图标（24 格线稿）：斜放的拍面 + 拍柄 + 一颗球。只在行首这一处用，与 Club 的球场图标同尺寸、同底色规则
+const RK_ICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><ellipse cx="14.2" cy="9.8" rx="5.2" ry="6.6" transform="rotate(45 14.2 9.8)"/><path d="M10.4 13.6 4.6 19.4"/><path d="M11.4 7.6l5 5M13.6 5.9l4.5 4.5" stroke-width="1" opacity=".55"/><circle cx="18.6" cy="18.6" r="1.9" fill="currentColor" stroke="none"/></svg>';
 const rkName=r=>(r.brand?r.brand+' ':'')+r.series;
-function rkTile(r,i){
-  if(!r)return `<button class="rk-t empty" data-a="rkSlot" data-i="${i}" aria-label="添一把球拍"><span class="rk-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>`;
-  return `<button class="rk-t${i===0?' main':''}" data-a="rkSlot" data-i="${i}" aria-label="${i===0?'主力：':''}${esc(rkName(r))}，点开可以换一把或移除">${i===0?'<span class="rk-tag">主力</span>':''}<span class="rk-ill">${RK_SVG}</span>`+
-    `${r.brand?`<span class="rk-b">${esc(r.brand)}</span>`:''}<b class="rk-s">${esc(r.series)}</b></button>`}
-// 个人页的一节：pwa = 分组标题 + 三格；web = 一张卡片
+function rkRow(r,i){
+  return `<button class="club rk-row${i===0?' main':''}" data-a="rkSlot" data-i="${i}" aria-label="${i===0?'主力拍：':''}${esc(rkName(r))}，点开可以换一把、设为主力或移除"><span class="ci">${RK_ICO}</span>`+
+    `<span class="v"><b>${esc(r.series)}</b><small>${r.brand?esc(r.brand):'其他品牌'}</small></span>${i===0?'<span class="pill p-green">主力</span>':'<svg class="rk-chev" aria-hidden="true"><use href="#i-ch"/></svg>'}</button>`}
+function rkAddRow(n){
+  return `<button class="club rk-row rk-add" data-a="rkSlot" data-i="${n}"><span class="ci"><svg><use href="#i-plus"/></svg></span>`+
+    `<span class="v"><b>${n?'再添一把':'添加我的球拍'}</b><small>${n?`还能放 ${RK_MAX-n} 把`:'最多 3 把，第一把是主力'}</small></span></button>`}
+// 个人页的一节：pwa = 分组标题 + 白色分组；web = 一张卡片（与「我的 Club」同构）
 function rkSectionHTML(kind){if(!NBQ_RACKETS_ON||!ME)return '';
-  const L=rkList(),body=L===null?`<p class="rk-cap">断线了。球拍等会儿再看。</p>`
-    :`<div class="rk${L.length?'':' rk-none'}" role="group" aria-label="我的球拍">${[0,1,2].map(i=>rkTile(L[i],i)).join('')}</div>${L.length?'':'<p class="rk-cap">球拍也算半个搭档。</p>'}`;
-  return kind==='web'?`<div class="card rk-card"><div class="ch-h"><span>我的球拍</span></div>${body}</div>`:`<div class="sec-t"><span>我的球拍</span></div><section class="rk-sec">${body}</section>`}
+  const L=rkList(),rows=L===null?`<div class="rk-off">断线了。球拍等会儿再看。</div>`:L.map(rkRow).join('')+(L.length<RK_MAX?rkAddRow(L.length):'');
+  return kind==='web'?`<div class="card rk-card"><div class="ch-h"><span>我的球拍</span></div><div class="rk">${rows}</div><div style="height:6px"></div></div>`
+    :`<div class="sec-t"><span>我的球拍</span></div><div class="group rk">${rows}</div>`}
 
 /* ---- 弹层（PWA 底部弹层 / 网页端弹窗，同一份内容）---- */
 const RK={i:0,mode:'add',brand:null,step:'brand'};
@@ -69,7 +66,7 @@ function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:nu
   i.addEventListener('input',()=>{const v=rkClean(i.value);$('#rkN').textContent=[...i.value].length+'/'+RK_LEN;$('#rkErr').textContent='';if(sv)sv.disabled=!v});
   i.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))i.blur()})}
 function rkSlotSheet(i){const L=rkList()||[],r=L[i],c=rkCls();
-  rkShow(`<div class="rk-hero${i===0?' main':''}"><span class="rk-ill">${RK_SVG}</span><div>${i===0?'<span class="rk-tag">主力</span>':''}${r.brand?`<small>${esc(r.brand)}</small>`:''}<b class="${c.t}">${esc(r.series)}</b></div></div>
+  rkShow(`<div class="rk-hero${i===0?' main':''}"><span class="ci">${RK_ICO}</span><div><b class="${c.t}">${esc(r.series)}</b><small>${r.brand?esc(r.brand):'其他品牌'}${i===0?' · 主力':''}</small></div></div>
     <div class="rk-acts">${i>0?`<button class="rk-act" data-a="rkMain"><b>设为主力</b><small>和现在的主力换个位置</small></button>`:''}
       <button class="rk-act" data-a="rkSwap"><b>换一把</b></button><button class="rk-act danger" data-a="rkDel"><b>移除</b></button></div>`)}
 

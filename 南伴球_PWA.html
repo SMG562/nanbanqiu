@@ -1186,36 +1186,18 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .ntf .ivtag{display:inline-block;font-size:11px;font-weight:700;color:#0F5A3F;background:#EAF4EE;border-radius:6px;padding:1px 6px;margin-top:5px}
 .npadult{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--mut);line-height:1.5;cursor:pointer}.npadult input{margin-top:3px;accent-color:var(--g);flex:none}.npadult a,.fine a{color:inherit;text-decoration:underline}
 .lt{font-size:11px;font-weight:500;color:var(--mut);margin-left:6px;white-space:nowrap}
-/* 我的球拍（#60）：三个槽位像球包里的三格，1 号主力稍大、带轻标记；空格只有一个安静的 +。
-   只借「槽位」这个隐喻：没有稀有度、等级、进度条、红点；品牌只用文字，球拍图是自己画的通用线稿。 */
-.rk{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
-.rk-t{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:2px;min-height:124px;min-width:0;padding:12px 11px 11px;border-radius:16px;
-  background:#fff;border:1px solid var(--line);color:var(--ink);text-align:left;font:inherit;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;
-  transition:transform .18s cubic-bezier(.2,.8,.2,1),border-color .18s,box-shadow .18s}
-.rk-t:active{transform:scale(.97)}
-.rk-t:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-back:focus-visible{outline:2px solid var(--g);outline-offset:2px}
-.rk-t .rk-ill{position:absolute;right:4px;top:9px;width:30px;height:60px;color:#C3CAC3;transform:rotate(22deg);transform-origin:50% 40%;pointer-events:none}
-.rk-t .rk-ill svg,.rk-hero .rk-ill svg{width:100%;height:100%;display:block}
-.rk-t.main{background:linear-gradient(155deg,var(--gss) 0%,#fff 72%);border-color:var(--gs)}
-.rk-t.main .rk-ill{width:42px;height:84px;right:8px;top:7px;color:var(--g)}
-.rk-b{max-width:100%;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rk-s{max-width:100%;font-size:14px;font-weight:700;line-height:1.22;letter-spacing:-.01em;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.rk-t.main .rk-s{font-size:16.5px}
-.rk-tag{display:inline-block;font-size:10.5px;font-weight:700;line-height:18px;padding:0 7px;border-radius:999px;color:var(--g);background:#fff;border:1px solid var(--gs)}
-.rk-t .rk-tag{position:absolute;left:10px;top:10px}
-.rk-t.empty{align-items:center;justify-content:center;background:transparent;border:1.5px dashed #D2D8D2}
-.rk-plus{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--mut);background:#fff;border:1px solid var(--line);transition:color .18s,border-color .18s}
-.rk-plus svg{width:16px;height:16px}
-.rk-t.empty:hover .rk-plus{color:var(--g);border-color:var(--gs)}
-/* 一把都没有：格子压矮，只是三个安静的 +，不像一张待填的表 */
-.rk.rk-none .rk-t{min-height:84px}.rk-card .rk.rk-none .rk-t{min-height:60px}
-.rk-cap{margin:10px 4px 0;font-size:13px;line-height:1.5;color:var(--mut)}
-/* 网页端：左栏只有二百多像素宽 —— 主力占满一行，2、3 号并排在下面 */
-.rk-card{padding-bottom:14px}.rk-card .rk{grid-template-columns:1fr 1fr;padding:4px 14px 0}.rk-card .rk-cap{margin:8px 16px 0}
-.rk-card .rk-t{min-height:92px;border-radius:14px}.rk-card .rk-t:first-child{grid-column:1/-1;min-height:100px}
-.rk-card .rk-t:hover{border-color:#CFD6CF;box-shadow:0 2px 10px rgba(16,24,40,.05)}
-.rk-card .rk-t .rk-ill{width:28px;height:56px}.rk-card .rk-t.main .rk-ill{width:40px;height:80px;right:8px}
-.rk-card .rk-t.main .rk-s{font-size:16px}
+/* 我的球拍（#60）：与「我的 Club」同一套列表行 —— 一把一行，主力用绿色「主力」标签；行首是统一尺寸的小图标，没有插图、进度、红点。 */
+.rk .rk-row{cursor:pointer;font:inherit;color:inherit;background:none;border-left:0;border-right:0;border-bottom:0;-webkit-tap-highlight-color:transparent}
+.rk .rk-row:active{background:#F7F8F7}
+.rk .rk-row:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-back:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.rk .rk-row .ci svg{width:19px;height:19px}
+.rk .rk-row:not(.main):not(.rk-add) .ci{background:#F0F2F0;color:var(--ink2)}   /* 非主力：灰底，主力保持 Club 的绿色 */
+.rk .rk-row .v b{letter-spacing:-.005em}
+.rk .rk-row .v small{letter-spacing:.01em}
+.rk .rk-add .v b{color:var(--ink2);font-weight:500}
+.rk .rk-chev{width:16px;height:16px;margin-left:auto;color:#C2C8C2;flex:none}
+.rk-off{padding:14px 16px;font-size:13.5px;color:var(--mut)}
+.rk-card .rk .rk-row{width:100%;text-align:left}
 
 /* 弹层 */
 .rk-pk.busy{pointer-events:none}
@@ -1239,17 +1221,18 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .rk-meta{display:flex;justify-content:space-between;gap:10px;min-height:20px;margin:6px 2px 12px;font-size:12.5px}
 .rk-err{color:#C4320A}.rk-n{color:var(--mut);font-variant-numeric:tabular-nums;margin-left:auto}
 .rk-save[disabled]{opacity:.45}
-.rk-hero{display:flex;align-items:center;gap:14px;padding:4px 0 14px}
-.rk-hero .rk-ill{width:40px;height:80px;flex:none;color:#AEB6AE;transform:rotate(16deg)}
-.rk-hero.main .rk-ill{color:var(--g)}
-.rk-hero small{display:block;margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.rk-hero{display:flex;align-items:center;gap:12px;padding:2px 0 14px}
+.rk-hero .ci{width:44px;height:44px;border-radius:13px;flex:none;display:grid;place-items:center;background:#F0F2F0;color:var(--ink2)}
+.rk-hero.main .ci{background:var(--gss);color:var(--g)}
+.rk-hero .ci svg{width:22px;height:22px}
+.rk-hero small{display:block;margin-top:2px;font-size:13px;color:var(--mut)}
 .rk-hero b{display:block;margin:0;word-break:break-word}
 .rk-acts{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .rk-act{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:14px 16px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
 .rk-act:first-child{border-top:0}.rk-act:active{background:#F6F7F6}
 .rk-act b{font-size:15px;font-weight:600}.rk-act small{font-size:12.5px;color:var(--mut)}
 .rk-act.danger b{color:#D92D20}
-@media (prefers-reduced-motion:reduce){.rk-t,.rk-chip,.rk-plus{transition:none}.rk-t:active,.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
+@media (prefers-reduced-motion:reduce){.rk-chip{transition:none}.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
 /* ===== 第八批：场边页 + 右上角消息 ===== */
 .scr.side{overflow:hidden;padding:0}.scr.side.top{z-index:60}
 #sbHost{position:absolute;inset:0}
@@ -5653,24 +5636,21 @@ function nbqRacketsIn(me,list,old){if(!me)return;if(Array.isArray(list)){me.rack
 // 当前的球拍：null = 真实模式还没读到（不显示槽位、不许改）
 const rkList=()=>{if(!ME)return null;if(Array.isArray(ME.rackets))return ME.rackets;if(typeof nbqOn==='function'&&nbqOn())return null;return ME.rackets=[]};
 
-/* ---- 画 ---- */
-// 通用球拍（自己画的，不像任何品牌）：拍面椭圆 + 线床 + 拍喉 + 握把；线床按椭圆算好，不用 clipPath（同页多份不撞 id）
-const RK_SVG=(()=>{const cx=24,cy=27,rx=16.5,ry=21.5,ln=[];
-  for(const x of [14.5,19.2,24,28.8,33.5]){const d=ry*Math.sqrt(1-((x-cx)/rx)**2)-1.6;ln.push(`M${x} ${(cy-d).toFixed(1)}V${(cy+d).toFixed(1)}`)}
-  for(const y of [12,17,22,27,32,37,42]){const d=rx*Math.sqrt(1-((y-cy)/ry)**2)-1.6;ln.push(`M${(cx-d).toFixed(1)} ${y}H${(cx+d).toFixed(1)}`)}
-  return `<svg viewBox="0 0 48 96" fill="none" aria-hidden="true"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="currentColor" fill-opacity=".06"/><path d="${ln.join('')}" stroke="currentColor" stroke-width=".9" stroke-opacity=".5"/>`+
-    `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" stroke="currentColor" stroke-width="2.6"/><path d="M12.4 42.6Q20 55 22 62.5M35.6 42.6Q28 55 26 62.5" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>`+
-    `<rect x="21.2" y="61" width="5.6" height="27" rx="2.6" fill="currentColor"/><rect x="20.2" y="86.5" width="7.6" height="4.5" rx="1.8" fill="currentColor"/></svg>`})();
+/* ---- 画：和「我的 Club」同一套列表行，一把一行；主力用标签标出，不用插图 ---- */
+// 小图标（24 格线稿）：斜放的拍面 + 拍柄 + 一颗球。只在行首这一处用，与 Club 的球场图标同尺寸、同底色规则
+const RK_ICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><ellipse cx="14.2" cy="9.8" rx="5.2" ry="6.6" transform="rotate(45 14.2 9.8)"/><path d="M10.4 13.6 4.6 19.4"/><path d="M11.4 7.6l5 5M13.6 5.9l4.5 4.5" stroke-width="1" opacity=".55"/><circle cx="18.6" cy="18.6" r="1.9" fill="currentColor" stroke="none"/></svg>';
 const rkName=r=>(r.brand?r.brand+' ':'')+r.series;
-function rkTile(r,i){
-  if(!r)return `<button class="rk-t empty" data-a="rkSlot" data-i="${i}" aria-label="添一把球拍"><span class="rk-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>`;
-  return `<button class="rk-t${i===0?' main':''}" data-a="rkSlot" data-i="${i}" aria-label="${i===0?'主力：':''}${esc(rkName(r))}，点开可以换一把或移除">${i===0?'<span class="rk-tag">主力</span>':''}<span class="rk-ill">${RK_SVG}</span>`+
-    `${r.brand?`<span class="rk-b">${esc(r.brand)}</span>`:''}<b class="rk-s">${esc(r.series)}</b></button>`}
-// 个人页的一节：pwa = 分组标题 + 三格；web = 一张卡片
+function rkRow(r,i){
+  return `<button class="club rk-row${i===0?' main':''}" data-a="rkSlot" data-i="${i}" aria-label="${i===0?'主力拍：':''}${esc(rkName(r))}，点开可以换一把、设为主力或移除"><span class="ci">${RK_ICO}</span>`+
+    `<span class="v"><b>${esc(r.series)}</b><small>${r.brand?esc(r.brand):'其他品牌'}</small></span>${i===0?'<span class="pill p-green">主力</span>':'<svg class="rk-chev" aria-hidden="true"><use href="#i-ch"/></svg>'}</button>`}
+function rkAddRow(n){
+  return `<button class="club rk-row rk-add" data-a="rkSlot" data-i="${n}"><span class="ci"><svg><use href="#i-plus"/></svg></span>`+
+    `<span class="v"><b>${n?'再添一把':'添加我的球拍'}</b><small>${n?`还能放 ${RK_MAX-n} 把`:'最多 3 把，第一把是主力'}</small></span></button>`}
+// 个人页的一节：pwa = 分组标题 + 白色分组；web = 一张卡片（与「我的 Club」同构）
 function rkSectionHTML(kind){if(!NBQ_RACKETS_ON||!ME)return '';
-  const L=rkList(),body=L===null?`<p class="rk-cap">断线了。球拍等会儿再看。</p>`
-    :`<div class="rk${L.length?'':' rk-none'}" role="group" aria-label="我的球拍">${[0,1,2].map(i=>rkTile(L[i],i)).join('')}</div>${L.length?'':'<p class="rk-cap">球拍也算半个搭档。</p>'}`;
-  return kind==='web'?`<div class="card rk-card"><div class="ch-h"><span>我的球拍</span></div>${body}</div>`:`<div class="sec-t"><span>我的球拍</span></div><section class="rk-sec">${body}</section>`}
+  const L=rkList(),rows=L===null?`<div class="rk-off">断线了。球拍等会儿再看。</div>`:L.map(rkRow).join('')+(L.length<RK_MAX?rkAddRow(L.length):'');
+  return kind==='web'?`<div class="card rk-card"><div class="ch-h"><span>我的球拍</span></div><div class="rk">${rows}</div><div style="height:6px"></div></div>`
+    :`<div class="sec-t"><span>我的球拍</span></div><div class="group rk">${rows}</div>`}
 
 /* ---- 弹层（PWA 底部弹层 / 网页端弹窗，同一份内容）---- */
 const RK={i:0,mode:'add',brand:null,step:'brand'};
@@ -5700,7 +5680,7 @@ function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:nu
   i.addEventListener('input',()=>{const v=rkClean(i.value);$('#rkN').textContent=[...i.value].length+'/'+RK_LEN;$('#rkErr').textContent='';if(sv)sv.disabled=!v});
   i.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))i.blur()})}
 function rkSlotSheet(i){const L=rkList()||[],r=L[i],c=rkCls();
-  rkShow(`<div class="rk-hero${i===0?' main':''}"><span class="rk-ill">${RK_SVG}</span><div>${i===0?'<span class="rk-tag">主力</span>':''}${r.brand?`<small>${esc(r.brand)}</small>`:''}<b class="${c.t}">${esc(r.series)}</b></div></div>
+  rkShow(`<div class="rk-hero${i===0?' main':''}"><span class="ci">${RK_ICO}</span><div><b class="${c.t}">${esc(r.series)}</b><small>${r.brand?esc(r.brand):'其他品牌'}${i===0?' · 主力':''}</small></div></div>
     <div class="rk-acts">${i>0?`<button class="rk-act" data-a="rkMain"><b>设为主力</b><small>和现在的主力换个位置</small></button>`:''}
       <button class="rk-act" data-a="rkSwap"><b>换一把</b></button><button class="rk-act danger" data-a="rkDel"><b>移除</b></button></div>`)}
 

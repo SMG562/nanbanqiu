@@ -38,7 +38,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const until = async (fn, n = 30) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(200) } return false };
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的球拍（DOM），不是内存
-    const tiles = () => pg.evaluate(() => [...document.querySelectorAll('.rk .rk-t')].map(t => t.classList.contains('empty') ? '+' : (t.classList.contains('main') ? '*' : '') + (t.querySelector('.rk-b') ? t.querySelector('.rk-b').textContent + '/' : '') + t.querySelector('.rk-s').textContent).join(' '));
+    const tiles = () => pg.evaluate(() => [...document.querySelectorAll('.rk .rk-row')].map(t => t.classList.contains('rk-add') ? '+' : (t.querySelector('.pill') && /主力/.test(t.querySelector('.pill').textContent) ? '*' : '') + (t.querySelector('.v small').textContent !== '其他品牌' ? t.querySelector('.v small').textContent + '/' : '') + t.querySelector('.v b').textContent).join(' '));
     const tap = sel => pg.evaluate(s => { const e = document.querySelector(s); if (!e) return false; e.click(); return true }, sel);
     const putN = () => S.puts.length;
     const sheetOpen = () => pg.evaluate(W => W ? document.querySelector('#mbg').classList.contains('show') && !!document.querySelector('#modal .rk-pk') : document.querySelector('#sheet').classList.contains('show') && !!document.querySelector('#sheet .rk-pk'), W);
@@ -48,12 +48,12 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600); await login(); await toMe(); await pg.settle(300);
     if (!on) {
       T(tag('不读 /api/me/rackets'), S.rkGets === 0, S.log);
-      T(tag('个人页没有「我的球拍」'), await pg.evaluate(() => !document.querySelector('.rk-sec,.rk-card') && !!document.querySelector(typeof DEV !== 'undefined' ? '#meBody .group' : '.card')));
+      T(tag('个人页没有「我的球拍」'), await pg.evaluate(() => !document.querySelector('.rk') && !!document.querySelector(typeof DEV !== 'undefined' ? '#meBody .group' : '.card')));
       T(tag('无脚本错误'), errs.length === 0, errs); await ctx.close(); continue }
 
     // —— 读入：登录后读一次，页面画出服务器上的那把
     T(tag('登录后读 /api/me/rackets'), S.rkGets >= 1, S.log);
-    T(tag('读入后页面：主力 Head Speed + 两个空格'), await until(async () => await tiles() === '*Head/Speed + +'), await tiles());
+    T(tag('读入后页面：主力 Head Speed（带主力标签）+「再添一把」'), await until(async () => await tiles() === '*Head/Speed +'), await tiles());
 
     // —— 添加：点空格 → 品牌 → 系列，点完即保存（真实点击第一下）
     await pg.click('.rk [data-a="rkSlot"][data-i="1"]'); await pg.settle(400);
@@ -116,7 +116,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     S.getFail = true; await pg.evaluate(() => nbqRefresh()); await pg.settle(300);
     T(tag('重读失败：保留原来的'), await tiles() === '*Yonex/EZONE Head/Speed +', await tiles());
     const n2 = putN(); await pg.evaluate(async () => { ME.rackets = undefined; await nbqRefresh() }); await pg.settle(300);
-    T(tag('从没读到：显示「断线了」，没有格子'), await pg.evaluate(() => !document.querySelector('.rk .rk-t') && /断线了/.test(document.querySelector('.rk-cap').textContent)));
+    T(tag('从没读到：显示「断线了」，没有球拍行'), await pg.evaluate(() => !document.querySelector('.rk .rk-row') && /断线了/.test(document.querySelector('.rk-off').textContent)));
     await pg.evaluate(() => rkAct({ dataset: { a: 'rkSlot', i: '0' } })); await pg.settle(200);
     T(tag('从没读到：点不开、不发写请求'), putN() === n2 && !(await sheetOpen()));
     S.getFail = false; await pg.evaluate(() => nbqRefresh()); await pg.settle(300);
@@ -131,7 +131,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
 
     // —— 退出登录：清掉
     await pg.evaluate(() => { sbaLogout(); render() }); await pg.settle(400); await toMe(); await pg.settle(200);
-    T(tag('退出登录：个人页不再有球拍'), await pg.evaluate(() => !document.querySelector('.rk-sec,.rk-card') && !Object.values(USERS).some(u => Array.isArray(u.rackets))));
+    T(tag('退出登录：个人页不再有球拍'), await pg.evaluate(() => !document.querySelector('.rk') && !Object.values(USERS).some(u => Array.isArray(u.rackets))));
     T(tag('无脚本错误'), errs.length === 0, errs); await ctx.close();
   }
   await b.close(); console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
