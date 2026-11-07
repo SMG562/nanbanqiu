@@ -7223,7 +7223,7 @@ grant execute on function api_set_rackets(jsonb) to nbq_user, nbq_service;
 -- 已有的自由文字：补上能匹配的 catalog_id（不改名字，下次保存时再换成产品库的写法）
 update user_rackets r set catalog_id = nbq_racket_match(r.brand, r.series) where r.catalog_id is null and nbq_racket_match(r.brand, r.series) is not null;
 
--- 球拍统计（#60 A5，迁移 20261108_racket_stats，暂定实现：依据 #60 的提案，静默期到 2026-11-10；所有者可整体推翻）。可重复运行，只加不改。
+-- 球拍统计（#60 A5，迁移 20261108_racket_stats，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
 --   · racket_daily / racket_daily_total：每晚记一次「持有人数」快照（只存计数、不存用户），是趋势和「上升最快」的数据来源，长期保留
 --   · racket_rollup(day)：按当时的 user_rackets 记快照（不算已注销 / 已封禁的人）；同一天重跑覆盖
 --   · job_nightly：只加一行 perform racket_rollup(d - 1)，其余与 schema.sql 原样一致

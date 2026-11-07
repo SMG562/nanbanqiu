@@ -128,7 +128,7 @@ try {
   T('A4 迁移重跑：种子不重复，隐藏的不被改回', +(await q(`select count(*) from racket_catalog where status <> 'merged'`)).rows[0].count === 25 && (await q(`select status from racket_catalog where id=$1`, [cat('Wilson', 'Burn')])).rows[0].status === 'hidden');
   T('A4 迁移给已有的自由文字补上 catalog_id', (await cid(D)).find(x => x.slot === 2).catalog_id === cat('Head', 'Gravity'), await cid(D));
 
-  // ===== A5 统计（暂定实现，#60）=====（日期一律用数据库给的文本比，不经过 JS Date：CI 和本机时区不同会差一天）
+  // ===== A5 统计（#60，ADR 0009）=====（日期一律用数据库给的文本比，不经过 JS Date：CI 和本机时区不同会差一天）
   const st4 = fs.readFileSync(path.join(DIR, 'server/migrations/20261108_racket_stats.sql'), 'utf8');
   const nightSrc0 = (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc;
   await q(`delete from user_rackets`);
