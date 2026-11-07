@@ -312,6 +312,12 @@ const ROUTES = {
   'POST /api/me/badges/seen': (req, d, p) => act(req, d, p, async (q, b) => {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
+  // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
+    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')) throw bad();
+    const list = r.map(x => ({ brand: x.brand ?? null, series: x.series }));   // 只转发这两个字段
+    return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
   'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
     await q('delete from user_clubs where user_id = nbq_uid()'); for (const v of ids) await q('insert into user_clubs(user_id, venue_id) values (nbq_uid(), $1)', [v]);
