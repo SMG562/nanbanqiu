@@ -19,6 +19,7 @@ function renderMe(){
   <div class="group">${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
     ${often.map(([id,n])=>{const v=VEN[id];return `<div class="club"><span class="ci" style="background:#F0F2F0;color:var(--mut)"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>最近打过 ${n} 次</small></span><button class="pill p-gray" data-a="addClub" data-v="${id}">+ Home</button></div>`}).join('')}
     ${!myClubIds().length&&!often.length?`<button class="club" data-a="editClubs"><span class="ci"><svg><use href="#i-plus"/></svg></span><span class="v"><b>添加我的 Club</b><small>会员 Club 可多选，主 Club 显示在球员卡上</small></span></button>`:''}</div>
+  ${rkSectionHTML('pwa')}
   ${partnersHTML()}
   <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册<small>只有自己看得到</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
   <div class="sec-t">设置</div><div class="group">

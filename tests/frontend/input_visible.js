@@ -16,6 +16,7 @@ const FLOWS = [
   ['新用户资料', `openNewProfile()`],
   ['位置 / 区域搜索', `openSuburbPicker()`],
   ['邮件提醒设置', `emSettings()`],
+  ['我的球拍 · 其他（拍子名称）', `RK.i=0;RK.mode='add';RK.brand='Wilson';RK.step='other';rkDraw()`],
   ['婉拒申请（说一句）', `SOFT_OPEN(softNoHTML(GAMES.find(g=>g.host_id===ME.id)?GAMES.find(g=>g.host_id===ME.id).id:GAMES[0].id,'han'))`],
 ];
 (async () => {

@@ -2,6 +2,7 @@
 "applyMsg":{"enter":"none","覆盖":"input_visible"},
 "csE":{"enter":"done","覆盖":"input_visible"},
 "cxIn":{"enter":"send","覆盖":"page"},
+"rkName":{"enter":"done","覆盖":"input_visible"},
 "emSet":{"enter":"done","覆盖":"input_visible"},
 "emkIn":{"enter":"done","覆盖":"input_visible"},
 "fSub":{"enter":"done","覆盖":"input_visible"},
