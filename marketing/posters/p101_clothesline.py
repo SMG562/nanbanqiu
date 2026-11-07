@@ -2,70 +2,61 @@ from lib import *
 
 META = dict(
     id=101, slug='clothesline', title='洗不干净了', lines=['白袜子，', '洗不干净了。'],
-    style=['写实光影', '极简'], tone='亮色', demo=False,
-    concept='蓝天下的晾衣绳：一件白球衣、一双白袜子用木夹子夹着，被风吹得微微鼓起；袜底还留着一片洗不掉的红土色',
-    use='打过红土的人都懂；明亮、干净、一处小细节',
+    style=['平面', '极简', '光影'], tone='亮色', demo=False,
+    concept='扁平光影插画：钴蓝晴空，一根晾衣绳斜穿画面；白球衣被风吹鼓，一双白袜子是主角，袜底留着一片洗不掉的红土色',
+    use='打过红土的人都懂；平涂色块、锐利的布料阴影',
 )
+
+SKY = '#2F6FD6'
+WHITE, FOLD, FOLD2 = '#FFFFFF', '#D6E2F2', '#BFD0E8'
+CLAY = '#C8603A'
 
 
 def svg():
-    rnd = random.Random(101)
-    def ly(x):                       # 晾衣绳（下垂）
-        t = (x + 20) / 1120
-        return 500 + 40 * t + 70 * math.sin(math.pi * t)
-    line = 'M-20 500 ' + ' '.join(f'L{x} {ly(x):.1f}' for x in range(0, 1110, 20))
+    def ly(x):
+        return 560 + (x + 40) * .17 - 60 * math.sin(math.pi * (x + 40) / 1180)
+    line = 'M-40 ' + f'{ly(-40):.1f} ' + ' '.join(f'L{x} {ly(x):.1f}' for x in range(-20, 1160, 20))
     def peg(x):
         y = ly(x)
-        return f'<rect x="{x-7}" y="{y-16:.0f}" width="14" height="42" rx="3" fill="#D9B98C"/><rect x="{x-7}" y="{y-16:.0f}" width="5" height="42" rx="2" fill="#E9D0A8"/><rect x="{x-8}" y="{y+2:.0f}" width="16" height="4" fill="#9C9A96"/>'
-    # 球衣（polo）
-    sx, sy = 120, ly(120) + 6
-    shirt = f'''<g transform="translate({sx} {sy:.0f}) rotate(4)">
-<path d="M0 0 L110 -6 Q150 30 200 -8 L310 0 L360 110 L300 140 L292 470 Q160 492 18 470 L12 140 L-50 110Z" fill="url(#cloth101)"/>
-<path d="M110 -6 Q150 30 200 -8 L188 40 Q154 66 122 40Z" fill="#FFFFFF" stroke="#DDE3EA" stroke-width="2"/>
-<path d="M155 52 V170" stroke="#DDE3EA" stroke-width="3"/><circle cx="155" cy="90" r="4" fill="#E2E7EE"/><circle cx="155" cy="130" r="4" fill="#E2E7EE"/>
-<path d="M60 160 Q80 300 70 450 M240 170 Q230 300 250 455" stroke="#D3DCE7" stroke-width="10" fill="none" opacity=".6" filter="url(#bl6)"/>
-<path d="M12 140 L-50 110 L-38 96 M300 140 L360 110" stroke="#DDE3EA" stroke-width="3" fill="none"/>
-<rect x="232" y="96" width="34" height="22" rx="4" fill="#176B4D" opacity=".85"/>
+        return f'<rect x="{x-7}" y="{y-20:.0f}" width="14" height="44" rx="3" fill="#E2C39A"/><rect x="{x-7}" y="{y-20:.0f}" width="5" height="44" rx="2" fill="#F0D8B4"/>'
+    # 球衣：裁出画面左边，被风吹鼓
+    sx = -60
+    sy = ly(sx + 120)
+    shirt = f'''<g transform="translate({sx} {sy:.0f}) rotate(10)">
+<path d="M0 0 L120 -4 Q160 34 210 -6 L330 2 L400 120 L330 150 L330 500 Q180 530 30 500 L28 150 L-40 120Z" fill="{WHITE}"/>
+<path d="M210 -6 L330 2 L400 120 L330 150 L330 500 Q260 515 220 512 Q270 300 210 -6Z" fill="{FOLD}"/>
+<path d="M120 -4 Q160 34 210 -6 L198 46 Q162 72 130 46Z" fill="{FOLD2}"/>
+<path d="M165 60 V180" stroke="{FOLD2}" stroke-width="4"/>
+<path d="M60 170 Q90 330 70 490 L110 495 Q120 330 96 170Z" fill="{FOLD}" opacity=".7"/>
 </g>'''
-    # 袜子：夹住袜口，脚尖向右；袜底一片红土色
-    def sock(x, id, rot, s=1.0):
-        y = ly(x) + 4
+    def sock(x, rot, s, id):
+        y = ly(x) + 2
         d = 'M2 0 H108 C110 80 114 170 120 222 C126 252 150 262 186 266 C232 270 262 274 280 296 C296 322 280 352 244 354 C190 358 120 360 70 352 C20 344 2 316 0 270 C-2 180 0 90 2 0Z'
         return f'''<g transform="translate({x} {y:.0f}) rotate({rot}) scale({s})">
-<clipPath id="sc{id}"><path d="{d}"/></clipPath>
-<path d="{d}" fill="url(#sock101)"/>
-<g clip-path="url(#sc{id})">
-<rect x="-10" y="0" width="140" height="56" fill="#FFFFFF"/>{''.join(f'<path d="M{k} 4 V52" stroke="#E3E8EE" stroke-width="2"/>' for k in range(8, 108, 10))}
-<rect x="-10" y="16" width="140" height="6" fill="#176B4D"/><rect x="-10" y="28" width="140" height="4" fill="#C6EA3D"/>
-<path d="M-10 318 Q80 300 160 316 Q230 330 300 318 V370 H-10Z" fill="url(#clay101)"/>
-<path d="M-10 296 Q30 280 70 300" stroke="#C4562F" stroke-width="18" fill="none" opacity=".35" filter="url(#bl6)"/>
-{''.join(f'<circle cx="{rnd.uniform(20, 270):.0f}" cy="{rnd.uniform(318, 350):.0f}" r="{rnd.uniform(1.5, 4):.1f}" fill="#A8401F" opacity=".5"/>' for _ in range(16))}
-<path d="M30 70 Q50 160 40 250" stroke="#D3DCE7" stroke-width="12" fill="none" opacity=".55" filter="url(#bl6)"/>
-</g>
-<path d="{d}" fill="none" stroke="#DDE3EA" stroke-width="1.5"/>
-</g>'''
-    socks = sock(600, 'a', 3, 1.0) + sock(790, 'b', -2, .96)
-    clouds = ''.join(f'<ellipse cx="{x}" cy="{y}" rx="{rx}" ry="{ry}" fill="#FFFFFF" opacity=".75" filter="url(#bl28)"/>' for x, y, rx, ry in [(860, 230, 220, 50), (300, 1040, 300, 60), (900, 1100, 200, 40)])
-    leaves = ''.join(f'<g transform="translate({x} {y}) rotate({a})"><path d="M0 0 Q40 -12 90 0 Q40 12 0 0Z" fill="{c}"/></g>' for x, y, a, c in [(960, 60, 120, '#5C8C5A'), (1000, 30, 150, '#4E7E4E'), (930, 110, 95, '#6B9A63'), (1040, 90, 110, '#5C8C5A'), (990, 140, 80, '#4E7E4E')])
+<clipPath id="sk{id}"><path d="{d}"/></clipPath>
+<path d="{d}" fill="{WHITE}"/>
+<g clip-path="url(#sk{id})">
+<path d="M70 0 H120 V230 Q110 300 60 360 H-10 V0Z" fill="{FOLD}" opacity=".0"/>
+<path d="M84 0 H130 V360 H96 C104 300 100 200 84 0Z" fill="{FOLD}"/><path d="M150 268 C220 272 266 284 290 320 V370 H200 C230 330 210 290 150 268Z" fill="{FOLD}"/>
+<rect x="-10" y="0" width="140" height="58" fill="{WHITE}"/>{''.join(f'<path d="M{k} 6 V54" stroke="#E3EAF3" stroke-width="2.4"/>' for k in range(10, 108, 11))}
+<rect x="-10" y="18" width="140" height="8" fill="#176B4D"/><rect x="-10" y="32" width="140" height="5" fill="#C6EA3D"/>
+<path d="M-10 312 C40 300 90 296 150 304 C210 312 250 300 300 296 V380 H-10Z" fill="{CLAY}" opacity=".62"/>
+<path d="M-10 312 C40 300 90 296 150 304 C210 312 250 300 300 296" stroke="#E08A62" stroke-width="10" fill="none" opacity=".5"/>
+<path d="M-10 290 C10 280 30 282 50 292 L40 312 L-10 316Z" fill="{CLAY}" opacity=".35"/>
+</g></g>'''
+    clouds = '''<path d="M640 230 Q660 190 710 196 Q740 160 790 178 Q830 158 860 196 Q910 196 916 230Z" fill="#FFFFFF"/>
+<path d="M640 1150 Q660 1120 700 1124 Q730 1096 770 1112 Q810 1098 830 1130 Q870 1130 876 1150Z" fill="#FFFFFF" opacity=".9"/>'''
+    leaves = ''.join(f'<g transform="translate({x} {y}) rotate({a})"><path d="M0 0 Q48 -12 100 0 Q48 12 0 0Z" fill="{c}"/></g>' for x, y, a, c in [(1000, -10, 110, '#2E6B4A'), (1050, 20, 130, '#3C7E58'), (970, 40, 96, '#24583D'), (1080, 70, 120, '#2E6B4A')])
     body = f'''
-<defs>
-<linearGradient id="sky101" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F6BDB"/><stop offset=".6" stop-color="#5E9FEC"/><stop offset="1" stop-color="#B9D7F7"/></linearGradient>
-<linearGradient id="cloth101" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9EEF4"/></linearGradient>
-<linearGradient id="sock101" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E6EBF1"/></linearGradient>
-<linearGradient id="clay101" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9774E" stop-opacity=".35"/><stop offset=".4" stop-color="#C9603A" stop-opacity=".7"/><stop offset="1" stop-color="#B24E2B" stop-opacity=".85"/></linearGradient>
-</defs>
-<rect width="{W}" height="{H}" fill="url(#sky101)"/>
-<circle cx="120" cy="120" r="300" fill="#FFFFFF" opacity=".25" filter="url(#bl60)"/>
-{clouds}
-<path d="M-20 520 L1100 560" stroke="#000" stroke-width="0"/>
-{shirt}{socks}
-<path d="{line}" stroke="#F4F1EA" stroke-width="3" fill="none"/>
-{''.join(peg(x) for x in (150, 440, 630, 690, 815, 880))}
-{leaves}
-<path d="M-20 1190 C200 1170 420 1180 640 1176 C840 1172 960 1166 1100 1170 V1360 H-20Z" fill="#2F6B3D"/>
-<path d="M-20 1206 C300 1196 700 1200 1100 1190 V1360 H-20Z" fill="#245831"/>
+<rect width="{W}" height="{H}" fill="{SKY}"/>
+{clouds}{leaves}
+{shirt}
+{sock(560, 4, 1.05, 'a')}{sock(780, -3, 1.0, 'b')}
+<path d="{line}" stroke="#F6F3EC" stroke-width="3.5" fill="none"/>
+{''.join(peg(x) for x in (40, 230, 590, 648, 806, 864))}
 {tag('AFTER CLAY · SUNDAY', color='#FFFFFF', op=.85)}
-{headline(META['lines'], y=290, size=62, colors=('#FFFFFF', C['lime']), ls=3, lh=84)}
-{wordmark(1268, '#fff', sub=False)}
-{grain(.05, light=True)}'''
+<text x="80" y="290" font-family="{SANS}" font-weight="700" font-size="54" letter-spacing="4" fill="#FFFFFF">白袜子，</text>
+<text x="80" y="366" font-family="{SANS}" font-weight="700" font-size="54" letter-spacing="4" fill="{C['lime']}">洗不干净了。</text>
+{wordmark(1272, '#fff', sub=False)}
+{grain(.08, light=True)}'''
     return page(body)

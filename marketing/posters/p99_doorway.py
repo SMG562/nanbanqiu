@@ -2,81 +2,67 @@ from lib import *
 
 META = dict(
     id=99, slug='doorway', title='出门前', lines=['出门前，', '又看了一眼天气。'],
-    style=['写实光影', '极简'], tone='浅色', demo=False,
-    concept='周六清早的玄关：深绿的门开了一条缝，门外的晴光斜斜铺进木地板；球包靠在门边的墙上，一双白球鞋摆在光里；伞筒里的伞今天用不上',
-    use='周末约球的日常氛围；明亮、克制',
+    style=['平面', '极简', '光影'], tone='浅色', demo=False,
+    concept='扁平光影插画：周六清早的玄关，墨绿的门开着一条缝，一道锐利的晨光斜铺过地板；球包靠墙，白球鞋和一颗球落在光里；伞筒里的伞今天用不上',
+    use='周末约球的日常；平涂色块 + 锐利光影，大面积留白',
 )
+
+WALL, WALL_S = '#EEE4D3', '#E0D3BE'
+FLOOR, FLOOR_S = '#C9935F', '#B98250'
+LIGHT, LIGHT_F = '#FAF0DC', '#E9B97F'
+GREEN, GREEN_D = '#1F4D3B', '#173D2F'
 
 
 def svg():
-    rnd = random.Random(99)
-    fy = 930                       # 墙脚线
-    vp = (520, 620)
-    planks = ''.join(f'<path d="M{vp[0] + (x - vp[0]) * .0:.0f} {fy} L{x} {H}" stroke="#B88E62" stroke-width="1.4" opacity=".55"/>'.replace(f'M{vp[0]:.0f} {fy}', f'M{vp[0] + (x - vp[0]) * (fy - vp[1]) / (H - vp[1]):.0f} {fy}') for x in range(-1200, 2400, 120))
-    joints = ''.join(f'<path d="M-20 {y:.0f} H1100" stroke="#B88E62" stroke-width="1" opacity=".25"/>' for y in [fy + 40, fy + 100, fy + 190, fy + 320])
-    # 门：开一条缝
-    dx0, dx1, dy0 = 650, 960, 250
-    gap = 70
-    door = f'''<rect x="{dx0-18}" y="{dy0-18}" width="{dx1-dx0+36}" height="{fy-dy0+18}" fill="#F7F2EA"/>
-<rect x="{dx0-18}" y="{dy0-18}" width="{dx1-dx0+36}" height="{fy-dy0+18}" fill="none" stroke="#DCD3C4" stroke-width="2"/>
-<rect x="{dx0}" y="{dy0}" width="{gap}" height="{fy-dy0}" fill="url(#out99)"/>
-<g filter="url(#bl6)"><ellipse cx="{dx0+30}" cy="{fy-160}" rx="50" ry="120" fill="#8DBB78" opacity=".7"/></g>
-<rect x="{dx0}" y="{dy0}" width="{gap}" height="{fy-dy0}" fill="#FFFFFF" opacity=".35"/>
-<rect x="{dx0+gap}" y="{dy0}" width="{dx1-dx0-gap}" height="{fy-dy0}" fill="url(#door99)"/>
-<rect x="{dx0+gap+36}" y="{dy0+40}" width="{dx1-dx0-gap-72}" height="250" rx="4" fill="none" stroke="#173A2C" stroke-width="4"/>
-<rect x="{dx0+gap+36}" y="{dy0+330}" width="{dx1-dx0-gap-72}" height="280" rx="4" fill="none" stroke="#173A2C" stroke-width="4"/>
-<rect x="{dx0+gap}" y="{dy0}" width="10" height="{fy-dy0}" fill="#FFFFFF" opacity=".25"/>
-<circle cx="{dx0+gap+28}" cy="{dy0+360}" r="9" fill="#C9A45C"/><rect x="{dx0+gap+20}" y="{dy0+356}" width="34" height="8" rx="4" fill="#C9A45C"/>'''
-    # 门缝的光：铺到地上的楔形，墙上一道亮边
-    light = f'''<path d="M{dx0} {fy} L{dx0+gap} {fy} L{560} {H} L{150} {H}Z" fill="url(#beam99)" filter="url(#bl6)"/>
-<path d="M{dx0-18} {dy0} L{dx0-18} {fy} L{dx0-120} {fy} L{dx0-60} {dy0+40}Z" fill="#FFF3D9" opacity=".0"/>'''
-    # 球包：靠在门左边的墙上
-    bag = '''<g transform="rotate(-8 520 900)">
-<rect x="470" y="420" width="120" height="500" rx="56" fill="#174A35"/>
-<rect x="470" y="420" width="38" height="500" rx="19" fill="#FFFFFF" opacity=".08"/>
-<path d="M530 440 V900" stroke="#C6EA3D" stroke-width="3"/>
-<rect x="522" y="470" width="16" height="30" rx="4" fill="#C6EA3D"/>
-<rect x="476" y="600" width="108" height="16" fill="#0F3426"/>
-<path d="M478 520 C420 600 420 760 480 840" stroke="#0F3426" stroke-width="10" fill="none" stroke-linecap="round"/>
-</g>'''
-    bag_sh = '<path d="M440 440 L360 460 L410 930 L480 920Z" fill="#B9AE9C" opacity=".35" filter="url(#bl14)"/>'
-    # 白球鞋一双，摆在光里
-    def shoe(x, y, s, flip=1):
-        return f'''<g transform="translate({x} {y}) scale({s*flip} {s})">
-<ellipse cx="0" cy="34" rx="98" ry="12" fill="#9C7A54" opacity=".35" filter="url(#bl6)"/>
-<path d="M-96 26 Q-100 -6 -70 -14 L-20 -26 Q10 -54 50 -50 Q80 -46 92 -10 Q100 14 96 26Z" fill="#FBFAF6"/>
-<path d="M-96 26 H96 V34 Q0 40 -96 34Z" fill="#E7E2D8"/>
-<path d="M-12 -30 L40 -46" stroke="#D9D4CA" stroke-width="3"/><path d="M-4 -22 L46 -36 M4 -14 L52 -26" stroke="#D9D4CA" stroke-width="2.4"/>
-<path d="M60 -44 Q84 -40 92 -12" stroke="#176B4D" stroke-width="5" fill="none"/>
-</g>'''
-    shoes = shoe(330, 1060, .78) + shoe(400, 1104, .82)
-    bx, by, br = 600, 1030, 30
-    balls = f'<ellipse cx="{bx+22}" cy="{by+br}" rx="{br*1.5:.0f}" ry="7" fill="#8A6A48" opacity=".4" filter="url(#bl6)"/>' + ball('b99', bx, by, br, rot=-30)
-    # 伞筒 + 收着的伞
-    umb = '''<rect x="120" y="760" width="90" height="170" rx="10" fill="#E8E1D4" stroke="#D2C8B7" stroke-width="2"/>
-<path d="M150 760 L176 470 L196 760Z" fill="#1E3550"/><path d="M176 470 V440 Q176 420 160 420" stroke="#5B4632" stroke-width="6" fill="none" stroke-linecap="round"/>
-<ellipse cx="165" cy="934" rx="70" ry="8" fill="#9C7A54" opacity=".3" filter="url(#bl6)"/>'''
+    fy = 960
+    # 门洞 + 向里开的门扇（右侧合页）
+    ox0, ox1, oy0 = 660, 930, 300
+    leaf = f'M{ox1} {oy0} L{ox1} {fy} L800 1004 L800 262Z'
+    door = f'''<rect x="{ox0-22}" y="{oy0-22}" width="{ox1-ox0+44}" height="{fy-oy0+22}" fill="#F7F1E6"/>
+<rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="{fy-oy0}" fill="#8FC3EC"/>
+<path d="M{ox0} 760 Q{ox0+50} 700 {ox0+120} 740 L{ox0+140} {fy} H{ox0}Z" fill="#7FAF72"/>
+<path d="M{ox0} 860 Q{ox0+70} 820 {ox0+150} 860 V{fy} H{ox0}Z" fill="#6A9C60"/>
+<rect x="{ox0}" y="{oy0}" width="{ox1-ox0}" height="120" fill="#B5D7F3"/>
+<path d="{leaf}" fill="{GREEN}"/>
+<path d="M{ox1-30} {oy0+40} L{ox1-30} {oy0+300} L824 {oy0+290} L824 {oy0+30}Z" fill="none" stroke="{GREEN_D}" stroke-width="4"/>
+<path d="M{ox1-30} {oy0+350} L{ox1-30} {fy-50} L824 {fy-30} L824 {oy0+346}Z" fill="none" stroke="{GREEN_D}" stroke-width="4"/>
+<path d="M800 262 L812 266 L812 1000 L800 1004Z" fill="#2A6450"/>
+<rect x="826" y="616" width="30" height="8" rx="4" fill="#D2A75A"/><circle cx="830" cy="620" r="9" fill="#D2A75A"/>'''
+    # 晨光：从门缝铺到地板，边缘锐利
+    beam = f'<path d="M{ox0} {fy} L800 {fy} L640 {H} L250 {H}Z" fill="{LIGHT_F}"/>'
+    beam_wall = f'<path d="M{ox0-22} {fy} L{ox0-22} {fy-6} L{ox0} {fy-6} L{ox0} {fy}Z" fill="{LIGHT}"/>'
+    # 球包靠墙（影子向左，平涂）
+    bag = f'''<g transform="translate(-64 0) skewX(4)"><g transform="rotate(-7 520 960)"><rect x="462" y="430" width="116" height="530" rx="58" fill="{WALL_S}"/></g></g>
+<g transform="rotate(-7 520 960)"><rect x="462" y="430" width="116" height="530" rx="58" fill="#2C5E49"/>
+<rect x="462" y="430" width="40" height="530" rx="20" fill="#3A6F58"/>
+<path d="M520 456 V930" stroke="#C6EA3D" stroke-width="3"/><rect x="513" y="490" width="14" height="28" rx="4" fill="#C6EA3D"/>
+<rect x="462" y="620" width="116" height="14" fill="{GREEN_D}"/></g>'''
+    # 伞筒 + 伞
+    umb = f'''<path d="M150 930 L118 960 L230 960 L250 930Z" fill="{FLOOR_S}"/>
+<path d="M210 470 L236 470 L250 790 L196 790Z" fill="{WALL_S}" opacity=".0"/>
+<path d="M164 800 L190 480 L216 800Z" fill="#20375A"/><path d="M190 480 V452 Q190 436 176 436" stroke="#6B4E33" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="140" y="790" width="100" height="170" rx="6" fill="#D98E62"/><rect x="140" y="790" width="100" height="14" fill="#C47B51"/>'''
+    # 光里：白球鞋一双 + 一颗球，影子是锐利的长条
+    def shoe(x, y, s):
+        return f'''<g transform="translate({x} {y}) scale({s})">
+<path d="M-90 30 L60 30 L150 70 L-20 70Z" fill="{FLOOR}" opacity=".55"/>
+<path d="M-92 28 Q-96 0 -68 -8 L-22 -20 Q8 -48 48 -46 Q80 -42 92 -8 Q98 14 94 28Z" fill="#FFFFFF"/>
+<path d="M-92 28 H94 V36 H-92Z" fill="#E6DDCF"/>
+<path d="M58 -40 Q84 -34 92 -8" stroke="{GREEN}" stroke-width="6" fill="none"/>
+<path d="M-8 -26 L40 -40 M0 -16 L46 -28" stroke="#E0D8CB" stroke-width="3"/></g>'''
+    bx, by, br = 640, 1112, 30
+    ball_sh = f'<path d="M{bx} {by+br} L{bx+220} {by+br+70} L{bx+230} {by+br+48} L{bx+20} {by+br-4}Z" fill="{FLOOR}" opacity=".6"/>'
     body = f'''
-<defs>
-<linearGradient id="wall99" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EAE2D4"/><stop offset="1" stop-color="#F1EBE0"/></linearGradient>
-<linearGradient id="floor99" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D2AC7E"/><stop offset="1" stop-color="#C39663"/></linearGradient>
-<linearGradient id="out99" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB6F2"/><stop offset=".45" stop-color="#E8F3FF"/><stop offset="1" stop-color="#FFFBEE"/></linearGradient>
-<linearGradient id="door99" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#245C45"/><stop offset="1" stop-color="#1B4A37"/></linearGradient>
-<linearGradient id="beam99" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6DE" stop-opacity=".95"/><stop offset="1" stop-color="#FFF2D2" stop-opacity=".55"/></linearGradient>
-</defs>
-<rect width="{W}" height="{fy}" fill="url(#wall99)"/>
-<rect y="{fy}" width="{W}" height="{H-fy}" fill="url(#floor99)"/>
-{planks}{joints}
-<rect y="{fy-22}" width="{W}" height="22" fill="#FAF7F1"/><rect y="{fy-2}" width="{W}" height="3" fill="#D8CFC0"/>
-{door}
-{light}
-{bag_sh}{bag}
-<ellipse cx="530" cy="932" rx="70" ry="8" fill="#8A6A48" opacity=".35" filter="url(#bl6)"/>
-{umb}
-{shoes}
-{balls}
+<rect width="{W}" height="{fy}" fill="{WALL}"/>
+<rect y="{fy}" width="{W}" height="{H-fy}" fill="{FLOOR}"/>
+<rect y="{fy-18}" width="{W}" height="18" fill="#F7F1E6"/>
+{door}{beam}{beam_wall}
+{bag}{umb}
+{shoe(380, 1080, .72)}{shoe(450, 1128, .76)}
+{ball_sh}{ball('b99', bx, by, br, rot=-30)}
 {tag('SATURDAY · 7:15 AM', color='#3B4A42', rule='#176B4D', op=.75)}
-{headline(META['lines'], y=290, size=62, colors=('#0B3B2A', '#176B4D'), ls=3, lh=84)}
-{wordmark(1268, '#FFFFFF', sub=False)}
-{grain(.08, light=True)}'''
+<text x="80" y="290" font-family="{SANS}" font-weight="700" font-size="54" letter-spacing="4" fill="{GREEN_D}">出门前，</text>
+<text x="80" y="366" font-family="{SANS}" font-weight="700" font-size="54" letter-spacing="4" fill="#2E7A57">又看了一眼天气。</text>
+{wordmark(1272, '#FFFFFF', sub=False, op=.95)}
+{grain(.09, light=True)}'''
     return page(body)
