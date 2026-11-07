@@ -37,6 +37,7 @@
 
 ## 协作者的权限边界
 - 可以：开分支、推自己的分支、开 PR、用分支预览站（连测试库 staging）看效果。
+- PR 先开草稿（Draft，只跑快速检查）；改完、本地测过再点「Ready for review」，这时才跑浏览器测试（省 Actions 额度）。
 - 不可以：推 main、碰正式库 `nanbanqiu-au`、部署发送程序、读写密钥、改 Cloudflare 设置。需要时在 Issue 里找所有者。
 - 仓库里的 `.claude/settings.json` 放行清单是所有者的（含 push）；协作者用自己的助手配置，真正的防线是 `main` 分支保护。给助手的令牌用 fine-grained、只授权本仓库。
 - 所有 AI 工具的入口是 `AGENTS.md`（指向 `CLAUDE.md`）。

@@ -1,0 +1,25 @@
+# 南伴球 · 研发周报（11-07）：DORA 四项 + CI 分钟 + 不稳定测试 + 并行 PR，结果在本次运行的摘要页。
+#   每周一早上（墨尔本 08:23）自动跑一次；也可手动。只读 API，约 1 分钟。说明见 tools/weekly_metrics.mjs。
+name: metrics
+
+on:
+  schedule:
+    - cron: '23 21 * * 0'      # UTC 周日 21:23 = 墨尔本周一 08:23（夏令时）/ 07:23（冬令时）
+  workflow_dispatch:
+    inputs:
+      days: { description: '统计最近几天', type: number, default: 7 }
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { sparse-checkout: tools/weekly_metrics.mjs, sparse-checkout-cone-mode: false }
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: node tools/weekly_metrics.mjs --days=${{ inputs.days || 7 }}

@@ -1,11 +1,13 @@
 # 南伴球 · 自动测试（10-27 起）
 #   开 PR / PR 有新提交：跑浏览器快速测试（测 PR 最新提交本身）；同一 PR 连续推送只跑最新一次。
+#   11-07 省额度：草稿 PR 不开机器（运行标题带「未测：草稿」，ci_reuse / pr_merge / gate 都不认它）；点「Ready for review」才跑。
+#     PR / 推 main 的快速档只跑浏览器测试，不腾磁盘、不装 pglast（只有完整档要；PostgreSQL 浏览器端到端测试也要，照装）。
 #   推送到 main：同一个提交已在 PR 上通过 → 复用结果、不重跑（11-04，tools/ci_reuse.sh，只认完全相同的提交号；合并用 tools/pr_merge.sh 只快进）；
 #   否则照常跑快速测试（--quick --fast）。只改文档不跑。
 #   每周日凌晨（墨尔本时间约 3 点）+ 手动：完整测试（含一年数据量性能、全部时间点、回归快照）。
 #   结果：Actions 页面的摘要 = tests/reports/<时间>/summary.md；完整报告和日志在 Artifacts 里下载。
 name: tests
-run-name: "${{ github.event_name == 'workflow_dispatch' && format('tests（手动 {0}）', inputs.mode) || github.event_name == 'pull_request' && format('PR #{0} {1}', github.event.pull_request.number, github.event.pull_request.title) || github.event.head_commit.message || 'tests' }}"
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('tests（手动 {0}）', inputs.mode) || github.event_name == 'pull_request' && format('PR #{0} {1}{2}', github.event.pull_request.number, github.event.pull_request.draft && '未测：草稿 · ' || '', github.event.pull_request.title) || github.event.head_commit.message || 'tests' }}"
 
 on:
   push:
@@ -77,12 +79,13 @@ jobs:
 
   test:
     needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过
+    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' && !(github.event_name == 'pull_request' && github.event.pull_request.draft) }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过；草稿 PR 不测
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne
+      NBQ_LITE: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}   # 快速档：下面「跑测试」--skip=static,unit,schema,pg，用不到 pglast / 大磁盘（PostgreSQL 仍要：e2e_fullstack、e2e_admin_login）
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -91,6 +94,7 @@ jobs:
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
 
       - name: 腾磁盘（一年数据量性能测试会写满 runner 的盘）
+        if: env.NBQ_LITE != 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
           df -h / | tail -1
@@ -102,7 +106,8 @@ jobs:
       - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体）
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji
+          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
+          [ "$NBQ_LITE" = true ] && exit 0   # pglast 只有 schema 套件用（快速档跳过）
           pip install --break-system-packages -q pglast || pip install -q pglast
 
       - name: 依赖缓存（PGlite、pg、Playwright 浏览器）
