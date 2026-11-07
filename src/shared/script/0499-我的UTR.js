@@ -14,8 +14,8 @@ function utAgo(t){if(!t)return '';const d=Math.floor((Date.now()-t)/864e5);retur
 // 链接 → 主页编号（与服务器 api_set_utr 同一套；空 = ''，认不出 = null）
 function utProfile(s){s=String(s==null?'':s).trim();if(!s)return '';if(/^\d{4,12}$/.test(s))return s;
   const m=s.match(/^(?:https?:\/\/)?(?:app\.|www\.)?(?:utrsports\.net|universaltennis\.com)\/profiles\/(\d{4,12})(?:[/?#].*)?$/i);return m?m[1]:null}
-function utNum(s){s=String(s||'').trim().replace(/[，。]/g,'.');if(!s)return {e:'填一下 UTR'};if(!/^\d{1,2}(\.\d{1,2})?$/.test(s))return {e:'最多两位小数'};
-  const v=+s;return v<1||v>16.5?{e:'UTR 在 1 – 16.5 之间'}:{v}}
+function utNum(s){s=String(s||'').trim().replace(/[，。]/g,'.');if(!s)return {e:'填一下 UTR',r:'empty'};if(!/^\d{1,2}(\.\d{1,2})?$/.test(s))return {e:'最多两位小数',r:'format'};
+  const v=+s;return v<1||v>16.5?{e:'UTR 在 1 – 16.5 之间',r:'range'}:{v}}
 function nbqFromUtr(d){return d&&typeof d==='object'&&isFinite(+d.utr)?{utr:+d.utr,estimated:!!d.estimated,profile:typeof d.profile==='string'?d.profile:null,at:Date.parse(d.updated_at)||null}:null}
 function utIn(x){if(!x||!ME)return;ME.ntrp=x.utr;ME.utr_estimated=x.estimated;UT.profile=x.profile;UT.at=x.at;UT.got=true}
 function utLoad(){if(UT.uid!==ME.id){UT.uid=ME.id;UT.at=null;UT.profile=null;UT.got=false}   // 换了账号 / 退出再登录：不沿用上一个人的
@@ -55,7 +55,8 @@ function utDraw(){const c=utSheet()?'sh-t':'m-t',off=UT.mode==='off';
   chk();[n,l].forEach(x=>{x.addEventListener('input',chk);x.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))utSave(document.querySelector('[data-a="utSave"]'))})})}
 async function utSave(btn){let body;
   if(UT.mode==='off'){const n=utNum($('#utrNum').value),p=utProfile($('#utrLink').value),e=$('#utErr');
-    if(n.e||p===null){$('#utrNum').classList.toggle('bad',!!n.e);$('#utrLink').classList.toggle('bad',p===null);e.textContent=n.e||'不是 UTR 主页链接';return}
+    if(n.e||p===null){$('#utrNum').classList.toggle('bad',!!n.e);$('#utrLink').classList.toggle('bad',p===null);e.textContent=n.e||'不是 UTR 主页链接';
+      track('utr_invalid',{reason:n.r||'link'});return}
     body={utr:n.v,estimated:false,profile:p||null}}
   else body={utr:UT_EST[UT.est][1],estimated:true};
   const was=ME.ntrp;if(btn)btn.disabled=true;
@@ -67,7 +68,7 @@ async function utSave(btn){let body;
   finally{if(btn)btn.disabled=false}}
 function utAct(a){const d=a.dataset;
   switch(d.a){
-    case'utOpen':if(a.classList.contains('tipon'))return;UT.mode=ME.utr_estimated?'self':'off';
+    case'utOpen':if(a.classList.contains('tipon'))return;UT.mode=ME.utr_estimated?'self':'off';track('utr_open',{mode:UT.mode,linked:!!UT.profile});
       UT.est=Math.max(0,UT_EST.findIndex(([,v])=>v===+ME.ntrp));utDraw();return;
     case'utMode':if(UT.mode===d.m)return;UT.mode=d.m;utDraw();return;
     case'utEst':UT.est=+d.i||0;document.querySelectorAll('.ut-opt').forEach((b,i)=>b.setAttribute('aria-checked',i===UT.est));return;

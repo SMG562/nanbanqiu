@@ -98,15 +98,20 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.evaluate(() => { ME.ntrp = 2; ME.utr_estimated = true; render() }); await pg.settle(200);
     T(tag('球员卡：自评的人也只显示数字（不带 ≈）'), await pg.evaluate(() => { const b = document.querySelector('.pc-rt b'); return !b || !/≈/.test(b.textContent) }));
 
-    const EV = await pg.evaluate(() => (AN.pre || []).concat(window.AN_LOG || []).filter(e => e.ev === 'utr_save').map(e => e.props));
+    const EV = await pg.evaluate(() => (AN.pre || []).concat(window.AN_LOG || []).filter(e => /^utr_/.test(e.ev)).map(e => ({ ev: e.ev, p: e.props })));
     // —— 刷新后还在（从服务器读）
     S.me.utr = 4.62; S.me.utr_estimated = false;
     await pg.reload(); await pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME, null, { timeout: 8000 }).catch(() => { }); await toMe();
     T(tag('刷新后还在：正式 4.62'), await until(async () => await row() === '正式|4.62'), await row());
     T(tag('刷新后主页编号读回'), await until(() => pg.evaluate(() => UT.profile === '1234567')));
     // —— 埋点：只记类型 / 有无链接 / 升降，不记数值和编号
-    const ev = EV.concat(await pg.evaluate(() => (AN.pre || []).concat(window.AN_LOG || []).filter(e => e.ev === 'utr_save').map(e => e.props)));
-    T(tag('埋点 utr_save 只有 mode / linked / change'), ev.length >= 2 && ev.every(p => Object.keys(p).sort().join() === 'change,linked,mode') && !JSON.stringify(ev).includes('1234567'), ev);
+    const ev = EV.filter(e => e.ev === 'utr_save').map(e => e.p);
+    T(tag('埋点 utr_save 只有 mode / linked / change，不含数值和编号'), ev.length === 2 && ev.every(p => Object.keys(p).sort().join() === 'change,linked,mode') && !JSON.stringify(ev).includes('1234567') && !JSON.stringify(ev).includes('4.62'), ev);
+    T(tag('埋点 utr_save：自评降到 1.5、正式升到 4.62 带链接'), JSON.stringify(ev) === JSON.stringify([{ mode: 'self', linked: false, change: 'down' }, { mode: 'off', linked: true, change: 'up' }]), ev);
+    const inv = EV.filter(e => e.ev === 'utr_invalid').map(e => e.p.reason).join();
+    T(tag('埋点 utr_invalid：四种原因各一次，只记原因'), inv === 'range,format,empty,link', EV.filter(e => e.ev === 'utr_invalid'));
+    const op = EV.filter(e => e.ev === 'utr_open').map(e => e.p);
+    T(tag('埋点 utr_open：每次打开一次（自评 / 正式；第二次带链接）'), JSON.stringify(op) === JSON.stringify([{ mode: 'self', linked: false }, { mode: 'self', linked: false }, { mode: 'off', linked: true }]), op);
 
     // —— 退出再换人登录：不沿用上一个人的主页编号
     await pg.evaluate(() => { sbaLogout(); render() }); await pg.settle(400);
