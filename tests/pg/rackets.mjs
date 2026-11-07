@@ -128,7 +128,7 @@ try {
   T('A4 迁移重跑：种子不重复，隐藏的不被改回', +(await q(`select count(*) from racket_catalog where status <> 'merged'`)).rows[0].count === 25 && (await q(`select status from racket_catalog where id=$1`, [cat('Wilson', 'Burn')])).rows[0].status === 'hidden');
   T('A4 迁移给已有的自由文字补上 catalog_id', (await cid(D)).find(x => x.slot === 2).catalog_id === cat('Head', 'Gravity'), await cid(D));
 
-  // ===== A5 统计（暂定实现，#60）=====
+  // ===== A5 统计（暂定实现，#60）=====（日期一律用数据库给的文本比，不经过 JS Date：CI 和本机时区不同会差一天）
   const st4 = fs.readFileSync(path.join(DIR, 'server/migrations/20261108_racket_stats.sql'), 'utf8');
   const nightSrc0 = (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc;
   await q(`delete from user_rackets`);
@@ -149,7 +149,7 @@ try {
   const hs = (S5.top || [])[0] || {};
   T('A5 最流行：Head Speed 7 人、其中主力 5（P0 / P1 的主力是别的）', hs.series === 'Speed' && hs.holders === 7 && hs.mains === 5, S5.top);
   const rs = (S5.rising || [])[0] || {};
-  T('A5 上升最快：Head Speed 2 → 7（+5），基准是 8 天前的快照', rs.series === 'Speed' && rs.base === 2 && rs.delta === 5 && String(S5.rising_base).slice(0, 10) === String((await day(8)).toISOString ? (await day(8)).toISOString() : await day(8)).slice(0, 10), [S5.rising, S5.rising_base]);
+  T('A5 上升最快：Head Speed 2 → 7（+5），基准是 8 天前的快照', rs.series === 'Speed' && rs.base === 2 && rs.delta === 5 && S5.rising_base === (await q(`select ((now() at time zone 'Australia/Melbourne')::date - 8)::text as d`)).rows[0].d, [S5.rising, S5.rising_base]);
   T('A5 上升榜：现在持有不到 5 人的不进（Wilson Blade 1 人）', !(S5.rising || []).some(x => x.series === 'Blade'), S5.rising);
   T('A5 品牌份额：Head 7、其他 2、Wilson 1', JSON.stringify((S5.brands || []).map(x => [x.brand, x.holders])) === JSON.stringify([['Head', 7], ['其他', 2], ['Wilson', 1]]), S5.brands);
   T('A5 趋势：有 8 天前那天', (S5.trend || []).some(x => x.users_with === 2), S5.trend);
