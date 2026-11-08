@@ -29,6 +29,8 @@ HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [], boxes = [], 
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { if (boxes[i].svg || boxes[j].svg) continue;   // SVG 字之间由 SVG_CHECK 查   // HTML 文字互相压住（第一版只查了 SVG，漏过一次）
     const a = boxes[i], c = boxes[j], w = Math.min(a.r, c.r) - Math.max(a.x, c.x), h = Math.min(a.b, c.b) - Math.max(a.y, c.y);
     if (w > 3 && h > 3) out.push(`文字压住：「${a.s.slice(0, 10)}」和「${c.s.slice(0, 10)}」`) }
+  for (const e of document.querySelectorAll('body *')) { const cs = getComputedStyle(e);   // 有边框的框（点名册等），内容不能冲出框外
+    if (cs.borderTopStyle !== 'none' && parseFloat(cs.borderTopWidth) > 0 && e.children.length && e.scrollHeight > e.clientHeight + 2) out.push(`内容溢出边框：「${e.textContent.trim().slice(0, 12)}」多出 ${e.scrollHeight - e.clientHeight}px`) }
   for (const e of document.querySelectorAll('body *')) if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') out.push(`被截断：「${e.textContent.trim().slice(0, 14)}」`);
   return out }'''
 JOBS = sys.argv[1:] or ['timetable:dark', 'timetable:light', 'treasure', 'join']

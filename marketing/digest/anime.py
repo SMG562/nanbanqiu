@@ -58,39 +58,26 @@ def cabinets():
     return out
 
 def html():
-    sun = '#FFF0C2'
-    panes = ''.join(f'<path d="M{x} {y} L{x+w} {y} L{x+w-110} {y+h} L{x-110} {y+h}Z" fill="{sun}" opacity=".55"/>' for x, y, w, h in ((640, 838, 150, 82), (810, 838, 150, 82), (1000, 838, 120, 82)))
-    floorsun = ''.join(f'<path d="M{x} {y} L{x+w} {y} L{x+w-260} {y+h} L{x-260} {y+h}Z" fill="#FFF6D8" opacity=".55"/>' for x, y, w, h in ((900, 940, 170, 150), (1100, 940, 170, 150), (760, 1110, 200, 190), (990, 1110, 200, 190)))
-    board_css = cinema.html().split('<style>')[1].split('</style>')[0]
-    keep = '\n'.join(l for l in board_css.split('\n') if any(l.startswith(p) for p in ('.chalk', '.iss', 'h1', '.sub', '.date', '.how', '.roll', '.tab', '.grp', '.row', '.t{', '.cells', '.n{', '.tray', '*{', 's,em')))
+    import bigboard as bb
     return f'''<!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-bold.css"><link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-regular.css">
-<style>{keep}
+<style>*{{margin:0;padding:0;box-sizing:border-box}}{bb.CSS}
 body{{width:{W}px;height:{H}px;overflow:hidden;position:relative;font-family:{WK};background:#FBEFD9}}
 .L{{position:absolute;inset:0}}
-.bwrap{{position:absolute;left:{BX}px;top:{BY}px;width:{BW}px;height:{BH}px}}
-.board{{position:absolute;inset:0;background:linear-gradient(160deg,#4E8063 0%,#43735A 55%,#3B6851 100%);border:16px solid #B98A5A;box-shadow:inset 0 0 0 3px #8E6338,0 6px 0 #A07445}}
-.board .tab{{background:#43735A}}
-.tray{{left:-24px;right:-24px;bottom:-34px;height:18px;background:linear-gradient(180deg,#C99A69,#9F7246)}}
-.tray u{{background:linear-gradient(180deg,#F0A04B,#C77A2E)!important}}
-.slog{{position:absolute;top:66px;display:flex;gap:9px}} .slog.l{{right:606px}} .slog.r{{left:606px}}
+.slog{{position:absolute;top:58px;display:flex;gap:9px}} .slog.l{{right:606px}} .slog.r{{left:606px}}
 .slog i{{font-style:normal;width:80px;height:80px;display:flex;align-items:center;justify-content:center;font-family:{SERIF};font-weight:900;font-size:52px;color:#D03A2E;background:#FFFBF2;box-shadow:0 3px 0 #E8D5B5}}
-.subt{{position:absolute;left:0;right:0;top:1186px;text-align:center;font-family:{SANS};font-weight:700;font-size:36px;letter-spacing:4px;color:#fff;text-shadow:0 2px 0 #C46B2A,0 0 10px rgba(180,90,30,.5)}}
-.cred{{position:absolute;left:0;right:0;top:1246px;text-align:center;font-family:{NUM};font-size:13px;letter-spacing:7px;color:#8A4A1E}}
-.cred b{{background:rgba(255,248,232,.85);padding:4px 12px;border-radius:12px;font-weight:600}}
-</style><body>
+.board{{position:absolute;left:30px;top:184px;width:1020px;height:1060px;background:linear-gradient(160deg,#4E8063 0%,#43735A 55%,#3B6851 100%);border:16px solid #B98A5A;box-shadow:inset 0 0 0 3px #8E6338,0 6px 0 #A07445}}
+.tray{{position:absolute;left:10px;right:10px;top:1244px;height:20px;background:linear-gradient(180deg,#C99A69,#9F7246);box-shadow:0 6px 8px rgba(120,80,40,.25)}}
+.tray i{{position:absolute;top:-8px;height:9px;border-radius:4px}}
+.subt{{position:absolute;left:0;right:0;top:1300px;text-align:center;font-family:{SANS};font-weight:700;font-size:36px;letter-spacing:4px;color:#fff;text-shadow:0 2px 0 #C46B2A}}
+.cred{{position:absolute;left:0;right:0;top:1366px;text-align:center;font-family:{NUM};font-size:13px;letter-spacing:7px;color:#8A4A1E}}
+</style><body>{bb.CHALK_FILTER}
 <svg class="L" width="{W}" height="{H}"><defs><linearGradient id="wl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F6E7CF"/><stop offset=".7" stop-color="#FBEFD9"/><stop offset="1" stop-color="#FFF5DE"/></linearGradient>
 <radialGradient id="glow" cx="100%" cy="20%" r="70%"><stop offset="0" stop-color="#FFF4C9" stop-opacity=".9"/><stop offset="1" stop-color="#FFF4C9" stop-opacity="0"/></radialGradient></defs>
-<rect width="{W}" height="930" fill="url(#wl)"/><rect width="{W}" height="34" fill="#E9D8BC"/><rect y="34" width="{W}" height="6" fill="#D8C3A1"/>
-<rect y="900" width="{W}" height="30" fill="#D49A5C"/><rect y="900" width="{W}" height="5" fill="#E8B57C"/>
-{floor()}{floorsun}{panes}
-<rect width="{W}" height="{H}" fill="url(#glow)"/>
-{cinema.clock_svg(540, 104, 40)}
-</svg>
+<rect width="{W}" height="{H}" fill="url(#wl)"/><rect width="{W}" height="30" fill="#E9D8BC"/><rect width="{W}" height="{H}" fill="url(#glow)"/>
+{cinema.clock_svg(540, 98, 40)}</svg>
 <div class="slog l">{"".join(f"<i>{c}</i>" for c in "好好打球")}</div><div class="slog r">{"".join(f"<i>{c}</i>" for c in "天天向上")}</div>
-<div class="bwrap"><div class="board">{cinema.board_inner()}</div></div>
-<svg class="L" width="{W}" height="{H}"><defs>{lib.COMMON}</defs>
- <g class="art">{cabinets()}</g>
-{doodle()}{desk(-60, 1080, 380, 1)}{desk(760, 1080, 380, -1)}{curtain()}</svg>
-<div class="subt">「放学别走，球场见。」</div>
-<div class="cred"><b>NANBANQIU · {SITE}/g/ + 球局码 · 示意数据</b></div></body>'''
+<div class="board">{bb.inner('#43735A')}</div>
+<div class="tray"><i style="left:90px;width:110px;height:18px;top:-16px;border-radius:3px;background:#F0A04B"></i><i style="left:640px;width:72px;background:#fff"></i><i style="left:730px;width:44px;background:#F5A3B5"></i><i style="left:792px;width:36px;background:#F6DB6E"></i></div>
+<svg class="L" width="{W}" height="{H}">{curtain()}</svg>
+<div class="subt">「放学别走，球场见。」</div><div class="cred">NANBANQIU · 示意数据</div></body>'''
