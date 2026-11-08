@@ -114,3 +114,16 @@ def frame_dark(painting, caption, tagtext, sid):
 <text x="84" y="1112" font-family="{SERIF}" font-weight="700" font-size="46" letter-spacing="4" fill="#F7EBD6">{caption}</text>
 <text x="996" y="1112" text-anchor="end" font-family="{SANS}" font-size="16" letter-spacing="7" fill="#F7EBD6" opacity=".55">{tagtext}</text>
 {wordmark(1262, '#fff', sub=False)}'''
+
+
+def poem(lines, xr, y0, size=42, color='#2A2A26', gap=1.5, lead=1.12):
+    """竖排题诗：从右往左一列一行，逐字排（不靠 writing-mode）。返回 (svg, 最左列 x, 最长列底 y)。"""
+    out, x = '', xr
+    ybot = y0
+    for ln in lines:
+        for k, ch in enumerate(ln.rstrip('，。、；！？')):
+            y = y0 + k * size * lead
+            out += f'<text x="{x}" y="{y:.0f}" text-anchor="middle" font-family="{SERIF}" font-weight="500" font-size="{size}" fill="{color}">{ch}</text>'
+            ybot = max(ybot, y)
+        x -= size * gap
+    return out, x + size * gap, ybot
