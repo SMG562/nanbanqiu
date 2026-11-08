@@ -87,3 +87,11 @@ def cloud_scroll(x, y, s=1.0, flip=1, w=4):
     return (f'<path d="M{x:.0f} {y:.0f} C{x + 60*k:.0f} {y - 50*s:.0f} {x + 140*k:.0f} {y - 40*s:.0f} {x + 170*k:.0f} {y - 4*s:.0f} '
             f'C{x + 186*k:.0f} {y + 18*s:.0f} {x + 166*k:.0f} {y + 34*s:.0f} {x + 150*k:.0f} {y + 22*s:.0f} C{x + 140*k:.0f} {y + 14*s:.0f} {x + 146*k:.0f} {y + 2*s:.0f} {x + 156*k:.0f} {y + 6*s:.0f}" '
             f'fill="none" stroke="FILL" stroke-width="{w*s:.1f}" stroke-linecap="round"/>')
+
+
+def flat(svg, color):
+    """平面剪影：把 FILL 换成一个颜色（不做浮雕）。"""
+    return svg.replace('FILL', color)
+
+
+POP = dict(coral='#FF6B5B', cobalt='#2F5BEA', butter='#FFD45C', mint='#5ED3A6', pink='#FF9EC0', navy='#1D2440', cream='#FFF6E6', sky='#8EC9FF', orange='#FF9A3C', lilac='#B9A6FF')
