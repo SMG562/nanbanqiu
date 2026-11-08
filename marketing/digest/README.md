@@ -7,6 +7,7 @@
 | `timetable.py` | 明日时刻表，**HTML/CSS 排版**（换行、截断、对齐交给浏览器），`dark` / `light` 两套主题 |
 | `chalk.py` | **时刻表「黑板」版**：「明天，有体育课。」——球局表写成黑板上的课程表（第一节…、午休、晚自习），右上角老师写的日期天气和「值日：南伴球」；空位是黄绿粉笔圈、已有人是涂满的白圈；粉笔颗粒用 SVG 滤镜，黑板有擦痕和上节课残影（15·30·40、Deuce），底部金属粉笔槽。字体霞鹜文楷（OFL），`DIGEST_FONTS` 指向 lxgw-wenkai-webfont 解压目录 |
 | **模板系统** | 黑板报 = **皮肤（每周一换）× 创意（每天轮换）**。皮肤在 `chalkframe.SKINS`：赶集 fair · 春日 meadow · 夜场 night · 花园 garden · 线描 doodle · 国风 guofeng，各自定板色、边框、顶部 / 底部 / 两侧装饰、标题字效（排线 / 多色 / 霓虹 / 空心 / 朱红金边）、信息框样式；装饰只放顶部、底部、四角和边框内侧，标 `class="art"`。创意在 `chalk4.py`：roll / notes / seats。`chalkframe.pick(日期)` → (皮肤, 创意)：皮肤按 ISO 周轮换，创意按星期。出图写法 `chalk4:创意@皮肤`，如 `chalk4:notes@night` |
+| `anime.py` | **「动画」版**：日系动画背景画风的午后教室——平涂暖色、黑板（点名册同 cinema）、讲台、橙色课桌椅、一点透视米色地砖、窗格阳光只落在地面和讲台、右上角被风吹起的白窗帘、墙上图钉钉着一张网球涂鸦「明天见」 |
 | `cinema.py` | **「电影镜头」版（按所有者给的教室参考）**：标语 + 挂钟（4:50）；粗实木框黑板（线脚、木粉笔槽、擦痕、粉笔灰）；竖条木墙裙，挂钩上一个书包露出拍头；一束很淡、虚边的窗光斜扫过墙；画面底部是清晰的木课桌桌面。字幕「放学别走，球场见。」 |
 | **教室墙场景**（`+wall`） | 黑板缩到 0.86 倍挂在教室墙中间（0.86：最小 14 号字缩放后仍 ≥ 12 号，Chromium 中文最小字号会把更小的字撑大而压行）。上方红字标语卡片 + 挂钟（指针 = 明天第一局时间），下方仿「轻声细语是一种素养」的彩色墙贴 + 书架。标语 / 墙贴每周轮换（`SLOGANS` 13 句、`STICKERS` 5 组，见 `样稿/教室墙-标语库.jpg`；卡片按字数自动缩放、以挂钟为中心对称），`+wall0` 等可指定第几句。例：`chalk4:roll@fair+wall0` |
 | `chalkframe.py` · `chalk4.py` | **立式小黑板三版（最新推荐）**，共用挂板底子（原木框、彩旗、粉笔槽）：`chalk4:roll`「还有谁没到？」点名册（「到」字笔迹各不相同、举手、晚场叫「放学别走」）· `chalk4:notes`「传纸条。」（磁铁吸在黑板上的真纸条：去吗？□去 □当然去）· `chalk4:seats`「这里有人吗？」（讲台 + 座位表，有人的桌上放着书包，空座是黄绿虚线） |
@@ -23,7 +24,7 @@
 | 输出 | 每张出 `名字.jpg`（1080×1440）和 `名字-上传1440.jpg`（1440×1920，小红书上传用）|
 | `样稿/` | 出好的图；`信息流对比.jpg` 是缩到小红书双列信息流大小（约 540 宽）的并排对比 |
 
-出图：`python3 marketing/digest/render.py [cinema chalk4:roll chalk4:notes chalk4:seats chalk3 chalk chalk2:quiz chalk2:roll chalk2:count chalk2:tactic invite:spring invite:dusk rally editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
+出图：`python3 marketing/digest/render.py [anime cinema chalk4:roll chalk4:notes chalk4:seats chalk3 chalk chalk2:quiz chalk2:roll chalk2:count chalk2:tactic invite:spring invite:dusk rally editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
 
 **自动检查**：① 文字出界 / 互相压住（按真实笔画上下沿算，HTML 和 SVG 都查）/ 被省略号截断 / 被插画压住（标 `class="art"` 的图形；HTML 和 SVG 文字都查，按真实墨迹算；`data-fx` 是有意叠在正文上的光晕 / 影子层，不查） ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
 
