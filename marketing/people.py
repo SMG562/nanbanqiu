@@ -109,3 +109,43 @@ def mark(x, y, color='#2A2A2A'):
     from lib import SANS
     return (f'<circle cx="{x - 146}" cy="{y - 10}" r="9" fill="#C6EA3D"/><circle cx="{x - 130}" cy="{y}" r="6" fill="#C6EA3D" stroke="#FFFFFF" stroke-width="2"/>'
             f'<text x="{x}" y="{y + 6}" text-anchor="end" font-family="{SANS}" font-weight="700" font-size="28" letter-spacing="8" fill="{color}">南伴球</text>')
+
+
+def front(x, y, s, skin=0, hair=0, top='#FFFFFF', bottom='#2E3A34', shoe='#F4F2EC', hairstyle='short', skirt=False, hat=None,
+          racket=None, bag=None, kid=False):
+    """正面站立、面向镜头的人（合影站姿，不画五官）。原点在两脚中间地面；s=1 时成人高约 340。"""
+    k = .72 if kid else 1.0
+    H = lambda v: y - v * s * k
+    X = lambda v: x + v * s
+    sk, hr = SKIN[skin], HAIR[hair]
+    o = []
+    # 腿
+    if skirt:
+        o += [f'<rect x="{X(-15):.0f}" y="{H(120):.0f}" width="{10*s:.0f}" height="{120*s*k:.0f}" fill="{sk}"/>', f'<rect x="{X(5):.0f}" y="{H(120):.0f}" width="{10*s:.0f}" height="{120*s*k:.0f}" fill="{sk}"/>']
+    else:
+        o += [f'<path d="M{X(-24):.0f} {H(176):.0f} L{X(-2):.0f} {H(176):.0f} L{X(-4):.0f} {H(4):.0f} L{X(-20):.0f} {H(4):.0f}Z" fill="{bottom}"/>',
+              f'<path d="M{X(2):.0f} {H(176):.0f} L{X(24):.0f} {H(176):.0f} L{X(20):.0f} {H(4):.0f} L{X(4):.0f} {H(4):.0f}Z" fill="{tint(bottom, .86)}"/>']
+    o += [f'<ellipse cx="{X(-13):.0f}" cy="{H(3):.0f}" rx="{11*s:.0f}" ry="{5*s:.0f}" fill="{shoe}"/>', f'<ellipse cx="{X(13):.0f}" cy="{H(3):.0f}" rx="{11*s:.0f}" ry="{5*s:.0f}" fill="{shoe}"/>']
+    if skirt:
+        o.append(f'<path d="M{X(-28):.0f} {H(186):.0f} L{X(28):.0f} {H(186):.0f} L{X(40):.0f} {H(112):.0f} L{X(-40):.0f} {H(112):.0f}Z" fill="{bottom}"/>')
+    # 上身 + 两臂（垂在身侧）
+    o.append(f'<path d="M{X(-30):.0f} {H(292):.0f} C{X(-36):.0f} {H(250):.0f} {X(-30):.0f} {H(210):.0f} {X(-28):.0f} {H(176):.0f} L{X(28):.0f} {H(176):.0f} C{X(30):.0f} {H(210):.0f} {X(36):.0f} {H(250):.0f} {X(30):.0f} {H(292):.0f} C{X(14):.0f} {H(300):.0f} {X(-14):.0f} {H(300):.0f} {X(-30):.0f} {H(292):.0f}Z" fill="{top}"/>')
+    for sx in (-1, 1):
+        o.append(f'<path d="M{X(30*sx):.0f} {H(290):.0f} L{X(42*sx):.0f} {H(250):.0f} L{X(40*sx):.0f} {H(250):.0f}" stroke="{tint(top, .9)}" stroke-width="{18*s:.0f}" stroke-linecap="round" fill="none"/>')
+        o.append(f'<line x1="{X(41*sx):.0f}" y1="{H(252):.0f}" x2="{X(38*sx):.0f}" y2="{H(190):.0f}" stroke="{sk}" stroke-width="{11*s:.0f}" stroke-linecap="round"/>')
+    if bag:
+        o.append(f'<line x1="{X(-24):.0f}" y1="{H(292):.0f}" x2="{X(26):.0f}" y2="{H(200):.0f}" stroke="{tint(bag, .8)}" stroke-width="{4*s:.0f}"/><rect x="{X(20):.0f}" y="{H(214):.0f}" width="{22*s:.0f}" height="{26*s:.0f}" rx="{4*s:.0f}" fill="{bag}"/>')
+    if racket:
+        o.append(f'<line x1="{X(38):.0f}" y1="{H(188):.0f}" x2="{X(46):.0f}" y2="{H(120):.0f}" stroke="#2E3438" stroke-width="{5*s:.0f}" stroke-linecap="round"/>'
+                 f'<ellipse cx="{X(50):.0f}" cy="{H(88):.0f}" rx="{20*s:.0f}" ry="{30*s:.0f}" fill="none" stroke="#2E3438" stroke-width="{5*s:.0f}"/>')
+    # 头
+    o.append(f'<rect x="{X(-6):.0f}" y="{H(308):.0f}" width="{12*s:.0f}" height="{16*s:.0f}" fill="{sk}"/>')
+    o.append(f'<ellipse cx="{X(0):.0f}" cy="{H(328):.0f}" rx="{19*s:.0f}" ry="{23*s:.0f}" fill="{sk}"/>')
+    if hairstyle == 'long':
+        o.append(f'<path d="M{X(-21):.0f} {H(320):.0f} C{X(-24):.0f} {H(356):.0f} {X(24):.0f} {H(356):.0f} {X(21):.0f} {H(320):.0f} L{X(22):.0f} {H(284):.0f} L{X(14):.0f} {H(290):.0f} L{X(13):.0f} {H(330):.0f} C{X(0):.0f} {H(340):.0f} {X(-13):.0f} {H(330):.0f} {X(-13):.0f} {H(330):.0f} L{X(-14):.0f} {H(290):.0f} L{X(-22):.0f} {H(284):.0f}Z" fill="{hr}"/>')
+    else:                                                                              # 短发：只盖头顶（按头的实际大小算，小孩也不会盖住脸）
+        hc, ry = H(328), 23 * s
+        o.append(f'<path d="M{X(-20):.0f} {hc - ry*.25:.0f} C{X(-22):.0f} {hc - ry*1.35:.0f} {X(22):.0f} {hc - ry*1.35:.0f} {X(20):.0f} {hc - ry*.25:.0f} C{X(10):.0f} {hc - ry*.6:.0f} {X(-10):.0f} {hc - ry*.6:.0f} {X(-20):.0f} {hc - ry*.25:.0f}Z" fill="{hr}"/>')
+    if hat:
+        o.append(f'<ellipse cx="{X(0):.0f}" cy="{H(340):.0f}" rx="{30*s:.0f}" ry="{7*s:.0f}" fill="{hat}"/><path d="M{X(-18):.0f} {H(340):.0f} C{X(-18):.0f} {H(366):.0f} {X(18):.0f} {H(366):.0f} {X(18):.0f} {H(340):.0f}Z" fill="{hat}"/>')
+    return ''.join(o)
