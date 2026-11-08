@@ -5,6 +5,7 @@
 | 文件 | 内容 |
 |---|---|
 | `timetable.py` | 明日时刻表，**HTML/CSS 排版**（换行、截断、对齐交给浏览器），`dark` / `light` 两套主题 |
+| `rally.py` | **时刻表「Rally」版（多巴胺 / 运动感）**：一条斜线像挥拍把画面劈开——上半深绿夜场、下半满版荧光黄绿；超粗前倾的空位数、穿过斜线的网球和速度线；唯一爆点色（热红 #E8381A，在黄绿上对比度 3.0，只用于大号数字）只给「还缺几位」 |
 | `editorial.py` | **时刻表编辑排版版（推荐）**：减法——不用卡片、色块、标签、图标，只靠字号、字重、留白和细线；`noir` 纯黑 + 侧光大网球，荧光黄绿只给空位数；`atelier` 象牙纸 + 衬线大数字，一颗小网球当「13」的句号 |
 | `dayline.py` | **时刻表「一天」版**（推荐做封面）：背景是明天从清晨到夜里的天色，卡片沿时间轴排开（日出 / 太阳 / 月亮），空位画成小网球，空位数用超大数字，一颗球带轨迹飞入 |
 | `treasure.py` | 明日寻宝图（SVG）：按球场分布**自动取景**、**真实字体测宽**做标签避让、两行标签「几局 · 缺几位」、最热闹处画手绘圈 |
@@ -13,7 +14,7 @@
 | `render.py` | 出图 + 自动检查（任何一项不过，退出码非 0） |
 | `样稿/` | 出好的图；`信息流对比.jpg` 是缩到小红书双列信息流大小（约 540 宽）的并排对比 |
 
-出图：`python3 marketing/digest/render.py [editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
+出图：`python3 marketing/digest/render.py [rally editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
 
 **自动检查**：① 文字出界 / 互相压住（按真实笔画上下沿算，HTML 和 SVG 都查）/ 被省略号截断 ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
 
