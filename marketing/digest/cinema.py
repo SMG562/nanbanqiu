@@ -34,7 +34,7 @@ def html():
     W, H = 1080, 1440
     # 真黑板：擦过的弧形痕、没擦净的旧字、粉笔槽里的粉笔灰
     smear = ''.join(f'<path d="M{x} {y} q {w/2:.0f} {-r.randint(30,70)} {w} 0" stroke="#fff" stroke-width="{r.randint(50,90)}" stroke-linecap="round" fill="none" opacity="{r.uniform(.025,.05):.3f}"/>' for x, y, w in ((40, 160, 300), (300, 420, 360), (560, 120, 340), (120, 520, 280), (620, 470, 300)))
-    ghost = f'<g fill="#fff" opacity=".045" font-family="{WK}" font-size="40"><text x="30" y="574" transform="rotate(-2 30 574)">期中考试 第三单元</text></g>'
+    ghost = f'<g fill="#fff" opacity=".022" font-family="{WK}" font-size="40"><text x="30" y="574" transform="rotate(-2 30 574)">期中考试 第三单元</text></g>'
     dust = ''.join(f'<circle cx="{r.uniform(20,950):.0f}" cy="{r.uniform(594,604):.0f}" r="{r.uniform(.8,2):.1f}" fill="#fff" opacity="{r.uniform(.15,.5):.2f}"/>' for _ in range(160))
     return f'''<!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-bold.css"><link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-regular.css">
@@ -42,16 +42,16 @@ def html():
 *{{margin:0;padding:0;box-sizing:border-box}} s,em,i,u{{text-decoration:none;font-style:normal}}
 body{{width:{W}px;height:{H}px;overflow:hidden;position:relative;background:#E6DED0;font-family:{WK}}}
 .layer{{position:absolute;inset:0;pointer-events:none}}
-.wall{{background:linear-gradient(180deg,#D8CFBF 0%,#E7DFD0 24%,#E9E1D2 60%)}}
+.wall{{background:linear-gradient(90deg,#EFE4CF 0%,#E4D7C0 30%,#D9CCB5 100%)}}
 .ceil{{position:absolute;left:0;right:0;top:0;height:40px;background:linear-gradient(180deg,#C2B9A9,#D6CDBD);box-shadow:0 2px 4px rgba(0,0,0,.06)}}
-.dado{{position:absolute;left:0;right:0;top:1010px;bottom:0;background:linear-gradient(180deg,#6F9A88 0%,#628C7B 50%,#557D6D 100%)}}
-.dado::before{{content:'';position:absolute;left:0;right:0;top:0;height:8px;background:#88AE9F}}
-.floor{{position:absolute;left:0;right:0;top:1330px;bottom:0;background:linear-gradient(180deg,#9C8F7C,#8A7E6C)}} .floor::before{{content:'';position:absolute;left:0;right:0;top:0;height:14px;background:#4E6E61}}
+.dado{{position:absolute;left:0;right:0;top:1000px;bottom:0;background:repeating-linear-gradient(90deg,#9C6E45 0 2px,#C9965F 2px 86px,#BE8A55 86px 88px,#CD9B64 88px 110px),linear-gradient(180deg,#F2E2C8,#C9A782);background-blend-mode:multiply}}
+.dado::before{{content:'';position:absolute;left:0;right:0;top:0;height:16px;background:linear-gradient(180deg,#C89260,#8E5F35);box-shadow:0 3px 4px rgba(40,25,10,.3)}}
+.floor{{position:absolute;left:-10px;right:-10px;top:1322px;bottom:0;background:linear-gradient(180deg,#C99464 0%,#B07A4A 30%,#7A4F2C 100%);box-shadow:0 -10px 24px rgba(40,25,10,.35)}} .floor::before{{content:'';position:absolute;left:0;right:0;top:0;height:5px;background:#E8B884;opacity:.8}} .floor::after{{content:'';position:absolute;left:530px;top:0;bottom:0;width:6px;background:#5E3D20}}
 .slog{{position:absolute;top:92px;display:flex;gap:9px}} .slog.l{{right:606px}} .slog.r{{left:606px}}
 .slog i{{width:80px;height:80px;display:flex;align-items:center;justify-content:center;font-family:{SERIF};font-weight:900;font-size:52px;color:#C2252C;background:#FAF6EE;box-shadow:0 3px 5px rgba(60,40,20,.16)}}
 /* 黑板：嵌在墙上的哑光石板，细铝框，下边一条粉笔槽 */
-.bwrap{{position:absolute;left:50px;top:300px;width:980px;height:612px}}
-.board{{position:absolute;inset:0;background:radial-gradient(95% 85% at 50% 45%,#2A4339 0%,#233A31 60%,#1D3229 100%);border:8px solid #A7ADB0;box-shadow:0 0 0 1px #868D91,0 3px 0 rgba(0,0,0,.12)}}
+.bwrap{{position:absolute;left:40px;top:292px;width:1000px;height:630px}}
+.board{{position:absolute;inset:0;background:radial-gradient(95% 85% at 50% 45%,#2D4A3E 0%,#264137 60%,#1F382F 100%);border:18px solid #9A6A3E;border-image:linear-gradient(180deg,#B9844F,#8E5F35 50%,#6E4825) 1;box-shadow:0 0 0 3px #5E3D20,inset 0 0 0 3px rgba(0,0,0,.35),0 10px 18px -6px rgba(50,30,15,.45)}}
 .btex{{position:absolute;inset:0}}
 .chalk{{position:absolute;inset:0;filter:url(#chalk);color:{W_}}}
 .iss{{position:absolute;left:34px;top:26px;font-size:17px;letter-spacing:5px;opacity:.7}}
@@ -66,10 +66,10 @@ h1{{position:absolute;left:30px;top:58px;font-size:90px;line-height:1.04;letter-
 .t{{font-size:22px}} .v{{min-width:0}} .v b{{display:block;font-size:19px;white-space:nowrap}} .v s{{display:block;font-size:14px;opacity:.6;white-space:nowrap;overflow:hidden}}
 .cells{{display:flex;gap:6px}} .cells i{{width:31px;height:31px;display:flex;align-items:center;justify-content:center;font-size:19px}} .got{{border:1.6px solid rgba(244,242,234,.42)}} .open{{border:2.2px dashed {LM}}}
 .n{{color:{LM};font-size:18px;text-align:right}}
-.tray{{position:absolute;left:-8px;right:-8px;bottom:-24px;height:16px;background:linear-gradient(180deg,#C5CBCE,#8F979B);box-shadow:0 4px 5px rgba(0,0,0,.18)}}
+.tray{{position:absolute;left:-30px;right:-30px;bottom:-40px;height:22px;background:linear-gradient(180deg,#C48D57,#8E5F35 60%,#6A4524);box-shadow:0 6px 8px rgba(40,25,10,.3)}}
 .tray i{{position:absolute;top:-6px;height:8px;border-radius:4px;background:{W_}}} .tray u{{position:absolute;left:110px;top:-15px;width:104px;height:17px;border-radius:3px;background:linear-gradient(180deg,#C7B796,#A69577)}}
 /* 傍晚：整面墙一层很淡的暖光，从左上来，没有形状；四周轻轻压暗 */
-.warm{{background:linear-gradient(115deg,rgba(255,196,130,.30) 0%,rgba(255,206,150,.12) 40%,rgba(255,210,160,0) 70%);mix-blend-mode:soft-light}}
+.warm{{background:linear-gradient(110deg,rgba(255,200,130,.28) 0%,rgba(255,210,150,.10) 45%,rgba(255,210,160,0) 75%);mix-blend-mode:soft-light}}
 .cool{{background:linear-gradient(180deg,rgba(0,0,0,0) 60%,rgba(20,40,45,.18) 100%);mix-blend-mode:multiply}}
 .vig{{background:radial-gradient(115% 90% at 50% 42%,transparent 58%,rgba(20,16,12,.32) 100%)}}
 .grain{{opacity:.07;mix-blend-mode:overlay}}
@@ -92,7 +92,7 @@ h1{{position:absolute;left:30px;top:58px;font-size:90px;line-height:1.04;letter-
 <svg class="layer" width="{W}" height="{H}"><defs><filter id="pb" filterUnits="userSpaceOnUse" x="0" y="0" width="{W}" height="{H}"><feGaussianBlur stdDeviation="38"/></filter>
  <filter id="hs" filterUnits="userSpaceOnUse" x="0" y="0" width="{W}" height="{H}"><feGaussianBlur stdDeviation="4"/></filter>
  <linearGradient id="bagc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3F6687"/><stop offset="1" stop-color="#2A4A66"/></linearGradient></defs>
- <ellipse cx="840" cy="1130" rx="200" ry="80" fill="#FFE2B0" opacity=".45" filter="url(#pb)" style="mix-blend-mode:screen"/>
+ <path d="M-40 -40 L 260 -40 L 980 1000 L 560 1000 Z" fill="#FFE6B8" opacity=".14" filter="url(#pb)" style="mix-blend-mode:screen"/>
  <rect x="60" y="1032" width="430" height="10" rx="2" fill="#8C7A62"/>{''.join(f'<path d="M{x} 1040 v14 q0 10 9 10" stroke="#5B636A" stroke-width="4" fill="none" stroke-linecap="round"/>' for x in (100, 190, 280, 370, 460))}
  <g transform="translate(246 1050) rotate(18)"><clipPath id="rkh"><ellipse cx="0" cy="-40" rx="40" ry="52"/></clipPath>
   <g clip-path="url(#rkh)" stroke="#BFC6CB" stroke-width="1.5" opacity=".7">{''.join(f'<path d="M{x} -100 V20"/>' for x in range(-36, 40, 9))}{''.join(f'<path d="M-50 {y} H50"/>' for y in range(-88, 12, 9))}</g>
