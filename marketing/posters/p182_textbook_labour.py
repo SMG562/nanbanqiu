@@ -1,46 +1,43 @@
 from lib import *
-from lin import blob, ink
 from people import person
-from textbook import DEFS, PAPER, INK, RED, BLUE, GREEN, outlined, finish, slogan, lesson
+from textbook import DEFS, PAPER, INK, RED, BLUE, GREEN, outlined, finish, lesson, schoolyard
 
 META = dict(
     id=182, slug='textbook-labour', title='劳动课', lines=['打球之前，', '先把场地弄干净。'],
-    style=['课本插画', '年代感', '勾线平涂', '南伴绿'], tone='浅色', demo=False,
-    concept='六七十年代课本插画的画法：泛黄的纸、黑线勾边、平涂少色；同一块南伴绿的水泥球场上上劳动课——有人扫落叶、两个人推着石头压路滚、有人提着石灰桶画白线、两个人抬着一筐球；墙上还是那八个字；底下课文框「第十三课　劳动课」',
-    use='年代感 / 社群里一起搭把手；回忆共鸣',
+    style=['课本插画', '年代感', '远景', '南伴绿'], tone='浅色', demo=False,
+    concept='六七十年代课本插画的画法，高机位远景：同一个学校运动场，围网上挂着「好好打球　天天向上」；南伴绿的场地上上劳动课——有人扫落叶、两个人推着石头压路滚、有人提着石灰桶画一条画了一半的白线、两个人抬着一筐球往场边走',
+    use='年代感 / 一起搭把手；回忆共鸣',
 )
 
 
 def svg():
     r = random.Random(182)
     p = [f'<defs>{DEFS}</defs>', f'<rect width="1080" height="1350" fill="{PAPER}"/>']
-    p.append('<rect x="0" y="120" width="1080" height="300" fill="#E8D8B0"/><rect x="0" y="360" width="1080" height="60" fill="#9A4A34"/>')
-    p.append(f'<rect x="0" y="120" width="1080" height="300" fill="none" stroke="{INK}" stroke-width="3"/>')
-    slogan(p, '好好打球', 98, 190, 96, 12)
-    slogan(p, '天天向上', 560, 190, 96, 12)
-    p.append(f'<path d="M0 420 L1080 420 L1080 1110 L0 1110Z" fill="{GREEN}"/>')
-    p.append(f'<path d="M0 420 L1080 420 L1080 1110 L0 1110Z" fill="url(#dots_t)" opacity=".18"/>')
-    p.append('<path d="M120 1110 L250 460 L830 460 L960 1110 M540 460 L540 1110" stroke="#F4EED8" stroke-width="6" fill="none"/>')
-    p.append('<path d="M190 780 L620 780" stroke="#F4EED8" stroke-width="6"/>')                                    # 画了一半的线
-    p.append('<path d="M620 780 L890 780" stroke="#F4EED8" stroke-width="3" stroke-dasharray="6 14" opacity=".6"/>')
-    for _ in range(40):                                                                                         # 落叶
-        p.append(f'<ellipse cx="{r.uniform(60, 1020):.0f}" cy="{r.uniform(900, 1090):.0f}" rx="8" ry="4" transform="rotate({r.uniform(0, 180):.0f})" fill="{r.choice(["#D8A040", "#B8742A", "#E8C060"])}"/>')
-    # 扫地的
-    p.append(outlined(person(180, 1060, .95, 'teach', 1, 0, 1, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle='pony')))
-    p.append(outlined(f'<line x1="250" y1="840" x2="300" y2="1050" stroke="#8A6A3A" stroke-width="6"/><path d="M280 1040 L330 1060 L320 1080 L270 1066Z" fill="#D8B060"/>'))
-    # 推压路滚的两个人
-    p.append(outlined('<rect x="430" y="606" width="120" height="70" rx="35" fill="#9A9A90"/><line x1="490" y1="640" x2="560" y2="560" stroke="#6A4A30" stroke-width="7"/>'))
-    p.append(outlined(person(600, 680, .8, 'grip', -1, 2, 0, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle='short')))
-    # 提着石灰桶画线的
-    p.append(outlined(person(660, 800, .8, 'walk', 1, 1, 2, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle='bob')))
-    p.append(outlined(f'<path d="M700 700 L736 700 L732 740 L704 740Z" fill="#E8E8E0"/><path d="M702 700 C708 684 728 684 734 700" stroke="{INK}" stroke-width="2" fill="none"/>'))
-    p.append(f'<text x="718" y="728" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="12" fill="{INK}">石灰</text>')
-    # 抬着球筐的两个人
-    p.append(outlined(person(780, 1070, .95, 'hold', 1, 0, 0, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle='short')))
-    p.append(outlined(person(990, 1070, .95, 'hold', -1, 3, 3, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle='pony')))
-    p.append(outlined('<line x1="820" y1="830" x2="950" y2="830" stroke="#8A6A3A" stroke-width="8"/><path d="M850 834 L920 834 L910 900 L860 900Z" fill="#C8A060"/>'))
-    for i in range(7):
-        p.append(f'<circle cx="{862 + (i % 4) * 14}" cy="{846 - (i // 4) * 12}" r="8" fill="#C6EA3D" stroke="{INK}" stroke-width="1.6"/>')
+    T = schoolyard(p, r)
+    for _ in range(60):                                                                                        # 场上的落叶
+        u, v = r.uniform(.02, .98), r.uniform(.4, 1)
+        x, y = T(u, v)
+        p.append(f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="5" ry="2.5" fill="{r.choice(["#D8A040", "#B8742A", "#E8C060"])}"/>')
+    def kid(u, v, pose, f, sk=0, hr=0, hs='short', s=1.0):
+        x, y = T(u, v)
+        sc = (.28 + .2 * v) * s
+        p.append(outlined(person(x, y, sc, pose, f, sk, hr, '#FFFFFF', BLUE, shoe='#FFFFFF', sleeve='short', hairstyle=hs)))
+        return x, y, sc
+    x, y, sc = kid(.2, .86, 'teach', 1, 0, 1, 'pony')                                                         # 扫地
+    p.append(outlined(f'<line x1="{x + 60*sc:.0f}" y1="{y - 210*sc:.0f}" x2="{x + 95*sc:.0f}" y2="{y - 6:.0f}" stroke="#8A6A3A" stroke-width="4"/><path d="M{x + 80*sc:.0f} {y - 10:.0f} l40 8 l-6 12 l-40 -8Z" fill="#D8B060"/>'))
+    rx, ry = T(.55, .28)                                                                                      # 压路滚
+    p.append(outlined(f'<rect x="{rx - 40:.0f}" y="{ry - 26:.0f}" width="80" height="44" rx="22" fill="#9A9A90"/><line x1="{rx:.0f}" y1="{ry - 4:.0f}" x2="{rx + 56:.0f}" y2="{ry - 52:.0f}" stroke="#6A4A30" stroke-width="5"/>'))
+    kid(.66, .26, 'grip', -1, 2, 0, 'short')
+    kid(.71, .3, 'grip', -1, 0, 3, 'short')
+    (a, b), (c, d) = T(.18, .7), T(.55, .7)                                                                   # 画了一半的线
+    p.append(f'<line x1="{a:.0f}" y1="{b:.0f}" x2="{c:.0f}" y2="{d:.0f}" stroke="#FFFFFF" stroke-width="4"/>')
+    lx, ly, ls = kid(.58, .74, 'walk', 1, 1, 2, 'bob')
+    p.append(outlined(f'<path d="M{lx + 30:.0f} {ly - 110:.0f} l22 0 l-3 26 l-16 0Z" fill="#E8E8E0"/>'))
+    x1, y1, s1 = kid(.8, .9, 'hold', 1, 0, 0, 'short')                                                       # 抬球筐
+    x2, y2, s2 = kid(.95, .9, 'hold', -1, 3, 3, 'pony')
+    p.append(outlined(f'<line x1="{x1 + 40*s1:.0f}" y1="{y1 - 248*s1:.0f}" x2="{x2 - 40*s2:.0f}" y2="{y2 - 248*s2:.0f}" stroke="#8A6A3A" stroke-width="5"/><path d="M{(x1 + x2) / 2 - 30:.0f} {y1 - 244*s1:.0f} l60 0 l-8 44 l-44 0Z" fill="#C8A060"/>'))
+    for i in range(6):
+        p.append(f'<circle cx="{(x1 + x2) / 2 - 18 + (i % 3) * 18:.0f}" cy="{y1 - 248*s1 + 8 - (i // 3) * 10:.0f}" r="7" fill="#C6EA3D" stroke="{INK}" stroke-width="1.4"/>')
     p.append(f'<text x="540" y="86" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="30" letter-spacing="12" fill="{INK}">劳 动 课</text>')
     lesson(p, '十三', '劳动课', ['打球之前，先把场地弄干净。', '扫落叶，压场地，画白线，把球捡回筐里。'])
     finish(p)
