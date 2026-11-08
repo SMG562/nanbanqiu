@@ -1,11 +1,11 @@
 ---
 name: nanbanqiu-poster
-description: 做南伴球的宣传海报、朋友圈 / 小红书配图、品牌视觉、宣传物料时使用。已有 134 张海报和一套出图流程（marketing/），新设计不用重新摸索品牌、不用通读旧代码。
+description: 做南伴球的宣传海报、朋友圈 / 小红书配图、品牌视觉、宣传物料时使用。已有 136 张海报和一套出图流程（marketing/），新设计不用重新摸索品牌、不用通读旧代码。
 ---
 
 # 南伴球宣传物料（海报）
 
-**第 0 步：先读同目录的 `品味手册.md`**（用户口味、点名不喜欢的类型、自检清单）。已有 134 张里 37 / 38 / 40（口号 / 拆字 / 哲理）和 66 / 67（借别的 App 界面）是反面教材；68–72（网球冷知识 × 小心思）是用户最近点名的好样板。
+**第 0 步：先读同目录的 `品味手册.md`**（用户口味、点名不喜欢的类型、自检清单）。已有 136 张里 37 / 38 / 40（口号 / 拆字 / 哲理）和 66 / 67（借别的 App 界面）是反面教材；68–72（网球冷知识 × 小心思）是用户最近点名的好样板。
 
 **先别读旧海报和 lib.py，按下面流程走，一张新海报约 60 行代码、几轮就能定稿。**
 成品都在预览站「宣传物料」页（/materials.html，手机能看、能存大图），推送到 main 自动更新。
@@ -13,6 +13,7 @@ description: 做南伴球的宣传海报、朋友圈 / 小红书配图、品牌�
 ## 流程
 1. `python3 marketing/build.py --list`：看已有海报的编号 · 标题 · 风格 · 创意，**不重复**；**编号先查别的分支**（`git ls-remote` + 各分支 `marketing/posters/`，多个对话会同时出图，11-08 撞过 85–88）；想不到方向就看文末「还没做的方向」。
 2. 新建 `marketing/posters/pNN_slug.py`（NN 接着最大编号，slug 用连字符，文件名里换成下划线），照下面的模板写 `META` 和 `svg()`。
+2b. **出图前确认装了思源字体**：`fc-list :lang=zh | grep -c Noto`，为 0 就 `apt-get install -y fonts-noto-cjk fonts-noto-cjk-extra`（11-08 云端容器没装，110–159 首版全用了文泉驿替代字体，已重出）；python 的 playwright 版本要和 /opt/pw-browsers 里的浏览器对上（`pip install playwright==1.63.0`）。
 3. `python3 marketing/build.py --only NN`：出 `img/NN-slug.webp`（1080×1350）、`thumb/`（360×450），登记 `posters.json`，并**自动检查文字**（出画布 / 离边太近 / 互相压住；旋转组里的文字可能误报）。
 4. 看图：Read `marketing/img/NN-slug.webp`（一张约 2k token）。多张对比用 `--sheet /tmp/s.jpg`（缩略总览，一次读完）。改数字或文案后重跑 `--only NN`，不要整文件重写。
 5. 收尾：`node tests/frontend/site.js`（站点测试，约 15 秒，会核对 posters.json、源文件、图片是否对得上）→ 提交（`marketing/` 整个目录：源文件、posters.json、img、thumb）→ 推送。
