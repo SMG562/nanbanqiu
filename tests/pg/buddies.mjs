@@ -98,6 +98,19 @@ try {
   r = await as(B, `insert into buddies(user_a,user_b) values ($1,$2)`, [B < C ? B : C, B < C ? C : B]); T('前台不能直接写 buddies', !r.ok && /permission denied/.test(r.err), r);
   r = await as(C, 'select * from buddies'); T('只能读自己相关的 buddies 行', r.ok && r.rows.every(x => [x.user_a, x.user_b].includes(C)), r);
 
+  // —— 扫码落地：按编号找人（api_card_by_no）
+  const no = async u => +(await q('select member_no from users where id=$1', [u])).rows[0].member_no;
+  const byNo = (u, n) => as(u, 'select api_card_by_no($1) v', [n]);
+  r = await byNo(A, await no(C)); T('按编号找到人', r.ok && r.v === C, r);
+  r = await byNo(A, 999999); T('编号不存在 → not_found', !r.ok && r.err === 'not_found', r);
+  r = await byNo(null, await no(C)); T('没登录 → login_required', !r.ok && r.err === 'login_required', r);
+  r = await byNo(A, await no(X)); T('有屏蔽关系 → not_found（被屏蔽的人扫码也找不到）', !r.ok && r.err === 'not_found', r);
+  await q(`update users set status='banned' where id=$1`, [C]); r = await byNo(A, await no(C)); T('封禁的人 → not_found', !r.ok && r.err === 'not_found', r);
+  await q(`update users set status='active' where id=$1`, [C]);
+  for (let i = 0; i < 58; i++) await byNo(D, await no(A));   // 前面 A 已查 5 次，D 现在 58 次
+  r = await byNo(D, await no(A)); T('第 59、60 次还能查', r.ok && (await byNo(D, await no(A))).ok, r);
+  r = await byNo(D, await no(A)); T('1 小时内第 61 次 → card_lookup_limit（防按编号遍历）', !r.ok && r.err === 'card_lookup_limit', r);
+
   // —— 删除球友：不通知
   const before = +(await q(`select count(*) from notifications where user_id=$1`, [E])).rows[0].count;
   r = await as(D, 'select api_buddy_remove($1)', [E]); T('D 删除 E → 两边都不再是球友', r.ok && (await list(D)).buddies.length === 0 && (await list(E)).buddies.length === 0, r);
@@ -106,7 +119,7 @@ try {
 
   // —— 迁移可重复运行
   const src = async f => (await q(`select prosrc from pg_proc where proname=$1`, [f])).rows.map(r => r.prosrc).join('\n---\n');
-  const fnBefore = {}; for (const f of ['risk_values', 'job_anonymize_deleted', 'api_buddy_request', 'api_buddy_respond', 'api_buddies', 'buddy_stats']) fnBefore[f] = await src(f);
+  const fnBefore = {}; for (const f of ['risk_values', 'job_anonymize_deleted', 'api_card_by_no', 'api_buddy_request', 'api_buddy_respond', 'api_buddies', 'buddy_stats']) fnBefore[f] = await src(f);
   const errs2 = loadSchema(c, 'nbq', path.join(DIR, 'server', 'migrations', '20261108_buddies.sql'));
   for (const f of Object.keys(fnBefore)) T(`迁移里的 ${f} 与 schema.sql 一字不差`, (await src(f)) === fnBefore[f]);
   T('迁移后 risk_events 仍接受 buddy_ignored', (await q(`insert into risk_events(user_id,kind,ref) values ($1,'buddy_ignored','x') returning id`, [A])).rowCount === 1); T('迁移在已有库上再跑一遍无错误', !errs2.length, errs2.slice(0, 3));

@@ -7193,6 +7193,22 @@ insert into event_definitions (event, category, description, props, source, stat
  ('buddy_list_open','球友','打开我的球友','n_buddies, n_played','client','active',null)
 on conflict (event) do update set category = excluded.category, description = excluded.description, props = excluded.props, source = excluded.source, status = 'active', replaced_by = null;
 
+-- 扫码 / 球员卡链接落地（/p/{编号}）：按编号找人。原来前台只在已读进内存的人里找，扫陌生人的码打不开（#110 PR-B 发现）。
+--   必须登录；限频防按编号遍历（每小时 60 次、每天 300 次 → card_lookup_limit）；封禁 / 注销 / 有屏蔽关系 → not_found。
+--   只返回 id，卡片内容由接口层按 id 取（和 GET /api/players/:id 同一份，不多给任何列）
+insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
+ ('card_no_hour', 'card_no', '1 hour',   60,  false, 'card_lookup_limit', '按编号查球员卡（扫码 / 链接落地）：每小时 60 次，防遍历'),
+ ('card_no_day',  'card_no', '24 hours', 300, false, 'card_lookup_limit', '按编号查球员卡（扫码 / 链接落地）：每天 300 次')
+on conflict (rule) do update set grp = excluded.grp, win = excluded.win, max_hits = excluded.max_hits, per_key = excluded.per_key, code = excluded.code, note = excluded.note;
+create or replace function api_card_by_no(p_no bigint) returns uuid language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); t uuid;
+begin
+  perform nbq_rate(u::text, 'card_no');
+  select id into t from users where member_no = p_no and status not in ('banned','deleted');
+  if t is null or (t <> u and is_blocked(u, t)) then perform nbq_err('not_found'); end if;   -- 有屏蔽关系：当作找不到（被屏蔽的人不能靠扫码再找到你）
+  return t;
+end $$;
+
 -- 账号不是正常状态（暂停中 / 核实中 / 受限 / 封禁）不能加球友；暂停到期按正常
 create or replace function nbq_buddy_gate() returns uuid language plpgsql stable security definer set search_path = public as $$
 declare u uuid := nbq_me(); st text;
@@ -7298,10 +7314,10 @@ language sql stable security definer set search_path = public as $$
     from r
 $$;
 
-revoke execute on function buddy_stats(timestamptz, timestamptz, text[]), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() from public, anon, authenticated;
-grant execute on function api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_user;
+revoke execute on function api_card_by_no(bigint), buddy_stats(timestamptz, timestamptz, text[]), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() from public, anon, authenticated;
+grant execute on function api_card_by_no(bigint), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_user;
 grant execute on function buddy_stats(timestamptz, timestamptz, text[]) to nbq_admin, nbq_viewer;
-grant execute on function nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_service;
+grant execute on function api_card_by_no(bigint), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_service;
 
 -- 迁移记录（11-03）：每个迁移文件结尾保证记录表存在并记一行自己；/api/version 会报「库里执行到哪一版」，冒烟测试核对它等于代码里最新的迁移。
 create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());

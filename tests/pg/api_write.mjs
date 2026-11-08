@@ -70,6 +70,11 @@ try {
   r = await call('POST', `/api/buddies/requests/${brq}/ignore`, tP); T('球友：已处理的再忽略 → 409 buddy_request_ended', r.s === 409 && r.j.error === 'buddy_request_ended', r);
   r = await call('GET', '/api/buddies', tQ); T('球友：重读 → Q 的球友里有 P', r.s === 200 && r.j.buddies.length === 1 && r.j.buddies[0].user_id === P && r.j.outgoing.length === 0, r);
   r = await call('DELETE', `/api/buddies/${P}`, tQ); T('球友：删除', r.s === 200 && r.j.ok === true, r);
+  const pno = (await admin.query('select member_no from users where id=$1', [P])).rows[0].member_no;
+  r = await call('GET', `/api/players/no/${pno}`, null); T('按编号取卡片：没登录 → 401', r.s === 401, r);
+  r = await call('GET', `/api/players/no/${pno}`, tQ); T('按编号取卡片：和 /api/players/:id 同一份', r.s === 200 && JSON.stringify(r.j) === JSON.stringify((await call('GET', `/api/players/${P}`, tQ)).j), r);
+  r = await call('GET', '/api/players/no/99999999', tQ); T('按编号取卡片：不存在 → 404', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('GET', '/api/players/no/abc', tQ); T('按编号取卡片：编号不是数字 → 404', r.s === 404, r);
   r = await call('GET', '/api/buddies', tP); T('球友：删除后 P 那边也没有了', r.s === 200 && r.j.buddies.length === 0, r);
   // 我的球拍（#60 A3）：GET / PUT /api/me/rackets 接线；规则本身由 pg/rackets 测
   const rk = x => (x || []).map(o => `${o.slot}:${o.brand ?? '-'}/${o.series}`).join(' ');

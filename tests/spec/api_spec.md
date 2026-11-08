@@ -131,6 +131,7 @@
 | buddy_self | 422 | 这是你自己的码 | 数据库（#110） |
 | buddy_limit | 429 | 暂时无法发送，过段时间再试吧（30 天内被同一人忽略 2 次，或 24 小时内已发 10 个；同一个码，不泄露被忽略过） | 数据库（#110） |
 | buddy_request_ended | 409 | 这条申请已经处理过或失效了 | 数据库（#110） |
+| card_lookup_limit | 429 | 查得太频繁了，过一会儿再试 | 数据库 rate_rules card_no（#110） |
 | invite_daily_limit | 429 | 今天已经发出 3 个邀约了，明天再约吧 | 数据库 |
 | invite_new_limit | 429 | 今天已经约了 2 位新球友，明天再约吧 | 数据库 |
 | invite_declined_twice | 403 | 对方最近不太方便，过段时间再约吧 | 数据库 |
@@ -389,6 +390,7 @@
 - 后台 `GET /admin/api/buddies/stats?from&to`（默认最近 30 天，跨度 ≤ 366 天，不合法 422）· `buddy_stats(p_from, p_to, p_cities)`：权限 page.view（只读角色只有汇总数字）；限城市的管理员只算自己城市；返回 requests / senders / receivers / accepted_confirm / accepted_mutual / ignored / expired（pending 且过了 24 小时）/ pending / from_link / accept_rate（成了 ÷ 已有结果，没有 = null）/ median_accept_min（只算对方确认的）/ new_pairs / total_pairs
 - 埋点（前台两端发，PR-B 起）：buddy_scan_view / buddy_request_send / buddy_request_open / buddy_respond / buddy_remove / buddy_list_open（见 events_spec.md）
 - 注销满 30 天匿名化时删除这个人的球友关系和申请（job_anonymize_deleted）
+- `GET /api/players/no/:no` · `api_card_by_no(p_no)`：扫码 / 链接落地按球员编号取卡片（原来只能在已读进内存的人里找，扫陌生人的码打不开）；必须登录；限频每小时 60、每天 300 次 → 429 `card_lookup_limit`；封禁 / 注销 / 有屏蔽关系看不到 → 404；返回 `{player}`，和 `GET /api/players/:id` 同一份卡片
 - 本期不做（PR-A2 起）：球友 = 一起打过的权限（约 / 私信）、api_export_me 带上球友（并入 #71）
 
 ---

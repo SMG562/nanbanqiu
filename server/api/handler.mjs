@@ -401,6 +401,10 @@ const ROUTES = {
     const ids = (new URL(req.url).searchParams.get('ids') || '').split(',').filter(Boolean);
     if (!ids.length || ids.length > 50 || !ids.every(i => UUID.test(i))) throw bad();
     return { profiles: await cardsOf(q, ids) } }, { body: false }),
+  // 扫码 / 链接落地（#110）：按球员编号取卡片；必须登录、限频（api_card_by_no），内容和 GET /api/players/:id 同一份
+  'GET /api/players/no/:no': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const id = (await one(q, 'select api_card_by_no($1) as id', [x.no])).id, c = (await cardsOf(q, [id]))[id];
+    if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { nums: ['no'], body: false }),
   'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
   // 新号码第一次登录后建资料：手机号取自登录令牌里的 phone（不信请求里写的）；同一个号码重复提交 = 返回已有资料
