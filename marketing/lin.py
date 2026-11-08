@@ -101,3 +101,16 @@ def wash(rng, y0, y1, colors, n=24, w=(30, 70), op=(.35, .7), x0=X0 - 200, x1=X0
         x = rng.uniform(x0, x1 - 150)
         out += ink([(x, y), (x + rng.uniform(250, 700), y + rng.uniform(-10, 10))], rng.uniform(*w), rng.choice(colors), rng.uniform(*op), (.35, .35))
     return out
+
+
+def frame_dark(painting, caption, tagtext, sid):
+    """深绿装裱（114–121 底稿用，保持原样）：深绿底 + 画芯 + 奶油色一句话 + 字标。"""
+    return f'''<defs>{DEFS}<clipPath id="pc{sid}"><rect x="{X0}" y="{Y0}" width="{S}" height="{S}"/></clipPath>
+<linearGradient id="mt{sid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0E4431"/><stop offset="1" stop-color="#062419"/></linearGradient></defs>
+<rect width="{W}" height="{H}" fill="url(#mt{sid})"/>
+<rect x="{X0-4}" y="{Y0+10}" width="{S+8}" height="{S+6}" fill="#000" opacity=".45" filter="url(#bl14)"/>
+<g clip-path="url(#pc{sid})"><g filter="url(#paint)">{painting}</g>
+<rect x="{X0}" y="{Y0}" width="{S}" height="{S}" filter="url(#canvas)" opacity=".22" style="mix-blend-mode:multiply"/></g>
+<text x="84" y="1112" font-family="{SERIF}" font-weight="700" font-size="46" letter-spacing="4" fill="#F7EBD6">{caption}</text>
+<text x="996" y="1112" text-anchor="end" font-family="{SANS}" font-size="16" letter-spacing="7" fill="#F7EBD6" opacity=".55">{tagtext}</text>
+{wordmark(1262, '#fff', sub=False)}'''
