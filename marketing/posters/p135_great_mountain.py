@@ -1,10 +1,11 @@
 from lib import *
 from lin import DEFS, blob, ink, glow, poem, seal
+from song import ridge_mountain
 
 META = dict(
     id=135, slug='great-mountain', title='导航都找不到', lines=['这块场，', '导航都找不到。'],
     style=['宋画', '巨嶂山水', '天地', '光亮'], tone='亮色', demo=False,
-    concept='借范宽《溪山行旅图》的巨嶂格局：一座大山顶天立地占满画面上半，满身雨点皴，山顶一排小树，一线瀑布挂下来；山脚云气浮动，谷里一块小球场，两个人背着球包走在山路上，前景巨石和松树托住全幅',
+    concept='借范宽《溪山行旅图》的巨嶂格局：一座方硬的大山顶天立地占满画面上半，块面分明、浓墨骨线、满身雨点皴，山顶一排小树，一线瀑布挂下来；山脚云气浮动，谷里一块小球场，两个人背着球包走在山路上，前景巨石和松树托住全幅',
     use='远一点、好一点的球场；天地很大，人很小，走着去也开心',
 )
 
@@ -15,22 +16,20 @@ def svg():
          '<linearGradient id="mt135" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6E7A5C"/><stop offset=".5" stop-color="#8E8E68"/><stop offset="1" stop-color="#C8BC8A"/></linearGradient>'
          '<linearGradient id="sd135" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3E4A3A" stop-opacity=".45"/><stop offset=".5" stop-color="#3E4A3A" stop-opacity="0"/><stop offset="1" stop-color="#3E4A3A" stop-opacity=".35"/></linearGradient></defs>',
          f'<rect width="{W}" height="{H}" fill="url(#sk135)"/>', glow(540, 160, 500, 160, '#FFFBEE', .9)]
-    m = 'M150 920 C170 760 200 600 250 480 C280 400 320 330 380 280 C420 250 450 236 480 226 C520 214 560 222 600 214 C650 206 700 230 740 280 C790 340 830 440 870 560 C900 660 930 800 940 920Z'
-    g = [f'<path d="M-40 920 C20 760 80 640 160 560 C210 520 250 540 290 600 L330 920Z" fill="#A8A88A"/>',
-         f'<path d="M1120 920 C1060 740 1000 640 920 580 C880 556 840 580 810 640 L760 920Z" fill="#A4A486"/>',
-         f'<clipPath id="mc135"><path d="{m}"/></clipPath>', f'<path d="{m}" fill="url(#mt135)"/>', f'<path d="{m}" fill="url(#sd135)"/>', '<g clip-path="url(#mc135)">']
-    for _ in range(1400):                                                                                    # 雨点皴
-        x, y = r.uniform(150, 940), r.uniform(230, 880)
-        g.append(f'<line x1="{x:.0f}" y1="{y:.0f}" x2="{x + r.uniform(-1, 1):.0f}" y2="{y + r.uniform(5, 12):.0f}" stroke="#3A4030" stroke-width="{r.uniform(1.4, 2.6):.1f}" opacity="{r.uniform(.25, .6):.2f}"/>')
-    for k in range(9):                                                                                       # 几道主脉
-        x = 260 + k * 70 + r.uniform(-20, 20)
-        g.append(ink([(x + 40, 300 + abs(k - 4) * 30), (x + r.uniform(-30, 30), 560), (x + r.uniform(-50, 50), 880)], r.uniform(5, 9), '#33392A', .5, (.2, .6)))
-    g.append('</g>')
-    for i in range(60):                                                                                      # 山顶一排小树
-        t = i / 59
-        x = 380 + t * 370
-        y = 222 + 70 * (2 * t - 1) ** 2 - 4
-        g.append(blob(r, x, y - r.uniform(0, 14), r.uniform(6, 10), r.uniform(9, 16), r.choice(['#2A3A2A', '#3A4E36']), .95))
+    g = [f'<path d="M-40 920 L40 760 L110 640 L170 580 L230 600 L300 700 L330 920Z" fill="#B4B090"/>',
+         f'<path d="M1120 920 L1050 740 L980 640 L920 590 L860 610 L800 700 L760 920Z" fill="#B0AC8C"/>']
+    pts = [(150, 920), (172, 820), (204, 762), (198, 700), (232, 640), (252, 562), (244, 500), (290, 432), (312, 362), (358, 322), (382, 272), (430, 240),
+           (470, 202), (520, 190), (560, 208), (600, 186), (650, 200), (690, 240), (720, 228), (760, 290), (792, 350), (782, 420), (822, 480), (850, 560),
+           (840, 640), (880, 720), (902, 820), (930, 920)]
+    g.append(ridge_mountain(r, pts, 930, n_strip=8, dots=1500, sid='135'))
+    for i in range(46):                                                                                      # 山顶一排小树
+        t = i / 45
+        x = 400 + t * 330
+        y = min(p[1] for p in pts if abs(p[0] - x) < 34) - 4
+        g.append(blob(r, x, y - r.uniform(0, 12), r.uniform(5, 9), r.uniform(9, 15), r.choice(['#2A3A2A', '#3A4E36']), .95))
+    for lx, ly in [(330, 520), (700, 470), (560, 640)]:                                                     # 山腰台地上的小树丛
+        for _ in range(8):
+            g.append(blob(r, lx + r.uniform(-40, 40), ly + r.uniform(-8, 8), r.uniform(4, 7), r.uniform(6, 11), '#2E4030', .9))
     g.append(ink([(800, 380), (806, 520), (802, 680), (808, 800)], 5, '#FFFFFF', .9, (.05, .1)))           # 瀑布
     p.append('<g filter="url(#paint2)">' + ''.join(g) + '</g>')
     p.append(glow(540, 890, 620, 70, '#FFFFFF', .97, 28))                                                    # 山脚云气

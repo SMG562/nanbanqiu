@@ -1,5 +1,6 @@
 from lib import *
 from lin import DEFS, blob, ink, glow, poem, seal
+from song import crane
 
 META = dict(
     id=134, slug='crane-sky', title='放得有点高', lines=['这个高球，', '放得有点高。'],
@@ -7,18 +8,6 @@ META = dict(
     concept='借《瑞鹤图》的格局：整张是一片石青的天，祥云从宫阙的屋脊上涌起，一群白鹤在天上盘旋；鹤群里多了一颗荧光球——高球放得太高，飞进了鹤群；下方金瓦朱墙托住整个画面',
     use='高球 / 挑高球；云天、宫墙的大气象，配一句好笑的大实话',
 )
-
-
-def crane(cx, cy, s, rot, flip=1):
-    w1 = f'<path d="M-6 -6 C-20 -50 -40 -86 -70 -110 C-50 -70 -30 -36 -18 -2Z" fill="#FBFAF4"/><path d="M-70 -110 C-58 -92 -50 -80 -44 -66 L-54 -70 L-48 -54 C-56 -70 -64 -90 -70 -110Z" fill="#1A1A1A"/>'
-    w2 = f'<path d="M8 -4 C22 -40 50 -70 86 -84 C60 -56 36 -26 20 2Z" fill="#F2F0E8"/><path d="M86 -84 C72 -74 62 -64 54 -52 L66 -56 L58 -42 C66 -58 74 -72 86 -84Z" fill="#1A1A1A"/>'
-    body = ('<ellipse cx="0" cy="0" rx="44" ry="13" fill="#FFFFFF"/>'
-            '<path d="M38 -4 C60 -10 82 -14 104 -12" stroke="#FFFFFF" stroke-width="6" fill="none" stroke-linecap="round"/>'
-            '<circle cx="106" cy="-12" r="6.5" fill="#FFFFFF"/><circle cx="106" cy="-17" r="3.2" fill="#C8322A"/>'
-            '<path d="M111 -12 L136 -9" stroke="#2A2A2A" stroke-width="2.4" stroke-linecap="round"/>'
-            '<path d="M-40 4 C-48 8 -60 8 -70 6 L-46 -4Z" fill="#1A1A1A"/>'
-            '<path d="M-30 6 L-110 18 M-26 8 L-108 24" stroke="#2A2A2A" stroke-width="2.2" stroke-linecap="round"/>')
-    return f'<g transform="translate({cx} {cy}) rotate({rot}) scale({s * flip} {s})">{w1}{body}{w2}</g>'
 
 
 def svg():
@@ -32,9 +21,9 @@ def svg():
              (520, 220, .6, -18, 1), (720, 600, .7, 8, -1), (160, 650, .65, -6, 1), (150, 230, .6, -12, 1), (640, 700, .55, -2, 1)]
     for c in flock:
         p.append(crane(*c))
-    p.append('<path d="M120 1020 C300 800 520 560 760 420" stroke="#FFFFFF" stroke-width="2.4" stroke-dasharray="2 12" fill="none" stroke-linecap="round" opacity=".6"/>')   # 高球的弧线
-    p.append(glow(770, 410, 34, 34, '#E4F76A', .7, 14))
-    p.append('<circle cx="770" cy="410" r="17" fill="#C6EA3D"/><path d="M758 398 C766 406 766 414 758 422" stroke="#F6F8E0" stroke-width="2.4" fill="none"/>')
+    p.append('<path d="M120 1020 C300 760 520 480 760 250" stroke="#FFFFFF" stroke-width="2.4" stroke-dasharray="2 12" fill="none" stroke-linecap="round" opacity=".6"/>')   # 高球的弧线
+    p.append(glow(760, 250, 34, 34, '#E4F76A', .7, 14))
+    p.append('<circle cx="760" cy="250" r="17" fill="#C6EA3D"/><path d="M748 238 C756 246 756 254 748 262" stroke="#F6F8E0" stroke-width="2.4" fill="none"/>')
     # 祥云：从屋脊后涌起，白身蓝勾边
     cl = ''
     for _ in range(40):                                                                                     # 祥云：柔的白团 + 几笔卷云勾线
