@@ -58,7 +58,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   // 宣传物料页（marketing/）：清单、源文件、图片对得上；手机尺寸能浏览、点开大图、筛选
   {
     const list = S.posters(), mk = path.join(ROOT, 'marketing', 'posters'), nn = p => String(p.id).padStart(2, '0');
-    const srcs = fs.readdirSync(mk).filter(f => /^p\d\d_.+\.py$/.test(f)).sort();
+    const srcs = fs.readdirSync(mk).filter(f => /^p\d{2,}_.+\.py$/.test(f)).sort();
     T('物料：posters.json 和 marketing/posters/ 源文件一一对应', JSON.stringify(srcs) === JSON.stringify(list.map(p => `p${nn(p)}_${p.slug.replace(/-/g, '_')}.py`).sort()), { srcs: srcs.length, list: list.length });
     T('物料：每张都有大图和缩略图，且在 site/ 里', list.length >= 16 && list.every(p => files.includes(`materials/img/${S.posterName(p)}.webp`) && files.includes(`materials/thumb/${S.posterName(p)}.webp`)));
     const webp = f => { const x = fs.readFileSync(path.join(out, f)); return x.slice(0, 4).toString() === 'RIFF' && x.slice(8, 12).toString() === 'WEBP' ? [x.readUInt16LE(26) & 0x3fff, x.readUInt16LE(28) & 0x3fff] : null };

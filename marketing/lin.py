@@ -75,16 +75,17 @@ def gball(cx, cy, r, rot=-20, id='g'):
 
 
 def frame(painting, caption, tagtext, sid):
-    """装裱：深绿底 + 画芯（套 paint 滤镜和纸纹）+ 下方一句话 + 字标。"""
+    """装裱：暖白纸底 + 画芯（套 paint 滤镜和纸纹）+ 下方一句话 + 底部深绿条放字标。"""
     return f'''<defs>{DEFS}<clipPath id="pc{sid}"><rect x="{X0}" y="{Y0}" width="{S}" height="{S}"/></clipPath>
-<linearGradient id="mt{sid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0E4431"/><stop offset="1" stop-color="#062419"/></linearGradient></defs>
+<linearGradient id="mt{sid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBF5E8"/><stop offset="1" stop-color="#F1E6CD"/></linearGradient></defs>
 <rect width="{W}" height="{H}" fill="url(#mt{sid})"/>
-<rect x="{X0-4}" y="{Y0+10}" width="{S+8}" height="{S+6}" fill="#000" opacity=".45" filter="url(#bl14)"/>
+<rect x="{X0}" y="{Y0+8}" width="{S}" height="{S}" fill="#7A5A2A" opacity=".22" filter="url(#bl14)"/>
 <g clip-path="url(#pc{sid})"><g filter="url(#paint)">{painting}</g>
-<rect x="{X0}" y="{Y0}" width="{S}" height="{S}" filter="url(#canvas)" opacity=".22" style="mix-blend-mode:multiply"/></g>
-<text x="84" y="1112" font-family="{SERIF}" font-weight="700" font-size="46" letter-spacing="4" fill="#F7EBD6">{caption}</text>
-<text x="996" y="1112" text-anchor="end" font-family="{SANS}" font-size="16" letter-spacing="7" fill="#F7EBD6" opacity=".55">{tagtext}</text>
-{wordmark(1262, '#fff', sub=False)}'''
+<rect x="{X0}" y="{Y0}" width="{S}" height="{S}" filter="url(#canvas)" opacity=".16" style="mix-blend-mode:multiply"/></g>
+<text x="84" y="1100" font-family="{SERIF}" font-weight="700" font-size="44" letter-spacing="4" fill="#0B3B2A">{caption}</text>
+<text x="996" y="1100" text-anchor="end" font-family="{SANS}" font-size="16" letter-spacing="7" fill="#0B3B2A" opacity=".5">{tagtext}</text>
+<path d="M0 1182 Q540 1152 1080 1182 L1080 1350 L0 1350Z" fill="#0B3B2A"/>
+{wordmark(1272, '#fff', sub=False)}'''
 
 
 def glow(cx, cy, rx, ry, color, op=1, blur=60):
