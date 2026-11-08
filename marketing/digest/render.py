@@ -40,6 +40,7 @@ with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
         warn = pg.evaluate(HTML_CHECK) + pg.evaluate(SVG_CHECK)
         im = Image.open(png).convert('RGB'); small = im.resize((1080, 1440), Image.LANCZOS)
         jpg = os.path.join(OUT, out + '.jpg'); small.save(jpg, quality=92, subsampling=0)
+        im.resize((1440, 1920), Image.LANCZOS).save(os.path.join(OUT, out + '-上传1440.jpg'), quality=92, subsampling=0)   # 小红书上传用：3:4、1440×1920（平台会再压缩一次）
         qrs = [r.text for r in zxingcpp.read_barcodes(im)]
         # 数字核对 ①：页面上实际排出的文字里，必须有这些（逐字）
         norm = lambda s: re.sub(r'[^0-9A-Za-z\u4e00-\u9fff]', '', s)
