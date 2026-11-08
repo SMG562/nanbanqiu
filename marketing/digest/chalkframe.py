@@ -215,8 +215,12 @@ def pick(day):
 
 
 # ================= 教室墙面场景（黑板挂在墙上）=================
-SLOGANS = [('好好打球', '天天向上'), ('分秒必争', '一分不让'), ('团结友爱', '主动捡球')]
-STICKERS = [('主动捡球', '是一种素养', '准时到场', '是一种习惯'), ('输球不摔拍', '是一种修养', '夸对手好球', '是一种风度'), ('先热身', '是一种智慧', '带新球', '是一种体面')]
+SLOGANS = [('好好打球', '天天向上'), ('分秒必争', '一分不让'), ('团结友爱', '主动捡球'),
+           ('四人行', '必有我师'), ('不积跬步', '无以至网前'), ('一寸场地', '一寸金'), ('笨鸟先飞', '新手先约'),
+           ('发展网球运动', '增强球友体质'), ('少壮不打球', '老大徒伤悲'), ('有朋约球来', '不亦乐乎'),
+           ('好好热身', '天天不伤'), ('勤能补拙', '多跑补位'), ('今天你', '约球了吗？')]
+STICKERS = [('主动捡球', '是一种素养', '准时到场', '是一种习惯'), ('输球不摔拍', '是一种修养', '夸对手好球', '是一种风度'), ('先热身', '是一种智慧', '带新球', '是一种体面'),
+            ('压线算好球', '是一种诚信', '回球到手边', '是一种教养'), ('迟到先发消息', '是一种尊重', '打完说谢谢', '是一种温度')]
 WALL_PICK = [None]   # 指定第几句标语 / 墙贴（None = 按周轮换）
 SC = .86; TX, TY = round((1080 - 1080 * SC) / 2), 150 - round(64 * .86)   # 黑板缩放后挂的位置（.86：最小 14 号字缩放后仍 ≥ 12 号——Chromium 中文最小字号）
 
@@ -237,7 +241,8 @@ def classroom(doc):
         from timetable import GAMES; first = min(g[0] for g in GAMES)
     except Exception: pass
     hh, mm = int(first[:2]), int(first[3:])
-    cards = lambda t: ''.join(f'<i>{ch}</i>' for ch in t)
+    n = max(len(a), len(b)); cw = min(94, int((540 - 72 - 34 - (n - 1) * 8) / n))   # 卡片边长随字数变；两组都向中间的挂钟靠拢
+    cards = lambda t: ''.join(f'<i style="width:{cw}px;height:{cw}px;font-size:{int(cw*.66)}px">{ch}</i>' for ch in t)
     cols = ['#E4572E', '#F2A541', '#3BA55C', '#2E86DE', '#9B59B6', '#E84393', '#16A085']
     color_txt = lambda t, o: ''.join(f'<b style="color:{cols[(i+o) % len(cols)]}">{ch}</b>' for i, ch in enumerate(t))
     r = _rng(wk); books = ''; x = 0
@@ -255,7 +260,7 @@ def classroom(doc):
 <div class="slog l">{cards(a)}</div><div class="slog r">{cards(b)}</div>
 <div class="stk"><span>{color_txt(st[0], 0)}<em>{st[1]}</em></span><span>{color_txt(st[2], 3)}<em>{st[3]}</em></span></div>'''
     css = f'''<style>.stage{{position:absolute;left:0;top:0;width:1080px;height:1440px;transform:translate({TX}px,{TY}px) scale({SC});transform-origin:0 0}}
-.slog{{position:absolute;top:44px;display:flex;gap:10px}} .slog.l{{left:34px}} .slog.r{{right:34px}}
+.slog{{position:absolute;top:44px;display:flex;gap:8px;align-items:center;height:94px}} .slog.l{{right:612px}} .slog.r{{left:612px}}
 .slog i{{width:94px;height:94px;display:flex;align-items:center;justify-content:center;font-style:normal;font-family:{SERIF};font-weight:900;font-size:62px;color:#D3262E;background:#FFFDF8;border:2px solid #E7DED0;box-shadow:0 4px 8px rgba(0,0,0,.15)}}
 .stk{{position:absolute;left:0;right:0;top:1272px;display:flex;justify-content:center;gap:56px;font-family:{SANS};font-size:28px}}
 .stk b{{font-weight:900}} .stk em{{font-style:normal;color:#6B6458;font-size:22px;margin-left:8px}}</style>'''
