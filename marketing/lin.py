@@ -85,3 +85,18 @@ def frame(painting, caption, tagtext, sid):
 <text x="84" y="1112" font-family="{SERIF}" font-weight="700" font-size="46" letter-spacing="4" fill="#F7EBD6">{caption}</text>
 <text x="996" y="1112" text-anchor="end" font-family="{SANS}" font-size="16" letter-spacing="7" fill="#F7EBD6" opacity=".55">{tagtext}</text>
 {wordmark(1262, '#fff', sub=False)}'''
+
+
+def glow(cx, cy, rx, ry, color, op=1, blur=60):
+    """一团光（大半径模糊），浓墨里透出来的亮。"""
+    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{color}" opacity="{op}" filter="url(#bl{blur})"/>'
+
+
+def wash(rng, y0, y1, colors, n=24, w=(30, 70), op=(.35, .7), x0=X0 - 200, x1=X0 + S):
+    """横向湿笔铺色：长短不一的宽笔一层层压上去。"""
+    out = ''
+    for _ in range(n):
+        y = rng.uniform(y0, y1)
+        x = rng.uniform(x0, x1 - 150)
+        out += ink([(x, y), (x + rng.uniform(250, 700), y + rng.uniform(-10, 10))], rng.uniform(*w), rng.choice(colors), rng.uniform(*op), (.35, .35))
+    return out
