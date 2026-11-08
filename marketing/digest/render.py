@@ -39,7 +39,7 @@ with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
     for job in JOBS:
         name, _, theme = job.partition(':'); mod = importlib.import_module(name)
         doc = mod.html(theme) if theme else (mod.html() if hasattr(mod, 'html') else mod.svg())
-        out = name + ('-' + theme.replace('@', '-') if theme else '')
+        out = name + ('-' + theme.replace('@', '-').replace('+', '-') if theme else '')
         h = os.path.join(tmp, out + '.html'); open(h, 'w').write(doc)
         pg.goto('file://' + h); pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
         png = os.path.join(OUT, out + '@2x.png'); pg.screenshot(path=png)

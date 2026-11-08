@@ -41,11 +41,11 @@ def title(text, x, y, size, fill='url(#hl)', stroke=W_):
         return f'<text {base} fill="url(#hl)" stroke="#E9C46A" stroke-width="{sw}" stroke-linejoin="round" paint-order="stroke">{text}</text>'
     return f'<text {base} fill="url(#hl)" stroke="{stroke}" stroke-width="{sw}" stroke-linejoin="round" paint-order="stroke">{text}</text>'
 
-def framed(chalk_svg, chalk_html, css='', paper_html='', seed=7, skin='fair'):
+def framed(chalk_svg, chalk_html, css='', paper_html='', seed=7, skin='fair', wall=False):
     random.seed(seed); K = SKINS[skin]
     wood = ''.join(f'<path d="M{x} 0 q 30 {random.randint(-6,6)} 60 0 t 60 0" stroke="#7A5233" stroke-opacity=".25" fill="none"/>' for x in range(0, 1080, 120))
     smudge = ''.join(f'<ellipse cx="{random.randint(BX0,BX1)}" cy="{random.randint(BY0,BY1)}" rx="{random.randint(120,320)}" ry="{random.randint(30,90)}" fill="#fff" opacity="{random.uniform(.015,.035):.3f}" filter="url(#bl)"/>' for _ in range(12))
-    return f'''<!doctype html><meta charset="utf-8">
+    doc = f'''<!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-bold.css"><link rel="stylesheet" href="file://{FONT_DIR}/lxgwwenkai-regular.css">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}} s,em,i,u{{text-decoration:none;font-style:normal}}
@@ -76,7 +76,7 @@ body{{width:1080px;height:1440px;overflow:hidden;position:relative;font-family:{
 <pattern id="hb" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="9" height="9" fill="{BL}" fill-opacity=".7"/><path d="M0 0 V9" stroke="{BL}" stroke-width="4"/></pattern>
 <filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1440"><feGaussianBlur stdDeviation="9"/></filter>
 <pattern id="hp" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="9" height="9" fill="{PK}" fill-opacity=".6"/><path d="M0 0 V9" stroke="{PK}" stroke-width="4"/></pattern></defs>
-<rect width="1080" height="1440" filter="url(#wall)"/>
+{"" if wall else '<rect width="1080" height="1440" filter="url(#wall)"/>'}
 <rect x="{BX0-8}" y="{BY0+16}" width="{BX1-BX0+16}" height="{BY1-BY0+70}" rx="10" fill="#000" opacity=".28" filter="url(#sh)"/>
 <rect x="{BX0-28}" y="{BY0-28}" width="{BX1-BX0+56}" height="{BY1-BY0+56}" rx="12" fill="url(#oakv)"/>
 <rect x="{BX0-28}" y="{BY0-28}" width="{BX1-BX0+56}" height="28" rx="12" fill="url(#oak)"/><g transform="translate(0 {BY0-28})">{wood if K["grain"] else ""}</g>
@@ -88,8 +88,10 @@ body{{width:1080px;height:1440px;overflow:hidden;position:relative;font-family:{
 <g transform="translate(818 {BY1-8})"><rect width="44" height="13" rx="6" fill="{YL}"/><rect width="44" height="13" rx="6" fill="url(#stick)"/></g>
 <g transform="translate(874 {BY1-7}) rotate(3)"><rect width="38" height="13" rx="6" fill="{LM}"/><rect width="38" height="13" rx="6" fill="url(#stick)"/></g>
 <g transform="translate(150 {BY1-26})"><rect width="150" height="28" rx="5" fill="#C8B79A"/><rect y="22" width="150" height="10" rx="3" fill="#3E4642"/></g></svg>
-<div class="chalk"><svg class="fx" width="1080" height="1440">{K["top"]()}{K["bottom"]()}{K.get("sides", lambda: "")()}{chalk_svg}</svg>{chalk_html}</div>
-<div class="paper">{paper_html}</div></body>'''
+<!--CHALK--><div class="chalk"><svg class="fx" width="1080" height="1440">{K["top"]()}{K["bottom"]()}{K.get("sides", lambda: "")()}{chalk_svg}</svg>{chalk_html}</div>
+<div class="paper">{paper_html}</div><!--END--></body>'''
+    if wall: doc = classroom(doc)
+    return doc
 
 def date_tag(x, y, right=True):
     side = f'right:{x}px' if right else f'left:{x}px'
@@ -138,11 +140,11 @@ def night_top():
 def night_bottom():
     r = _rng(7); x = 70; sk = ''
     while x < 1010:
-        w = r.randint(28, 60); h = r.randint(14, 46)
+        w = r.randint(28, 60); h = r.randint(12, 40)
         sk += f'<rect x="{x}" y="{1318-h}" width="{w}" height="{h}" fill="none" stroke="{W_}" stroke-width="2" opacity=".55"/>' + ''.join(f'<rect x="{x+6+k*10}" y="{1318-h+6}" width="4" height="5" fill="{YL}" opacity=".7"/>' for k in range(max(1, (w-8)//10)) if r.random() < .5)
         x += w + r.randint(0, 6)
-    spire = f'<path d="M530 1318 V1272 L540 1250 L550 1272 V1318" fill="none" stroke="{W_}" stroke-width="2.4" opacity=".7"/>'
-    return _g(sk + spire)
+    spire = f'<path d="M700 1318 V1272 L710 1250 L720 1272 V1318" fill="none" stroke="{W_}" stroke-width="2.4" opacity=".7"/>'
+    return _g(sk) + _g(spire)          # 尖塔单独一组：它最高，放在页脚文字之间的空档
 
 def garden_corner(x, y, flip=1, vflip=1, seed=1):
     r = _rng(seed); out = ''
@@ -210,3 +212,55 @@ def pick(day):
     import datetime as _d
     wk = day.isocalendar()[1]
     return SKIN_ORDER[wk % len(SKIN_ORDER)], CONCEPT_BY_WEEKDAY[day.weekday()]
+
+
+# ================= 教室墙面场景（黑板挂在墙上）=================
+SLOGANS = [('好好打球', '天天向上'), ('分秒必争', '一分不让'), ('团结友爱', '主动捡球')]
+STICKERS = [('主动捡球', '是一种素养', '准时到场', '是一种习惯'), ('输球不摔拍', '是一种修养', '夸对手好球', '是一种风度'), ('先热身', '是一种智慧', '带新球', '是一种体面')]
+WALL_PICK = [None]   # 指定第几句标语 / 墙贴（None = 按周轮换）
+SC = .86; TX, TY = round((1080 - 1080 * SC) / 2), 150 - round(64 * .86)   # 黑板缩放后挂的位置（.86：最小 14 号字缩放后仍 ≥ 12 号——Chromium 中文最小字号）
+
+def _clock(cx, cy, r, hh, mm):
+    ticks = ''.join(f'<path d="M{cx+(r-6)*math.sin(math.radians(k*30)):.1f} {cy-(r-6)*math.cos(math.radians(k*30)):.1f} L{cx+(r-(14 if k%3==0 else 10))*math.sin(math.radians(k*30)):.1f} {cy-(r-(14 if k%3==0 else 10))*math.cos(math.radians(k*30)):.1f}" stroke="#222" stroke-width="{3 if k%3==0 else 1.6}"/>' for k in range(12))
+    nums = ''.join(f'<text x="{cx+(r-26)*math.sin(math.radians(n*30)):.1f}" y="{cy-(r-26)*math.cos(math.radians(n*30))+7:.1f}" text-anchor="middle" font-family="{SANS}" font-weight="700" font-size="17" fill="#222">{n}</text>' for n in (12, 3, 6, 9))
+    ha = (hh % 12 + mm / 60) * 30; ma = mm * 6
+    hand = lambda a, L, w: f'<path d="M{cx} {cy} L{cx+L*math.sin(math.radians(a)):.1f} {cy-L*math.cos(math.radians(a)):.1f}" stroke="#1A1A1A" stroke-width="{w}" stroke-linecap="round"/>'
+    return (f'<circle cx="{cx+3}" cy="{cy+5}" r="{r+6}" fill="#000" opacity=".18" filter="url(#wsh)"/><circle cx="{cx}" cy="{cy}" r="{r+6}" fill="#3A3A3A"/><circle cx="{cx}" cy="{cy}" r="{r}" fill="#FBFAF6"/>'
+            + ticks + nums + hand(ha, r * .5, 6) + hand(ma, r * .75, 3.5) + f'<path d="M{cx} {cy+14} L{cx} {cy-r*.8:.0f}" stroke="#D3262E" stroke-width="1.6" transform="rotate(200 {cx} {cy})"/><circle cx="{cx}" cy="{cy}" r="5" fill="#D3262E"/>')
+
+def classroom(doc):
+    """把 framed 出来的整页改成「教室墙」：黑板缩放挂在中间，上面标语 + 挂钟，下面墙贴 + 书架。"""
+    import datetime
+    wk = TOMORROW.isocalendar()[1]; i = WALL_PICK[0] if WALL_PICK[0] is not None else wk; a, b = SLOGANS[i % len(SLOGANS)]; st = STICKERS[i % len(STICKERS)]
+    first = '07:30'
+    try:
+        from timetable import GAMES; first = min(g[0] for g in GAMES)
+    except Exception: pass
+    hh, mm = int(first[:2]), int(first[3:])
+    cards = lambda t: ''.join(f'<i>{ch}</i>' for ch in t)
+    cols = ['#E4572E', '#F2A541', '#3BA55C', '#2E86DE', '#9B59B6', '#E84393', '#16A085']
+    color_txt = lambda t, o: ''.join(f'<b style="color:{cols[(i+o) % len(cols)]}">{ch}</b>' for i, ch in enumerate(t))
+    r = _rng(wk); books = ''; x = 0
+    while x < 1080:
+        w = r.randint(16, 30); h = r.randint(66, 98); c = r.choice(['#C0392B', '#2E86DE', '#F1C40F', '#27AE60', '#8E44AD', '#E67E22', '#ECF0F1', '#34495E', '#D35400', '#16A085'])
+        books += f'<rect x="{x}" y="{1440-h}" width="{w-2}" height="{h}" fill="{c}"/><rect x="{x+3}" y="{1440-h+10}" width="{w-8}" height="5" fill="#fff" opacity=".45"/>'
+        x += w
+        if r.random() < .08: x += 26
+    shelf = (f'<rect x="0" y="1326" width="1080" height="114" fill="#E9E4DA"/>{books}'
+             + ''.join(f'<rect x="{x}" y="1326" width="10" height="114" fill="#D9D2C4"/>' for x in range(0, 1081, 216))
+             + '<rect x="0" y="1320" width="1080" height="12" fill="#D5CCBB"/><rect x="0" y="1320" width="1080" height="3" fill="#fff" opacity=".6"/>')
+    wall = f'''<svg style="position:absolute;left:0;top:0" width="1080" height="1440"><defs><filter id="wsh" filterUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1440"><feGaussianBlur stdDeviation="5"/></filter>
+<filter id="wall2"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .4  0 0 0 0 .35  0 0 0 0 .3  0 0 0 .1 0"/></filter></defs>
+<rect width="1080" height="1440" filter="url(#wall2)"/>{_clock(540, 92, 50, hh, mm)}{shelf}</svg>
+<div class="slog l">{cards(a)}</div><div class="slog r">{cards(b)}</div>
+<div class="stk"><span>{color_txt(st[0], 0)}<em>{st[1]}</em></span><span>{color_txt(st[2], 3)}<em>{st[3]}</em></span></div>'''
+    css = f'''<style>.stage{{position:absolute;left:0;top:0;width:1080px;height:1440px;transform:translate({TX}px,{TY}px) scale({SC});transform-origin:0 0}}
+.slog{{position:absolute;top:44px;display:flex;gap:10px}} .slog.l{{left:34px}} .slog.r{{right:34px}}
+.slog i{{width:94px;height:94px;display:flex;align-items:center;justify-content:center;font-style:normal;font-family:{SERIF};font-weight:900;font-size:62px;color:#D3262E;background:#FFFDF8;border:2px solid #E7DED0;box-shadow:0 4px 8px rgba(0,0,0,.15)}}
+.stk{{position:absolute;left:0;right:0;top:1272px;display:flex;justify-content:center;gap:56px;font-family:{SANS};font-size:28px}}
+.stk b{{font-weight:900}} .stk em{{font-style:normal;color:#6B6458;font-size:22px;margin-left:8px}}</style>'''
+    doc = doc.replace('<!--CHALK-->', '').replace('</body>', '')
+    head, _, rest = doc.partition('<body>')
+    body_svg_start = rest.index('<svg class="fx"')
+    inner = rest[body_svg_start:].replace('<!--END-->', '')
+    return head + css + '<body>' + wall + '<div class="stage">' + inner + '</div></body>'

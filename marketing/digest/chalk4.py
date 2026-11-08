@@ -3,7 +3,7 @@
 import random
 from chalkframe import *
 from timetable import GAMES, spots, level_word
-_v = ['roll']; _skin = ['fair']
+_v = ['roll']; _skin = ['fair']; _wall = [False]
 EX = {'roll': ['还有谁没到', f'{spots()}', '7Kq2'], 'notes': ['传纸条', f'{spots()}个空位', '7Kq2'], 'seats': ['这里有人吗', f'{spots()}个座', '7Kq2']}
 def EXPECT(): return EX[_v[0]]
 def HEADLINE(): return (str(spots()), '.kn')
@@ -39,7 +39,7 @@ def roll():
                 else: cells += '<i class="open"></i>'
             rows += f'<div class="row"><b class="t">{g[0]}</b><div class="v"><b>{esc(g[2])}</b><s>{esc(g[3])} · {meta(g)} · {g[9]}</s></div><div class="cells">{cells}</div><b class="lime n">缺 {need(g)}</b></div>'
     svg = title('还有谁', 96, 326, 120, fill=W_, stroke='#2F5A4B') + title('没到？', 96, 470, 150) + hand()
-    html_ = f'''<div class="iss">明天点名 · 第 {ISSUE} 期</div>
+    html_ = f'''<div class="iss">明天点名 · 墨尔本班 · 第 {ISSUE} 期</div>
 <div class="sub">明天 {len(GAMES)} 节课，<span class="kn">{spots()}</span> 个位置还没人喊「到」。</div>
 <div class="box"><div class="tab">点名册</div>{rows}</div>{date_tag(130, 570)}{how('喊到')}'''
     css = f'''.iss{{position:absolute;left:100px;top:196px;font-size:22px;letter-spacing:6px;opacity:.75}}
@@ -51,7 +51,7 @@ def roll():
 .t{{font-size:30px}} .v b{{display:block;font-size:24px;white-space:nowrap}} .v s{{display:block;font-size:14px;opacity:.6;white-space:nowrap}}
 .cells{{display:flex;gap:8px}} .cells i{{width:42px;height:42px;display:flex;align-items:center;justify-content:center}}
 .got{{border:2px solid rgba(244,242,234,.45)}} .got span{{display:block}} .open{{border:2.6px dashed {LM}}} .n{{font-size:24px;text-align:right}}'''
-    return framed(svg, html_, css, seed=12, skin=_skin[0])
+    return framed(svg, html_, css, seed=12, skin=_skin[0], wall=_wall[0])
 
 # ---------- 传纸条 ----------
 def notes():
@@ -76,7 +76,7 @@ def notes():
 .mag{{position:absolute;left:50%;top:-12px;width:26px;height:26px;margin-left:-13px;border-radius:50%;box-shadow:0 3px 5px rgba(0,0,0,.4)}}
 .note b{{display:block;font-size:23px;font-weight:700;white-space:nowrap}} .note s{{display:flex;font-size:18px;margin-top:6px;opacity:.85}} .note s u{{margin-left:auto;font-size:16px;color:#7A7F8C;letter-spacing:1px}}
 .note p{{font-size:21px;margin-top:8px;display:flex;align-items:center;gap:6px}} .note em{{display:inline-block;width:20px;height:20px;border:2px solid #26386A;margin-left:14px;border-radius:2px}}'''
-    return framed(svg, html_, css, paper_html=paper, seed=18, skin=_skin[0])
+    return framed(svg, html_, css, paper_html=paper, seed=18, skin=_skin[0], wall=_wall[0])
 
 # ---------- 这里有人吗？ ----------
 def desks(n, x0, y0, have):
@@ -106,9 +106,10 @@ def seats():
 .seat{{position:absolute;width:270px}} .seat .t{{display:flex;align-items:baseline;gap:12px;font-size:30px}} .seat .t em{{font-size:17px;letter-spacing:3px}}
 .seat .vn{{display:block;font-size:23px;white-space:nowrap}} .seat s{{display:block;font-size:14px;opacity:.6;white-space:nowrap;margin-top:2px}}
 .seat p{{display:flex;font-size:21px;margin-top:6px}} .seat p u{{margin-left:auto;font-size:19px;opacity:.85;letter-spacing:1px}}'''
-    return framed(svg, html_, css, seed=27, skin=_skin[0])
+    return framed(svg, html_, css, seed=27, skin=_skin[0], wall=_wall[0])
 
 def html(v='roll'):
-    v, _, skin = v.partition('@'); _v[0] = v; _skin[0] = skin or 'fair'
+    v, _, skin = v.partition('@'); skin, _, opt = skin.partition('+'); _v[0] = v; _skin[0] = skin or 'fair'; _wall[0] = opt.startswith('wall')
+    import chalkframe as _cf; _cf.WALL_PICK[0] = int(opt[4:]) if opt[4:].isdigit() else None   # +wall0 / +wall1 … 指定标语
     import chalkframe; chalkframe.CUR[0] = _skin[0]; chalkframe.SEAL_AT[0] = {'roll': (606, 392), 'notes': (800, 336), 'seats': (900, 372)}[v]
     return {'roll': roll, 'notes': notes, 'seats': seats}[v]()
