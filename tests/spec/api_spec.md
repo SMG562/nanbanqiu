@@ -384,7 +384,12 @@
 - `DELETE /api/buddies/:uid` · `api_buddy_remove(p_user)`：删除，不通知；一起打过的关系不受影响
 - 表权限：`buddy_requests` 前台不能读写（防止看到 ignored）；`buddies` 只能读自己相关的行，写只走函数
 - 推送：buddy_request「X 想加你为球友 / 点开确认」、buddy_accepted「你和 X 成为球友了」，都属于 ANYTIME（当面扫码，立刻推）
-- 本期不做（PR-A2 起）：球友 = 一起打过的权限（约 / 私信）、注销匿名化删球友、api_export_me 带上球友
+- 来源 `source`：`POST /api/buddies/requests {to_user, source?}`，qr（球员卡背面，默认）/ link（分享图、链接）/ other，别的值 422 invalid detail=`source`；确认方式 `accepted_via`：confirm / mutual（只在后台统计里用）
+- 风控：忽略时写 `risk_events(kind='buddy_ignored', user_id=发起人, ref=忽略的人)`；规则 buddy_ignored = 7 天内被 ≥3 个不同的人忽略，权重 10
+- 后台 `GET /admin/api/buddies/stats?from&to`（默认最近 30 天，跨度 ≤ 366 天，不合法 422）· `buddy_stats(p_from, p_to, p_cities)`：权限 page.view（只读角色只有汇总数字）；限城市的管理员只算自己城市；返回 requests / senders / receivers / accepted_confirm / accepted_mutual / ignored / expired（pending 且过了 24 小时）/ pending / from_link / accept_rate（成了 ÷ 已有结果，没有 = null）/ median_accept_min（只算对方确认的）/ new_pairs / total_pairs
+- 埋点（前台两端发，PR-B 起）：buddy_scan_view / buddy_request_send / buddy_request_open / buddy_respond / buddy_remove / buddy_list_open（见 events_spec.md）
+- 注销满 30 天匿名化时删除这个人的球友关系和申请（job_anonymize_deleted）
+- 本期不做（PR-A2 起）：球友 = 一起打过的权限（约 / 私信）、api_export_me 带上球友（并入 #71）
 
 ---
 

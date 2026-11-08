@@ -4008,7 +4008,7 @@ create index if not exists users_signup_ip on users(signup_ip) where signup_ip i
 create table if not exists risk_events (
   id      bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
-  kind    text not null check (kind in ('women_probe','link_attempt','contact_lure','apply_withdraw','rate_hit')),
+  kind    text not null check (kind in ('women_probe','link_attempt','contact_lure','apply_withdraw','rate_hit','buddy_ignored')),   -- buddy_ignored：加球友申请被忽略，ref = 忽略的人（#110）
   ref     text,                                   -- 相关对象：球局 id / 对方 id / 错误码（不存内容）
   at      timestamptz not null default now()
 );
@@ -4160,6 +4160,8 @@ language sql stable security definer set search_path = public as $$
     select e.user_id, 'apply_churn', count(*) from ev e, w where w.code = 'apply_churn' and e.kind = 'apply_withdraw' and e.at > w.t group by 1
     union all
     select e.user_id, 'rate_hit', count(*) from ev e, w where w.code = 'rate_hit' and e.kind = 'rate_hit' and e.at > w.t group by 1
+    union all
+    select e.user_id, 'buddy_ignored', count(distinct e.ref) from ev e, w where w.code = 'buddy_ignored' and e.kind = 'buddy_ignored' and e.at > w.t group by 1
   )
   select v.user_id, v.c, v.v from v join users u on u.id = v.user_id where u.status <> 'deleted'
 $$;
@@ -4356,6 +4358,8 @@ begin
   delete from player_prefs p using users u where u.id = p.user_id and u.anonymized_at = p_now;
   delete from gender_changes g using users u where u.id = g.user_id and u.anonymized_at = p_now;
   delete from user_rackets r using users u where u.id = r.user_id and u.anonymized_at = p_now;   -- 我的球拍（#60 A2）：注销即删，不保留
+  delete from buddies b using users u where u.anonymized_at = p_now and u.id in (b.user_a, b.user_b);   -- 球友（#110）：注销即删，对方那边也随之消失
+  delete from buddy_requests r using users u where u.anonymized_at = p_now and u.id in (r.from_user, r.to_user);
   update email_outbox e set to_email = 'deleted', status = case when e.status = 'queued' then 'skipped' else e.status end,
          skip_reason = case when e.status = 'queued' then 'email_bad' else e.skip_reason end
     from users u where u.id = e.user_id and u.anonymized_at = p_now;
@@ -7135,7 +7139,9 @@ grant execute on function api_set_rackets(jsonb), nbq_racket_text(text), nbq_rac
 --   · 没有「拒绝」：忽略不通知对方；发起人在 24 小时失效前一直看到「等待 TA 确认」（被忽略的也一样）→ buddy_requests 前台不能直接读，只走 api_buddies()
 --   · 防骚扰：同一人 30 天内被忽略 2 次 / 24 小时内已发 10 个 → buddy_limit（两种情况同一个错误码，不泄露「被忽略过」）；屏蔽双向生效；账号不是正常状态不能发
 --   · 两人互相扫了对方（对方已有一条待确认的给我）→ 直接成为球友
---   · 本期不改：球友 = 一起打过的权限（约 / 私信，PR-A2）、注销匿名化删球友、api_export_me（#71）
+--   · 运营（PR-A3）：申请记来源（qr / link）和确认方式（confirm / mutual）；后台统计 buddy_stats；风控 buddy_ignored；6 个埋点进字典；注销满 30 天删关系和申请
+--   · 本期不改：球友 = 一起打过的权限（约 / 私信，PR-A2）、api_export_me（并入 #71）
+--   · 迁移里还复制了三个已有对象（risk_events 约束、risk_values、job_anonymize_deleted），在下面 ↓ ↑ 标出的块里，schema.sql 里改在原处，两边一字不差（pg/buddies 核对）
 alter type notif_kind add value if not exists 'buddy_request';    -- 有人扫了你的码，等你确认
 alter type notif_kind add value if not exists 'buddy_accepted';   -- 对方确认了，你们成为球友
 
@@ -7144,6 +7150,8 @@ create table if not exists buddy_requests (
   from_user    uuid not null references users(id) on delete cascade,
   to_user      uuid not null references users(id) on delete cascade,
   status       text not null default 'pending' check (status in ('pending','accepted','ignored','expired')),
+  source       text not null default 'qr' check (source in ('qr','link','other')),   -- 从哪扫来的：qr 球员卡背面 / link 分享图、链接（监测截图外传后的远程申请）
+  accepted_via text check (accepted_via in ('confirm','mutual')),                   -- confirm 对方确认 / mutual 互相扫了
   created_at   timestamptz not null default now(),
   expires_at   timestamptz not null default now() + interval '24 hours',
   responded_at timestamptz,
@@ -7171,6 +7179,20 @@ revoke all on buddies from public, anon, authenticated, nbq_user;
 grant select on buddies to nbq_user;
 grant all on buddies to nbq_service;
 
+-- 风控：7 天内加球友申请被 ≥3 个不同的人忽略（远程拿截图乱扫、当面纠缠的信号）；后台 RISK_RULES 同一条
+insert into risk_rules (code, name, weight, threshold, window_days, enabled) values ('buddy_ignored', '加球友申请被多人忽略', 10, 3, 7, true)
+on conflict (code) do update set name = excluded.name, weight = excluded.weight, threshold = excluded.threshold, window_days = excluded.window_days, enabled = excluded.enabled;
+
+-- 埋点字典（#110）：前台两端发（PR-B 起），与 tests/spec/events_spec.md、后台 B1_EVENTS 逐字一致；业务数字以表为准（buddy_stats），埋点只看漏斗
+insert into event_definitions (event, category, description, props, source, status, replaced_by) values
+ ('buddy_scan_view','球友','扫码落地页看到「加球友」','target_uid, logged_in, source(qr/link/other)','client','active',null),
+ ('buddy_request_send','球友','加球友申请发出（含已是球友 / 失败）','target_uid, result(pending/buddies/fail), err, source(qr/link/other)','client','active',null),
+ ('buddy_request_open','球友','打开加球友确认页','request_id, via(push/notif/list)','client','active',null),
+ ('buddy_respond','球友','确认 / 忽略加球友申请','request_id, action(accept/ignore), wait_min','client','active',null),
+ ('buddy_remove','球友','删除球友','target_uid, played_together','client','active',null),
+ ('buddy_list_open','球友','打开我的球友','n_buddies, n_played','client','active',null)
+on conflict (event) do update set category = excluded.category, description = excluded.description, props = excluded.props, source = excluded.source, status = 'active', replaced_by = null;
+
 -- 账号不是正常状态（暂停中 / 核实中 / 受限 / 封禁）不能加球友；暂停到期按正常
 create or replace function nbq_buddy_gate() returns uuid language plpgsql stable security definer set search_path = public as $$
 declare u uuid := nbq_me(); st text;
@@ -7183,10 +7205,11 @@ create or replace function nbq_buddy_link(a uuid, b uuid) returns void language 
   insert into buddies (user_a, user_b) values (least(a, b), greatest(a, b)) on conflict do nothing
 $$;
 
--- 扫码后发申请：返回 {status: 'pending' | 'buddies', id?}
-create or replace function api_buddy_request(p_to uuid) returns jsonb language plpgsql security definer set search_path = public as $$
-declare u uuid := nbq_buddy_gate(); tu users; r buddy_requests;
+-- 扫码后发申请：p_source = qr | link | other（空 = qr）；返回 {status: 'pending' | 'buddies', id?}
+create or replace function api_buddy_request(p_to uuid, p_source text default 'qr') returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_buddy_gate(); tu users; r buddy_requests; src text := coalesce(p_source, 'qr');
 begin
+  if src not in ('qr','link','other') then perform nbq_err('invalid', 'source'); end if;
   if p_to = u then perform nbq_err('buddy_self'); end if;
   select * into tu from users where id = p_to;
   if not found or tu.status in ('banned','deleted') then perform nbq_err('not_found'); end if;
@@ -7197,7 +7220,7 @@ begin
   -- 对方已经扫过我、还在等我确认 → 互相扫了，直接成为球友
   select * into r from buddy_requests where from_user = p_to and to_user = u and status = 'pending' for update;
   if found then
-    update buddy_requests set status = 'accepted', responded_at = now() where id = r.id;
+    update buddy_requests set status = 'accepted', accepted_via = 'mutual', responded_at = now() where id = r.id;
     perform nbq_buddy_link(u, p_to); perform nbq_notify(p_to, 'buddy_accepted', null, u);
     return jsonb_build_object('status', 'buddies');
   end if;
@@ -7206,7 +7229,7 @@ begin
   if found then return jsonb_build_object('status', 'pending', 'id', r.id); end if;
   if (select count(*) from buddy_requests where from_user = u and to_user = p_to and status = 'ignored' and responded_at > now() - interval '30 days') >= 2
      or (select count(*) from buddy_requests where from_user = u and created_at > now() - interval '24 hours') >= 10 then perform nbq_err('buddy_limit'); end if;
-  insert into buddy_requests (from_user, to_user) values (u, p_to) returning * into r;
+  insert into buddy_requests (from_user, to_user, source) values (u, p_to, src) returning * into r;
   perform nbq_notify(p_to, 'buddy_request', null, u);
   return jsonb_build_object('status', 'pending', 'id', r.id);
 end $$;
@@ -7219,9 +7242,13 @@ begin
   select * into r from buddy_requests where id = p_id and to_user = u for update;
   if not found then perform nbq_err('not_found'); end if;
   if r.status <> 'pending' or r.expires_at <= now() then perform nbq_err('buddy_request_ended'); end if;
-  if p_action = 'ignore' then update buddy_requests set status = 'ignored', responded_at = now() where id = r.id; return 'ignored'; end if;   -- 不通知对方
+  if p_action = 'ignore' then   -- 不通知对方；记一条风险信号（7 天内被 ≥3 个不同的人忽略 → buddy_ignored）
+    update buddy_requests set status = 'ignored', responded_at = now() where id = r.id;
+    insert into risk_events (user_id, kind, ref) values (r.from_user, 'buddy_ignored', u::text);
+    return 'ignored';
+  end if;
   if is_blocked(u, r.from_user) or (select status from users where id = r.from_user) in ('banned','deleted') then perform nbq_err('not_found'); end if;
-  update buddy_requests set status = 'accepted', responded_at = now() where id = r.id;
+  update buddy_requests set status = 'accepted', accepted_via = 'confirm', responded_at = now() where id = r.id;
   perform nbq_buddy_link(u, r.from_user); perform nbq_notify(r.from_user, 'buddy_accepted', null, u);
   return 'buddies';
 end $$;
@@ -7245,13 +7272,36 @@ create or replace function api_buddies() returns jsonb language sql stable secur
                  from buddy_requests r join users ou on ou.id = r.from_user, me where r.to_user = me.u and r.status = 'pending' and r.expires_at > now()
                    and ou.status not in ('banned','deleted') and not is_blocked(me.u, r.from_user)), '[]'),
     'outgoing', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'to_user', r.to_user, 'created_at', r.created_at, 'expires_at', r.expires_at) order by r.created_at desc)
-                 from buddy_requests r, me where r.from_user = me.u and r.status in ('pending','ignored') and r.expires_at > now() and not is_blocked(me.u, r.to_user)), '[]'))
+                 from buddy_requests r join users ou on ou.id = r.to_user, me where r.from_user = me.u and r.status in ('pending','ignored') and r.expires_at > now()
+                   and ou.status not in ('banned','deleted') and not is_blocked(me.u, r.to_user)), '[]'))
   from me
 $$;
 
-revoke execute on function nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() from public, anon, authenticated;
-grant execute on function api_buddy_request(uuid), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_user;
-grant execute on function nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_service;
+-- 后台统计（数据页 / 只读角色也能看）：申请按发出时间落在 [p_from, p_to)；p_cities 非空 = 只算发申请的人常用城市在这些城市里的（球友对：任一方在就算）
+--   业务数字以表为准，不靠埋点；被忽略的在这里照实统计（只有后台看得到），过期 = pending 且已过 24 小时
+create or replace function buddy_stats(p_from timestamptz, p_to timestamptz, p_cities text[] default null)
+returns table(requests bigint, senders bigint, receivers bigint, accepted_confirm bigint, accepted_mutual bigint, ignored bigint, expired bigint, pending bigint,
+              from_link bigint, accept_rate numeric, median_accept_min numeric, new_pairs bigint, total_pairs bigint)
+language sql stable security definer set search_path = public as $$
+  with r as (select x.*, case when x.status = 'pending' and x.expires_at <= now() then 'expired' else x.status end as st
+               from buddy_requests x join users u on u.id = x.from_user
+              where x.created_at >= p_from and x.created_at < p_to and (p_cities is null or u.home_city = any (p_cities))),
+  pr as (select b.created_at from buddies b
+          where p_cities is null or exists (select 1 from users u where u.id in (b.user_a, b.user_b) and u.home_city = any (p_cities)))
+  select count(*), count(distinct r.from_user), count(distinct r.to_user),
+         count(*) filter (where r.accepted_via = 'confirm'), count(*) filter (where r.accepted_via = 'mutual'),
+         count(*) filter (where r.st = 'ignored'), count(*) filter (where r.st = 'expired'), count(*) filter (where r.st = 'pending'),
+         count(*) filter (where r.source = 'link'),
+         round(count(*) filter (where r.st = 'accepted')::numeric / nullif(count(*) filter (where r.st <> 'pending'), 0), 3),
+         round((percentile_cont(0.5) within group (order by extract(epoch from r.responded_at - r.created_at) / 60) filter (where r.accepted_via = 'confirm'))::numeric, 1),
+         (select count(*) from pr where pr.created_at >= p_from and pr.created_at < p_to), (select count(*) from pr)
+    from r
+$$;
+
+revoke execute on function buddy_stats(timestamptz, timestamptz, text[]), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() from public, anon, authenticated;
+grant execute on function api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_user;
+grant execute on function buddy_stats(timestamptz, timestamptz, text[]) to nbq_admin, nbq_viewer;
+grant execute on function nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_service;
 
 -- 迁移记录（11-03）：每个迁移文件结尾保证记录表存在并记一行自己；/api/version 会报「库里执行到哪一版」，冒烟测试核对它等于代码里最新的迁移。
 create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());

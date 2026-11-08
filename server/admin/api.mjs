@@ -210,6 +210,18 @@ export const ROUTES = {
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
   } },
+  // ---------- 球友统计（#110，只读）----------
+  // 查询参数 from / to（ISO 时间，默认最近 30 天，跨度 ≤ 366 天）。数字来自 buddy_stats（数据库按表算，不是埋点），只读角色也能看（只有汇总数字，没有名单）；限城市的管理员只算自己城市。
+  'GET /admin/api/buddies/stats': { name: 'buddies_stats', perm: 'page.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, now = (d.now ? d.now() : Date.now());
+    const to = sp.get('to') ? Date.parse(sp.get('to')) : now, from = sp.get('from') ? Date.parse(sp.get('from')) : to - 30 * 864e5;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5) return fail(bad(), 'buddies_stats');
+    return authed(req, d, route, async (db, a) => {
+      const r = (await db.query('select * from buddy_stats($1, $2, $3)', [new Date(from).toISOString(), new Date(to).toISOString(), a.cities ?? null])).rows[0];
+      const n = k => r[k] === null ? null : Number(r[k]);
+      return { from: new Date(from).toISOString(), to: new Date(to).toISOString(), stats: Object.fromEntries(Object.keys(r).map(k => [k, n(k)])) };
+    });
+  } },
   // ---------- 球局列表（#27 第 3 步，只读）----------
   // 查询参数：when（upcoming 未开始 / past 已过 / all，默认 upcoming）、status、q（发起人昵称 / 球场名 / 分享码）、offset（每页 50）。限城市的管理员只看自己城市。
   // 发起人用 left join：限城市的管理员看不到别的城市的用户行（行级安全），发起人在别的城市时球局照样列出、发起人显示「—」。

@@ -98,7 +98,12 @@ try {
   const src0 = (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc;
   const wipe = fs.readFileSync(path.join(DIR, 'server/migrations/20261107_wipe_rackets.sql'), 'utf8');
   e1 = null; try { await q(wipe); await q(wipe) } catch (e) { e1 = e.message } T('A2 迁移连跑两次不报错', e1 === null, e1);
-  T('A2 迁移后 job_anonymize_deleted 与 schema.sql 一致且含删球拍', (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc === src0 && /delete from user_rackets/.test(src0));
+  T('A2 迁移后 job_anonymize_deleted 含删球拍', /delete from user_rackets/.test((await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc));
+  // 之后的迁移可能再改这个函数（如 #110 加删球友）：按迁移顺序把它们也跑完，再和 schema.sql 比（11-08 改：原来直接比，后面的迁移一改就误报）
+  const later = fs.readdirSync(path.join(DIR, 'server/migrations')).filter(f => /^2\d+_.*\.sql$/.test(f) && f.localeCompare('20261107_wipe_rackets.sql') > 0).sort((a, b) => a.localeCompare(b))
+    .filter(f => /function job_anonymize_deleted\(/.test(fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8')));
+  e1 = null; try { for (const f of later) await q(fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8')) } catch (e) { e1 = e.message } T('之后改过这个函数的迁移按顺序跑完不报错', e1 === null, [later, e1]);
+  T('按顺序跑完所有迁移后 job_anonymize_deleted 与 schema.sql 一致且含删球拍', (await q(`select prosrc from pg_proc where proname='job_anonymize_deleted'`)).rows[0].prosrc === src0 && /delete from user_rackets/.test(src0), later);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
