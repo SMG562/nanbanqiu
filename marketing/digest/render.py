@@ -18,6 +18,8 @@ HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [], boxes = [], 
     const cs = getComputedStyle(n.parentElement); ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; const m = ctx.measureText(s);
     for (const q of r.getClientRects()) if (q.width > 2) { const top = q.top + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
       boxes.push({ s, x: q.left, y: top, r: q.right, b: q.top + m.fontBoundingBoxAscent + m.actualBoundingBoxDescent }) } }
+  for (const a of document.querySelectorAll('.art')) { const g = a.getBoundingClientRect();   // 插画（标了 class="art" 的图形）压住文字
+    for (const t of boxes) { const w = Math.min(g.right, t.r) - Math.max(g.left, t.x), h = Math.min(g.bottom, t.b) - Math.max(g.top, t.y); if (w > 4 && h > 4) out.push(`图形压住文字：「${t.s.slice(0, 10)}」`) } }
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {   // HTML 文字互相压住（第一版只查了 SVG，漏过一次）
     const a = boxes[i], c = boxes[j], w = Math.min(a.r, c.r) - Math.max(a.x, c.x), h = Math.min(a.b, c.b) - Math.max(a.y, c.y);
     if (w > 3 && h > 3) out.push(`文字压住：「${a.s.slice(0, 10)}」和「${c.s.slice(0, 10)}」`) }
