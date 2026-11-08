@@ -41,7 +41,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
-    const until = async fn => { for (let n = 0; n < 20; n++) { if (await fn()) return; await pg.settle(300) } };
+    const until = async fn => { const end = Date.now() + 6000; while (Date.now() < end) { if (await fn()) return; await pg.settle(300) } };   // 按真实时间等满 6 秒：页面只在等接口时 settle 会提前返回，按次数数实际只等 1–2 秒，CI 慢时登录没完成就往下走（ME 为 null）
     const bl = () => pg.evaluate(() => [...ME.blocked].join());
     const click = async (attrs) => { await pg.evaluate(a => { const el = document.createElement('button'); Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); (typeof DEV !== 'undefined' ? DEV : document.body).appendChild(el); el.click(); el.remove() }, attrs); await pg.settle(700) };
 

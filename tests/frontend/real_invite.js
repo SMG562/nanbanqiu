@@ -51,7 +51,7 @@ const at = (k, h, m = 0) => { const d = wall(BASE), w = Date.UTC(d.year, d.month
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
     const inv1 = id => pg.evaluate(i => { const x = INVITES.find(v => v.id === i); return x && { status: x.status, o: x.o, t: x.t, e: x.e, no: x.no, noNote: x.noNote, counter: x.counter, game_id: x.game_id, venue_id: x.venue_id } }, id);
     const tap = async sel => { await pg.click(sel); await pg.settle(700) };
-    const until = async fn => { for (let n = 0; n < 20; n++) { if (await fn()) return; await pg.settle(300) } };   // 读入是异步的，等到页面反映出来再断言
+    const until = async fn => { const end = Date.now() + 6000; while (Date.now() < end) { if (await fn()) return; await pg.settle(300) } };   // 读入是异步的，等到页面反映出来再断言；按真实时间等满 6 秒：页面只在等接口时 settle 会提前返回，按次数数实际只等 1–2 秒，CI 慢时登录没完成就往下走（ME 为 null）
     const st = (id, v) => until(async () => { const x = await inv1(id); return x && x.status === v });
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);
