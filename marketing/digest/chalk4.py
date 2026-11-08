@@ -3,7 +3,7 @@
 import random
 from chalkframe import *
 from timetable import GAMES, spots, level_word
-_v = ['roll']
+_v = ['roll']; _skin = ['fair']
 EX = {'roll': ['还有谁没到', f'{spots()}', '7Kq2'], 'notes': ['传纸条', f'{spots()}个空位', '7Kq2'], 'seats': ['这里有人吗', f'{spots()}个座', '7Kq2']}
 def EXPECT(): return EX[_v[0]]
 def HEADLINE(): return (str(spots()), '.kn')
@@ -38,7 +38,7 @@ def roll():
                     c = random.choice([W_, W_, W_, PK, BL]); cells += f'<i class="got" style="color:{c}"><span style="transform:rotate({random.randint(-12,12)}deg);font-size:{random.randint(22,29)}px;font-weight:{random.choice((400,700))}">到</span></i>'
                 else: cells += '<i class="open"></i>'
             rows += f'<div class="row"><b class="t">{g[0]}</b><div class="v"><b>{esc(g[2])}</b><s>{esc(g[3])} · {meta(g)} · {g[9]}</s></div><div class="cells">{cells}</div><b class="lime n">缺 {need(g)}</b></div>'
-    svg = bunting() + title('还有谁', 96, 326, 120, fill=W_, stroke='#2F5A4B') + title('没到？', 96, 470, 150) + hand()
+    svg = title('还有谁', 96, 326, 120, fill=W_, stroke='#2F5A4B') + title('没到？', 96, 470, 150) + hand()
     html_ = f'''<div class="iss">明天点名 · 第 {ISSUE} 期</div>
 <div class="sub">明天 {len(GAMES)} 节课，<span class="kn">{spots()}</span> 个位置还没人喊「到」。</div>
 <div class="box"><div class="tab">点名册</div>{rows}</div>{date_tag(130, 570)}{how('喊到')}'''
@@ -51,7 +51,7 @@ def roll():
 .t{{font-size:30px}} .v b{{display:block;font-size:24px;white-space:nowrap}} .v s{{display:block;font-size:14px;opacity:.6;white-space:nowrap}}
 .cells{{display:flex;gap:8px}} .cells i{{width:42px;height:42px;display:flex;align-items:center;justify-content:center}}
 .got{{border:2px solid rgba(244,242,234,.45)}} .got span{{display:block}} .open{{border:2.6px dashed {LM}}} .n{{font-size:24px;text-align:right}}'''
-    return framed(svg, html_, css, seed=12)
+    return framed(svg, html_, css, seed=12, skin=_skin[0])
 
 # ---------- 传纸条 ----------
 def notes():
@@ -63,9 +63,9 @@ def notes():
         c, r = i % 2, i // 2; x = 100 + c * 452 + random.randint(-6, 6); y = 548 + r * 158 + random.randint(-5, 5); rot = random.choice((-2.2, -1.2, 1, 1.8, -0.6, 2.4))
         paper += f'''<div class="note" style="left:{x}px;top:{y}px;transform:rotate({rot}deg)"><i class="mag" style="background:radial-gradient(circle at 35% 30%,#fff 0 12%,{mag[i%4]} 40%,{mag[i%4]})"></i>
 <b>{when(g[0])} {g[0]} · {esc(g[2])}</b><s>{meta(g)} · 还差 {need(g)} 人<u>{g[9]}</u></s><p>去吗？<em></em>去<em></em>当然去</p></div>'''
-    plane = f'''<g class="art"><path d="M640 300 C 700 250, 760 330, 830 270 S 900 220, 930 230" fill="none" stroke="{W_}" stroke-width="2.6" stroke-dasharray="6 9" opacity=".7"/>
+    plane = f'''<g class="art"><path d="M768 296 C 800 262, 822 316, 862 276 S 908 228, 930 230" fill="none" stroke="{W_}" stroke-width="2.6" stroke-dasharray="6 9" opacity=".7"/>
 <g transform="translate(948 222) rotate(-18)"><path d="M0 0 L-64 -22 L-46 6Z" fill="{W_}" fill-opacity=".35" stroke="{W_}" stroke-width="3.2" stroke-linejoin="round"/><path d="M0 0 L-46 6 L-52 26Z" fill="{W_}" fill-opacity=".15" stroke="{W_}" stroke-width="3.2" stroke-linejoin="round"/><path d="M0 0 L-46 6" stroke="{W_}" stroke-width="2"/></g></g>'''
-    svg = bunting() + title('传纸条。', 96, 400, 156) + plane
+    svg = title('传纸条。', 96, 400, 156) + plane
     html_ = f'''<div class="iss">{TOMORROW.month} 月 {TOMORROW.day} 日 星期{WD[TOMORROW.weekday()]} · 第 {ISSUE} 期</div><div class="sub">明天 {len(GAMES)} 张纸条，<span class="kn">{spots()}</span> 个空位，就差你打个勾。</div>{how('打勾')}'''
     css = f'''.iss{{position:absolute;left:100px;top:206px;font-size:22px;letter-spacing:6px;opacity:.75}}
 .sub{{position:absolute;left:100px;top:432px;font-size:30px}} .kn{{color:{LM};font-size:42px;font-weight:700;padding:0 4px}}
@@ -76,7 +76,7 @@ def notes():
 .mag{{position:absolute;left:50%;top:-12px;width:26px;height:26px;margin-left:-13px;border-radius:50%;box-shadow:0 3px 5px rgba(0,0,0,.4)}}
 .note b{{display:block;font-size:23px;font-weight:700;white-space:nowrap}} .note s{{display:flex;font-size:18px;margin-top:6px;opacity:.85}} .note s u{{margin-left:auto;font-size:16px;color:#7A7F8C;letter-spacing:1px}}
 .note p{{font-size:21px;margin-top:8px;display:flex;align-items:center;gap:6px}} .note em{{display:inline-block;width:20px;height:20px;border:2px solid #26386A;margin-left:14px;border-radius:2px}}'''
-    return framed(svg, html_, css, paper_html=paper, seed=18)
+    return framed(svg, html_, css, paper_html=paper, seed=18, skin=_skin[0])
 
 # ---------- 这里有人吗？ ----------
 def desks(n, x0, y0, have):
@@ -97,7 +97,7 @@ def seats():
         art += '<g class="art">' + desks(CAP[g[4]], x, y + (33 if CAP[g[4]] == 2 else 0), g[7]) + '</g>'
         ev = '<em class="pink">放学别走</em>' if int(g[0][:2]) >= 17 else ''
         cells += f'<div class="seat" style="left:{x+164}px;top:{y-6}px"><b class="t">{g[0]}{ev}</b><b class="vn">{esc(g[2])}</b><s>{esc(g[3])} · {meta(g)}</s><p><span class="lime">空 {need(g)} 座</span><u>{g[9]}</u></p></div>'
-    svg = bunting() + title('这里', 96, 330, 124, fill=W_, stroke='#2F5A4B') + title('有人吗？', 360, 330, 124) + f'''
+    svg = title('这里', 96, 330, 124, fill=W_, stroke='#2F5A4B') + title('有人吗？', 360, 330, 124) + f'''
 <rect x="390" y="452" width="300" height="46" rx="4" fill="none" stroke="{W_}" stroke-width="3"/><text x="540" y="484" text-anchor="middle" font-family="{WK}" font-size="24" letter-spacing="14" fill="{W_}">讲台</text>''' + art
     html_ = f'''<div class="iss">明天的座位表 · {TOMORROW.month} 月 {TOMORROW.day} 日 星期{WD[TOMORROW.weekday()]} · 第 {ISSUE} 期</div><div class="sub">明天还有 <span class="kn">{spots()}</span> 个座，没人。</div>{cells}{how('占座')}'''
     css = f'''.iss{{position:absolute;left:100px;top:196px;font-size:22px;letter-spacing:6px;opacity:.75}}
@@ -106,8 +106,9 @@ def seats():
 .seat{{position:absolute;width:270px}} .seat .t{{display:flex;align-items:baseline;gap:12px;font-size:30px}} .seat .t em{{font-size:17px;letter-spacing:3px}}
 .seat .vn{{display:block;font-size:23px;white-space:nowrap}} .seat s{{display:block;font-size:14px;opacity:.6;white-space:nowrap;margin-top:2px}}
 .seat p{{display:flex;font-size:21px;margin-top:6px}} .seat p u{{margin-left:auto;font-size:19px;opacity:.85;letter-spacing:1px}}'''
-    return framed(svg, html_, css, seed=27)
+    return framed(svg, html_, css, seed=27, skin=_skin[0])
 
 def html(v='roll'):
-    _v[0] = v
+    v, _, skin = v.partition('@'); _v[0] = v; _skin[0] = skin or 'fair'
+    import chalkframe; chalkframe.CUR[0] = _skin[0]; chalkframe.SEAL_AT[0] = {'roll': (606, 392), 'notes': (800, 336), 'seats': (900, 372)}[v]
     return {'roll': roll, 'notes': notes, 'seats': seats}[v]()

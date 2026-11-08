@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageOps, ImageStat  # noqa: E402
 import zxingcpp  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get('DIGEST_OUT', '/tmp/digest_out'); os.makedirs(OUT, exist_ok=True)
-SVG_CHECK = open(os.path.join(HERE, '..', 'build.py')).read().split("TEXT_CHECK = '''")[1].split("'''")[0].replace('H = 1350', 'H = 1440')
+SVG_CHECK = open(os.path.join(HERE, '..', 'build.py')).read().split("TEXT_CHECK = '''")[1].split("'''")[0].replace('H = 1350', 'H = 1440').replace("querySelectorAll('svg text')", "querySelectorAll('svg text:not([data-fx])')")   # data-fx = 有意叠在正文上的光晕 / 影子层
 HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [], boxes = [], ctx = document.createElement('canvas').getContext('2d');
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   while (w.nextNode()) { const n = w.currentNode, s = n.textContent.trim(); if (!s || n.parentElement.closest('svg')) continue;
@@ -18,9 +18,15 @@ HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [], boxes = [], 
     const cs = getComputedStyle(n.parentElement); ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; const m = ctx.measureText(s);
     for (const q of r.getClientRects()) if (q.width > 2) { const top = q.top + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
       boxes.push({ s, x: q.left, y: top, r: q.right, b: q.top + m.fontBoundingBoxAscent + m.actualBoundingBoxDescent }) } }
+  for (const e of document.querySelectorAll('svg text:not([data-fx])')) { if (e.closest('.art')) continue;   // SVG 里的字也参加「插画压住文字」检查（插画自带的字除外）
+    const q = e.getBoundingClientRect(); if (q.width <= 2) continue;
+    const cs = getComputedStyle(e), sc = q.height / (parseFloat(cs.fontSize) * 1.0 || 1);   // 按真实墨迹算（全角句号、字间距会让外框比字大）
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; ctx.letterSpacing = cs.letterSpacing || '0px'; const m = ctx.measureText((e.textContent || '').trim());
+    const top = q.top + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
+    boxes.push({ s: (e.textContent || '').trim(), x: q.left + Math.max(0, -m.actualBoundingBoxLeft), y: top, r: q.left + m.actualBoundingBoxRight, b: q.top + m.fontBoundingBoxAscent + m.actualBoundingBoxDescent, svg: true }) }
   for (const a of document.querySelectorAll('.art')) { const g = a.getBoundingClientRect();   // 插画（标了 class="art" 的图形）压住文字
     for (const t of boxes) { const w = Math.min(g.right, t.r) - Math.max(g.left, t.x), h = Math.min(g.bottom, t.b) - Math.max(g.top, t.y); if (w > 4 && h > 4) out.push(`图形压住文字：「${t.s.slice(0, 10)}」`) } }
-  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {   // HTML 文字互相压住（第一版只查了 SVG，漏过一次）
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { if (boxes[i].svg || boxes[j].svg) continue;   // SVG 字之间由 SVG_CHECK 查   // HTML 文字互相压住（第一版只查了 SVG，漏过一次）
     const a = boxes[i], c = boxes[j], w = Math.min(a.r, c.r) - Math.max(a.x, c.x), h = Math.min(a.b, c.b) - Math.max(a.y, c.y);
     if (w > 3 && h > 3) out.push(`文字压住：「${a.s.slice(0, 10)}」和「${c.s.slice(0, 10)}」`) }
   for (const e of document.querySelectorAll('body *')) if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') out.push(`被截断：「${e.textContent.trim().slice(0, 14)}」`);
@@ -33,7 +39,7 @@ with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
     for job in JOBS:
         name, _, theme = job.partition(':'); mod = importlib.import_module(name)
         doc = mod.html(theme) if theme else (mod.html() if hasattr(mod, 'html') else mod.svg())
-        out = name + ('-' + theme if theme else '')
+        out = name + ('-' + theme.replace('@', '-') if theme else '')
         h = os.path.join(tmp, out + '.html'); open(h, 'w').write(doc)
         pg.goto('file://' + h); pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
         png = os.path.join(OUT, out + '@2x.png'); pg.screenshot(path=png)

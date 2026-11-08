@@ -12,7 +12,7 @@ def art():
     bx, by = 860, y0 + k * 860       # 球正好压在斜线上
     streaks = ''.join(f'<path d="M{bx-70-d*1.2:.0f} {by-38-o:.0f} L{bx-70-d*1.2-L:.0f} {by-38-o-L*.26:.0f}" stroke="{c}" stroke-width="{w}" stroke-linecap="round" opacity="{op}"/>'
                       for d, o, L, w, c, op in [(0, -6, 230, 6, LIME, .9), (30, 22, 300, 4, CREAM, .5), (10, 50, 180, 3, LIME, .6), (60, -30, 150, 2, CREAM, .4), (90, 76, 110, 2, LIME, .35)])
-    return f'''<svg class="art" width="1080" height="1440" viewBox="0 0 1080 1440"><defs>{lib.COMMON}
+    return f'''<svg class="artbg" width="1080" height="1440" viewBox="0 0 1080 1440"><defs>{lib.COMMON}
 <linearGradient id="nite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E4A35"/><stop offset=".7" stop-color="{DEEP}"/><stop offset="1" stop-color="#062419"/></linearGradient>
 <linearGradient id="lm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D4F04E"/><stop offset="1" stop-color="#BFE23A"/></linearGradient></defs>
 <rect width="1080" height="1440" fill="url(#lm)"/>
@@ -34,7 +34,7 @@ def html():
     return f'''<!doctype html><meta charset="utf-8"><style>
 *{{margin:0;padding:0;box-sizing:border-box}} s,em{{text-decoration:none;font-style:normal}}
 body{{width:1080px;height:1440px;overflow:hidden;font-family:{SANS};color:{DEEP};position:relative;background:{LIME}}}
-.art{{position:absolute;inset:0}} .grain{{position:absolute;inset:0;opacity:.12;mix-blend-mode:overlay}}
+.artbg{{position:absolute;inset:0}} .grain{{position:absolute;inset:0;opacity:.12;mix-blend-mode:overlay}}
 .top{{position:absolute;left:72px;top:64px;font-family:{NUM};font-weight:600;font-size:14px;letter-spacing:6px;color:{CREAM};opacity:.7}}
 .big{{position:absolute;left:44px;top:118px;font-family:{NUM};font-weight:900;font-size:360px;line-height:.73;letter-spacing:-18px;color:{LIME};transform:skewX(-11deg);transform-origin:left bottom}}
 .h{{position:absolute;left:520px;top:150px;font-family:{SANS};font-weight:900;font-size:66px;line-height:84px;color:{CREAM};letter-spacing:2px}} .h em{{color:{LIME}}}

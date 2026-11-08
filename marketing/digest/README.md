@@ -6,6 +6,7 @@
 |---|---|
 | `timetable.py` | 明日时刻表，**HTML/CSS 排版**（换行、截断、对齐交给浏览器），`dark` / `light` 两套主题 |
 | `chalk.py` | **时刻表「黑板」版**：「明天，有体育课。」——球局表写成黑板上的课程表（第一节…、午休、晚自习），右上角老师写的日期天气和「值日：南伴球」；空位是黄绿粉笔圈、已有人是涂满的白圈；粉笔颗粒用 SVG 滤镜，黑板有擦痕和上节课残影（15·30·40、Deuce），底部金属粉笔槽。字体霞鹜文楷（OFL），`DIGEST_FONTS` 指向 lxgw-wenkai-webfont 解压目录 |
+| **模板系统** | 黑板报 = **皮肤（每周一换）× 创意（每天轮换）**。皮肤在 `chalkframe.SKINS`：赶集 fair · 春日 meadow · 夜场 night · 花园 garden · 线描 doodle · 国风 guofeng，各自定板色、边框、顶部 / 底部 / 两侧装饰、标题字效（排线 / 多色 / 霓虹 / 空心 / 朱红金边）、信息框样式；装饰只放顶部、底部、四角和边框内侧，标 `class="art"`。创意在 `chalk4.py`：roll / notes / seats。`chalkframe.pick(日期)` → (皮肤, 创意)：皮肤按 ISO 周轮换，创意按星期。出图写法 `chalk4:创意@皮肤`，如 `chalk4:notes@night` |
 | `chalkframe.py` · `chalk4.py` | **立式小黑板三版（最新推荐）**，共用挂板底子（原木框、彩旗、粉笔槽）：`chalk4:roll`「还有谁没到？」点名册（「到」字笔迹各不相同、举手、晚场叫「放学别走」）· `chalk4:notes`「传纸条。」（磁铁吸在黑板上的真纸条：去吗？□去 □当然去）· `chalk4:seats`「这里有人吗？」（讲台 + 座位表，有人的桌上放着书包，空座是黄绿虚线） |
 | `chalk3.py` | **黑板报「挂板」版（最新）**：墙上挂一块带原木框和粉笔槽的墨绿黑板，顶部粉笔三角彩旗；大标题「体育课。」白描边 + 黄绿排线填色；右上彩色粉笔画的球拍和网球（排线上色、高光、速度线、星星）；下半「明日课表」框分上午 / 下午两栏，日期像标签嵌在框线上 |
 | `chalkbase.py` · `chalk2.py` | **黑板报另外四版**（共用黑板底子）：`chalk2:quiz` 应用题（问：你去哪一局？解：…答：我去第 __ 局）· `chalk2:roll` 点名册（「到」和等你喊到的空格）· `chalk2:count` 倒计时（距明天第一局开打还有 N 小时）· `chalk2:tactic` 战术板（先报名，再上网。球场上 ①→⑧ 压向网前） |
@@ -22,7 +23,7 @@
 
 出图：`python3 marketing/digest/render.py [chalk4:roll chalk4:notes chalk4:seats chalk3 chalk chalk2:quiz chalk2:roll chalk2:count chalk2:tactic invite:spring invite:dusk rally editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
 
-**自动检查**：① 文字出界 / 互相压住（按真实笔画上下沿算，HTML 和 SVG 都查）/ 被省略号截断 / 被插画压住（标 `class="art"` 的图形） ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
+**自动检查**：① 文字出界 / 互相压住（按真实笔画上下沿算，HTML 和 SVG 都查）/ 被省略号截断 / 被插画压住（标 `class="art"` 的图形；HTML 和 SVG 文字都查，按真实墨迹算；`data-fx` 是有意叠在正文上的光晕 / 影子层，不查） ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
 
 **依赖**（新增的要随 ADR 0009 一起批）：Playwright（Python）+ Noto CJK（同 `build.py`）；新：`segno`（画二维码）、`zxing-cpp`（解码校验）、Tesseract + chi_sim（OCR）、Inter 字体（数字，OFL 开源）、霞鹜文楷（黑板版手写字，OFL 开源，npm `lxgw-wenkai-webfont`）。
 

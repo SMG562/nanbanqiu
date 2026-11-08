@@ -27,7 +27,7 @@ def bunting():
 
 def hero():
     cx, cy, r = 818, 334, 92
-    hatch = ''.join(f'<path d="M{cx-r-20+k*11} {cy+r+20} l{r*2+40} {-r*2-40}" stroke="{LM}" stroke-width="3.2" opacity=".75"/>' for k in range(-8, 26))
+    hatch = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#hl)" opacity=".8"/>'          # 排线用纹理填，外框和看到的一致
     racket = f'''<g transform="translate(922 300) rotate(32) scale(.84)">
  <clipPath id="rh"><ellipse rx="86" ry="116"/></clipPath>
  <g clip-path="url(#rh)" stroke="{W_}" stroke-width="1.6" opacity=".55">{''.join(f'<path d="M{x} -130 V130"/>' for x in range(-80, 90, 16))}{''.join(f'<path d="M-100 {y} H100"/>' for y in range(-110, 120, 16))}</g>
@@ -42,7 +42,7 @@ def hero():
  <path d="M{cx-62} {cy-80} C {cx-18} {cy-36}, {cx-18} {cy+36}, {cx-62} {cy+80} M{cx+62} {cy-80} C {cx+18} {cy-36}, {cx+18} {cy+36}, {cx+62} {cy+80}" stroke="{W_}" stroke-width="9" fill="none" stroke-linecap="round" transform="rotate(-24 {cx} {cy})"/></g>
 <circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{YL}" stroke-width="4"/>
 <path d="M{cx-58} {cy-44} A {r-22} {r-22} 0 0 1 {cx-20} {cy-72}" stroke="{W_}" stroke-width="6" fill="none" stroke-linecap="round" opacity=".85"/>'''
-    streaks = ''.join(f'<path d="M{cx-r+6-k*4} {cy-58+k*22} l{-L} {-L*.5:.0f}" stroke="{c}" stroke-width="{w}" stroke-linecap="round"/>' for k, L, c, w in ((0, 90, YL, 5), (1, 120, W_, 3.5), (2, 70, YL, 3)))
+    streaks = ''.join(f'<path d="M{cx-r+14-k*4} {cy-62+k*18} l{-L*.62:.0f} {-L*.78:.0f}" stroke="{c}" stroke-width="{w}" stroke-linecap="round"/>' for k, L, c, w in ((0, 90, YL, 5), (1, 120, W_, 3.5), (2, 70, YL, 3)))
     star = lambda x, y, s, c: f'<path d="M{x} {y-s} Q{x+s*.18} {y-s*.18} {x+s} {y} Q{x+s*.18} {y+s*.18} {x} {y+s} Q{x-s*.18} {y+s*.18} {x-s} {y} Q{x-s*.18} {y-s*.18} {x} {y-s}Z" fill="{c}"/>'
     stars = star(620, 214, 13, BL) + star(975, 486, 10, YL) + star(740, 470, 7, W_)
     return f'<g class="art">{racket}</g><g class="art">{streaks}</g><g class="art">{ball}</g>{stars}'
@@ -106,7 +106,7 @@ body{{width:1080px;height:1440px;overflow:hidden;position:relative;font-family:{
 <g transform="translate(150 {BY1-26})"><rect width="150" height="28" rx="5" fill="#C8B79A"/><rect y="22" width="150" height="10" rx="3" fill="#3E4642"/></g>
 </svg>
 <div class="chalk"><svg class="fx" width="1080" height="1440"><g class="art">{bunting()}</g>{hero()}
-<text x="90" y="430" font-family="{WK}" font-weight="700" font-size="166" letter-spacing="8" fill="url(#hl)" stroke="{W_}" stroke-width="11" stroke-linejoin="round" paint-order="stroke">体育课。</text></svg>
+<text x="90" y="430" font-family="{WK}" font-weight="700" font-size="156" letter-spacing="8" fill="url(#hl)" stroke="{W_}" stroke-width="11" stroke-linejoin="round" paint-order="stroke">体育课。</text></svg>
 <div class="demo">示意数据</div>
 
 <div class="pre">明天，有</div><div class="iss">第 {ISSUE} 期</div>
