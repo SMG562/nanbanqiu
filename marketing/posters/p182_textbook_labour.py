@@ -1,11 +1,11 @@
 from lib import *
 from people import person
-from textbook import DEFS, PAPER, INK, RED, BLUE, GREEN, outlined, finish, lesson, schoolyard
+from textbook import DEFS, PAPER, INK, RED, BLUE, GREEN, outlined, finish, lesson, schoolyard, falling
 
 META = dict(
     id=182, slug='textbook-labour', title='劳动课', lines=['打球之前，', '先把场地弄干净。'],
     style=['课本插画', '年代感', '远景', '南伴绿'], tone='浅色', demo=False,
-    concept='六七十年代课本插画的画法，高机位远景：同一个学校运动场，围网上挂着「好好打球　天天向上」；南伴绿的场地上上劳动课——有人扫落叶、两个人推着石头压路滚、有人提着石灰桶画一条画了一半的白线、两个人抬着一筐球往场边走',
+    concept='六七十年代课本插画的画法，高机位远景，秋天：白杨黄了，叶子落了一场；同一个学校的网球场，围网上挂着「好好打球　天天向上」；南伴绿的场地上上劳动课——有人扫落叶、两个人推着石头压路滚、有人提着石灰桶画一条画了一半的白线、两个人抬着一筐球往场边走',
     use='年代感 / 一起搭把手；回忆共鸣',
 )
 
@@ -13,7 +13,7 @@ META = dict(
 def svg():
     r = random.Random(182)
     p = [f'<defs>{DEFS}</defs>', f'<rect width="1080" height="1350" fill="{PAPER}"/>']
-    T = schoolyard(p, r)
+    T = schoolyard(p, r, 'autumn')
     for _ in range(60):                                                                                        # 场上的落叶
         u, v = r.uniform(.02, .98), r.uniform(.4, 1)
         x, y = T(u, v)
@@ -38,6 +38,7 @@ def svg():
     p.append(outlined(f'<line x1="{x1 + 40*s1:.0f}" y1="{y1 - 248*s1:.0f}" x2="{x2 - 40*s2:.0f}" y2="{y2 - 248*s2:.0f}" stroke="#8A6A3A" stroke-width="5"/><path d="M{(x1 + x2) / 2 - 30:.0f} {y1 - 244*s1:.0f} l60 0 l-8 44 l-44 0Z" fill="#C8A060"/>'))
     for i in range(6):
         p.append(f'<circle cx="{(x1 + x2) / 2 - 18 + (i % 3) * 18:.0f}" cy="{y1 - 248*s1 + 8 - (i // 3) * 10:.0f}" r="7" fill="#C6EA3D" stroke="{INK}" stroke-width="1.4"/>')
+    falling(p, r, 'autumn', 40)
     p.append(f'<text x="540" y="86" text-anchor="middle" font-family="{SERIF}" font-weight="900" font-size="30" letter-spacing="12" fill="{INK}">劳 动 课</text>')
     lesson(p, '十三', '劳动课', ['打球之前，先把场地弄干净。', '扫落叶，压场地，画白线，把球捡回筐里。'])
     finish(p)

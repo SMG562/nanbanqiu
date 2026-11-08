@@ -5,7 +5,7 @@ from textbook import DEFS, PAPER, INK, RED, BLUE, GREEN, outlined, finish, lesso
 META = dict(
     id=181, slug='textbook-pe', title='体育课', lines=['好好打球，', '天天向上。'],
     style=['课本插画', '年代感', '远景', '南伴绿'], tone='浅色', demo=False,
-    concept='六七十年代课本插画的画法，高机位远景：从教学楼上往下看整个学校运动场——远处教学楼和一排白杨，左边红跑道的弯道和篮球架，右边水泥乒乓球台；中间一块被围网围住的南伴绿网球场，远端围网上挂着八块红色标语牌「好好打球　天天向上」；场上几个白衬衫蓝裤子的孩子在上体育课，老师站在网边吹哨，场边长凳上坐着等轮换的同学',
+    concept='六七十年代课本插画的画法，高机位远景：从教学楼上往下看——远处教学楼和一排白杨；中间一块被围网围住的南伴绿网球场，远端围网上挂着八块红色标语牌「好好打球　天天向上」；场上几个白衬衫蓝裤子的孩子在上体育课，老师站在网边吹哨，场边长凳上坐着等轮换的同学',
     use='年代感 / 回忆共鸣；开学季、节日、社群活动',
 )
 
@@ -13,7 +13,7 @@ META = dict(
 def svg():
     r = random.Random(181)
     p = [f'<defs>{DEFS}</defs>', f'<rect width="1080" height="1350" fill="{PAPER}"/>']
-    T = schoolyard(p, r)
+    T = schoolyard(p, r, 'summer')
     def kid(u, v, pose, f, sk=0, hr=0, hs='short', rk=None, s=1.0, top='#FFFFFF', bot=BLUE):
         x, y = T(u, v)
         sc = (.28 + .2 * v) * s
