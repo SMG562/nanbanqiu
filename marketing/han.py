@@ -33,7 +33,17 @@ POSES = {
                  arm=[(-6, -164), (24, -190), (40, -222)], rarm=[(-6, -164), (-36, -186), (-30, -226)], rk=(-24, -268), rr=10),
     'pick': dict(hip=(0, -80), neck=(30, -130), head=(42, -150), legs=[[(0, -80), (16, -40), (22, 0)], [(0, -80), (-14, -40), (-20, 0)]],
                  arm=[(28, -126), (48, -80), (58, -20)], rarm=[(28, -126), (30, -86), (36, -30)], rk=(-34, -60), rr=50),
+    'stand': dict(hip=(0, -80), neck=(0, -138), head=(2, -160), legs=[[(0, -80), (6, -40), (8, 0)], [(0, -80), (-6, -40), (-10, 0)]],
+                  arm=[(0, -134), (16, -100), (20, -66)], rarm=[(0, -134), (-16, -100), (-20, -66)], rk=(-30, -40), rr=0),
+    'sit': dict(hip=(0, -66), neck=(4, -124), head=(8, -146), legs=[[(0, -66), (40, -66), (42, 0)], [(-4, -64), (34, -62), (32, 0)]],
+                arm=[(4, -120), (30, -100), (52, -96)], rarm=[(4, -120), (24, -96), (46, -92)], rk=(70, -60), rr=0),
+    'sip': dict(hip=(0, -66), neck=(4, -124), head=(8, -146), legs=[[(0, -66), (40, -66), (42, 0)], [(-4, -64), (34, -62), (32, 0)]],
+                arm=[(4, -120), (30, -112), (22, -142)], rarm=[(4, -120), (26, -98), (48, -94)], rk=(70, -60), rr=0),
+    'bend': dict(hip=(0, -84), neck=(52, -112), head=(70, -118), legs=[[(0, -84), (6, -42), (10, 0)], [(0, -84), (-12, -42), (-16, 0)]],
+                 arm=[(50, -110), (80, -112), (108, -118)], rarm=[(50, -110), (76, -100), (102, -100)], rk=(70, -60), rr=0),
 }
+
+NO_RACKET = {'pick', 'stand', 'sit', 'sip', 'bend'}
 
 
 def figure(cx, cy, s=1.0, pose='serve', flip=1, sash=True):
@@ -50,14 +60,14 @@ def figure(cx, cy, s=1.0, pose='serve', flip=1, sash=True):
     dx = (nx - hx)
     skirt = f'<path d="M{nx - 16*s:.0f} {ny:.0f} L{nx + 16*s:.0f} {ny:.0f} L{hx + 34*s:.0f} {hy + 30*s:.0f} C{hx + 10*s:.0f} {hy + 40*s:.0f} {hx - 10*s:.0f} {hy + 40*s:.0f} {hx - 34*s:.0f} {hy + 30*s:.0f}Z" fill="FILL"/>'
     out.append(skirt)
-    if sash and pose != 'pick':                             # 飘带：从肩后向上扬起（不从腰后拖，免得像尾巴）
+    if sash and pose not in ('pick', 'sit', 'sip', 'bend'):                             # 飘带：从肩后向上扬起（不从腰后拖，免得像尾巴）
         out.append(ink([(nx, ny + 6 * s), (nx - flip * 40 * s, ny - 10 * s), (nx - flip * 76 * s, ny - 4 * s), (nx - flip * 104 * s, ny - 30 * s)], 7 * s, 'FILL', 1, (.1, .9)))
     for arm in ('arm', 'rarm'):
         out.append(ink([T(p) for p in P[arm]], 14 * s, 'FILL', 1, (.05, .3)))
     hdx, hdy = T(P['head'])
     out.append(f'<circle cx="{hdx:.0f}" cy="{hdy:.0f}" r="{13*s:.1f}" fill="FILL"/>')
     out.append(f'<circle cx="{hdx - flip*6*s:.0f}" cy="{hdy - 13*s:.0f}" r="{6*s:.1f}" fill="FILL"/>')                 # 发髻
-    if pose == 'pick':                                      # 捡球的人不拿拍，两只手都往下够
+    if pose in NO_RACKET:                                   # 捡球、站着、坐着的人不拿拍
         return ''.join(out)
     hx2, hy2 = T(P['rarm'][-1])
     rkx, rky = T(P['rk'])
