@@ -5,6 +5,7 @@
 | 文件 | 内容 |
 |---|---|
 | `timetable.py` | 明日时刻表，**HTML/CSS 排版**（换行、截断、对齐交给浏览器），`dark` / `light` 两套主题 |
+| `editorial.py` | **时刻表编辑排版版（推荐）**：减法——不用卡片、色块、标签、图标，只靠字号、字重、留白和细线；`noir` 纯黑 + 侧光大网球，荧光黄绿只给空位数；`atelier` 象牙纸 + 衬线大数字，一颗小网球当「13」的句号 |
 | `dayline.py` | **时刻表「一天」版**（推荐做封面）：背景是明天从清晨到夜里的天色，卡片沿时间轴排开（日出 / 太阳 / 月亮），空位画成小网球，空位数用超大数字，一颗球带轨迹飞入 |
 | `treasure.py` | 明日寻宝图（SVG）：按球场分布**自动取景**、**真实字体测宽**做标签避让、两行标签「几局 · 缺几位」、最热闹处画手绘圈 |
 | `join.py` | 怎么加入（固定页，每期最后一张）：三步、水平怎么看、小提示 |
@@ -12,9 +13,9 @@
 | `render.py` | 出图 + 自动检查（任何一项不过，退出码非 0） |
 | `样稿/` | 出好的图；`信息流对比.jpg` 是缩到小红书双列信息流大小（约 540 宽）的并排对比 |
 
-出图：`python3 marketing/digest/render.py [dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
+出图：`python3 marketing/digest/render.py [editorial:noir editorial:atelier dayline timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
 
-**自动检查**：① 文字出界 / 互相压住 / 被省略号截断 ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
+**自动检查**：① 文字出界 / 互相压住（按真实笔画上下沿算，HTML 和 SVG 都查）/ 被省略号截断 ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
 
 **依赖**（新增的要随 ADR 0009 一起批）：Playwright（Python）+ Noto CJK（同 `build.py`）；新：`segno`（画二维码）、`zxing-cpp`（解码校验）、Tesseract + chi_sim（OCR）、Inter 字体（数字，OFL 开源）。
 

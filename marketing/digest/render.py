@@ -9,11 +9,18 @@ import zxingcpp  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get('DIGEST_OUT', '/tmp/digest_out'); os.makedirs(OUT, exist_ok=True)
 SVG_CHECK = open(os.path.join(HERE, '..', 'build.py')).read().split("TEXT_CHECK = '''")[1].split("'''")[0].replace('H = 1350', 'H = 1440')
-HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [];
+HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [], boxes = [], ctx = document.createElement('canvas').getContext('2d');
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   while (w.nextNode()) { const n = w.currentNode, s = n.textContent.trim(); if (!s || n.parentElement.closest('svg')) continue;
     const r = document.createRange(); r.selectNodeContents(n); const b = r.getBoundingClientRect();
-    if (b.left < M - 1 || b.right > W - M + 1 || b.top < M - 1 || b.bottom > H - M + 1) out.push(`出边/太靠边：「${s.slice(0, 14)}」`) }
+    if (b.left < M - 1 || b.right > W - M + 1 || b.top < M - 1 || b.bottom > H - M + 1) out.push(`出边/太靠边：「${s.slice(0, 14)}」`);
+    // 按真实笔画上下沿算（字体框比笔画高，大字尤其明显，会误报）
+    const cs = getComputedStyle(n.parentElement); ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; const m = ctx.measureText(s);
+    for (const q of r.getClientRects()) if (q.width > 2) { const top = q.top + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
+      boxes.push({ s, x: q.left, y: top, r: q.right, b: q.top + m.fontBoundingBoxAscent + m.actualBoundingBoxDescent }) } }
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {   // HTML 文字互相压住（第一版只查了 SVG，漏过一次）
+    const a = boxes[i], c = boxes[j], w = Math.min(a.r, c.r) - Math.max(a.x, c.x), h = Math.min(a.b, c.b) - Math.max(a.y, c.y);
+    if (w > 3 && h > 3) out.push(`文字压住：「${a.s.slice(0, 10)}」和「${c.s.slice(0, 10)}」`) }
   for (const e of document.querySelectorAll('body *')) if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') out.push(`被截断：「${e.textContent.trim().slice(0, 14)}」`);
   return out }'''
 JOBS = sys.argv[1:] or ['timetable:dark', 'timetable:light', 'treasure', 'join']
