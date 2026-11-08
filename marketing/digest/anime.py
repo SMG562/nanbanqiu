@@ -30,7 +30,8 @@ def desk(x, y, w, flip=1):
     box = f'<rect x="{x+26}" y="{y+56}" width="{w-30}" height="56" fill="#5E646B" opacity=".9"/>'
     cx = x + (w - 250) / 2 + 20 * flip
     chair = f'<rect x="{cx}" y="{y+120}" width="250" height="80" rx="16" fill="#F29A3A"/><rect x="{cx}" y="{y+120}" width="250" height="18" rx="9" fill="#FFC27A"/><rect x="{cx+20}" y="{y+196}" width="10" height="200" fill="#8D96A0"/><rect x="{cx+220}" y="{y+196}" width="10" height="200" fill="#8D96A0"/>'
-    return legs + box + top + chair
+    chair = f'<rect x="{cx}" y="{y-110}" width="250" height="110" rx="16" fill="#F29A3A"/><rect x="{cx}" y="{y-110}" width="250" height="18" rx="9" fill="#FFC27A"/><rect x="{cx+20}" y="{y-4}" width="10" height="60" fill="#8D96A0"/><rect x="{cx+220}" y="{y-4}" width="10" height="60" fill="#8D96A0"/>'
+    return chair + legs + box + top
 
 def curtain():
     # 只在右上角飘起，下摆落在黑板右侧外面（不进黑板）
@@ -41,10 +42,20 @@ def curtain():
 
 def doodle():
     # 黑板右上角磁铁贴着的一张涂鸦：网球 + 一行字
-    return f'''<g class="art" transform="translate(540 936) rotate(-3) scale(.72)"><rect x="-58" y="0" width="116" height="138" fill="#FFFDF6" stroke="#E2D9C6" stroke-width="2"/>
+    return f'''<g class="art" transform="translate(540 900) rotate(-3) scale(.62)"><rect x="-58" y="0" width="116" height="138" fill="#FFFDF6" stroke="#E2D9C6" stroke-width="2"/>
 <circle cx="0" cy="58" r="34" fill="#D7EE4E" stroke="#8FA324" stroke-width="3"/><path d="M-26 34 C -8 50, -8 66, -26 82 M26 34 C 8 50, 8 66, 26 82" stroke="#fff" stroke-width="5" fill="none"/>
 <path d="M-40 112 h80" stroke="#E7A64E" stroke-width="4" stroke-linecap="round"/><text x="0" y="128" text-anchor="middle" font-family="{WK}" font-size="13" fill="#B4642A">明天见</text>
 <circle cx="0" cy="2" r="9" fill="#E8484A"/><circle cx="-3" cy="-1" r="3" fill="#fff" opacity=".7"/></g>'''
+
+def cabinets():
+    # 后墙下的一排储物柜（格子柜），柜顶放着书包和一罐网球
+    out = '<rect x="40" y="868" width="1000" height="16" fill="#B07C4E"/><rect x="40" y="884" width="1000" height="150" fill="#E7C08E"/>'
+    for k in range(8):
+        x = 52 + k * 124
+        out += f'<rect x="{x}" y="896" width="112" height="60" rx="4" fill="#D9A86F"/><rect x="{x}" y="964" width="112" height="60" rx="4" fill="#D9A86F"/><circle cx="{x+56}" cy="926" r="4" fill="#9B6A3C"/><circle cx="{x+56}" cy="994" r="4" fill="#9B6A3C"/>'
+    out += '<path d="M120 868 q -6 -50 30 -56 h 60 q 30 6 26 56Z" fill="#4C7FB5"/><rect x="140" y="830" width="70" height="26" rx="5" fill="#3D6B9C"/>'
+    out += '<rect x="820" y="806" width="44" height="62" rx="8" fill="#E9EEF0" stroke="#B9C3C8" stroke-width="2"/><rect x="820" y="822" width="44" height="22" fill="#E45B4B"/><circle cx="842" cy="806" r="18" fill="#DDEB5A" opacity=".0"/>'
+    return out
 
 def html():
     sun = '#FFF0C2'
@@ -79,8 +90,7 @@ body{{width:{W}px;height:{H}px;overflow:hidden;position:relative;font-family:{WK
 <div class="slog l">{"".join(f"<i>{c}</i>" for c in "好好打球")}</div><div class="slog r">{"".join(f"<i>{c}</i>" for c in "天天向上")}</div>
 <div class="bwrap"><div class="board">{cinema.board_inner()}</div></div>
 <svg class="L" width="{W}" height="{H}"><defs>{lib.COMMON}</defs>
-<g><rect x="350" y="880" width="380" height="34" fill="#9A5B33"/><rect x="350" y="880" width="380" height="8" fill="#B8754A"/><rect x="370" y="914" width="340" height="190" fill="#7E4626"/><rect x="370" y="914" width="340" height="12" fill="#5F331B"/>
-<path d="M600 914 L710 914 L710 1104 L540 1104Z" fill="#FFE9B8" opacity=".28"/><rect x="380" y="1104" width="22" height="30" fill="#5F331B"/><rect x="678" y="1104" width="22" height="30" fill="#5F331B"/></g>
+ <g class="art">{cabinets()}</g>
 {doodle()}{desk(-60, 1080, 380, 1)}{desk(760, 1080, 380, -1)}{curtain()}</svg>
 <div class="subt">「放学别走，球场见。」</div>
 <div class="cred"><b>NANBANQIU · {SITE}/g/ + 球局码 · 示意数据</b></div></body>'''
