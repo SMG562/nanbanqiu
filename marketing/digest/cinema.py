@@ -89,6 +89,20 @@ h1{{position:absolute;left:30px;top:58px;font-size:90px;line-height:1.04;letter-
 <div class="bwrap"><div class="board">
  <svg class="btex" width="964" height="596"><rect width="964" height="596" filter="url(#slate)"/><g filter="url(#sb)">{smear}</g>{ghost}{dust}</svg>
  {board_inner()}</div></div>
+<svg class="layer" width="{W}" height="{H}"><defs><filter id="pb" filterUnits="userSpaceOnUse" x="0" y="0" width="{W}" height="{H}"><feGaussianBlur stdDeviation="38"/></filter>
+ <filter id="hs" filterUnits="userSpaceOnUse" x="0" y="0" width="{W}" height="{H}"><feGaussianBlur stdDeviation="4"/></filter>
+ <linearGradient id="bagc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3F6687"/><stop offset="1" stop-color="#2A4A66"/></linearGradient></defs>
+ <ellipse cx="840" cy="1130" rx="200" ry="80" fill="#FFE2B0" opacity=".45" filter="url(#pb)" style="mix-blend-mode:screen"/>
+ <rect x="60" y="1032" width="430" height="10" rx="2" fill="#8C7A62"/>{''.join(f'<path d="M{x} 1040 v14 q0 10 9 10" stroke="#5B636A" stroke-width="4" fill="none" stroke-linecap="round"/>' for x in (100, 190, 280, 370, 460))}
+ <g transform="translate(246 1050) rotate(18)"><clipPath id="rkh"><ellipse cx="0" cy="-40" rx="40" ry="52"/></clipPath>
+  <g clip-path="url(#rkh)" stroke="#BFC6CB" stroke-width="1.5" opacity=".7">{''.join(f'<path d="M{x} -100 V20"/>' for x in range(-36, 40, 9))}{''.join(f'<path d="M-50 {y} H50"/>' for y in range(-88, 12, 9))}</g>
+  <ellipse cx="0" cy="-40" rx="40" ry="52" fill="none" stroke="#C94F3A" stroke-width="8"/><path d="M-12 10 L-6 60 M12 10 L6 60" stroke="#C94F3A" stroke-width="7"/><rect x="-7" y="56" width="14" height="80" rx="6" fill="#1D2226"/></g>
+ <path d="M178 1066 q 30 6 52 4" stroke="#2A2F33" stroke-width="5" fill="none" opacity=".4" filter="url(#hs)"/>
+ <path d="M190 1068 C 150 1072, 140 1090, 140 1110 L 134 1212 Q 134 1228 150 1228 L 252 1228 Q 268 1228 266 1212 L 262 1110 C 262 1090, 248 1072, 210 1068" fill="url(#bagc)"/>
+ <path d="M190 1068 q 10 -12 20 0" stroke="#24405A" stroke-width="5" fill="none"/>
+ <rect x="156" y="1150" width="92" height="52" rx="8" fill="#355A7A"/><path d="M156 1162 h92" stroke="#2A4A66" stroke-width="2"/>
+ <ellipse cx="200" cy="1240" rx="70" ry="7" fill="#000" opacity=".12" filter="url(#hs)"/>
+</svg>
 <div class="layer warm"></div><div class="layer cool"></div><div class="layer vig"></div>
 <svg class="layer grain" width="{W}" height="{H}"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="11"/><feColorMatrix type="saturate" values="0"/></filter><rect width="{W}" height="{H}" filter="url(#gr)"/></svg>
 <div class="subt">「放学别走，球场见。」</div>
