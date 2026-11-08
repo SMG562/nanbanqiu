@@ -58,6 +58,19 @@ try {
   r = await call('GET', '/api/me/badges', tP); T('徽章：别人看不到我的', r.s === 200 && r.j.badges.length === 0, r);
   r = await call('POST', '/api/me/badges', tQ, { codes: 'first' }); T('徽章：codes 不是数组 → 422', r.s === 422, r);
   r = await call('POST', '/api/me/badges/seen', tQ, { code: 5 }); T('徽章：code 不是文字 → 422', r.s === 422, r);
+  // 球友（#110 PR-A）：/api/buddies 接线；规则本身由 pg/buddies 测
+  r = await call('GET', '/api/buddies', null); T('球友：没登录 → 401', r.s === 401 && r.j.error === 'login_required', r);
+  r = await call('POST', '/api/buddies/requests', tQ, { to_user: 'x' }); T('球友：to_user 不是 uuid → 422 invalid', r.s === 422 && r.j.error === 'invalid', r);
+  r = await call('POST', '/api/buddies/requests', tQ, { to_user: Q }); T('球友：扫自己 → 422 buddy_self', r.s === 422 && r.j.error === 'buddy_self', r);
+  r = await call('POST', '/api/buddies/requests', tQ, { to_user: P }); const brq = r.j && r.j.id; T('球友：Q 扫 P → pending', r.s === 200 && r.j.status === 'pending' && !!brq, r);
+  r = await call('GET', '/api/buddies', tP); T('球友：P 看到 Q 的申请', r.s === 200 && r.j.incoming.length === 1 && r.j.incoming[0].from_user === Q && r.j.buddies.length === 0, r);
+  r = await call('POST', `/api/buddies/requests/${brq}/accept`, tQ); T('球友：发起人自己确认 → 404', r.s === 404 && r.j.error === 'not_found', r);
+  r = await call('POST', '/api/buddies/requests/abc/accept', tP); T('球友：id 不是 uuid → 404', r.s === 404, r);
+  r = await call('POST', `/api/buddies/requests/${brq}/accept`, tP); T('球友：P 确认 → buddies', r.s === 200 && r.j.status === 'buddies', r);
+  r = await call('POST', `/api/buddies/requests/${brq}/ignore`, tP); T('球友：已处理的再忽略 → 409 buddy_request_ended', r.s === 409 && r.j.error === 'buddy_request_ended', r);
+  r = await call('GET', '/api/buddies', tQ); T('球友：重读 → Q 的球友里有 P', r.s === 200 && r.j.buddies.length === 1 && r.j.buddies[0].user_id === P && r.j.outgoing.length === 0, r);
+  r = await call('DELETE', `/api/buddies/${P}`, tQ); T('球友：删除', r.s === 200 && r.j.ok === true, r);
+  r = await call('GET', '/api/buddies', tP); T('球友：删除后 P 那边也没有了', r.s === 200 && r.j.buddies.length === 0, r);
   // 我的球拍（#60 A3）：GET / PUT /api/me/rackets 接线；规则本身由 pg/rackets 测
   const rk = x => (x || []).map(o => `${o.slot}:${o.brand ?? '-'}/${o.series}`).join(' ');
   r = await call('GET', '/api/me/rackets', null); T('球拍：没登录 → 401', r.s === 401 && r.j.error === 'login_required', r);
