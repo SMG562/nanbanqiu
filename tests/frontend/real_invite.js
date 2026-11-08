@@ -10,7 +10,10 @@ const V1 = U('1'), ME = U('a'), HOST = U('b'), I1 = U('2'), I2 = U('3'), I3 = U(
 const card = (id, n, no) => ({ id, member_no: no, nickname: n, last_initial: 'W', utr: 5.5, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', seal_roll: 3, card_theme: 'court', played: 4, hosted: 1, kudos: 2, level: 'fresh', gone: false });
 const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }];
 let BASE = Date.now();   // 页面的时钟（测试里页面时间是固定的），服务器的时间都以它为准
-const at = (k, h, m = 0) => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k); d.setHours(h, m); return d.toISOString() };
+// 「第 k 天 h:m」按页面的时区算（和 tests/lib/preload.js 一致），不按跑测试那台机器的时区：本机是 UTC 时差 11 小时，读入断言会错
+const TZ = process.env.NBQ_TZ || 'Australia/Melbourne';
+const wall = t => { const p = {}; for (const x of new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' }).formatToParts(t)) p[x.type] = +x.value; return p };
+const at = (k, h, m = 0) => { const d = wall(BASE), w = Date.UTC(d.year, d.month - 1, d.day + k, h, m); let t = w; for (let i = 0; i < 2; i++) { const x = wall(t); t += w - Date.UTC(x.year, x.month - 1, x.day, x.hour, x.minute) } return new Date(t).toISOString() };
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
