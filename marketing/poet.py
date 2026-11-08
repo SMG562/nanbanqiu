@@ -43,6 +43,8 @@ def scholar(x, y, s, robe='#EDE6D3', sash='#C23A2B', flip=1, arm='up', woman=Fal
         o.append(f'<path d="M{X(6):.1f} {Y(76):.1f} Q{X(16):.1f} {Y(96):.1f} {X(20):.1f} {Y(116):.1f} L{X(26):.1f} {Y(114):.1f} Q{X(28):.1f} {Y(92):.1f} {X(14):.1f} {Y(70):.1f}Z" fill="{robe}"/>')
         o.append(f'<path d="M{hx:.1f} {hy:.1f} L{X(30):.1f} {Y(146):.1f}" stroke="#3A2A1E" stroke-width="{2.4 * s:.1f}" stroke-linecap="round"/>'
                  f'<ellipse cx="{X(34):.1f}" cy="{Y(160):.1f}" rx="{7 * s:.1f}" ry="{11 * s:.1f}" transform="rotate({16 * flip} {X(34):.1f} {Y(160):.1f})" fill="none" stroke="#3A2A1E" stroke-width="{1.8 * s:.1f}"/>')
+    elif arm == 'none':  # 空手，袖子垂着
+        o.append(f'<path d="M{X(6):.1f} {Y(76):.1f} Q{X(16):.1f} {Y(60):.1f} {X(20):.1f} {Y(42):.1f} L{X(12):.1f} {Y(40):.1f} Q{X(8):.1f} {Y(56):.1f} {X(0):.1f} {Y(70):.1f}Z" fill="{robe}"/>')
     else:  # 拍子垂在身侧
         o.append(f'<path d="M{X(6):.1f} {Y(76):.1f} Q{X(16):.1f} {Y(60):.1f} {X(20):.1f} {Y(42):.1f} L{X(12):.1f} {Y(40):.1f} Q{X(8):.1f} {Y(56):.1f} {X(0):.1f} {Y(70):.1f}Z" fill="{robe}"/>'
                  f'<path d="M{X(18):.1f} {Y(42):.1f} L{X(24):.1f} {Y(22):.1f}" stroke="#3A2A1E" stroke-width="{2.4 * s:.1f}" stroke-linecap="round"/>'
