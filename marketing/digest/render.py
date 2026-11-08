@@ -1,20 +1,58 @@
-import os, sys, importlib, tempfile
-sys_path_fix = None
+"""出图 + 自动检查：文字出界 / 被截断 / 压住、二维码解码、OCR 数字核对；另出一张「小红书信息流」缩略对比。
+用法：python3 marketing/digest/render.py [timetable:dark timetable:light treasure join]"""
+import os, sys, importlib, tempfile, re, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import common
-from playwright.sync_api import sync_playwright
-from PIL import Image
-import zxingcpp
+import common  # noqa: E402
+from playwright.sync_api import sync_playwright  # noqa: E402
+from PIL import Image, ImageDraw, ImageOps, ImageStat  # noqa: E402
+import zxingcpp  # noqa: E402
+HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.environ.get('DIGEST_OUT', '/tmp/digest_out'); os.makedirs(OUT, exist_ok=True)
-CHECK = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'build.py')).read().split("TEXT_CHECK = '''")[1].split("'''")[0].replace('H = 1350', 'H = 1440')
+SVG_CHECK = open(os.path.join(HERE, '..', 'build.py')).read().split("TEXT_CHECK = '''")[1].split("'''")[0].replace('H = 1350', 'H = 1440')
+HTML_CHECK = '''() => { const W = 1080, H = 1440, M = 24, out = [];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (w.nextNode()) { const n = w.currentNode, s = n.textContent.trim(); if (!s || n.parentElement.closest('svg')) continue;
+    const r = document.createRange(); r.selectNodeContents(n); const b = r.getBoundingClientRect();
+    if (b.left < M - 1 || b.right > W - M + 1 || b.top < M - 1 || b.bottom > H - M + 1) out.push(`出边/太靠边：「${s.slice(0, 14)}」`) }
+  for (const e of document.querySelectorAll('body *')) if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow === 'ellipsis') out.push(`被截断：「${e.textContent.trim().slice(0, 14)}」`);
+  return out }'''
+JOBS = sys.argv[1:] or ['timetable:dark', 'timetable:light', 'treasure', 'join']
+ok = True; covers = []
 with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
-    b = p.chromium.launch(executable_path='/opt/pw-browsers/chromium'); pg = b.new_page(viewport={'width': 1080, 'height': 1440}, device_scale_factor=2)
-    for name in sys.argv[1:]:
-        h = os.path.join(tmp, name + '.html'); open(h, 'w').write(importlib.import_module(name).svg())
-        pg.goto('file://' + h); pg.wait_for_timeout(400)
-        png = os.path.join(OUT, name + '@2x.png'); pg.screenshot(path=png)
-        warn = pg.evaluate(CHECK); im = Image.open(png).convert('RGB')
-        im.resize((1080, 1440), Image.LANCZOS).save(os.path.join(OUT, name + '.jpg'), quality=92, subsampling=0)
+    b = p.chromium.launch(executable_path='/opt/pw-browsers/chromium' if os.path.exists('/opt/pw-browsers/chromium') else None)
+    pg = b.new_page(viewport={'width': 1080, 'height': 1440}, device_scale_factor=2)
+    for job in JOBS:
+        name, _, theme = job.partition(':'); mod = importlib.import_module(name)
+        doc = mod.html(theme) if theme else (mod.html() if hasattr(mod, 'html') else mod.svg())
+        out = name + ('-' + theme if theme else '')
+        h = os.path.join(tmp, out + '.html'); open(h, 'w').write(doc)
+        pg.goto('file://' + h); pg.evaluate('document.fonts.ready'); pg.wait_for_timeout(300)
+        png = os.path.join(OUT, out + '@2x.png'); pg.screenshot(path=png)
+        warn = pg.evaluate(HTML_CHECK) + pg.evaluate(SVG_CHECK)
+        im = Image.open(png).convert('RGB'); small = im.resize((1080, 1440), Image.LANCZOS)
+        jpg = os.path.join(OUT, out + '.jpg'); small.save(jpg, quality=92, subsampling=0)
         qrs = [r.text for r in zxingcpp.read_barcodes(im)]
-        print(name, im.size, '文字检查:', warn or '无问题', '| 二维码:', qrs or '无', '| 对得上' if not qrs or qrs[0] == common.URL else '| ✗ 网址不对')
+        # 数字核对 ①：页面上实际排出的文字里，必须有这些（逐字）
+        norm = lambda s: re.sub(r'[^0-9A-Za-z\u4e00-\u9fff]', '', s)
+        dom = norm(pg.evaluate('document.body.textContent'))
+        miss = [e for e in (mod.EXPECT() if hasattr(mod, 'EXPECT') else []) if norm(e) not in dom]
+        # 数字核对 ②：标题里的关键数字截出来 OCR，确认图上看得清（不是只在代码里对）
+        if hasattr(mod, 'HEADLINE'):
+            num, sel = mod.HEADLINE()
+            bb = pg.evaluate(f'(() => {{ const r = document.querySelector("{sel}").getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] }})()')
+            box = (int(bb[0]) - 8, int(bb[1]) + 4, int(bb[2]) + 8, int(bb[3]) - 4)
+            g = ImageOps.autocontrast(small.crop(box).convert('L'))
+            if ImageStat.Stat(g).mean[0] < 128: g = ImageOps.invert(g)
+            g = g.point(lambda v: 255 if v > 150 else 0); cp = os.path.join(tmp, out + '_head.png'); g.save(cp)
+            seen = subprocess.run(['tesseract', cp, '-', '--psm', '7', '-c', 'tessedit_char_whitelist=0123456789'], capture_output=True, text=True).stdout.strip()
+            if seen.replace(' ', '') != num: miss.append(f'标题数字 OCR 读成「{seen}」，应为 {num}')
+        bad = warn or miss or any(not q.startswith('https://nanbanqiu.app/') for q in qrs)
+        ok &= not bad
+        print(f'{"✗" if bad else "✓"} {out:16} 文字:{warn or "无问题"} | 二维码:{qrs or "无"} | 数字核对:{miss or "通过"}')
+        covers.append((out, small))
     b.close()
+# 小红书双列信息流里约 540 宽：把每张缩到那么大放在一起比
+sheet = Image.new('RGB', (40 + 560 * len(covers), 800), '#FFFFFF'); d = ImageDraw.Draw(sheet)
+for i, (n, im) in enumerate(covers): sheet.paste(im.resize((540, 720), Image.LANCZOS), (20 + 560 * i, 20)); d.text((20 + 560 * i, 760), n, fill='#666')
+sheet.save(os.path.join(OUT, '_feed.jpg'), quality=88)
+sys.exit(0 if ok else 1)

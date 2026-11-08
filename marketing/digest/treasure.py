@@ -1,10 +1,19 @@
 from common import *
 import math, json, random
 # 投影：固定范围，等距矩形（墨尔本纬度修正）
-LNG0, LNG1, LAT0 = 144.905, 145.215, -37.700
-X0, X1 = 30, 1050
-KX = (X1 - X0) / (LNG1 - LNG0); KY = KX / math.cos(math.radians(37.87)); Y0 = 150
-def P(lng, lat): return X0 + (lng - LNG0) * KX, Y0 + (LAT0 - lat) * KY
+COS = math.cos(math.radians(37.87))
+FIT = None
+def fit(pts, box=(40, 430, 1040, 1250), pad=.10, anchor=(144.965, -37.885)):
+    global FIT
+    xs = [p[0] for p in pts] + [anchor[0]]; ys = [p[1] for p in pts] + [anchor[1]]
+    w, h = max(xs) - min(xs), max(ys) - min(ys); lng0, lat0 = min(xs) - w * pad, max(ys) + h * pad
+    w *= 1 + 2 * pad; h *= 1 + 2 * pad
+    k = min((box[2] - box[0]) / w, (box[3] - box[1]) / (h / COS))   # 像素 / 经度
+    ox = box[0] + ((box[2] - box[0]) - w * k) / 2; oy = box[1] + ((box[3] - box[1]) - h / COS * k) / 2
+    FIT = (lng0, lat0, k, ox, oy)
+def P(lng, lat):
+    lng0, lat0, k, ox, oy = FIT
+    return ox + (lng - lng0) * k, oy + (lat0 - lat) * k / COS
 def path(pts, close=False): return 'M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in (P(*p) for p in pts)) + (' Z' if close else '')
 def smooth(pts):  # Catmull-Rom → 贝塞尔，手绘感的平滑海岸线
     q = [P(*p) for p in pts]; d = f'M{q[0][0]:.1f} {q[0][1]:.1f}'
@@ -25,7 +34,8 @@ VEN = [('Kooyong LTC',145.03,-37.8385,3,5),('Fawkner Park',144.9794,-37.838,2,3)
        ('Royal South Yarra',145.0062,-37.8355,1,1),('Syndal TC',145.1467,-37.8678,1,1),('North Balwyn TC',145.0782,-37.7993,1,2),('Blackburn TC',145.154,-37.8208,1,1),('Wheelers Hill TC',145.1878,-37.8987,1,1)]
 
 def svg():
-    random.seed(9)
+    random.seed(9); fit([(v[1], v[2]) for v in VEN])
+    KX = FIT[2]
     games = sum(v[3] for v in VEN); spots = sum(v[4] for v in VEN)
     paper, ink, water = '#F6EBD3', C['deep'], '#CBDDCF'
     # 海面：海岸线 + 画布左下角闭合
@@ -43,7 +53,7 @@ def svg():
 </g>'''
     cx, cy = P(144.963, -37.812); b += f'<g transform="translate({cx:.0f} {cy-26:.0f}) rotate(-20)" opacity=".35"><rect x="-22" y="-12" width="44" height="24" fill="none" stroke="{ink}" stroke-width="1.5"/><path d="M-11 -12V12M0 -12V12M11 -12V12M-22 0H22" stroke="{ink}" stroke-width="1"/></g>'
     bx, by = 190, 1150
-    b += f'<text x="{bx:.0f}" y="{by:.0f}" text-anchor="middle" font-family="{SERIF}" font-style="italic" font-size="19" letter-spacing="6" fill="{ink}" opacity=".5">PORT PHILLIP BAY</text>'
+    b += f'<text x="44" y="1170" font-family="{SERIF}" font-style="italic" font-size="15" letter-spacing="4" fill="{ink}" opacity=".5">PORT PHILLIP</text><text x="44" y="1192" font-family="{SERIF}" font-style="italic" font-size="15" letter-spacing="4" fill="{ink}" opacity=".5">BAY</text>'
     b += '<!--SUB-->'
     # 球场钉：按像素距离聚合，标签四向避让
     pins = []
@@ -51,7 +61,7 @@ def svg():
         x, y = P(v[1], v[2]); hit = next((p for p in pins if math.hypot(p['x']-x, p['y']-y) < 30), None)
         if hit: hit['g'] += v[3]; hit['s'] += v[4]; hit['n'].append(v[0])
         else: pins.append(dict(x=x, y=y, g=v[3], s=v[4], n=[v[0]]))
-    boxes = [(p['x']-20, p['y']-20, p['x']+20, p['y']+20) for p in pins] + [(0, 0, W, 390), (0, 1250, W, H), (100, 470, 420, 510)]
+    boxes = [(p['x']-20, p['y']-20, p['x']+20, p['y']+20) for p in pins] + [(0, 0, W, 390), (0, 1250, W, H), (60, 560, 360, 600), (30, 1150, 220, 1200), (540, 1215, 760, 1250)]
     def free(r): return all(r[2] < q[0] or r[0] > q[2] or r[3] < q[1] or r[1] > q[3] for q in boxes)
     labels = ''
     b += '<!--X-->'
@@ -59,38 +69,43 @@ def svg():
         r = 14 + min(p['s'], 5) * 2
         b += f'<ellipse cx="{p["x"]+4:.0f}" cy="{p["y"]+r*.85:.0f}" rx="{r*.9:.0f}" ry="{r*.28:.0f}" fill="{ink}" opacity=".28" filter="url(#bl6)"/>{ball(f"p{i}", round(p["x"]), round(p["y"]), r)}'
         if p['g'] > 1: boxes.append((p['x']+r*.8-14, p['y']-r*.8-14, p['x']+r*.8+14, p['y']-r*.8+14)); b += f'<circle cx="{p["x"]+r*.8:.0f}" cy="{p["y"]-r*.8:.0f}" r="12" fill="{ink}"/><text x="{p["x"]+r*.8:.0f}" y="{p["y"]-r*.8+5:.0f}" text-anchor="middle" font-family="{SANS}" font-weight="700" font-size="14" fill="{C["lime"]}">{p["g"]}</text>'
-        name = p['n'][0] + (f' 等 {len(p["n"])} 处' if len(p['n']) > 1 else ''); tw = len(name) * 8.6 + 10
-        for dx, dy, anc in ((r+8, 6, 'start'), (-r-8, 6, 'end'), (0, r+22, 'middle'), (0, -r-12, 'middle'), (r+4, r+14, 'start'), (r+4, -r, 'start'), (-r-4, r+14, 'end'), (-r-4, -r, 'end')):
+        name = p['n'][0] + (f' 等 {len(p["n"])} 处' if len(p['n']) > 1 else ''); info = f'{p["g"]} 局 · 缺 {p["s"]} 位'
+        tw = max(text_w(name, 16, True), text_w(info, 14)) + 6
+        for dx, dy, anc in ((r+8, -2, 'start'), (-r-8, -2, 'end'), (0, r+20, 'middle'), (0, -r-26, 'middle'), (r+4, r+12, 'start'), (-r-4, r+12, 'end'), (r+4, -r-14, 'start'), (-r-4, -r-14, 'end')):
             lx, ly = p['x'] + dx, p['y'] + dy; x0 = lx if anc == 'start' else lx - tw if anc == 'end' else lx - tw/2
-            rect = (x0, ly-15, x0+tw, ly+5)
+            rect = (x0, ly-15, x0+tw, ly+22)
             if x0 > 30 and x0 + tw < W - 30 and free(rect):
-                boxes.append(rect); labels += f'<text x="{lx:.0f}" y="{ly:.0f}" text-anchor="{anc}" font-family="{SANS}" font-weight="700" font-size="15" fill="{ink}" paint-order="stroke" stroke="{paper}" stroke-width="4" stroke-linejoin="round">{esc(name)}</text>'; break
+                st = f'paint-order="stroke" stroke="{paper}" stroke-width="5" stroke-linejoin="round"'
+                boxes.append(rect); labels += f'<text x="{lx:.0f}" y="{ly:.0f}" text-anchor="{anc}" font-family="{SANS}" font-weight="700" font-size="16" fill="{ink}" {st}>{esc(name)}</text><text x="{lx:.0f}" y="{ly+20:.0f}" text-anchor="{anc}" font-family="{SANS}" font-size="14" fill="{CLAY}" {st}>{info}</text>'; break
     b += labels
     for n, lng, lat in SUBURBS:
         x, y = P(lng, lat); w = len(n) * 13.5; r = (x - w/2, y - 13, x + w/2, y + 3)
         if 30 < r[0] and r[2] < W - 30 and free(r): boxes.append(r); b = b.replace('<!--SUB-->', f'<text x="{x:.0f}" y="{y:.0f}" text-anchor="middle" font-family="{SANS}" font-size="14" letter-spacing="5" fill="{ink}" opacity=".38">{n}</text><!--SUB-->')
     # ✕：空位最多的地方
-    top = max(pins, key=lambda p: p['s']); tx, ty = top['x'], top['y']; nx, ny = 120, 500
-    xmark = f'<g filter="url(#rough2)" stroke="{CLAY}" stroke-width="6" stroke-linecap="round" opacity=".9"><path d="M{tx-34:.0f} {ty-34:.0f} L{tx+34:.0f} {ty+34:.0f} M{tx+34:.0f} {ty-34:.0f} L{tx-34:.0f} {ty+34:.0f}"/></g>'
+    top = max(pins, key=lambda p: p['s']); tx, ty = top['x'], top['y']; nx, ny = 64, 590
+    xmark = f'<g filter="url(#rough)" fill="none" stroke="{CLAY}" stroke-width="3" stroke-linecap="round" opacity=".85"><path d="M{tx+40:.0f} {ty-6:.0f} C {tx+42:.0f} {ty-44:.0f}, {tx-36:.0f} {ty-48:.0f}, {tx-42:.0f} {ty-4:.0f} S {tx+8:.0f} {ty+46:.0f}, {tx+38:.0f} {ty+10:.0f} L {tx+30:.0f} {ty-20:.0f}"/></g>'
     b = b.replace('<!--X-->', xmark)
-    b += f'''<path d="M{nx+150} {ny+14} C {nx+230} {ny+40}, {tx-150:.0f} {ty-150:.0f}, {tx-40:.0f} {ty-44:.0f}" fill="none" stroke="{CLAY}" stroke-width="2" stroke-dasharray="5 6"/>
+    b += f'''<path d="M{nx+150} {ny+14} C {nx+220} {ny+30}, {tx-120:.0f} {ty-110:.0f}, {tx-34:.0f} {ty-38:.0f}" fill="none" stroke="{CLAY}" stroke-width="2" stroke-dasharray="5 6"/>
 <text x="{nx}" y="{ny}" font-family="{SERIF}" font-weight="700" font-size="24" fill="{CLAY}">这里明天最热闹。</text>'''
     # 罗盘 + 比例尺（海面上）
-    km5 = 5 / (111.32 * math.cos(math.radians(37.87))) * KX; sx, sy = 70, 1240
+    km5 = 5 / (111.32 * math.cos(math.radians(37.87))) * KX; sx, sy = 560, 1242
     b += f'''<g transform="translate(120 1010)" opacity=".7"><circle r="34" fill="none" stroke="{ink}" stroke-width="1.5"/><path d="M0 -46 L8 0 L0 46 L-8 0Z" fill="{ink}" opacity=".8"/><path d="M-46 0 L0 6 L46 0 L0 -6Z" fill="{ink}" opacity=".35"/><text y="-54" text-anchor="middle" font-family="{SERIF}" font-weight="700" font-size="18" fill="{ink}">N</text></g>
 <g opacity=".6"><path d="M{sx} {sy} v-8 M{sx} {sy} h{km5:.0f} v-8 M{sx+km5/2:.0f} {sy} v-5" stroke="{ink}" stroke-width="2" fill="none"/><text x="{sx+km5+10:.0f}" y="{sy}" font-family="{SANS}" font-size="15" fill="{ink}">5 km</text></g>'''
     # 头部：纸色渐隐压住地图上沿
     b += f'''<defs><linearGradient id="fadeT" x1="0" y1="0" x2="0" y2="1"><stop offset=".62" stop-color="{paper}"/><stop offset="1" stop-color="{paper}" stop-opacity="0"/></linearGradient></defs>
 <rect width="{W}" height="400" fill="url(#fadeT)"/>
-{tag('TREASURE MAP · TOMORROW', y=104, color=ink, rule=CLAY)}{demo_badge(ink=ink)}
-{headline(['明天，墨尔本', f'有 {spots} 个空位。'], y=222, size=68, lh=86, colors=(ink, CLAY))}
-{sub(f'{DATE_ZH}　·　{games} 局还在找人　·　{len(VEN)} 个球场', y=358, size=23, color=ink, op=.7, ls=3)}
+{tag(f'TREASURE MAP · NO.{ISSUE}', y=104, color=ink, rule=CLAY)}{demo_badge(ink=ink)}
+{headline(['明天，墨尔本', f'有 <tspan id="hn">{spots}</tspan> 个空位。'], y=222, size=68, lh=86, colors=(ink, CLAY))}
+{sub(f'{DATE_ZH}　·　{games} 局在找人　·　{len(VEN)} 个球场　·　{WEATHER}', y=358, size=22, color=ink, op=.7, ls=2)}
 <text x="1040" y="1278" text-anchor="end" font-family="{SANS}" font-size="13" fill="{ink}" opacity=".45">地图示意 · 球场位置 © OpenStreetMap contributors</text>
 <path d="M0 1300 Q 270 1286 540 1298 T 1080 1294 V{H} H0Z" fill="{ink}"/>
-<text x="84" y="1368" font-family="{SANS}" font-weight="700" font-size="21" fill="{C['cream']}">几点、什么水平</text>
-<text x="84" y="1398" font-family="{SANS}" font-size="17" fill="{C['cream']}" opacity=".6">看下一张时刻表 →</text>
+<text x="84" y="1368" font-family="{SANS}" font-weight="700" font-size="21" fill="{C['cream']}">几点、什么水平、球局码</text>
+<text x="84" y="1398" font-family="{SANS}" font-size="17" fill="{C['cream']}" opacity=".6">往后翻，看时刻表 →</text>
 {wordmark(1358, '#fff')}
 <text x="996" y="1368" text-anchor="end" font-family="{SANS}" font-weight="700" font-size="21" fill="{C['lime']}">搜索「南伴球」</text>
 <text x="996" y="1398" text-anchor="end" font-family="{SANS}" font-size="17" fill="{C['cream']}" opacity=".6">nanbanqiu.app</text>
 {grain(.22, light=True)}'''
     return page(b)
+
+EXPECT = lambda: [f'{sum(v[4] for v in VEN)}个空位', f'{sum(v[3] for v in VEN)}局在找人']
+HEADLINE = lambda: (str(sum(v[4] for v in VEN)), '#hn')

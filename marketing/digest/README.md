@@ -1,9 +1,20 @@
-# 每日球局海报 · 原型（ADR 0009 待定）
+# 每日球局海报 · 原型 v2（ADR 0009 待定）
 
-用**演示数据**画的两张样稿（3:4，1080×1440，2 倍渲染），只给所有者看效果，**还没接数据库、定时任务和后台**。
+用**演示数据**画的样稿（小红书 3:4，1080×1440，2 倍渲染），只给所有者看效果，**还没接数据库、定时任务和后台**。
 
-- `timetable.py`：明日时刻表（4–10 局）· `treasure.py`：明日寻宝图（>10 局）· `common.py`：尺寸、二维码、日期
-- 出图：`python3 marketing/digest/render.py timetable treasure`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
-- 依赖：Playwright（Python）+ Noto CJK 字体（同 `marketing/build.py`），另需 `segno`（画二维码）、`zxing-cpp`（解码校验二维码）——新依赖，要在 ADR 0009 拍板时一起批
-- 自动检查：文字出界 / 互相压住（复用 build.py 的检查）、二维码解码后与网址一致
-- 地图底图是手描近似（示意），正式版按 ADR 从 OpenStreetMap 简化生成；球场坐标来自 `tools/venue_geo.json`
+| 文件 | 内容 |
+|---|---|
+| `timetable.py` | 明日时刻表，**HTML/CSS 排版**（换行、截断、对齐交给浏览器），`dark` / `light` 两套主题 |
+| `treasure.py` | 明日寻宝图（SVG）：按球场分布**自动取景**、**真实字体测宽**做标签避让、两行标签「几局 · 缺几位」、最热闹处画手绘圈 |
+| `join.py` | 怎么加入（固定页，每期最后一张）：三步、水平怎么看、小提示 |
+| `common.py` | 尺寸、日期、二维码、期号 / 天气 / 上一期成局（演示值）、水平叫法、测宽 |
+| `render.py` | 出图 + 自动检查（任何一项不过，退出码非 0） |
+| `样稿/` | 出好的图；`信息流对比.jpg` 是缩到小红书双列信息流大小（约 540 宽）的并排对比 |
+
+出图：`python3 marketing/digest/render.py [timetable:dark timetable:light treasure join]`（输出到 `$DIGEST_OUT`，默认 `/tmp/digest_out`）
+
+**自动检查**：① 文字出界 / 互相压住 / 被省略号截断 ② 二维码解码后是 nanbanqiu.app 的网址 ③ 数字核对两层：页面上排出的文字里逐字有「13 个空位」「8 局在找人」等；标题里的空位数按它在页面上的位置截出来做 OCR，读出来必须**完全等于**数据（已验证：把期望改成 31 会报错）。
+
+**依赖**（新增的要随 ADR 0009 一起批）：Playwright（Python）+ Noto CJK（同 `build.py`）；新：`segno`（画二维码）、`zxing-cpp`（解码校验）、Tesseract + chi_sim（OCR）、Inter 字体（数字，OFL 开源）。
+
+**待定 / 示意**：水平叫法（新手 / 进阶 / 中级 / 中高 / 高手 的 UTR 分档）是提议；天气、期号、「上一期成了几局」是演示值；底图海岸线是手描近似，正式版从 OpenStreetMap 简化生成。
