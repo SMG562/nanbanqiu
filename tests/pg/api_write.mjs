@@ -64,6 +64,7 @@ try {
   r = await call('POST', '/api/buddies/requests', tQ, { to_user: Q }); T('球友：扫自己 → 422 buddy_self', r.s === 422 && r.j.error === 'buddy_self', r);
   r = await call('POST', '/api/buddies/requests', tQ, { to_user: P }); const brq = r.j && r.j.id; T('球友：Q 扫 P → pending', r.s === 200 && r.j.status === 'pending' && !!brq, r);
   r = await call('GET', '/api/buddies', tP); T('球友：P 看到 Q 的申请', r.s === 200 && r.j.incoming.length === 1 && r.j.incoming[0].from_user === Q && r.j.buddies.length === 0, r);
+  T('球友：带上申请人的球员卡（画头像和名字用）', r.j.profiles && r.j.profiles[Q] && r.j.profiles[Q].nickname === '球友Q' && Object.keys(r.j.profiles).length === 1, r.j.profiles);
   r = await call('POST', `/api/buddies/requests/${brq}/accept`, tQ); T('球友：发起人自己确认 → 404', r.s === 404 && r.j.error === 'not_found', r);
   r = await call('POST', '/api/buddies/requests/abc/accept', tP); T('球友：id 不是 uuid → 404', r.s === 404, r);
   r = await call('POST', `/api/buddies/requests/${brq}/accept`, tP); T('球友：P 确认 → buddies', r.s === 200 && r.j.status === 'buddies', r);

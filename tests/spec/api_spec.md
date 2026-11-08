@@ -379,7 +379,7 @@
 
 ### 球友（#110 PR-A，迁移 20261108_buddies）：当面扫码加球友
 - 关系只有两种来源：一起打过（`nbq_played_together` 实时算，不落表）· 当面扫码 + 对方确认（`buddies`，`user_a < user_b` 一对一行）。没有远程申请入口（前台只在扫码落地页提供）
-- `GET /api/buddies` · `api_buddies()` → `{buddies:[{user_id, since}], incoming:[{id, from_user, created_at, expires_at}], outgoing:[{id, to_user, created_at, expires_at}]}`；去掉封禁 / 注销的人和有屏蔽关系的人；outgoing 含被忽略但未失效的（不给状态）
+- `GET /api/buddies` · `api_buddies()` → `{buddies:[{user_id, since}], incoming:[{id, from_user, created_at, expires_at}], outgoing:[{id, to_user, created_at, expires_at}], profiles:{id: 球员卡}}`（profiles 由接口层按这三组里的人取，和 /api/invites 一样）；去掉封禁 / 注销的人和有屏蔽关系的人；outgoing 含被忽略但未失效的（不给状态）
 - `POST /api/buddies/requests {to_user}` · `api_buddy_request(p_to)` → `{status:'pending', id}` 或 `{status:'buddies'}`。检查（顺序）：账号不是正常状态 403 `account_*`（暂停到期按正常）→ 扫自己 422 `buddy_self` → 对方不存在 / 封禁 / 注销 404 → 屏蔽 403 `blocked` → 已是球友 → buddies → 对方已在等我确认 → 直接成为球友（通知对方 buddy_accepted）→ 24 小时内已有一条（含被忽略的）→ 返回那条、不重复提醒 → 30 天内被同一人忽略 2 次或 24 小时内已发 10 个 429 `buddy_limit` → 新建，通知对方 buddy_request
 - `POST /api/buddies/requests/:id/accept | ignore` · `api_buddy_respond(p_id, 'accept'|'ignore')` → `{status:'buddies'|'ignored'}`；只有被扫的人能处理（别人 404）；已处理 / 超过 24 小时 409 `buddy_request_ended`；确认通知发起人 buddy_accepted，忽略不通知任何人
 - `DELETE /api/buddies/:uid` · `api_buddy_remove(p_user)`：删除，不通知；一起打过的关系不受影响

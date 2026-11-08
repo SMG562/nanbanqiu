@@ -227,7 +227,8 @@ const ROUTES = {
     return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   // 球友（#110 PR-A）：当面扫码 → 申请 → 对方确认 / 忽略；规则全在 api_buddy_* 里（pg/buddies 测），被忽略的申请对发起人仍显示为等待
-  'GET /api/buddies': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_buddies() as v')).v, { body: false }),
+  'GET /api/buddies': (req, d, p) => act(req, d, p, async q => { const v = (await one(q, 'select api_buddies() as v')).v;   // 带上相关的人的球员卡（和 /api/invites 一样），前台画头像和名字
+    return { ...v, profiles: await cardsOf(q, [...v.buddies.map(x => x.user_id), ...v.incoming.map(x => x.from_user), ...v.outgoing.map(x => x.to_user)]) } }, { body: false }),
   'POST /api/buddies/requests': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.to_user) || '')) throw bad(); return (await one(q, 'select api_buddy_request($1, $2) as v', [b.to_user, str(b.source)])).v }),
   'POST /api/buddies/requests/:id/accept': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'accept') as s", [x.id])).s }), { ids: ['id'], body: false }),
   'POST /api/buddies/requests/:id/ignore': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'ignore') as s", [x.id])).s }), { ids: ['id'], body: false }),
