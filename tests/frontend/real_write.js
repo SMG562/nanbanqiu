@@ -1,6 +1,7 @@
 // 5g-3 前台接入第 4 轮（4b）：球局写操作在真实模式（nanbanqiu.app）走接口（两端，假 Supabase + 有状态的假 /api）：
 //   申请 · 退出 · 申请失败（错误码提示）· 同意 · 婉拒（原因映射）· 取消 · 发局 · 球友约定 · 连点只发一次 · 改局 / 放宽 / 顺延 / 确认改动（4c） · 全程没有页面报错
 //   流程：先调接口 → 成功后重新读入 → 页面以服务器为准；点击走真实的 data-a 事件处理，不是直接调函数
+const { waitUntil } = require('../lib/wait');
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
@@ -57,7 +58,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const click = async (attrs, extra = '') => { await pg.evaluate(([a, x]) => { const el = document.createElement('button'); el.id = '__t'; Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); const host = typeof DEV !== 'undefined' ? DEV : document.body; host.appendChild(el); if (x) { const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = x; host.appendChild(t) } el.click(); el.remove(); const t = document.getElementById('applyMsg'); if (t && x) t.remove() }, [attrs, extra]); await pg.settle(700) };
     const mine = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? api.get(i).mine : undefined }, id);
     const st = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? g.status : undefined }, id);
-    const until = async (fn, n = 24) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(300) } return false };   // 11-05（#40）：先等条件成立再断言——固定 settle 在 CI / 并行负载下不够，红的断言每次不一样
+    const until = (fn, n = 24) => waitUntil(pg, fn, { ms: n * 300, ignoreErrors: true });   // tests/lib/wait.js：按真实时间等，不按次数
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);

@@ -1,6 +1,7 @@
 // 5g-3 前台接入第 6 轮（6a）：邀约在真实模式（nanbanqiu.app）走接口（两端，假 Supabase + 有状态的假 /api）：
 //   收到邀约：接受 · 换个时间 · 婉拒（原因）· 撤回；发邀约（含失败的错误码提示）；邀约类通知读入。
 //   流程：先调接口 → 成功后重新读入 → 页面以服务器为准；点击走真实的 data-a 事件处理，不是直接调函数
+const { waitUntil } = require('../lib/wait');
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
@@ -51,7 +52,7 @@ const at = (k, h, m = 0) => { const d = wall(BASE), w = Date.UTC(d.year, d.month
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
     const inv1 = id => pg.evaluate(i => { const x = INVITES.find(v => v.id === i); return x && { status: x.status, o: x.o, t: x.t, e: x.e, no: x.no, noNote: x.noNote, counter: x.counter, game_id: x.game_id, venue_id: x.venue_id } }, id);
     const tap = async sel => { await pg.click(sel); await pg.settle(700) };
-    const until = async fn => { const end = Date.now() + 6000; while (Date.now() < end) { if (await fn()) return; await pg.settle(300) } };   // 读入是异步的，等到页面反映出来再断言；按真实时间等满 6 秒：页面只在等接口时 settle 会提前返回，按次数数实际只等 1–2 秒，CI 慢时登录没完成就往下走（ME 为 null）
+    const until = fn => waitUntil(pg, fn);   // tests/lib/wait.js：按真实时间等，不按次数
     const st = (id, v) => until(async () => { const x = await inv1(id); return x && x.status === v });
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);

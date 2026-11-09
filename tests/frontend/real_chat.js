@@ -1,6 +1,7 @@
 // 5g-3 前台接入第 6 轮（6b）：聊天在真实模式（nanbanqiu.app）走接口（两端，假 Supabase + 有状态的假 /api）：
 //   会话列表读入（最后一句 / 未读）· 点开读消息并标已读 · 发消息（失败提示、输入框保留）· 新消息轮询（输入到一半的字保留）· 球局群聊首次点开才在服务器建。
 //   流程：先调接口 → 成功后重新读入 → 页面以服务器为准；点击走真实的 data-a 事件处理，不是直接调函数
+const { waitUntil } = require('../lib/wait');
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
@@ -49,7 +50,7 @@ let BASE = Date.now();
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
-    const until = async fn => { const end = Date.now() + 6000; while (Date.now() < end) { if (await fn()) return; await pg.settle(300) } };   // 按真实时间等满 6 秒：页面只在等接口时 settle 会提前返回，按次数数实际只等 1–2 秒，CI 慢时登录没完成就往下走（ME 为 null）
+    const until = fn => waitUntil(pg, fn);   // tests/lib/wait.js：按真实时间等，不按次数
     const msgsText = () => pg.evaluate(() => (document.getElementById('cxMsgs') || {}).innerText || '');
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);
