@@ -27,6 +27,9 @@ import os from 'os';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { selectByChanged, matches, updateFailed, missingFrom, touchedNames, regressionHits } from './lib/select.mjs';
+// 11-10（环境假设第二次）：CI 两个工作流都设了 TZ=Australia/Melbourne，本地 / 云端会话却用机器时区（常是 UTC），
+//   同一个测试本地红、CI 绿（real_invite 在 Node 里造的 09:00 变 20:00，被误判成「本来就坏」）。本地也固定成和 CI 一样；NBQ_TZ 可改。
+process.env.TZ = process.env.NBQ_TZ || 'Australia/Melbourne';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(process.env.NBQ_DIR || path.join(HERE, '..'));

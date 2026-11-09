@@ -5,7 +5,7 @@
  *   2. 固定随机数：页面里的 Math.random 换成带种子的伪随机（NBQ_SEED），每次运行结果一致，快照可比对。
  *   3. 文件位置：脚本里写死的 file:///mnt/user-data/outputs/ 自动改到 NBQ_DIR（被测文件所在目录）。
  *   4. 浏览器：统一用 NBQ_CHROMIUM（默认 /opt/pw-browsers/chromium），没有就用 Playwright 自带的。
- *   5. 时区固定为墨尔本（NBQ_TZ 可改），与跑测试的机器无关。
+ *   5. 时区固定为墨尔本（NBQ_TZ 可改），页面和测试脚本（Node）两侧都是，与跑测试的机器无关、与 CI 一致。
  *   6. 外网请求一律拦掉（CDN、Google 等），避免网络状况影响结果；页面已经为离线做了兜底。
  *   7. 等页面安静（E2）：page.settle(最多毫秒)——在「最多毫秒」之内会到期的短定时器（≤ 2 秒）都执行完了、没有待执行的
  *      requestAnimationFrame、在那之前会结束的动画（含 Shadow DOM 里的）都结束了，连续两次检查（50 毫秒一次）都这样就继续。
@@ -16,6 +16,8 @@ const path = require('path');
 const fs = require('fs');
 const Module = require('module');
 
+// 测试脚本自己（Node 这一侧）也按页面同一时区算时间，和 CI（TZ=Australia/Melbourne）一致；直接 node -r preload 跑时同样生效
+process.env.TZ = process.env.NBQ_TZ || 'Australia/Melbourne';
 const NBQ_DIR = path.resolve(process.env.NBQ_DIR || path.join(__dirname, '..', '..'));
 const NBQ_TS = +new Date(process.env.NBQ_TS || '2026-10-14T15:10:00+11:00');
 const NBQ_SEED = (+process.env.NBQ_SEED || 20261014) >>> 0;
