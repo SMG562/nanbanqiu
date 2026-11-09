@@ -5,7 +5,7 @@ from lib import SERIF, SANS
 
 def frame(p, no, title, sub, info, ink='#1E2A22', sub_c='#4A5A50', info_c='#6A7A70', mark_c=None, total=4):
     mark_c = mark_c or ink
-    p.append(f'<text x="72" y="86" font-family="{SANS}" font-weight="500" font-size="18" letter-spacing="6" fill="{info_c}">南伴球 · 瞬间　{no:02d} / {total:02d}</text>')
+    p.append(f'<text x="72" y="86" font-family="{SANS}" font-weight="500" font-size="18" letter-spacing="6" fill="{info_c}">南伴球 · 瞬间　{no:02d}' + (f' / {total:02d}' if total else '') + '</text>')
     p.append(f'<text x="68" y="1178" font-family="{SERIF}" font-weight="900" font-size="92" fill="{ink}">{title}</text>')
     p.append(f'<text x="74" y="1236" font-family="{SANS}" font-weight="500" font-size="30" fill="{sub_c}">{sub}</text>')
     p.append(f'<text x="74" y="1290" font-family="{SANS}" font-weight="500" font-size="20" letter-spacing="3" fill="{info_c}">{info}</text>')
