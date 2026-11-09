@@ -124,6 +124,7 @@ add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
 add('frontend', 'frontend/late_join', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/late_join.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 开打后 30 分钟内仍可申请（11-04）
+add('frontend', 'frontend/intro', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro.js')], { pass: [/intro: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条（11-08）
 add('frontend', 'frontend/invite_form', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/invite_form.js')], { pass: [/invite_form: \d+ passed, 0 failed/], timeout: 300 });   // 约 TA 表单：滚动不跳、发送条固定、说一句快捷短语
 add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/input_visible.js')], { pass: [/input_visible: \d+ passed, 0 failed/], timeout: 300 });   // 键盘弹出时每个弹层输入框都看得见、点得到
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致

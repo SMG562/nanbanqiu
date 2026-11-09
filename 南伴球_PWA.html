@@ -1252,6 +1252,41 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .nback{display:inline-grid;place-items:center;width:34px;height:34px;margin:0 2px 0 -10px;color:var(--ink);vertical-align:-4px}
 .nback svg{width:22px;height:22px;transform:rotate(180deg)}
 .li .ico.sb{background:#1E5A44}
+/* ===== 首页引导条（11-08，见 shared/script/0500）：品牌深绿 + 荧光黄绿，两端同一份；窄屏文字压在画上，宽屏画在右边 ===== */
+.nbq-intro{display:grid;grid-template-rows:1fr;transition:grid-template-rows .36s cubic-bezier(.3,.7,.2,1),opacity .24s,margin .36s}
+.nbq-intro>.ni-box{min-height:0;overflow:hidden;position:relative;isolation:isolate;border-radius:18px;background:#0B3B2A;color:#F7EBD6}
+.nbq-intro.shut{grid-template-rows:0fr;opacity:0;margin-top:0!important;margin-bottom:0!important}
+.nbq-intro .ni-art{position:absolute;inset:0;width:100%;height:100%;z-index:-1;display:block}
+.nbq-intro .ni-box::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#0B3B2A 0%,rgba(11,59,42,.9) 55%,rgba(11,59,42,0) 100%);pointer-events:none}
+.nbq-intro .ni-txt{padding:16px 56px 16px 16px}
+.nbq-intro .ni-eb{font-size:11px;font-weight:700;letter-spacing:.14em;color:#C6EA3D}
+.nbq-intro .ni-eb span{color:#A9C7B6;letter-spacing:.04em;font-weight:600}
+.nbq-intro h2{margin:6px 0 0;font:900 21px/1.34 "Songti SC","Noto Serif CJK SC","Noto Serif SC","Source Han Serif SC",serif;letter-spacing:.02em;color:#F7EBD6}
+.nbq-intro h2 em{font-style:normal;color:#C6EA3D}
+.nbq-intro .ni-st{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;font-weight:600;color:#D9E6DE;counter-reset:ni}
+.nbq-intro .ni-st li{display:flex;align-items:center;gap:5px;white-space:nowrap;counter-increment:ni}
+.nbq-intro .ni-st li::before{content:counter(ni);font-size:10.5px;font-weight:800;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:rgba(198,234,61,.16);color:#C6EA3D}
+.nbq-intro .ni-st li+li{padding-left:20px;position:relative}
+.nbq-intro .ni-st li+li::after{content:"";position:absolute;left:3px;top:50%;width:12px;height:1px;background:#5E8A74}
+.nbq-intro .ni-x{position:absolute;top:4px;right:4px;width:44px;height:44px;border:0;background:none;color:#CFE0D6;font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:1;padding:0}
+.nbq-intro .ni-x::before{content:"";position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);z-index:-1}
+.nbq-intro .ni-x:focus-visible{outline:2px solid #C6EA3D;outline-offset:-4px;border-radius:50%}
+.nbq-intro .ni-lamp{display:none}   /* 窄屏文字压在画上，灯杆会从文字后面露出来 */
+.nbq-intro .ni-ball{transform-box:fill-box;transform-origin:center bottom;animation:niHop .7s .15s cubic-bezier(.3,.6,.4,1) both}
+@keyframes niHop{0%{transform:translateY(-34px)}55%{transform:translateY(0) scale(1.06,.9)}75%{transform:translateY(-6px)}100%{transform:none}}
+@media (min-width:720px){
+  .nbq-intro .ni-box{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:140px}
+  .nbq-intro .ni-box::after{display:none}
+  .nbq-intro .ni-lamp{display:inline}
+  .nbq-intro .ni-art{position:static;grid-column:2;grid-row:1;z-index:auto}
+  .nbq-intro .ni-txt{padding:22px 28px;align-self:center}
+  .nbq-intro h2{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){.nbq-intro{transition:none}.nbq-intro .ni-ball{animation:none}}
+/* 放在哪：手机端在顶栏里（筛选条上面），网页端在导航下、三栏上面 */
+.topbar #introHost .nbq-intro{margin:2px 0 10px}
+.intro-host{max-width:1600px;margin:0 auto;padding:18px 20px 0}
+.intro-host:empty{display:none}
 </style>
 </head>
 <body>
@@ -1294,6 +1329,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
         <div class="wxtip" data-a="wxguide">🔔 用 Safari 打开，能收到通知，也不再弹提示<b>怎么打开 ›</b></div>
         <div class="tb-row"><div class="logo"><svg><use href="#logo"/></svg>南伴球</div>
           <div class="seg" id="modeSeg"><button data-mode="cal" class="on">日程</button><button data-mode="map">地图</button></div><button class="tbell" data-tab="notif" aria-label="消息"><svg><use href="#i-bell"/></svg><span class="badge" id="nBadge" hidden></span></button></div>
+        <div id="introHost"></div>
         <div class="chips" id="chips"></div>
         <div class="week" id="week"></div>
       </div>
@@ -2058,7 +2094,7 @@ const API_ERR={"login_required":"请先登录","forbidden":"没有权限做这�
 const NICK_BAD=n=>/[\u0001-\u001F\u007F​-‏‪-‮⁠-⁤﻿]/.test(n)?'昵称里有不支持的字符':/(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|au|cn|io|me|co)(?![a-z]))/i.test(n)?'昵称里不能有链接':(/[0-9０-９]{8,}/.test(n.replace(/[\s\-.()]/g,''))||/(微信|威信|薇信|v信|vx|wx号|wxid|weixin|wechat|加v|加微|whatsapp|telegram|line ?id|qq|扣扣)/i.test(n))?'昵称里不能有联系方式':/(官方|南伴球|客服|管理员|系统|admin|official|support|staff)/i.test(n)?'昵称不能用「官方」「客服」等字样':/(.)\1{4,}/u.test(n)?'昵称不能连续重复同一个字':'';
 const apiErrText=code=>API_ERR[code]||'出了点问题，请再试一次';
 function go(tab){if(tab!=='notif'&&UI.tab!==tab)UI.back=tab;UI.tab=tab;$$('#tabbar [data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));['disc','mine','side','notif','me'].forEach(t=>$('#scr-'+t).hidden=t!==tab);if(tab==='side')sbBoot();
-  if(tab==='disc'&&!LOC.asked)setTimeout(openLocSheet,300);render()}
+  if(tab==='disc'&&!LOC.asked&&!nbqIntroShowing())setTimeout(openLocSheet,300);render()}   // 引导条在的时候这次不问位置（0500）
 const INV_OPEN=h=>openSheet(h,false),INV_CLOSE=()=>closeSheet(),INV_BANNER=(t,b,f)=>pushBanner(t,b,f),INV_GAME=id=>{closeSheet();openDetail(id)},INV_RENDER=()=>render();
 
 /* ===================== 约 TA 打球（结构化邀约，不是聊天） =====================
@@ -4673,6 +4709,7 @@ const commHTML=()=>'';
 
 /* ---------- 发现 ---------- */
 function renderDisc(){
+  nbqIntroSync($('#introHost'),UI.tab==='disc');
   const lvT=F.levels.size?'UTR '+[...F.levels].sort().map(i=>UB[i][2]).join(' / '):'全部水平';
   $('#chips').innerHTML=`<button class="chip" data-a="loc"><svg><use href="#i-pin"/></svg>${esc(LOC.label)} · ${F.radius} km</button>
     <button class="chip${F.levels.size?' on':''}" data-a="filter">${lvT}</button>
@@ -5718,6 +5755,66 @@ function rkAct(a){const d=a.dataset,L=rkList();
       return void rkCommit(n,'已设为主力',a)}
     case'rkDel':{if(!L||!L[RK.i])return;const r=L[RK.i];return void rkCommit(L.filter((_,j)=>j!==RK.i),'已移除 '+rkName(r),a)}
   }}
+/* ===== 首页引导条：显示规则（纯函数，不碰页面；tests/unit/intro_rules.mjs 在空沙盒里测）=====
+ * 只给「第一次来、没登录、直接打开首页」的人看一眼南伴球是干什么的；任何一条不满足就不显示。
+ *   on 开关 · loggedIn 已登录或本机有登录快照 / 令牌 · seen 本机看过 · standalone 从主屏幕打开 · deep 从分享 / 推送 / 球局链接进来 */
+function nbqIntroDecide(c){c=c||{};return c.on&&!c.loggedIn&&!c.seen&&!c.standalone&&!c.deep?'show':'off'}
+/* ===== 首页引导条（11-08）=====
+ * 看一眼就走，不要求任何操作：往下滑 / 点开一场球 / 点 × / 按 Esc / 登录 —— 任何一种都算看过，本机以后不再出现。
+ * 规则见 0499 nbqIntroDecide。从分享 / 推送 / 球局链接进来：这次不显示，也不算看过（下次直接打开首页再给他看）。
+ * 显示期间手机端不自动弹位置授权（0120 go），避免一打开就两层；下次回到首页照常问。
+ * 本机记录 nbq_intro = {v:1,at,by}；存储读写失败只记在内存里（这次打开内不再出现）。
+ * 开关：分支预览（staging）和预览站默认开；正式站 localStorage nbq_ff_intro=1 单独打开。
+ * 不单独埋点（加事件要改库里的事件表）：效果用现有的 session_start(entry=direct) + game_view 做上线前后对比。 */
+const NBQ_INTRO_K='nbq_intro';
+const NBQ_INTRO=(()=>{const s={on:false,deep:false,state:null,mem:false};
+  try{s.on=typeof NBQ_ENV!=='undefined'&&(NBQ_ENV==='staging'||NBQ_ENV==='preview')||localStorage.getItem('nbq_ff_intro')==='1'}catch(_){}
+  // 落地网址在启动路由改写 hash 之前记下
+  try{s.deep=/^#\/./.test(location.hash)||/\/(g|u|p)\//.test(location.pathname)||(typeof AN!=='undefined'&&(AN.entry==='share'||AN.entry==='push'))}catch(_){}
+  return s})();
+function nbqIntroSeen(){if(NBQ_INTRO.mem)return true;try{const j=JSON.parse(localStorage.getItem(NBQ_INTRO_K)||'null');return !!(j&&j.v>=1)}catch(_){return false}}
+function nbqIntroLoggedIn(){if(typeof ME!=='undefined'&&ME)return true;try{if(localStorage.getItem('nbq_snap'))return true}catch(_){}
+  try{return typeof SBA!=='undefined'&&SBA.on()&&!!SBA.session()}catch(_){return false}}
+function nbqIntroShowing(){
+  if(NBQ_INTRO.state==='done')return false;
+  const st=nbqIntroDecide({on:NBQ_INTRO.on,loggedIn:nbqIntroLoggedIn(),seen:nbqIntroSeen(),standalone:typeof AENV!=='undefined'&&AENV.standalone,deep:NBQ_INTRO.deep});
+  if(st!=='show'){if(NBQ_INTRO.state==='show')nbqIntroDone('login');return false}
+  NBQ_INTRO.state='show';
+  return true}
+function nbqIntroDone(by){
+  if(NBQ_INTRO.state!=='show')return;NBQ_INTRO.state='done';NBQ_INTRO.mem=true;
+  try{localStorage.setItem(NBQ_INTRO_K,JSON.stringify({v:1,at:Date.now(),by}))}catch(_){}
+  const el=document.getElementById('nbqIntro');if(!el)return;
+  const rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.classList.add('shut');setTimeout(()=>el.remove(),rm?0:400)}
+function nbqIntroCount(){try{return api.list().filter(c=>!c.past&&dOff(c.start)>=0&&dOff(c.start)<7).length}catch(_){return 0}}
+const nbqIntroCountTxt=()=>{const n=nbqIntroCount();return n>=5?`· 附近这 7 天 ${n} 场`:''};   // 场数少时不显示，不显得冷清
+function nbqIntroHTML(){const city=typeof CITY!=='undefined'&&CITY.zh?CITY.zh:'';
+  return `<section class="nbq-intro" id="nbqIntro" aria-label="第一次来南伴球"><div class="ni-box">
+  <svg class="ni-art" viewBox="0 0 300 170" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"><defs>
+   <linearGradient id="niSk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B3B2A"/><stop offset="1" stop-color="#12482F"/></linearGradient>
+   <radialGradient id="niGl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF4C8" stop-opacity=".5"/><stop offset="1" stop-color="#FFF4C8" stop-opacity="0"/></radialGradient>
+   <radialGradient id="niBl" cx=".36" cy=".32" r=".72"><stop offset="0" stop-color="#E6F87F"/><stop offset=".68" stop-color="#C6EA3D"/><stop offset="1" stop-color="#8FAE1B"/></radialGradient></defs>
+   <rect width="300" height="170" fill="url(#niSk)"/><path d="M0 85H300V170H0Z" fill="#164F35"/>
+   <g stroke="#E8F1E9" stroke-opacity=".42" stroke-width="1.2" fill="none"><path d="M150 88H260L330 178H80Z"/><path d="M118 116H292M205 116V178"/></g>
+   <g class="ni-lamp"><line x1="110" y1="85" x2="110" y2="30" stroke="#062A1D" stroke-width="2.4"/><circle cx="110" cy="30" r="32" fill="url(#niGl)"/><rect x="103" y="28" width="14" height="5" rx="1.5" fill="#FFF8DC"/></g>
+   <ellipse cx="271" cy="146" rx="18" ry="3.5" fill="#04170F" opacity=".55"/>
+   <g class="ni-ball"><circle cx="268" cy="122" r="21" fill="url(#niBl)"/><path d="M249.5 113.6C262.8 119.9 262.8 133.6 259.2 140.5M278.5 104.4C271.6 115.1 273.3 127.3 287.3 129.8" stroke="#F7FBE6" stroke-width="2.2" fill="none" stroke-linecap="round"/></g></svg>
+  <button class="ni-x" data-a="introX" aria-label="知道了，关闭">×</button>
+  <div class="ni-txt"><div class="ni-eb">${esc(city)}华人网球约局 <span class="ni-n">${nbqIntroCountTxt()}</span></div>
+   <h2>想打球，缺个搭子？<br><em>在这里挑一场就行。</em></h2>
+   <ol class="ni-st"><li>挑一场</li><li>申请加入</li><li>球场见</li></ol></div></div></section>`}
+// 两端在渲染首页时调用：here = 现在是不是首页
+function nbqIntroSync(host,here){if(!host)return;const el=host.querySelector('#nbqIntro');
+  if(here&&nbqIntroShowing()){if(!el)host.innerHTML=nbqIntroHTML();else{const n=el.querySelector('.ni-n');if(n)n.textContent=nbqIntroCountTxt()}}
+  else if(el&&!el.classList.contains('shut'))el.remove()}
+document.addEventListener('click',e=>{if(NBQ_INTRO.state!=='show')return;const t=e.target;
+  if(t.closest('[data-a="introX"]')){e.stopPropagation();nbqIntroDone('x');return}
+  if(t.closest('[data-open],[data-sel]'))nbqIntroDone('open')},true);
+// 往下滑：只认用户自己的滚动手势（页面启动时程序自动滚到「现在」不算）
+const nbqIntroScroll=e=>{if(NBQ_INTRO.state==='show'&&!(e.target.closest&&e.target.closest('#nbqIntro')))nbqIntroDone('scroll')};
+document.addEventListener('wheel',nbqIntroScroll,{passive:true,capture:true});document.addEventListener('touchmove',nbqIntroScroll,{passive:true,capture:true});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&NBQ_INTRO.state==='show'&&document.getElementById('nbqIntro'))nbqIntroDone('x')});
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;

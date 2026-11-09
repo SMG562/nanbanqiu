@@ -4,6 +4,7 @@ const commHTML=()=>'';
 
 /* ---------- 发现 ---------- */
 function renderDisc(){
+  nbqIntroSync($('#introHost'),UI.tab==='disc');
   const lvT=F.levels.size?'UTR '+[...F.levels].sort().map(i=>UB[i][2]).join(' / '):'全部水平';
   $('#chips').innerHTML=`<button class="chip" data-a="loc"><svg><use href="#i-pin"/></svg>${esc(LOC.label)} · ${F.radius} km</button>
     <button class="chip${F.levels.size?' on':''}" data-a="filter">${lvT}</button>

@@ -113,6 +113,7 @@
   "sx:dlPoster": "baseline",
   "a:readAll": "baseline",
   "a:pushRecheck": "write:push_onboarding（授权后补订阅）",
+  "a:introX": "local（首页引导条的 ×：只在本机记「看过」nbq_intro，不写服务器；frontend/intro）",
   "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）",
   "a:rkSlot": "nav：打开空槽的选拍弹层 / 已有那把的操作弹层",
   "a:rkSwap": "nav：换一把 → 回到选品牌",
