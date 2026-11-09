@@ -4,12 +4,15 @@ name: staging-migrate
 #   · 手动（少数情况）：没合并的分支必须用真机看库结构变化时，输入 ref = 分支名。
 #   两种都要 staging 环境的审批人批准后才执行。
 # 安全边界（所有者定的要求）：
-#   · 只在 main 上运行（staging 环境只允许 main；下面还有一道 ref 检查）。工作流文件和检查脚本都来自 main。
+#   · 只在 main 上运行。真正的边界是 staging 环境的「只允许 main」+ 审批人（不能自己批自己）；下面的 GITHUB_REF 检查写在
+#     工作流文件里，从别的分支触发时会用那个分支的文件、可以被删掉，只算提示（#95 复核第 3 条）。工作流文件和检查脚本都来自 main。
 #   · 输入 ref = 要执行迁移的分支：只从它检出 server/migrations/*.sql，不执行它的任何其他文件。
 #   · 只执行文件名匹配 ^2026[0-9]{4}_[a-z0-9_]+\.sql$ 且 tools/migration_audit.mjs（main 的版本）通过的文件，按文件名顺序；
 #     schema_migrations 里已经记过的跳过（迁移本身可重复运行，重复触发也无害）。
 #   · 要执行的文件再过一道 tools/staging_migrate_check.mjs（main 的版本）：角色 / 权限 / 外联 / 内部 schema / 动态 SQL 等一律不执行，留给所有者手动执行。
 #   · 只连 staging 环境的 Secret NBQ_DB_URL_STAGING（所有者自己填，连接串不经过任何人）；运行前要所有者在 GitHub 批准。
+#   · 每个文件用 psql -1 -c "<文件内容>" 执行：-c 不经 psql 词法，\! \i \gexec 这类元命令到服务器只是语法错误（检查脚本也拦）；
+#     -1 让整个文件在一个事务里，失败不留半截（#95 复核第 1、4 条）。
 #   · 连接串只经环境变量传给 psql，日志不打印；结果（执行 / 跳过了哪些、schema_migrations 现状）写在 Summary。
 on:
   push:
@@ -58,7 +61,9 @@ jobs:
         run: |
           q() { psql "$PGURL" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
           has=$(q -c "select to_regclass('public.schema_migrations') is not null") || { echo "::error::连不上测试库"; exit 1; }   # 连不上就停，不当成「都没执行过」
-          [ "$has" = t ] && q -c "select version from schema_migrations" > /tmp/done.txt || : > /tmp/done.txt
+          if [ "$has" = t ]; then   # 查询失败就停，不当成「都没执行过」而全部重跑（#95 复核第 5 条）
+            q -c "select version from schema_migrations" > /tmp/done.txt || { echo "::error::读 schema_migrations 失败"; exit 1; }
+          else : > /tmp/done.txt; fi
           # 记录表迁移必须最先（和 tools/migrate_bundle.mjs 一样）
           { grep 'schema_migrations' /tmp/files.txt || true; grep -v 'schema_migrations' /tmp/files.txt || true; } | while read -r f; do
             grep -qxF "${f%.sql}" /tmp/done.txt || echo "$f"; done > /tmp/todo.txt
@@ -75,7 +80,10 @@ jobs:
           ran=()
           while read -r f; do
             echo "▶ $f"
-            q -f "server/migrations/$f" > /tmp/psql.log 2>&1 || { tail -n 20 /tmp/psql.log; echo "::error::$f 执行失败，停在这里（之前的文件已生效；迁移可重复运行，修好后重新触发即可）"; exit 1; }
+            [ "$(wc -c < "server/migrations/$f")" -lt 100000 ] || { echo "::error::$f 超过 100KB，请所有者手动执行"; exit 1; }
+            # 第一行固定是注释：-c 的内容以反斜杠开头才会被当成元命令，这里保证不会
+            q -1 -c "-- staging-migrate: $f"$'\n'"$(cat "server/migrations/$f")" > /tmp/psql.log 2>&1 \
+              || { tail -n 20 /tmp/psql.log; echo "::error::$f 执行失败，本文件已整体回滚，停在这里（之前的文件已生效；修好后重新触发即可）"; exit 1; }
             ran+=("${f%.sql}")
           done < /tmp/todo.txt
           {

