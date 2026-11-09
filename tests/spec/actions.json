@@ -122,6 +122,10 @@
   "a:rkSeries": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
   "a:rkSave": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
   "a:rkMain": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
-  "a:rkDel": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）"
+  "a:rkDel": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
+  "act:bdOpen": "nav：打开加球友确认页（我的球友里的待确认行）",
+  "act:bdList": "nav：打开全部球友列表",
+  "act:bdAccept": "write:frontend/buddies（POST /api/buddies/requests/:id/accept，确认 → 清空内存 → 重读 → 两边都是球友）",
+  "act:bdIgnore": "write:frontend/buddies（POST /api/buddies/requests/:id/ignore，忽略 → 清空内存 → 重读 → 申请不再出现）"
  }
 }
