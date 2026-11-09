@@ -21,8 +21,10 @@
 .ut-seg button:focus-visible,.ut-opt:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
 /* 数字框要大：手机端全局把输入框固定在 16px（防 iOS 放大），这里用更高的优先级覆盖，仍 ≥ 16px */
 .ut-pk input.inp.ut-num,.device .ut-pk input.inp.ut-num.ut-num:not([type=checkbox]){height:64px;text-align:center;font-size:28px!important;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.ut-lk{position:relative;display:block;margin-top:10px}
-.ut-lk .inp{padding-right:40px}
+.ut-lk{position:relative;display:block}
+.ut-lk .inp{padding-right:40px;text-overflow:ellipsis}
+.ut-lk .inp::placeholder{font-size:13px}
+.ut-lk-t{margin:12px 0 6px 2px;font-size:12px;color:var(--mut)}
 .ut-ok{position:absolute;right:14px;top:50%;width:18px;height:18px;margin-top:-9px;color:var(--g);display:none}
 .ut-lk.good .ut-ok{display:block}
 .ut-pk .inp.bad{border-color:#F04438;background:#fff}
