@@ -26,7 +26,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 
 | 需要 | 用途 | 安装 |
 |---|---|---|
-| Node.js ≥ 18 | 全部 | — |
+| Node.js 22（唯一来源 `.nvmrc`，`tests/unit/node_version` 核对） | 全部 | nvm / fnm：仓库目录里 `nvm use` |
 | Playwright + Chromium | 前台、后台、回归 | `npm i -g playwright && npx playwright install chromium` |
 | Python 3 + pglast | 数据库：切分并解析 schema.sql | `pip install pglast` |
 | PGlite（WASM 版 PostgreSQL） | 数据库：真实执行 SQL | 首次运行自动装到 `~/.cache/nbq-tests/schema`（需要能访问 npm） |

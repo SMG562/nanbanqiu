@@ -51,6 +51,7 @@ const NO_TEST = [
   [/^marketing\/icons\//, '小毛图标：没有测试或站点引用，由 icons-lint.yml 检查（下面第 ③ 项盯着）'],
   [/^src\/.*\.(css|list)$/, '拼进三个 html，生成的 html 随同一提交入库（提交前检查核对一致），那几个 html 会触发'],
   [/^\.gitignore$/, 'git 配置'],
+  [/^\.nvmrc$/, 'Node 版本号：和工作流 / engines 的一致由 tests/unit/node_version 盯；真要升级必然同时改工作流，那会触发'],
   [/^\.github\/(CODEOWNERS|dependabot\.yml|ISSUE_TEMPLATE\/)/, 'GitHub 协作配置（谁必须审 / Issue 表单）：不影响运行代码，生效与否在 GitHub 设置里看'],
   [/^\.claude\/(?!.*\.json$)/, '助手说明文档（.claude 里的 json 配置仍会触发）'],
 ];
