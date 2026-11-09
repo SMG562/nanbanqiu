@@ -71,6 +71,7 @@ for (const f of fs.readdirSync(path.join(HERE, 'unit')).filter(f => f.endsWith('
   add('unit', 'unit/' + f.replace(/\.mjs$/, ''), ['node', path.join(HERE, 'unit', f), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 60 });
 add('schema', 'schema/full', ['__schema__'], { pass: [/schema: \d+ statements, 0 errors/, /tests: \d+ blocks, 0 failed/, /dictionary: .* 0 differences/, /RESULT PASS/], timeout: 600 });
 // 真实 PostgreSQL（+ PostGIS）：同时操作（4c）
+add('pg', 'pg/migration_rehearsal', ['node', path.join(HERE, 'pg/migration_rehearsal.mjs')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // #113 A：迁移演练
 add('pg', 'pg/race', ['node', path.join(HERE, 'pg/race.mjs')], { pass: [/\d+ passed, 0 failed/], timeout: 600 });
 // 谁能读、谁能写（4e）：前台球友 / 后台运营 / 后台只读 / Supabase 公开角色逐条验证
 add('pg', 'pg/rls', ['node', path.join(HERE, 'pg/rls.mjs')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });

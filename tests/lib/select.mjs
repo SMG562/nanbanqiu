@@ -35,6 +35,7 @@ export const RULES = [
   // 数据库
   [/^schema\.sql$/, ['schema/', 'pg/', 'frontend/e2e_fullstack']],
   [/^server\/api\//, ['pg/api', 'frontend/e2e_fullstack']],
+  [/^server\/migrations\/|^tools\/(migration_rehearsal\.mjs|db_parity\.sh)$/, ['pg/migration_rehearsal']],   // #113 A：改迁移 → 推送前自动演练
   // 服务端
   [/^server\/seed\/|^tools\/venues_seed\.mjs$|^src\/shared\/script\/0080-数据\.js$/, ['pg/venues_seed']],
   [/^server\/api\/|^functions\/api\/|^worker\/|^package(-lock)?\.json$/, ['unit/api', 'pg/api', 'frontend/site']],
