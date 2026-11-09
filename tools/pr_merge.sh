@@ -22,7 +22,7 @@ git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
 else no "不能快进：main 有 PR 之外的新提交。在分支上  git merge origin/main  再推分支（不用强推），等 PR 上的测试对新提交跑完再合并"; fi
 # 11-07：只改 *.md 的 PR（没有任何文件会触发 tests / tests-fast 的 paths）不需要测试运行，别为文档白烧 25 分钟 Actions
-CHG=$(git diff --name-only "$(git merge-base origin/main "$SHA" 2>/dev/null || echo origin/main)" "$SHA" 2>/dev/null)
+CHG=$(git -c core.quotepath=off diff --name-only "$(git merge-base origin/main "$SHA" 2>/dev/null || echo origin/main)" "$SHA" 2>/dev/null)
 DOCS_ONLY=0; [ -n "$CHG" ] && ! echo "$CHG" | grep -qvE '\.md$' && DOCS_ONLY=1
 for W in tests-fast tests; do
   if [ "$DOCS_ONLY" = 1 ]; then yes "$W：只改了 *.md 文档，不触发测试，不需要运行记录"; continue; fi
