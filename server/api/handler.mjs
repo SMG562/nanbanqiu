@@ -313,10 +313,15 @@ const ROUTES = {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
   // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
-  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  // 球拍产品库（选择列表）：不用登录，只给可选的（active）；改动不频繁，缓存 1 小时
+  'GET /api/rackets/catalog': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select id, brand, series from racket_catalog where status = 'active' order by sort, brand, series`)).rows);
+    return send(200, { catalog: rows }, { 'Cache-Control': 'public, max-age=3600' });
+  },
   'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
-    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')) throw bad();
-    const list = r.map(x => ({ brand: x.brand ?? null, series: x.series }));   // 只转发这两个字段
+    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')))) throw bad();
+    const list = r.map(x => UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id } : { brand: x.brand ?? null, series: x.series });   // 选自产品库只转 id；自由文字只转品牌 + 系列
     return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
   'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
