@@ -815,6 +815,10 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('gender_set','我的','保存性别（不记录值）','first, changed','client','active',null),
  ('club_add_open','我的','打开添加 Club','','client','active',null),
  ('home_clubs_save','我的','保存我的 Club','n','client','active',null),
+ ('racket_picker_open','我的','打开选拍弹层（添一把 / 换一把；从系列返回不算）','mode(add/swap), slot(1-3)','client','active',null),
+ ('racket_brand_pick','我的','选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）','brand','client','active',null),
+ ('racket_save','我的','球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库','action(add/swap/main/remove), source(catalog/other), n_after','client','active',null),
+ ('racket_invalid','我的','手写拍子名当场没通过校验（不发请求、不记文字）','reason(empty/long/link/at/digits/dup)','client','active',null),
  ('community_open','我的','打开微信约球群','','client','active',null),
  ('series_end','我的','停止每周发布','game_id','client','active',null),
  ('follow_open','打完之后','打开「TA 发了新球局」','game_id','client','active',null),
@@ -875,6 +879,7 @@ update event_definitions set status='deprecated'
    'notif_open', 'notif_settings_open', 'push_enable', 'email_settings_save', 'pact_view', 'pact_accept', 'soon_open', 'safety_open', 'contact_open',
    'report_open', 'report_submit', 'user_block', 'user_unblock', 'chat_open', 'chat_send', 'gender_open', 'gender_set', 'club_add_open',
    'home_clubs_save', 'community_open', 'series_end', 'follow_open',
+   'racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid',
    'sb_post_view', 'sb_post_submit', 'sb_reply_send', 'sb_ball', 'sb_photo_view', 'sb_topic_view', 'sb_court_view', 'sb_hide', 'sb_post_delete', 'sb_replies_toggle', 'sb_share', 'sb_album_open',
    'apply_expired', 'game_start_check', 'game_counted', 'recap_notify',
    'follow_notify', 'less_effect', 'noshow_confirm', 'badge_earned', 'level_up', 'notif_deliver', 'women_apply_blocked', 'account_status_change']);
@@ -5665,6 +5670,7 @@ begin
   delete from risk_events where at < p_now - interval '90 days';
   update users set signup_ip = null where signup_ip is not null and created_at < p_now - interval '30 days';
   delete from area_demand where kind = 'city_waitlist' and (notified_at < p_now - interval '30 days' or created_at < p_now - interval '2 years');
+  perform racket_rollup(d - 1);   -- 我的球拍（#60 A5）：昨天结束时的持有人数快照
   return nbq_job_log('nightly', n, t0);
 end $$;
 
@@ -7130,6 +7136,183 @@ revoke execute on function api_set_rackets(jsonb), nbq_racket_text(text), nbq_ra
 grant execute on function api_set_rackets(jsonb) to nbq_user;
 grant execute on function api_set_rackets(jsonb), nbq_racket_text(text), nbq_racket_bad(text) to nbq_service;
 
+-- 球拍产品库（#60 A4，迁移 20261108_racket_catalog，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
+--   · racket_catalog：品牌 + 系列 + 别名；status active（可选）/ hidden（不再出现在选择列表，已选的人不受影响）/ merged（并到 merged_into）
+--   · user_rackets.catalog_id：选自产品库或自由文字自动匹配上的，记 id；匹配不上为空（后台「待归类」）。brand / series 仍存显示用的名字
+--     （产品库改名时由后台函数同步，M1）
+--   · api_set_rackets 新版：元素可以是 {catalog_id} 或 {brand, series}；自由文字按「不分大小写、品牌 + 系列 / 别名」自动归到产品库
+--   · 产品库只给 nbq_service（前台 GET /api/rackets/catalog 由接口层读）和后台角色（M1 再开）
+do $$ begin if to_regclass('public.user_rackets') is null then raise exception '先执行 20261107_user_rackets'; end if; end $$;
+create table if not exists racket_catalog (
+  id          uuid primary key default gen_random_uuid(),
+  brand       text not null check (char_length(brand) between 1 and 30 and brand = btrim(brand)),
+  series      text not null check (char_length(series) between 1 and 30 and series = btrim(series)),
+  aliases     text[] not null default '{}',     -- 其他写法（小写），自动匹配用；合并时被并掉的名字也记进来
+  status      text not null default 'active' check (status in ('active','hidden','merged')),
+  merged_into uuid references racket_catalog(id),
+  sort        int not null default 0,
+  created_by  uuid,                              -- 后台管理员 id；种子数据为空
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  check ((status = 'merged') = (merged_into is not null)),
+  check (merged_into is null or merged_into <> id)
+);
+create unique index if not exists racket_catalog_name on racket_catalog (lower(brand), lower(series));
+alter table racket_catalog enable row level security;
+drop policy if exists svc_all on racket_catalog; create policy svc_all on racket_catalog to nbq_service using (true) with check (true);
+revoke all on racket_catalog from public, anon, authenticated, nbq_user;
+grant all on racket_catalog to nbq_service;
+alter table user_rackets add column if not exists catalog_id uuid references racket_catalog(id);
+create index if not exists user_rackets_catalog on user_rackets (catalog_id) where catalog_id is not null;
+
+-- 种子：热门品牌和系列（顺序即排序）。已有的不动
+insert into racket_catalog (brand, series, sort)
+select b, s, row_number() over () * 10 from (values
+  ('Wilson','Pro Staff'),('Wilson','Blade'),('Wilson','Clash'),('Wilson','Ultra'),('Wilson','Burn'),('Wilson','Shift'),
+  ('Babolat','Pure Drive'),('Babolat','Pure Aero'),('Babolat','Pure Strike'),
+  ('Head','Speed'),('Head','Radical'),('Head','Gravity'),('Head','Prestige'),('Head','Extreme'),('Head','Boom'),
+  ('Yonex','EZONE'),('Yonex','VCORE'),('Yonex','Percept'),
+  ('Dunlop','CX'),('Dunlop','SX'),('Dunlop','FX'),
+  ('Prince','Phantom'),('Prince','Textreme'),
+  ('Tecnifibre','TF40'),('Tecnifibre','T-Fight')) v(b, s)
+on conflict do nothing;
+
+-- 自由文字 → 产品库：品牌 + 系列不分大小写；没写品牌时，「品牌 系列」整串或别名都算；合并掉的跟到 merged_into；优先可选的（active）
+create or replace function nbq_racket_match(p_brand text, p_series text) returns uuid language sql stable security definer set search_path = public as $$
+  select coalesce(c.merged_into, c.id) from racket_catalog c
+   where (p_brand is not null and lower(c.brand) = lower(p_brand) and (lower(c.series) = lower(p_series) or lower(p_series) = any (c.aliases)))
+      or (p_brand is null and (lower(c.brand || ' ' || c.series) = lower(p_series) or lower(p_series) = any (c.aliases)))
+   order by (c.status = 'active') desc, c.sort limit 1 $$;
+
+create or replace function api_set_rackets(p_rackets jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); e jsonb; b text; s text; k text; cid uuid; c racket_catalog; held uuid[];
+        bs text[] := '{}'; ss text[] := '{}'; ks text[] := '{}'; cs uuid[] := '{}'; olds jsonb; out jsonb;
+begin
+  if p_rackets is null or jsonb_typeof(p_rackets) <> 'array' or jsonb_array_length(p_rackets) > 3 then perform nbq_err('invalid', 'rackets'); end if;
+  select coalesce(array_agg(catalog_id) filter (where catalog_id is not null), '{}') into held from user_rackets where user_id = u;
+  for e in select x from jsonb_array_elements(p_rackets) x loop
+    if jsonb_typeof(e) <> 'object' then perform nbq_err('invalid', 'rackets'); end if;
+    cid := null;
+    if coalesce(jsonb_typeof(e->'catalog_id'), 'null') <> 'null' then
+      -- 选自产品库：名字以产品库为准；隐藏的只有本来就有的人能留着；合并掉的跟到新条目
+      if jsonb_typeof(e->'catalog_id') <> 'string' or (e->>'catalog_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then perform nbq_err('invalid', 'catalog_id'); end if;
+      select * into c from racket_catalog where id = (e->>'catalog_id')::uuid;
+      if c.id is not null and c.status = 'merged' then select * into c from racket_catalog where id = c.merged_into; end if;
+      if c.id is null or c.status = 'merged' or (c.status = 'hidden' and not c.id = any (held)) then perform nbq_err('invalid', 'catalog_id'); end if;
+      cid := c.id; b := c.brand; s := c.series;
+    else
+      if coalesce(jsonb_typeof(e->'brand'), 'null') not in ('string', 'null') then perform nbq_err('invalid', 'brand'); end if;
+      if coalesce(jsonb_typeof(e->'series'), 'null') <> 'string' then perform nbq_err('invalid', 'series'); end if;
+      b := nbq_racket_text(e->>'brand'); s := nbq_racket_text(e->>'series');
+      if b is not null and (char_length(b) > 30 or nbq_racket_bad(b)) then perform nbq_err('invalid', 'brand'); end if;
+      if s is null or char_length(s) > 30 or nbq_racket_bad(s) then perform nbq_err('invalid', 'series'); end if;
+      cid := nbq_racket_match(b, s);
+      if cid is not null then select brand, series into b, s from racket_catalog where id = cid; end if;   -- 归到产品库：显示用产品库的写法
+    end if;
+    k := lower(coalesce(b, '')) || chr(31) || lower(s);
+    if k = any (ks) then perform nbq_err('invalid', 'duplicate'); end if;
+    bs := bs || b; ss := ss || s; ks := ks || k; cs := cs || cid;
+  end loop;
+  perform 1 from users where id = u for update;
+  select coalesce(jsonb_object_agg(lower(coalesce(brand, '')) || chr(31) || lower(series), created_at), '{}') into olds from user_rackets where user_id = u;
+  delete from user_rackets where user_id = u;
+  insert into user_rackets (user_id, slot, brand, series, catalog_id, created_at)
+    select u, n.i, n.b, n.s, n.c, coalesce((olds->>n.k)::timestamptz, now()) from unnest(bs, ss, ks, cs) with ordinality n(b, s, k, c, i);
+  select coalesce(jsonb_agg(jsonb_build_object('slot', slot, 'brand', brand, 'series', series, 'catalog_id', catalog_id) order by slot), '[]') into out from user_rackets where user_id = u;
+  return out;
+end $$;
+revoke execute on function nbq_racket_match(text, text) from public, anon, authenticated, nbq_user;
+grant execute on function nbq_racket_match(text, text) to nbq_service;
+grant execute on function api_set_rackets(jsonb) to nbq_user, nbq_service;
+
+-- 已有的自由文字：补上能匹配的 catalog_id（不改名字，下次保存时再换成产品库的写法）
+update user_rackets r set catalog_id = nbq_racket_match(r.brand, r.series) where r.catalog_id is null and nbq_racket_match(r.brand, r.series) is not null;
+
+-- 球拍统计（#60 A5，迁移 20261108_racket_stats，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
+--   · racket_daily / racket_daily_total：每晚记一次「持有人数」快照（只存计数、不存用户），是趋势和「上升最快」的数据来源，长期保留
+--   · racket_rollup(day)：按当时的 user_rackets 记快照（不算已注销 / 已封禁的人）；同一天重跑覆盖
+--   · job_nightly：只加一行 perform racket_rollup(d - 1)，其余与 schema.sql 原样一致
+--   · admin_racket_stats / admin_racket_unmatched：后台「球拍」页用（只授权给后台角色；页面权限由后台接口层按 page.view 检查）。
+--     口径：持有 = 正常状态的用户现在包里有这把；上升 = 现在的持有人数 − p_days 天前（含）最近一次快照；现在持有 < 5 的不进上升榜
+do $$ begin if to_regclass('public.racket_catalog') is null then raise exception '先执行 20261108_racket_catalog'; end if; end $$;
+create table if not exists racket_daily (
+  day        date not null,
+  catalog_id uuid references racket_catalog(id),   -- 空 = 产品库外的自由文字（合在一起记）
+  holders    int not null default 0,
+  mains      int not null default 0
+);
+create unique index if not exists racket_daily_key on racket_daily (day, coalesce(catalog_id, '00000000-0000-0000-0000-000000000000'::uuid));
+create table if not exists racket_daily_total (
+  day        date primary key,
+  users_with int not null default 0,    -- 有至少一把的人
+  users_all  int not null default 0,    -- 正常状态的人（分母）
+  rows_all   int not null default 0,
+  rows_other int not null default 0     -- 产品库外的
+);
+alter table racket_daily enable row level security; alter table racket_daily_total enable row level security;
+drop policy if exists svc_all on racket_daily; create policy svc_all on racket_daily to nbq_service using (true) with check (true);
+drop policy if exists svc_all on racket_daily_total; create policy svc_all on racket_daily_total to nbq_service using (true) with check (true);
+revoke all on racket_daily, racket_daily_total from public, anon, authenticated, nbq_user;
+grant all on racket_daily, racket_daily_total to nbq_service;
+
+-- 正常状态的人的球拍（已注销 / 已封禁的不算）
+create or replace function nbq_racket_live() returns table (user_id uuid, slot smallint, catalog_id uuid, created_at timestamptz) language sql stable security definer set search_path = public as $$
+  select r.user_id, r.slot, r.catalog_id, r.created_at from user_rackets r join users u on u.id = r.user_id where u.status not in ('deleted', 'banned') $$;
+
+create or replace function racket_rollup(p_day date) returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  delete from racket_daily where day = p_day;
+  insert into racket_daily (day, catalog_id, holders, mains)
+    select p_day, catalog_id, count(distinct user_id), count(*) filter (where slot = 1) from nbq_racket_live() group by catalog_id;
+  get diagnostics n = row_count;
+  insert into racket_daily_total (day, users_with, users_all, rows_all, rows_other)
+    select p_day, (select count(distinct user_id) from nbq_racket_live()), (select count(*) from users where status not in ('deleted', 'banned')),
+           (select count(*) from nbq_racket_live()), (select count(*) from nbq_racket_live() where catalog_id is null)
+  on conflict (day) do update set users_with = excluded.users_with, users_all = excluded.users_all, rows_all = excluded.rows_all, rows_other = excluded.rows_other;
+  return n;
+end $$;
+
+-- job_nightly 的那一行加在上面「开放时通知我」那版里
+
+-- 后台概览：一次给齐（页面一次请求）
+create or replace function admin_racket_stats(p_days int default 7) returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare base date; tot jsonb; top jsonb; rising jsonb; brands jsonb; trend jsonb;
+begin
+  if p_days is null or p_days not between 1 and 90 then perform nbq_err('invalid', 'days'); end if;
+  select max(day) into base from racket_daily_total where day <= (now() at time zone 'Australia/Melbourne')::date - p_days;
+  select jsonb_build_object('users_with', count(distinct l.user_id), 'users_all', (select count(*) from users where status not in ('deleted', 'banned')),
+           'rows_all', count(*), 'rows_other', count(*) filter (where l.catalog_id is null)) into tot from nbq_racket_live() l;
+  select coalesce(jsonb_agg(x order by x.holders desc, x.mains desc, x.brand, x.series), '[]') into top from (
+    select c.id as catalog_id, c.brand, c.series, count(distinct l.user_id)::int as holders, count(*) filter (where l.slot = 1)::int as mains
+      from nbq_racket_live() l join racket_catalog c on c.id = l.catalog_id group by c.id order by 4 desc, 5 desc, 2, 3 limit 10) x;
+  select coalesce(jsonb_agg(x order by x.delta desc, x.holders desc), '[]') into rising from (
+    select c.id as catalog_id, c.brand, c.series, now_.holders, coalesce(d.holders, 0) as base, now_.holders - coalesce(d.holders, 0) as delta, now_.added
+      from (select catalog_id, count(distinct user_id)::int as holders, count(*) filter (where created_at > now() - make_interval(days => p_days))::int as added
+              from nbq_racket_live() where catalog_id is not null group by catalog_id) now_
+      join racket_catalog c on c.id = now_.catalog_id
+      left join racket_daily d on d.day = base and d.catalog_id = now_.catalog_id
+     where base is not null and now_.holders >= 5 and now_.holders - coalesce(d.holders, 0) > 0
+     order by 6 desc, 4 desc limit 10) x;
+  select coalesce(jsonb_agg(x order by x.holders desc), '[]') into brands from (
+    select coalesce(c.brand, '其他') as brand, count(distinct l.user_id)::int as holders from nbq_racket_live() l left join racket_catalog c on c.id = l.catalog_id group by 1) x;
+  select coalesce(jsonb_agg(jsonb_build_object('day', day, 'users_with', users_with, 'users_all', users_all) order by day), '[]') into trend
+    from racket_daily_total where day > (now() at time zone 'Australia/Melbourne')::date - 90;
+  return jsonb_build_object('total', tot, 'top', top, 'rising', rising, 'rising_base', base, 'days', p_days, 'brands', brands, 'trend', trend);
+end $$;
+-- 待归类：产品库外的自由文字，按「不分大小写、去多余空白」分组，只给文字和人数（不给是谁）
+create or replace function admin_racket_unmatched(p_limit int default 50) returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x.n desc, x.k), '[]') from (
+    select lower(coalesce(r.brand || ' ', '') || r.series) as k, min(coalesce(r.brand || ' ', '') || r.series) as text, count(distinct r.user_id)::int as n
+      from user_rackets r join users u on u.id = r.user_id where r.catalog_id is null and u.status not in ('deleted', 'banned')
+     group by 1 order by 3 desc, 1 limit least(greatest(coalesce(p_limit, 50), 1), 200)) x $$;
+
+revoke execute on function nbq_racket_live(), racket_rollup(date), admin_racket_stats(int), admin_racket_unmatched(int) from public, anon, authenticated, nbq_user;
+grant execute on function nbq_racket_live(), racket_rollup(date) to nbq_service;
+grant execute on function admin_racket_stats(int), admin_racket_unmatched(int) to nbq_admin, nbq_viewer, nbq_service;
+revoke execute on function job_nightly(timestamptz) from public, nbq_user, nbq_viewer;
+grant execute on function job_nightly(timestamptz) to nbq_service;
+
 -- 我的 UTR（#101，11-07 用户定的第二版）：个人页随时更新 UTR，两种：正式 / 自评（自评 = 已有的 utr_estimated）；正式可附 UTR 主页编号。
 --   · users 加 utr_profile（UTR 主页编号，只存数字；users 只许本人读，对外的 public_profiles 不加）和 utr_at（上次确认 UTR 的时间）
 --   · utr_changes：每次数值或类型变了记一行（给后台查虚报、将来同步比对）；只许本人读
@@ -7238,5 +7421,8 @@ insert into schema_migrations(version) values
   ('20261106_admin_venue_geo'),
   ('20261107_user_rackets'),
   ('20261107_wipe_rackets'),
+  ('20261108_racket_catalog'),
+  ('20261108_racket_stats'),
+  ('20261109_racket_events'),
   ('20261110_my_utr')
 on conflict do nothing;
