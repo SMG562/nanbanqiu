@@ -127,6 +127,41 @@ try {
   e1 = null; try { await q(cat4); await q(cat4) } catch (e) { e1 = e.message } T('A4 迁移连跑两次不报错', e1 === null, e1);
   T('A4 迁移重跑：种子不重复，隐藏的不被改回', +(await q(`select count(*) from racket_catalog where status <> 'merged'`)).rows[0].count === 25 && (await q(`select status from racket_catalog where id=$1`, [cat('Wilson', 'Burn')])).rows[0].status === 'hidden');
   T('A4 迁移给已有的自由文字补上 catalog_id', (await cid(D)).find(x => x.slot === 2).catalog_id === cat('Head', 'Gravity'), await cid(D));
+
+  // ===== A5 统计（#60，ADR 0009）=====（日期一律用数据库给的文本比，不经过 JS Date：CI 和本机时区不同会差一天）
+  const st4 = fs.readFileSync(path.join(DIR, 'server/migrations/20261108_racket_stats.sql'), 'utf8');
+  const nightSrc0 = (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc;
+  await q(`delete from user_rackets`);
+  const P = []; for (let i = 0; i < 8; i++) { const u = '00000000-0000-0000-0000-0000000005' + String(i).padStart(2, '0'); P.push(u); await q(`insert into users(id,phone_e164,nickname,utr) values ($1,$2,$3,5)`, [u, '+614100005' + String(i).padStart(2, '0'), 'P' + i]) }
+  const day = async n => (await q(`select ((now() at time zone 'Australia/Melbourne')::date - $1::int) as d`, [n])).rows[0].d;
+  // 8 天前：2 个人有 Head Speed
+  for (const u of P.slice(0, 2)) await set(u, [{ catalog_id: cat('Head', 'Speed') }]);
+  await q(`select racket_rollup((now() at time zone 'Australia/Melbourne')::date - 8)`);
+  T('A5 快照：Head Speed 2 人、总计 2 人有球拍', (await q(`select holders from racket_daily where day = $1 and catalog_id = $2`, [await day(8), cat('Head', 'Speed')])).rows[0].holders === 2 && (await q(`select users_with from racket_daily_total where day = $1`, [await day(8)])).rows[0].users_with === 2);
+  // 现在：7 个人有 Head Speed（5 个主力）+ 2 个写了同一个产品库外的名字；1 个已封禁的不算
+  for (const u of P.slice(2, 7)) await set(u, [{ catalog_id: cat('Head', 'Speed') }]);
+  await set(P[0], [{ catalog_id: cat('Wilson', 'Blade') }, { catalog_id: cat('Head', 'Speed') }]);
+  await set(P[1], [{ series: 'Diadem  Elevate' }, { catalog_id: cat('Head', 'Speed') }]); await set(P[2], [{ catalog_id: cat('Head', 'Speed') }, { series: 'diadem elevate' }]);
+  await set(P[7], [{ catalog_id: cat('Head', 'Speed') }]); await q(`update users set status = 'banned' where id = $1`, [P[7]]);
+  const stats = async (who, sql) => { const cl = await pool.connect(); try { await cl.query('begin'); await cl.query(`set local role ${who}`); const r = await cl.query(sql); await cl.query('commit'); return { ok: true, v: r.rows[0].v } } catch (e) { await cl.query('rollback').catch(() => { }); return { ok: false, err: e.message } } finally { cl.release() } };
+  r = await stats('nbq_viewer', `select admin_racket_stats(7) v`); const S5 = r.v || {};
+  T('A5 概览：有球拍的人 7（已封禁的不算），2 行产品库外', r.ok && S5.total.users_with === 7 && S5.total.rows_other === 2, S5.total);
+  const hs = (S5.top || [])[0] || {};
+  T('A5 最流行：Head Speed 7 人、其中主力 5（P0 / P1 的主力是别的）', hs.series === 'Speed' && hs.holders === 7 && hs.mains === 5, S5.top);
+  const rs = (S5.rising || [])[0] || {};
+  T('A5 上升最快：Head Speed 2 → 7（+5），基准是 8 天前的快照', rs.series === 'Speed' && rs.base === 2 && rs.delta === 5 && S5.rising_base === (await q(`select ((now() at time zone 'Australia/Melbourne')::date - 8)::text as d`)).rows[0].d, [S5.rising, S5.rising_base]);
+  T('A5 上升榜：现在持有不到 5 人的不进（Wilson Blade 1 人）', !(S5.rising || []).some(x => x.series === 'Blade'), S5.rising);
+  T('A5 品牌份额：Head 7、其他 2、Wilson 1', JSON.stringify((S5.brands || []).map(x => [x.brand, x.holders])) === JSON.stringify([['Head', 7], ['其他', 2], ['Wilson', 1]]), S5.brands);
+  T('A5 趋势：有 8 天前那天', (S5.trend || []).some(x => x.users_with === 2), S5.trend);
+  r = await stats('nbq_viewer', `select admin_racket_unmatched(50) v`);
+  T('A5 待归类：大小写和空白不同的合成一组（2 人），只有文字和人数', r.ok && r.v.length === 1 && r.v[0].n === 2 && /diadem elevate/i.test(r.v[0].text) && Object.keys(r.v[0]).sort().join() === 'k,n,text', r);
+  r = await stats('nbq_viewer', `select admin_racket_stats(0) v`); T('A5 天数不对 → invalid', !r.ok && r.err === 'invalid', r);
+  r = await as(P[0], `select admin_racket_stats(7) v`); T('A5 前台不能调后台统计', !r.ok && /permission denied/.test(r.err), r);
+  r = await as(P[0], `select count(*) v from racket_daily`); T('A5 前台读不到快照表', !r.ok && /permission denied/.test(r.err), r);
+  r = await stats('nbq_service', `select job_nightly() v`); T('A5 每晚任务照常跑，并记了昨天的快照', r.ok && +(await q(`select count(*) from racket_daily_total where day = $1`, [await day(1)])).rows[0].count === 1, r);
+  e1 = null; try { await q(st4); await q(st4) } catch (e) { e1 = e.message } T('A5 迁移连跑两次不报错', e1 === null, e1);
+  T('A5 迁移后 job_nightly 与 schema.sql 一致且含快照', (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc === nightSrc0 && /racket_rollup/.test(nightSrc0));
+
   // B2：4 个前台埋点的登记迁移（schema.sql 已含，先删掉再跑两次 = 正式库第一次执行的情形）；结果与字典 events_spec.md 逐字一致
   const EV = ['racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid'];
   const evRows = async () => (await q(`select event, category, description, props, source, status from event_definitions where event = any($1) order by event`, [EV])).rows;
