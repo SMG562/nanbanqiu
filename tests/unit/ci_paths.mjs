@@ -77,7 +77,7 @@ for (const dir of EXC) {
 
 // ④ 关键文件一定触发（存在才查）：依赖、部署配置、海报清单、数据库结构、流程脚本、提交前检查
 const MUST = ['package.json', 'package-lock.json', 'wrangler.jsonc', 'notify-worker/wrangler.jsonc', 'marketing/posters.json', 'marketing/lib.py', 'marketing/build.py',
-  'schema.sql', 'manifest.webmanifest', 'sw.js', 'tests/run_all.mjs', 'tools/gate.sh', 'tools/build.mjs', '.githooks/pre-commit', '.githooks/pre-push'];
+  'schema.sql', 'manifest.webmanifest', 'sw.js', 'tests/run_all.mjs', 'tools/gate.sh', 'tools/build.mjs', '.githooks/pre-commit', '.githooks/pre-push', '.githooks/post-merge', '.gitattributes'];
 const missing = MUST.filter(f => FILES.includes(f) && !(triggers(FAST, f) && triggers(FULL, f)));
 T('关键文件改动一定触发 tests-fast 和 tests', missing.length === 0, missing);
 

@@ -26,6 +26,7 @@ on:
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
       - '.githooks/**'          # 提交前 / 推送前检查
+      - '.gitattributes'        # 合并规则（生成文件 / 拼接清单；tests/unit/merge_rules 测它）
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   pull_request:                 # 11-04：PR 上先测，合并（快进）后 main 复用结果；paths 必须和 push 一致（tests/unit/ci_paths 盯着）
     branches: [main]
@@ -44,6 +45,7 @@ on:
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
       - '.githooks/**'          # 提交前 / 推送前检查
+      - '.gitattributes'        # 合并规则（生成文件 / 拼接清单；tests/unit/merge_rules 测它）
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   schedule:
     - cron: '0 16 * * 6'        # UTC 周六 16:00 = 墨尔本周日 02:00–03:00
