@@ -39,7 +39,7 @@ const why = e => { const c = String(e && e.code || ''), m = String(e && e.messag
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 数据库错误（P0001，message = 错误码，见 tests/spec/api_spec.md §1）→ HTTP 状态；表里没有的按 409
 const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game']);
-const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed']);
+const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed', 'buddy_self']);
 export const statusOf = code => code === 'login_required' ? 401 : code === 'not_found' ? 404 : code === 'pact_required' ? 428 : code === 'restore_expired' ? 410
   : /^account_/.test(code) || ST403.has(code) ? 403 : ST422.has(code) ? 422
   : code !== 'game_open_limit' && /(_limit|_too_fast)$|^rate_limited$|^otp_/.test(code) ? 429 : 409;
@@ -226,6 +226,13 @@ const ROUTES = {
     const blocks = (await q('select blocked_id as user_id, created_at from blocks where blocker_id = nbq_uid() order by created_at desc limit 200')).rows;
     return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  // 球友（#110 PR-A）：当面扫码 → 申请 → 对方确认 / 忽略；规则全在 api_buddy_* 里（pg/buddies 测），被忽略的申请对发起人仍显示为等待
+  'GET /api/buddies': (req, d, p) => act(req, d, p, async q => { const v = (await one(q, 'select api_buddies() as v')).v;   // 带上相关的人的球员卡（和 /api/invites 一样），前台画头像和名字
+    return { ...v, profiles: await cardsOf(q, [...v.buddies.map(x => x.user_id), ...v.incoming.map(x => x.from_user), ...v.outgoing.map(x => x.to_user)]) } }, { body: false }),
+  'POST /api/buddies/requests': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.to_user) || '')) throw bad(); return (await one(q, 'select api_buddy_request($1, $2) as v', [b.to_user, str(b.source)])).v }),
+  'POST /api/buddies/requests/:id/accept': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'accept') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'POST /api/buddies/requests/:id/ignore': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'ignore') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'DELETE /api/buddies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_buddy_remove($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   // 赛后读回（11-04 第 6 轮 6d）：我的多遇到 / 少遇到、近 7 天的赛后感受、我给的印象、我的没到场反馈、我的申诉。全部是我自己的数据（RLS）
   'GET /api/me/after': (req, d, p) => act(req, d, p, async q => {
     const prefs = (await q(`select target_id, pref, game_id, updated_at from player_prefs where user_id = nbq_uid() order by updated_at desc limit 500`)).rows;
@@ -406,6 +413,10 @@ const ROUTES = {
     const ids = (new URL(req.url).searchParams.get('ids') || '').split(',').filter(Boolean);
     if (!ids.length || ids.length > 50 || !ids.every(i => UUID.test(i))) throw bad();
     return { profiles: await cardsOf(q, ids) } }, { body: false }),
+  // 扫码 / 链接落地（#110）：按球员编号取卡片；必须登录、限频（api_card_by_no），内容和 GET /api/players/:id 同一份
+  'GET /api/players/no/:no': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const id = (await one(q, 'select api_card_by_no($1) as id', [x.no])).id, c = (await cardsOf(q, [id]))[id];
+    if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { nums: ['no'], body: false }),
   'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
   // 新号码第一次登录后建资料：手机号取自登录令牌里的 phone（不信请求里写的）；同一个号码重复提交 = 返回已有资料

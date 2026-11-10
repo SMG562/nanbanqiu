@@ -34,7 +34,7 @@ try {
 
   // ---------- 规则表 ----------
   const rules = (await q(`select * from rate_rules order by rule`)).rows;
-  T('规则 19 条（5b-2 加了下载我的数据每天 1 次，R3-2 加了开放时通知我，第七批 S2a 加了场边发布 2 条、新建话题 1 条，S2b 加了回复、点网球各 1 条；11-07 我的 UTR 加 1 条，共 20），错误码都在规格错误码表里', rules.length === 20 && rules.every(r => CODES.has(r.code)), rules.map(r => r.code).filter(c => !CODES.has(c)));
+  T('规则 22 条（5b-2 加了下载我的数据每天 1 次，R3-2 加了开放时通知我，第七批 S2a 加了场边发布 2 条、新建话题 1 条，S2b 加了回复、点网球各 1 条，#110 加了按编号查球员卡每小时 / 每天 2 条，11-07 我的 UTR 加 1 条），错误码都在规格错误码表里', rules.length === 22 && rules.every(r => CODES.has(r.code)), rules.map(r => r.code).filter(c => !CODES.has(c)));
   for (const k of ['game_daily_limit', 'game_open_limit', 'apply_hourly_limit', 'apply_daily_limit', 'apply_same_limit', 'message_too_fast', 'dm_new_limit', 'report_daily_limit', 'nickname_limit', 'otp_too_fast', 'otp_daily_limit', 'otp_locked'])
     if (!CODES.has(k)) T('规格里有 ' + k, false);
   T('规格 §0.4 列了限制表', /### 0\.4 频率限制/.test(SPEC) && SPEC.includes('| 发起球局 | 每天 5 个'));
@@ -149,7 +149,7 @@ try {
   r = await call(A, `select nbq_rate($1,'apply')`, [A]); T('前台不能直接调计数函数', !r.ok && /permission denied/.test(r.err), r);
   r = await call(A, `select count(*) from rate_hits`); T('前台看不到计数表', !r.ok && /permission denied/.test(r.err), r);
   r = await call(A, `update rate_rules set max_hits=999`); T('前台不能改规则', !r.ok, r);
-  r = await as('nbq_admin')(null, `select count(*) from rate_rules`); T('后台能看规则', r.ok && +r.v === 20, r);
+  r = await as('nbq_admin')(null, `select count(*) from rate_rules`); T('后台能看规则', r.ok && +r.v === 22, r);
 
   // ---------- 改数值只改表 / 每晚清理 ----------
   await q(`update rate_rules set max_hits=4 where rule='game_day'`); const G5 = await user(); ok = 0; for (let i = 0; i < 5; i++) if ((await create(G5, i)).ok) ok++;

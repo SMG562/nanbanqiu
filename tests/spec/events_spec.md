@@ -86,6 +86,12 @@
 | invite_counter_send | 邀约 | C | 提议新时间 | invite_id |
 | invite_withdraw | 邀约 | C | 撤回邀约 / 撤回新时间 | invite_id, what(invite/counter) |
 | invite_setting | 邀约 | C | 「谁可以约我」 | value(all/played/none) |
+| buddy_scan_view | 球友 | C | 扫码落地页看到「加球友」 | target_uid, logged_in, source(qr/link/other) |
+| buddy_request_send | 球友 | C | 加球友申请发出（含已是球友 / 失败） | target_uid, result(pending/buddies/fail), err, source(qr/link/other) |
+| buddy_request_open | 球友 | C | 打开加球友确认页 | request_id, via(push/notif/list) |
+| buddy_respond | 球友 | C | 确认 / 忽略加球友申请 | request_id, action(accept/ignore), wait_min |
+| buddy_remove | 球友 | C | 删除球友 | target_uid, played_together |
+| buddy_list_open | 球友 | C | 打开我的球友 | n_buddies, n_played |
 | recap_open | 打完之后 | C | 打开赛后卡片 | game_id, via(notif/detail) |
 | feel_set | 打完之后 | C | 这局感受 | game_id, value(hard/ok/easy) |
 | impression_give | 打完之后 | C | 留个好印象（含撤回） | target_uid, tag, on, bulk |

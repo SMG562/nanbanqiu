@@ -210,6 +210,18 @@ export const ROUTES = {
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
   } },
+  // ---------- 球友统计（#110，只读）----------
+  // 查询参数 from / to（ISO 时间，默认最近 30 天，跨度 ≤ 366 天）。数字来自 buddy_stats（数据库按表算，不是埋点），只读角色也能看（只有汇总数字，没有名单）；限城市的管理员只算自己城市。
+  'GET /admin/api/buddies/stats': { name: 'buddies_stats', perm: 'page.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, now = (d.now ? d.now() : Date.now());
+    const to = sp.get('to') ? Date.parse(sp.get('to')) : now, from = sp.get('from') ? Date.parse(sp.get('from')) : to - 30 * 864e5;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5) return fail(bad(), 'buddies_stats');
+    return authed(req, d, route, async (db, a) => {
+      const r = (await db.query('select * from buddy_stats($1, $2, $3)', [new Date(from).toISOString(), new Date(to).toISOString(), a.cities ?? null])).rows[0];
+      const n = k => r[k] === null ? null : Number(r[k]);
+      return { from: new Date(from).toISOString(), to: new Date(to).toISOString(), stats: Object.fromEntries(Object.keys(r).map(k => [k, n(k)])) };
+    });
+  } },
   // ---------- 我的 UTR（#101，只读）----------
   // 概况：在册（不含注销 / 封禁）的正式 / 自评 / 关联主页人数、近 30 天确认过的人、近 7 天改动次数和人数。
   // 需要留意（最多 100 人）：近 7 天改了 3 次以上 · 30 天内正式→正式一次跳 ≥ 2（自评换成正式是正常的，不算）· 同一个主页编号关联了 2 个以上账号（带编号，方便去 UTR 核实）。

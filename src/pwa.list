@@ -59,9 +59,10 @@ pwa/style/0280-约_TA_打球.css
 shared/style/0290-约_TA_打球.css
 shared/style/0300-我的球拍.css
 shared/style/0310-我的UTR.css
+shared/style/0320-球友.css
 pwa/style/0290-第八批.css
 pwa/style/0300-右上角消息.css
-shared/style/0320-首页引导条.css
+shared/style/0330-首页引导条.css
 pwa/page/0020-页面.html
 shared/page/0010-页面.html
 shared/script/0010-开头.js
@@ -144,6 +145,7 @@ shared/script/0496-推送引导.js
 shared/script/0497-测试环境横幅.js
 shared/script/0498-我的球拍.js
 shared/script/0499-我的UTR.js
+shared/script/0500-球友.js
 shared/script/0501-首页引导条_规则.js
 shared/script/0502-首页引导条.js
 pwa/script/0260-分享球员卡.js
