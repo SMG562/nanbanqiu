@@ -4,6 +4,7 @@
 //   node tools/branch_prune.mjs --apply         【仅所有者】删「可删」两类；没进 main 的先打 archive/<分支> 标签再删
 //   node tools/branch_prune.mjs --archive=a,b   【仅所有者】把「需决定」里点名的分支打标签后删（标签留着，随时能恢复）
 //   node tools/branch_prune.mjs --json          机器可读
+//   node tools/branch_prune.mjs --summary       一行摘要（handoff_check 每次开对话都跑：不补全历史，「可删」只会少算、不会多算）
 // 恢复：git push origin archive/<分支>:refs/heads/<分支>
 // 为什么：合并后没删分支 + 每个 AI 会话一个 claude/* 分支，11-10 远端堆到 55 个，真正在做的不到 10 个（Issue 见 PR 描述）。
 import fs from 'node:fs'; import path from 'node:path'; import { spawnSync } from 'node:child_process'; import { fileURLToPath } from 'node:url';
@@ -50,7 +51,8 @@ function main() {
   process.chdir(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
   const [maj, min] = git('version').match(/(\d+)\.(\d+)/).slice(1).map(Number);
   if (maj < 2 || (maj === 2 && min < 38)) { console.error('需要 git ≥ 2.38（merge-tree --write-tree）'); process.exit(2) }
-  if (git('rev-parse', '--is-shallow-repository') === 'true') sh('git', ['fetch', '-q', '--unshallow', 'origin']);
+  const SUM = has('--summary');
+  if (!SUM && git('rev-parse', '--is-shallow-repository') === 'true') sh('git', ['fetch', '-q', '--unshallow', 'origin']);
   sh('git', ['fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*']);
   const prs = JSON.parse(sh('gh', ['api', '--paginate', '--slurp', `repos/${R}/pulls?state=all&per_page=100`]).stdout).flat();
   const branches = git('for-each-ref', 'refs/remotes/origin', '--format=%(refname:lstrip=3)%09%(objectname)%09%(committerdate:iso-strict)')
@@ -59,6 +61,8 @@ function main() {
   const rows = classify({ branches, prs, now: new Date().toISOString() });
   const archive = opt('--archive').split(',').filter(Boolean);
   if (has('--json')) { console.log(JSON.stringify(rows, null, 1)); return }
+  const n = k => rows.filter(r => r.kind === k).length;
+  if (SUM) { console.log(`── 分支：可删 ${n('delete')} · 需决定 ${n('decide')} · 久没动的 PR ${n('stale')}${n('delete') + n('decide') + n('stale') ? '（明细 node tools/branch_prune.mjs；删除归所有者，见 #158）' : ''}`); return }
   const L = { delete: '可删', decide: '需决定（没进 main 的内容，删前先打标签）', stale: '开着但久没动的 PR', keep: '保留' };
   for (const k of Object.keys(L)) { const g = rows.filter(r => r.kind === k); if (!g.length) continue;
     console.log(`\n## ${L[k]}：${g.length}`); for (const r of g) console.log(`- ${r.name} · ${r.date.slice(0, 10)} · ${r.why}`) }

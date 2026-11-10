@@ -30,6 +30,14 @@ T('PR 刚关闭（3 天内）→ 不动', kind(br('a', { date: ago(1) }), [pr(1,
 T('没 PR、有没进 main 的提交、很旧 → 需决定（只列出，不删）', kind(br('a')).kind === 'decide');
 T('fork 里同名分支的已合并 PR 不算本分支的', kind(br('a'), [pr(1, 'a', 's-a', { merged_at: ago(9), head: { ref: 'a', sha: 's-a', repo: { full_name: 'x/r' } } })]).kind === 'decide');
 
+// ④ 合并出口 pr_merge.sh：合并后删分支，安全条件一条都不能少（红线文件，改了这里会红）
+const pm = fs.readFileSync(new URL('../../tools/pr_merge.sh', import.meta.url), 'utf8'), fn = (pm.match(/drop_branch\(\) \{[\s\S]*?\n\}/) || [''])[0];
+T('pr_merge：跳过保护分支，且和 branch_prune 的 PROTECTED 一致', PROTECTED.every(n => new RegExp(`case "\\$HEAD" in [^)]*\\b${n}\\b`).test(fn)), fn.slice(0, 200));
+T('pr_merge：只删本仓库的分支（fork 不删）', /\[ "\$HREPO" = "\$R" \]/.test(fn));
+T('pr_merge：叠加 PR 的目标分支不删', /pulls\?state=open&base=\$HEAD/.test(fn));
+T('pr_merge：合并后又有人推过就不删', /git\/ref\/heads\/\$HEAD[^\n]*\.object\.sha[^\n]*= "\$SHA"/.test(fn));
+T('pr_merge：所有者快进、协作者压缩合并两个出口都删', /^drop_branch$/m.test(pm) && /drop_branch; exit 0/.test(pm));
+
 // ③ contained()：真 git 仓库
 const env = { ...process.env }; for (const k of Object.keys(env)) if (k.startsWith('GIT_')) delete env[k];
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-prune-'));

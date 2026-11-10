@@ -16,8 +16,15 @@ set -u
 R=SMG562/nanbanqiu; N="${1:?用法：bash tools/pr_merge.sh <PR 号> [--check]}"; CHECK="${2:-}"
 cd "$(dirname "$0")/.."
 CI_IDS=""; bad=0; no() { echo "❌ $*"; bad=1; }; yes() { echo "✅ $*"; }
-P=$(gh api "repos/$R/pulls/$N" --jq '[.state, .base.ref, .head.ref, .head.sha, (.merged|tostring)]|join(" ")') || { echo "读不到 PR #$N"; exit 2; }
-read -r STATE BASE HEAD SHA MERGED <<<"$P"
+P=$(gh api "repos/$R/pulls/$N" --jq '[.state, .base.ref, .head.ref, .head.sha, (.merged|tostring), (.head.repo.full_name // "-")]|join(" ")') || { echo "读不到 PR #$N"; exit 2; }
+read -r STATE BASE HEAD SHA MERGED HREPO <<<"$P"
+# 11-10（#158）：合并后删 head 分支——不留已合并分支。跳过：fork 的分支、main/staging、叠加 PR 的目标（删了会关掉上面的 PR）、合并后又有人推过的
+drop_branch() {
+  case "$HEAD" in main|staging) return 0;; esac; [ "$HREPO" = "$R" ] || return 0
+  [ "$(gh api "repos/$R/pulls?state=open&base=$HEAD" --jq length 2>/dev/null)" = 0 ] || { echo "ℹ️ 分支 $HEAD 是开着的叠加 PR 的目标，先不删"; return 0; }
+  [ "$(gh api "repos/$R/git/ref/heads/$HEAD" --jq .object.sha 2>/dev/null)" = "$SHA" ] || { echo "ℹ️ 分支 $HEAD 合并后又有新提交，没删（node tools/branch_prune.mjs 会列出）"; return 0; }
+  gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && echo "🗑️ 已删分支 $HEAD（恢复：git push origin $SHA:refs/heads/$HEAD）" || echo "ℹ️ 分支 $HEAD 没删掉，之后跑 node tools/branch_prune.mjs"
+}
 [ "$STATE" = open ] && [ "$BASE" = main ] && yes "PR #$N 打开着，目标 main（分支 $HEAD，提交 ${SHA:0:7}）" || no "PR #$N 状态 $STATE / 目标 $BASE / 已合并 $MERGED"
 git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/null || true
 git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev/null
@@ -64,7 +71,8 @@ esac
 # 不再本地重跑——把运行号写进 NBQ_UNTESTED，推送时打印，事后可追溯。没有 PR 的直接推 main 仍要本地戳。
 if [ "$ME" != SMG562 ]; then
   gh api -X PUT "repos/$R/pulls/$N/merge" -f merge_method=squash -f sha="$SHA" --jq '"→ 已合并（压缩合并）：main = "+.sha[0:7]' || { echo "合并失败（可能被分支规则拦：把原因贴在 PR 上）。"; exit 1; }
-  exit 0
+  drop_branch; exit 0
 fi
 NBQ_UNTESTED="PR #$N CI 已绿$CI_IDS @${SHA:0:7}" git push origin "$SHA:refs/heads/main" || { echo "推送失败（不会强推）。"; exit 1; }
+drop_branch
 echo "→ 已快进合并：main = ${SHA:0:7}。接着：bash tools/gate.sh $SHA（等 smoke 跑完）"
