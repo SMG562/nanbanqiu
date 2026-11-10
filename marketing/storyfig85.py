@@ -1,5 +1,6 @@
 """85 号的两个人：下班走来的女生、靠着路灯等她的男生（局部坐标，脚底 y=0，身高约 440）。"""
 from storybook import *
+from storybook import blush, gloss
 
 
 def racket_in_bag(cx, cy, rot, bag, s=1.0):
@@ -28,16 +29,12 @@ def heels_pair():
 
 
 def woman_walk():
-    hair = '#3B2620'
+    hair = '#4A2E22'
     coat, coat_d, shirt, pants = '#C99A64', '#A97A48', '#FBF6EC', '#2E3A4E'
     g = ''
-    # 身后的球拍包（拍头从左肩后探出来）
-    g += racket_in_bag(-34, -404, -32, '#2F5D4A')
-    # 长发，被走路带起的风吹向身后
-    g += (f'<path d="M-2 -428 C-40 -432 -58 -404 -60 -374 C-62 -346 -84 -322 -120 -316 C-102 -308 -86 -304 -76 -298 '
-          f'C-98 -286 -116 -286 -134 -290 C-106 -270 -72 -272 -52 -292 C-40 -304 -30 -326 -22 -344 L22 -352 C36 -384 34 -416 -2 -428 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-58 -340 C-80 -326 -110 -330 -138 -322 M-50 -316 C-70 -300 -100 -300 -122 -302 M-40 -366 C-60 -360 -86 -364 -104 -352" stroke="{hair}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-          f'<path d="M-44 -380 C-50 -350 -66 -330 -90 -320" stroke="#6E4A3A" stroke-width="1.4" fill="none" opacity=".7"/>')
+    # 长发自然垂到背后，发尾随走路轻轻往后摆
+    g += (f'<path d="M-2 -428 C-34 -430 -44 -402 -42 -372 C-41 -348 -46 -322 -52 -298 C-44 -290 -32 -290 -24 -296 C-20 -290 -10 -290 -4 -296 L22 -312 C30 -334 34 -362 34 -390 C34 -418 18 -430 -2 -428 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
+          f'<path d="M-30 -396 C-34 -360 -36 -330 -46 -302 M-18 -380 C-20 -350 -22 -322 -26 -300" stroke="#7A5240" stroke-width="1.4" fill="none" opacity=".6"/>')
     # 后腿：脚跟抬起
     g += limb((-6, -228), (-30, -112), (-62, -30), 30, 17, pants)
     g += f'<path d="M-70 -42 L-52 -30 L-56 -22 L-74 -34 Z" fill="#46536A" stroke="{OUT}" stroke-width="1.2"/>'
@@ -49,20 +46,22 @@ def woman_walk():
     g += f'<path d="M38 -28 L54 -27 L54 -18 L38 -18 Z" fill="{SKIN}"/>'
     g += sneaker(56, -10, -4, 1)
     # 风衣后片，往后飘
-    g += (f'<path d="M-30 -340 C-36 -300 -46 -240 -80 -150 C-60 -146 -30 -144 -6 -150 L4 -300 L8 -338 Z" fill="{coat}" stroke="{OUT}" stroke-width="1.5"/>'
-          f'<path d="M-30 -260 C-40 -220 -52 -190 -66 -156" stroke="{coat_d}" stroke-width="2" fill="none"/>')
-    # 后面的手臂：往后摆，两根手指勾着高跟鞋（画在风衣后片前面，才看得见）
-    g += limb((-24, -330), (-58, -272), (-92, -222), 22, 15, coat_d)
-    g += f'<g transform="translate(-96 -206)">{heels_pair()}</g>'
-    g += hand(-93, -218, 30, 'hook')
+    g += (f'<path d="M-30 -340 C-36 -300 -44 -240 -62 -152 C-46 -148 -24 -146 -6 -150 L4 -300 L8 -338 Z" fill="{coat}" stroke="{OUT}" stroke-width="1.5"/>'
+          f'<path d="M-30 -260 C-38 -220 -46 -190 -54 -156" stroke="{coat_d}" stroke-width="2" fill="none"/>')
+    # 后面的手臂：自然往后摆
+    g += limb((-24, -330), (-46, -276), (-58, -222), 22, 15, coat_d)
+    g += hand(-58, -218, 14, 'open', mirror=-1)
     # 衬衫 + 风衣前片
     g += f'<path d="M-14 -340 L24 -340 L30 -240 L-8 -240 Z" fill="{shirt}" stroke="{OUT}" stroke-width="1.3"/>'
     g += (f'<path d="M24 -342 L40 -330 C44 -280 50 -220 58 -158 C46 -152 34 -152 24 -154 L18 -260 Z" fill="{coat}" stroke="{OUT}" stroke-width="1.5"/>'
           f'<path d="M24 -342 L12 -312 L22 -300" fill="{coat_d}" stroke="{OUT}" stroke-width="1.2"/>'
           f'<path d="M-14 -342 L-6 -310 L-16 -300" fill="{coat_d}" stroke="{OUT}" stroke-width="1.2"/>'
           f'<path d="M-8 -266 C-24 -262 -36 -258 -50 -250 C-46 -246 -44 -244 -46 -238 C-34 -246 -22 -252 -8 -256 Z" fill="{coat_d}" stroke="{OUT}" stroke-width="1.1"/>')
-    # 球拍包的带子，斜过胸前
-    g += f'<path d="M28 -336 L-10 -236" stroke="#22382E" stroke-width="6" stroke-linecap="round"/>'
+    # 斜挎的小皮包
+    g += (f'<path d="M26 -338 L-24 -236" stroke="#6B3E26" stroke-width="4" stroke-linecap="round"/>'
+          f'<path d="M-50 -240 H-6 Q-2 -240 -2 -236 V-206 Q-2 -200 -8 -200 H-48 Q-54 -200 -54 -206 V-236 Q-54 -240 -50 -240 Z" fill="#8A5234" stroke="{OUT}" stroke-width="1.4"/>'
+          f'<path d="M-54 -236 Q-28 -222 -2 -236 V-226 Q-28 -214 -54 -226 Z" fill="#74432A" stroke="{OUT}" stroke-width="1.1"/>'
+          f'<circle cx="-28" cy="-219" r="2.4" fill="#D8B45A"/>')
     # 前面的手臂：往前摆
     g += limb((30, -330), (54, -276), (78, -236), 22, 15, coat)
     g += f'<path d="M70 -246 L86 -232" stroke="{OUT}" stroke-width="1.2"/>'
@@ -72,37 +71,36 @@ def woman_walk():
     g += f'<path d="M-2 -362 L12 -362 L14 -338 L0 -338 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
     g += f'<ellipse cx="6" cy="-390" rx="29" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
     g += f'<ellipse cx="-14" cy="-384" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/><circle cx="-15" cy="-375" r="2.4" fill="#D8B45A"/>'
-    # 刘海往后梳，几缕碎发
-    g += (f'<path d="M-24 -396 C-26 -430 22 -436 34 -404 C24 -412 10 -414 0 -406 C-8 -400 -16 -396 -24 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M30 -408 C34 -396 33 -380 28 -368 C30 -382 29 -394 24 -404 Z" fill="{hair}" stroke="{OUT}" stroke-width="1"/>'
-          f'<path d="M-6 -420 C-20 -428 -36 -424 -48 -412" stroke="{hair}" stroke-width="2" fill="none" stroke-linecap="round"/>'
-          + gloss('M-12 -416 Q6 -428 24 -418', '#9A6A52'))
-    # 脸：笑眯眯的眼睛、腮红、小鼻子、嘴角上扬
-    g += (f'<path d="M5 -389 Q11 -395 17 -390 M23 -390 Q27.5 -394 31.5 -390" stroke="{OUT}" stroke-width="2.3" fill="none" stroke-linecap="round"/>'
-          f'<path d="M17 -390 l3 -2 M31.5 -390 l2.6 -2" stroke="{OUT}" stroke-width="1.3" stroke-linecap="round"/>'
-          f'<path d="M5 -399 Q11 -402 16 -400 M24 -400 Q28 -402 32 -399" stroke="#5A3A30" stroke-width="1.3" fill="none" stroke-linecap="round"/>'
-          + blush(10, -378, 9, 5) + blush(31, -378, 6, 4.4)
-          + f'<path d="M35 -386 C37 -382 37 -380 34 -379" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
-          f'<path d="M18 -370 Q24 -365 29.5 -371" stroke="#B5524A" stroke-width="2" fill="none" stroke-linecap="round"/>'
-          f'<path d="M20.5 -367.6 Q24 -366 27 -368.5" stroke="#E9928A" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>')
+    # 侧分刘海 + 一缕头发搭在前肩
+    g += (f'<path d="M-24 -394 C-28 -430 20 -438 34 -404 C28 -410 20 -412 14 -410 C8 -414 -2 -412 -8 -404 C-14 -400 -20 -396 -24 -394 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
+          f'<path d="M33 -404 C40 -388 40 -364 34 -340 C32 -326 36 -314 40 -306 C30 -312 26 -326 29 -342 C32 -362 33 -384 30 -400 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.1"/>'
+          + gloss('M-12 -418 Q6 -428 24 -418', '#A8785E'))
+    # 脸：看着他，笑
+    g += (f'<ellipse cx="5" cy="-389" rx="3.4" ry="4.4" fill="{OUT}"/><ellipse cx="21" cy="-389" rx="3" ry="4.2" fill="{OUT}"/>'
+          f'<circle cx="6.2" cy="-390.8" r="1.3" fill="#fff"/><circle cx="22" cy="-390.8" r="1.2" fill="#fff"/>'
+          f'<path d="M0 -399 Q5 -402 10 -400 M17 -400 Q21 -402 25 -399" stroke="#5A3A30" stroke-width="1.4" fill="none" stroke-linecap="round"/>'
+          + blush(1, -377, 9, 5.4, .65) + blush(25, -377, 6.5, 4.6, .65)
+          + f'<path d="M29 -386 C31 -382 31 -380 28 -379" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
+          f'<path d="M10 -372 Q17 -370 23 -373 Q21 -364 16 -364 Q11 -365 10 -372 Z" fill="#B5524A"/>'
+          f'<path d="M11.6 -371.4 Q17 -370.2 21.6 -372.2" stroke="#fff" stroke-width="1.2"/>')
     return g
 
 
 def man_lean():
-    hair, sweater, sw_d, pants, scarf = '#241A16', '#EFE3C8', '#D9C9A6', '#5B6472', '#2F7552'
+    hair, sweater, sw_d, pants, scarf = '#4A3226', '#F4F2EC', '#D8D4CA', '#5B6472', '#2F7552'
     g = ''
-    g += racket_in_bag(40, -404, 30, '#7A4A3A')
+    g += f'<path d="M-30 -350 C-36 -372 34 -372 30 -350 Z" fill="{sw_d}" stroke="{OUT}" stroke-width="1.3"/>'  # 帽兜
     # 围巾往身后飘的那一截
     g += f'<path d="M14 -352 C40 -356 66 -346 92 -356 C84 -340 96 -332 104 -330 C80 -324 50 -330 20 -334 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
     # 支撑腿（右）+ 交叉腿（左，脚尖点地）
     g += limb((12, -228), (16, -120), (18, -30), 32, 18, pants)
-    g += sneaker(12, -10, 0, -1, high=True, accent='#B23A3A')
+    g += sneaker(12, -10, 0, -1, high=False, accent='#C8C4BA')
     g += limb((-14, -228), (-10, -116), (50, -40), 32, 18, pants)
-    g += sneaker(56, -18, -34, -1, high=True, accent='#B23A3A')
+    g += sneaker(56, -18, -34, -1, high=False, accent='#C8C4BA')
     # 毛衣
     g += (f'<path d="M-38 -344 C-14 -352 14 -352 38 -344 L42 -240 C14 -232 -14 -232 -42 -240 Z" fill="{sweater}" stroke="{OUT}" stroke-width="1.5"/>'
           f'<path d="M-42 -244 C-14 -236 14 -236 42 -244 L42 -228 C14 -220 -14 -220 -42 -228 Z" fill="{sw_d}" stroke="{OUT}" stroke-width="1.3"/>'
-          + ''.join(f'<path d="M{x} -330 V-250" stroke="{sw_d}" stroke-width="1.6" opacity=".8"/>' for x in range(-28, 34, 10)))
+          + f'<path d="M2 -340 V-236" stroke="#A8A49A" stroke-width="1.6"/><path d="M-30 -270 L-12 -268 M14 -268 L32 -270" stroke="#C8C4BA" stroke-width="1.4"/>')
     # 右手插兜
     g += limb((34, -332), (52, -280), (34, -244), 24, 18, sweater)
     g += f'<path d="M22 -248 L40 -238" stroke="{OUT}" stroke-width="1.6"/>'
@@ -116,20 +114,18 @@ def man_lean():
     g += f'<path d="M-8 -364 L8 -364 L8 -340 L-8 -340 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
     g += f'<ellipse cx="-4" cy="-392" rx="30" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
     g += f'<ellipse cx="22" cy="-388" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/>'
-    g += (f'<path d="M-32 -396 C-38 -432 0 -444 26 -428 C36 -420 36 -404 30 -392 C26 -404 16 -410 6 -408 C-4 -416 -20 -410 -32 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-14 -414 C-22 -404 -26 -396 -28 -386 C-20 -394 -14 -402 -8 -410 Z" fill="{hair}" stroke="{OUT}" stroke-width="1"/>'
+    g += (f'<path d="M-32 -396 C-38 -434 0 -446 26 -430 C36 -420 36 -404 30 -392 C26 -404 16 -410 6 -408 C-4 -414 -20 -408 -32 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-2 -434 C-6 -444 2 -450 8 -446" stroke="{hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
           + gloss('M-20 -424 Q-4 -436 14 -430', '#5A5A66'))
     # 围巾绕脖子 + 垂在胸前的一截
     g += (f'<path d="M-24 -358 C-8 -350 12 -350 26 -358 L26 -340 C10 -334 -10 -334 -24 -340 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-14 -344 L-22 -284 L-6 -282 L0 -342 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-22 -286 l-2 8 M-17 -285 l-1 8 M-12 -284 l0 8" stroke="{scarf}" stroke-width="2"/>')
-    # 脸：朝左喊她
-    g += (f'<ellipse cx="-20" cy="-392" rx="3.4" ry="3.9" fill="{OUT}"/><ellipse cx="-2" cy="-392" rx="3.4" ry="3.9" fill="{OUT}"/>'
-          f'<circle cx="-21" cy="-393.4" r="1.1" fill="#fff"/><circle cx="-3" cy="-393.4" r="1.1" fill="#fff"/>'
-          f'<path d="M-26 -401 Q-20 -404.5 -14 -402 M-7 -402 Q-1 -404.5 5 -401" stroke="{OUT}" stroke-width="2" fill="none" stroke-linecap="round"/>'
-          + blush(-27, -379, 6, 4, .4) + blush(6, -379, 7, 4.4, .4)
+    # 脸：朝她笑着喊
+    g += (f'<path d="M-25 -392 Q-20 -397 -15 -392 M-7 -392 Q-2 -397 3 -392" stroke="{OUT}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+          f'<path d="M-26 -402 Q-20 -405 -14 -403 M-7 -403 Q-1 -405 5 -402" stroke="#3A2620" stroke-width="2" fill="none" stroke-linecap="round"/>'
+          + blush(-27, -380, 6.5, 4.4, .55) + blush(6, -380, 8, 4.8, .55)
           + f'<path d="M-30 -386 C-34 -382 -33 -379 -29 -378" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
-          f'<path d="M-21 -371 Q-14 -369 -7 -371 Q-9 -362 -14 -362 Q-19 -362 -21 -371 Z" fill="#8C3A34"/>'
-          f'<path d="M-19.5 -370.4 Q-14 -369 -8.5 -370.4" stroke="#fff" stroke-width="1.4"/>')
+          f'<path d="M-23 -372 Q-13 -369 -4 -372 Q-7 -361 -14 -361 Q-21 -362 -23 -372 Z" fill="#8C3A34"/>'
+          f'<path d="M-21 -371 Q-13 -369 -6 -371" stroke="#fff" stroke-width="1.8"/>')
     return g

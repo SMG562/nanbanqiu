@@ -7,7 +7,7 @@ from storybook import wash, hatch, person
 META = dict(
     id=85, slug='tram-after-work', title='下班了，去打球', lines=['下班了，', '去打球。'],
     style=['插画', '绘本', '故事', '意境'], tone='深色', demo=False,
-    concept='绘本风（水彩晕染 + 彩铅排线）：墨尔本傍晚，大月亮和满天小星，电车刚开走；穿西装的女生背着球拍包走过来，高跟鞋拎在手上、脚上已经换了球鞋；路灯下的男生拎着一罐新球朝她招手',
+    concept='绘本风（水彩晕染 + 彩铅排线）：墨尔本傍晚，大月亮和满天小星，电车静静停在远处；穿驼色风衣、斜挎小皮包的女生笑着走过来，路灯下穿白外套、绿围巾的男生把一罐新球举过头顶，笑着喊她',
     use='下班后约晚场的朋友圈 / 小红书配图；绘本风第一张',
 )
 
@@ -36,11 +36,11 @@ def svg():
     heads = ''.join(f'<circle cx="{tx + 40 + i*62 + random.uniform(10, 34):.0f}" cy="{ty + 48}" r="9"/>' for i in (1, 3, 4, 6))
     tram = f'''
 <g filter="url(#rough)">
- <path d="M{tx} {ty + th} V{ty + 30} Q{tx} {ty} {tx + 34} {ty} H{tx + tw - 34} Q{tx + tw} {ty} {tx + tw} {ty + 30} V{ty + th} Z" fill="#2E7A57"/>
- <rect x="{tx}" y="{ty + 72}" width="{tw}" height="20" fill="#EFE3C6"/>
+ <path d="M{tx} {ty + th} V{ty + 30} Q{tx} {ty} {tx + 34} {ty} H{tx + tw - 34} Q{tx + tw} {ty} {tx + tw} {ty + 30} V{ty + th} Z" fill="#3F6266"/>
+ <rect x="{tx}" y="{ty + 72}" width="{tw}" height="20" fill="#7E9894"/>
  <rect x="{tx + 6}" y="{ty + th - 6}" width="{tw - 12}" height="16" rx="5" fill="#123224"/>
 </g>
-<g fill="#FFD98A">{tram_win}</g>
+<g fill="#A9BDB4">{tram_win}</g>
 <g fill="#7A5A2A" opacity=".45">{heads}</g>
 <circle cx="{tx + 14}" cy="{ty + 100}" r="7" fill="#FFF1B8"/>
 <path d="M{tx + 250} {ty} L{tx + 290} {ty - 34} L{tx + 330} {ty} M{tx + 270} {ty - 34} H{tx + 312}" stroke="#123224" stroke-width="4" fill="none"/>
