@@ -1,6 +1,5 @@
 """85 号的两个人：下班走来的女生、靠着路灯等她的男生（局部坐标，脚底 y=0，身高约 440）。"""
 from storybook import *
-from storyface import head
 
 
 def racket_in_bag(cx, cy, rot, bag, s=1.0):
@@ -34,8 +33,11 @@ def woman_walk():
     g = ''
     # 身后的球拍包（拍头从左肩后探出来）
     g += racket_in_bag(-34, -404, -32, '#2F5D4A')
-    hb, hf = head('f', 'long', 'smile', look=(1, 0))
-    g += f'<g transform="translate(6 -392)">{hb}</g>'
+    # 长发，被走路带起的风吹向身后
+    g += (f'<path d="M-2 -428 C-40 -432 -58 -404 -60 -374 C-62 -346 -84 -322 -120 -316 C-102 -308 -86 -304 -76 -298 '
+          f'C-98 -286 -116 -286 -134 -290 C-106 -270 -72 -272 -52 -292 C-40 -304 -30 -326 -22 -344 L22 -352 C36 -384 34 -416 -2 -428 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
+          f'<path d="M-58 -340 C-80 -326 -110 -330 -138 -322 M-50 -316 C-70 -300 -100 -300 -122 -302 M-40 -366 C-60 -360 -86 -364 -104 -352" stroke="{hair}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+          f'<path d="M-44 -380 C-50 -350 -66 -330 -90 -320" stroke="#6E4A3A" stroke-width="1.4" fill="none" opacity=".7"/>')
     # 后腿：脚跟抬起
     g += limb((-6, -228), (-30, -112), (-62, -30), 30, 17, pants)
     g += f'<path d="M-70 -42 L-52 -30 L-56 -22 L-74 -34 Z" fill="#46536A" stroke="{OUT}" stroke-width="1.2"/>'
@@ -66,7 +68,23 @@ def woman_walk():
     g += f'<path d="M70 -246 L86 -232" stroke="{OUT}" stroke-width="1.2"/>'
     g += hand(81, -232, -40, 'open')
     g += f'<rect x="72" y="-246" width="8" height="5" rx="1" fill="#D8C08A" transform="rotate(-40 76 -243)"/>'
-    g += f'<g transform="translate(6 -392)">{hf}</g>'
+    # 脖子 + 头
+    g += f'<path d="M-2 -362 L12 -362 L14 -338 L0 -338 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
+    g += f'<ellipse cx="6" cy="-390" rx="29" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
+    g += f'<ellipse cx="-14" cy="-384" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/><circle cx="-15" cy="-375" r="2.4" fill="#D8B45A"/>'
+    # 刘海往后梳，几缕碎发
+    g += (f'<path d="M-24 -396 C-26 -430 22 -436 34 -404 C24 -412 10 -414 0 -406 C-8 -400 -16 -396 -24 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
+          f'<path d="M30 -408 C34 -396 33 -380 28 -368 C30 -382 29 -394 24 -404 Z" fill="{hair}" stroke="{OUT}" stroke-width="1"/>'
+          f'<path d="M-6 -420 C-20 -428 -36 -424 -48 -412" stroke="{hair}" stroke-width="2" fill="none" stroke-linecap="round"/>'
+          + gloss('M-12 -416 Q6 -428 24 -418', '#9A6A52'))
+    # 脸：笑眯眯的眼睛、腮红、小鼻子、嘴角上扬
+    g += (f'<path d="M5 -389 Q11 -395 17 -390 M23 -390 Q27.5 -394 31.5 -390" stroke="{OUT}" stroke-width="2.3" fill="none" stroke-linecap="round"/>'
+          f'<path d="M17 -390 l3 -2 M31.5 -390 l2.6 -2" stroke="{OUT}" stroke-width="1.3" stroke-linecap="round"/>'
+          f'<path d="M5 -399 Q11 -402 16 -400 M24 -400 Q28 -402 32 -399" stroke="#5A3A30" stroke-width="1.3" fill="none" stroke-linecap="round"/>'
+          + blush(10, -378, 9, 5) + blush(31, -378, 6, 4.4)
+          + f'<path d="M35 -386 C37 -382 37 -380 34 -379" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
+          f'<path d="M18 -370 Q24 -365 29.5 -371" stroke="#B5524A" stroke-width="2" fill="none" stroke-linecap="round"/>'
+          f'<path d="M20.5 -367.6 Q24 -366 27 -368.5" stroke="#E9928A" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>')
     return g
 
 
@@ -94,10 +112,24 @@ def man_lean():
            + ''.join(f'<circle cx="-62" cy="{y}" r="16" fill="#C6EA3D" stroke="#9DBA2A" stroke-width="1"/><path d="M-76 {y - 6} Q-62 {y + 4} -48 {y - 6}" stroke="#fff" stroke-width="2" fill="none"/>' for y in (-512, -484, -456))
            + f'<rect x="-85" y="-540" width="46" height="12" rx="4" fill="#F4F1E6" stroke="{OUT}" stroke-width="1.4"/>')
     g += can + hand(-62, -436, 180, 'hold')
-    hb, hf = head('m', 'short', 'call', look=(1, 0), mirror=-1, hc='#1E1A1D', hl='#5A6680')
-    g += f'<g transform="translate(-4 -392)">{hf}</g>'
+    # 脖子、头
+    g += f'<path d="M-8 -364 L8 -364 L8 -340 L-8 -340 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
+    g += f'<ellipse cx="-4" cy="-392" rx="30" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
+    g += f'<ellipse cx="22" cy="-388" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/>'
+    g += (f'<path d="M-32 -396 C-38 -432 0 -444 26 -428 C36 -420 36 -404 30 -392 C26 -404 16 -410 6 -408 C-4 -416 -20 -410 -32 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
+          f'<path d="M-14 -414 C-22 -404 -26 -396 -28 -386 C-20 -394 -14 -402 -8 -410 Z" fill="{hair}" stroke="{OUT}" stroke-width="1"/>'
+          f'<path d="M-2 -434 C-6 -444 2 -450 8 -446" stroke="{hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+          + gloss('M-20 -424 Q-4 -436 14 -430', '#5A5A66'))
     # 围巾绕脖子 + 垂在胸前的一截
     g += (f'<path d="M-24 -358 C-8 -350 12 -350 26 -358 L26 -340 C10 -334 -10 -334 -24 -340 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-14 -344 L-22 -284 L-6 -282 L0 -342 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-22 -286 l-2 8 M-17 -285 l-1 8 M-12 -284 l0 8" stroke="{scarf}" stroke-width="2"/>')
+    # 脸：朝左喊她
+    g += (f'<ellipse cx="-20" cy="-392" rx="3.4" ry="3.9" fill="{OUT}"/><ellipse cx="-2" cy="-392" rx="3.4" ry="3.9" fill="{OUT}"/>'
+          f'<circle cx="-21" cy="-393.4" r="1.1" fill="#fff"/><circle cx="-3" cy="-393.4" r="1.1" fill="#fff"/>'
+          f'<path d="M-26 -401 Q-20 -404.5 -14 -402 M-7 -402 Q-1 -404.5 5 -401" stroke="{OUT}" stroke-width="2" fill="none" stroke-linecap="round"/>'
+          + blush(-27, -379, 6, 4, .4) + blush(6, -379, 7, 4.4, .4)
+          + f'<path d="M-30 -386 C-34 -382 -33 -379 -29 -378" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
+          f'<path d="M-21 -371 Q-14 -369 -7 -371 Q-9 -362 -14 -362 Q-19 -362 -21 -371 Z" fill="#8C3A34"/>'
+          f'<path d="M-19.5 -370.4 Q-14 -369 -8.5 -370.4" stroke="#fff" stroke-width="1.4"/>')
     return g

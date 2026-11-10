@@ -156,3 +156,19 @@ def wc_filter(fid, seed=4):
             f'<feColorMatrix in="n" values="0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .1 0 0 0 -.6 .3" result="m"/>'
             f'<feComposite in="m" in2="d" operator="in" result="s"/>'
             f'<feMerge><feMergeNode in="d"/><feMergeNode in="s"/></feMerge></filter>')
+
+
+_bn = [0]
+
+
+def blush(cx, cy, rx, ry, op=.6):
+    """柔边腮红（径向渐变），比平涂的椭圆自然。"""
+    _bn[0] += 1
+    i = f'bsh{_bn[0]}'
+    return (f'<radialGradient id="{i}"><stop offset="0" stop-color="#F08C86" stop-opacity="{op}"/><stop offset="1" stop-color="#F08C86" stop-opacity="0"/></radialGradient>'
+            f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="url(#{i})"/>')
+
+
+def gloss(d, color, op=.28, w=1.8):
+    """头发上一道细细的反光。"""
+    return f'<path d="{d}" stroke="{color}" stroke-width="{w}" fill="none" stroke-linecap="round" opacity="{op}"/>'
