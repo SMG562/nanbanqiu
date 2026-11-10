@@ -10,6 +10,8 @@
  *   src/shared/  手机端、网页端共用（只有一份）· src/pwa/、src/web/  各自独有 · src/admin/  后台（单独一份，不和前台共用）
  *   page/ 页面（head、骨架、结尾）· style/ 样式 · script/ 主脚本 · side/ 场边（PWA 第二个脚本）
  * 新加一个小文件：放进对应目录，在 list 里写到该在的位置。
+ *   文件名前的编号只表示大致位置、方便排序阅读，顺序以 list 为准；两人并行时编号撞了没关系，不用为撞号改名。
+ *   list 由 .gitattributes 的 union 合并（两边追加的行都留下）；合 main 用 bash tools/merge_main.sh。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,6 +30,8 @@ export function assemble(name, root = ROOT) {
   const parts = [];
   let text = '', line = 1;
   const rels = readList(name, root);
+  const dup = rels.filter((r, i) => rels.indexOf(r) !== i);   // union 合并后两边都加了同一行 → 同一文件会被拼两次
+  if (dup.length) throw new Error(`src/${name}.list 里有重复的行：${[...new Set(dup)].join('、')}（合并后删掉多余的一行）`);
   for (const [i, rel] of rels.entries()) {
     const f = path.join(root, 'src', rel);
     if (!fs.existsSync(f)) throw new Error(`src/${name}.list 里的 ${rel} 不存在`);

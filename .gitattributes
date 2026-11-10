@@ -1,0 +1,4 @@
+# 并行开发的合并规则（11-10）：两个分支各自往 src/*.list 同一处追加新文件时，git 默认报冲突（#131 合 main 连撞两次）。
+# union = 两边新加的行都保留、不报冲突。安全网：build.mjs 拒绝重复行、清单里的文件必须存在，static/build 查漏登记的文件。
+# 三个生成的 HTML 不在这里处理：不手工合，合完重新 node tools/build.mjs（tools/merge_main.sh 自动做）。
+src/*.list merge=union
