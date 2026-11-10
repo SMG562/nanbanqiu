@@ -120,6 +120,8 @@ add('pg', 'pg/perf@对照', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { N
 if (!QUICK) add('pg', 'pg/perf@一年', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { NBQ_PERF_SCALE: '1' }, pass: [/\d+ passed, 0 failed/], timeout: 2400, solo: true, slow: true });
 add('frontend', 'frontend/verify', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify.js')], { pass: [/\d+ passed, 0 failed/], timeout: 1200 });
 add('frontend', 'frontend/verify2', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify2.js')], { pass: [/\d+ passed, 0 failed/], timeout: 900 });
+add('frontend', 'frontend/web_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_me.js')], { pass: [/PASS web_me/], timeout: 300 });   // 网页端「我的」标签 #134 P1
+add('frontend', 'frontend/pwa_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pwa_me.js')], { pass: [/PASS pwa_me/], timeout: 300 });   // 手机端设置子页 #134 P2
 add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pages.js')], { pass: [/PASS pages/], timeout: 300 });
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动

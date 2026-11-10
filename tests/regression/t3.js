@@ -9,21 +9,21 @@ console.log(JSON.stringify(r));await p.waitForTimeout(600);console.log('band',aw
 // gender
 const G=[];await p.evaluate(()=>{closeDetail&&closeDetail();ME=USERS.jason;ME.gender=null;ME.g_m2f=null;ME.g_changes=0;go('me')});await p.waitForTimeout(300);
 const step=async(lbl,fn)=>{await p.evaluate(fn);await p.waitForTimeout(350);G.push(lbl+': '+(await p.evaluate(()=>{const s=document.querySelector('.iv');return s?s.innerText.replace(/\n+/g,' | '):'(closed)'}))+' || ME.gender='+(await p.evaluate(()=>ME.gender)))};
-await step('open',()=>document.querySelector('[data-sx="gender"]').click());
+await step('open',()=>(openSettings(),document.querySelector('[data-sx="gender"]').click()));
 await step('pick m (first)',()=>document.querySelector('[data-sx="pickG"][data-v="m"]').click());
-await step('reopen',()=>document.querySelector('[data-sx="gender"]').click());
+await step('reopen',()=>(openSettings(),document.querySelector('[data-sx="gender"]').click()));
 await p.screenshot({path:'t3_g1.png'});
 await step('pick f',()=>document.querySelector('[data-sx="pickG"][data-v="f"]').click());
 await p.screenshot({path:'t3_g2.png'});
 await step('confirm',()=>document.querySelector('[data-sx="gConfirm"]').click());
-await step('reopen',()=>document.querySelector('[data-sx="gender"]').click());
+await step('reopen',()=>(openSettings(),document.querySelector('[data-sx="gender"]').click()));
 await step('pick m',()=>document.querySelector('[data-sx="pickG"][data-v="m"]').click());
 await p.screenshot({path:'t3_g3.png'});
 await step('confirm',()=>document.querySelector('[data-sx="gConfirm"]').click());
-await step('reopen',()=>document.querySelector('[data-sx="gender"]').click());
+await step('reopen',()=>(openSettings(),document.querySelector('[data-sx="gender"]').click()));
 await p.screenshot({path:'t3_g4.png'});
 await step('pick f locked',()=>document.querySelector('[data-sx="pickG"][data-v="f"]').click());
-console.log(G.join('\n'));console.log('womenOK',await p.evaluate(()=>womenOK(ME)),'li',await p.evaluate(()=>{INV_CLOSE();render();return document.querySelector('[data-sx="gender"]').innerText}));
+console.log(G.join('\n'));console.log('womenOK',await p.evaluate(()=>womenOK(ME)),'li',await p.evaluate(()=>{INV_CLOSE();render();openSettings();return document.querySelector('[data-sx="gender"]').innerText}));
 // share: navigator.share 被拒 → fallback
 await p.evaluate(()=>{ME=USERS.han;navigator.canShare=()=>true;navigator.share=()=>Promise.reject(Object.assign(new Error('x'),{name:'NotAllowedError'}));window.html2canvas=null;saveCard('han')});await p.waitForTimeout(300);
 console.log('btn',await p.$eval('#scBox [data-sc="go"]',x=>x.textContent+' disabled='+x.disabled));
