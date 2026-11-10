@@ -89,10 +89,10 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk,aft,bdg,rpt,rk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine'),typeof NBQ_RACKETS_ON!=='undefined'&&NBQ_RACKETS_ON?net.get('/api/me/rackets'):null]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
+  const [pub,mine,inv,blk,aft,bdg,rpt,rk,bd]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine'),typeof NBQ_RACKETS_ON!=='undefined'&&NBQ_RACKETS_ON?net.get('/api/me/rackets'):null,typeof NBQ_BUDDIES_ON!=='undefined'&&NBQ_BUDDIES_ON?net.get('/api/buddies'):null]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
-  put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
+  put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles,bd&&bd.ok&&bd.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
   const blocked=blk.ok?(blk.data.blocks||[]).map(b=>b.user_id):[];blocked.forEach(id=>{if(!users[id])put({id,nickname:'已屏蔽的球友'})});   // 名片读不到时用占位，名单里不会缺人
   const gm={};[...(pub.data.games||[]),...(mine.data.games||[])].forEach(g=>{gm[g.id]=nbqFromGame(g)});   // 同一局两边都有时以「我的」为准（后写覆盖）
   const games=Object.values(gm),parts=(mine.data.participants||[]).map(nbqFromPart);
@@ -100,7 +100,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
+  return{ok:true,registered:true,buddies:bd&&bd.ok&&typeof nbqFromBuddies==='function'?nbqFromBuddies(bd.data):null,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
 // 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
 function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
   const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
@@ -116,11 +116,13 @@ async function nbqLoadPublic(net){
 // 通知（第 5 轮）：后端一行 {id, kind, game_id, actor_id, read_at, created_at} → 前台 NOTIFS 条目。
 // 先接「由球局推出文案」的种类；邀约（要 invite_id）、赛后 / 徽章 / 等级 / 没到场（要附加内容）留给第 6 轮，读到也先不显示。
 const NBQ_INV_KINDS=new Set(['invite','invite_counter','invite_accepted','invite_declined','invite_expired']);
+// 球友（#110）：不带球局；开关开着才收（关着时这两种通知不显示）
+const NBQ_BUDDY_KINDS=new Set(['buddy_request','buddy_accepted']);
 const NBQ_NTF_KINDS=new Set(['request','approved','rejected','full','player_left','game_cancelled','joined','expired','unfilled','unfilled_end','postponed','changed','soon','reopen']);
 function nbqFromNotif(r,me){return{id:Number(r.id),user_id:me,kind:r.kind,game_id:r.game_id||null,from:r.actor_id||null,at:nbqMs(r.created_at),invite_id:r.invite_id||null,read:!!r.read_at,srv:true,synced:!!r.read_at}}
 // 过滤 + 转换（球局不在内存里的先不显示：文案要用球局的时间地点）。返回新到的在前，与前台 unshift 的顺序一致
 // 邀约类通知要带 invite_id，且邀约已读入内存（invIds）；不传 invIds 就不显示邀约类
-const nbqNtfOk=(r,gameIds,invIds)=>NBQ_INV_KINDS.has(r.kind)?!!(r.invite_id&&invIds&&invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id));
+const nbqNtfOk=(r,gameIds,invIds)=>NBQ_BUDDY_KINDS.has(r.kind)?!!(typeof NBQ_BUDDIES_ON!=='undefined'&&NBQ_BUDDIES_ON&&r.actor_id):NBQ_INV_KINDS.has(r.kind)?!!(r.invite_id&&invIds&&invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id));
 function nbqNtfList(rows,me,gameIds,invIds){return(rows||[]).filter(r=>nbqNtfOk(r,gameIds,invIds)).map(r=>nbqFromNotif(r,me))}
 // 需要先补读球局的通知（球局不在内存里）
 const nbqNtfNeedGames=(rows,gameIds,invIds)=>(rows||[]).some(r=>NBQ_INV_KINDS.has(r.kind)?!!(invIds&&r.invite_id&&!invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&!gameIds.has(r.game_id)));
@@ -140,7 +142,8 @@ const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
 // 会话代数（11-09）：每次清空（退出登录 / 换人）加一。异步读取开始时记下，回来时不一样 = 期间退出过 → 丢掉结果，不套用
 //   （原来读到一半退出，回来后 nbqApply 又把 ME 设回去，等于自动登录回上一个人；读通知时 ME 已空，ME.id 报错）
 let NBQ_EPOCH=0;
-function nbqClear(){NBQ_EPOCH++;Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
+function nbqClear(){NBQ_EPOCH++;if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
+  Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
   SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
 function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
@@ -148,7 +151,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);if(typeof nbqBuddiesIn==='function')nbqBuddiesIn(r.buddies);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 
 // 我的举报（11-05）：处理中的举报以服务器为准（刷新 / 换设备后还认得出「已举报」）；读不到（null）时保持原样，不清空
 function nbqApplyReports(list,me){
@@ -183,7 +186,7 @@ const NBQ_SNAP_K='nbq_snap',NBQ_SNAP_V=1,NBQ_SNAP_AGE=7*864e5;
 let NBQ_STALE=false,NBQ_SS=0;
 const nbqSetJ=(k,v)=>v instanceof Set?{__set:[...v]}:v,nbqSetR=(k,v)=>v&&typeof v==='object'&&Array.isArray(v.__set)?new Set(v.__set):v;
 function nbqSnapSave(){try{const s=SBA.on()&&SBA.session();if(!s||!ME||NBQ_STALE)return;
-  const r={me:ME.id,users:USERS,venues:Object.values(VEN),games:GAMES,parts:PARTS};
+  const r={me:ME.id,users:USERS,venues:Object.values(VEN),games:GAMES,parts:PARTS,buddies:typeof bdSnap==='function'?bdSnap():null};
   const t=JSON.stringify({v:NBQ_SNAP_V,uid:s.uid,at:Date.now(),r,notifs:NOTIFS},nbqSetJ);if(t.length<1.5e6)localStorage.setItem(NBQ_SNAP_K,t)}catch(e){}}
 function nbqSnapSoon(){if(NBQ_SS)return;NBQ_SS=setTimeout(()=>{NBQ_SS=0;nbqSnapSave()},800)}
 function nbqSnapClear(){try{localStorage.removeItem(NBQ_SNAP_K)}catch(e){}}

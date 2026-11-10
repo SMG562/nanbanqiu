@@ -8,7 +8,7 @@ export const LATE_JOIN_MS = 30 * 60e3;   // 开打后仍可申请 / 加入的时
 export const LATE_KINDS = new Set(['request', 'joined', 'approved', 'rejected', 'expired', 'full', 'player_left']);
 export const URGENT = new Set(['soon', 'game_cancelled', 'changed', 'postponed', 'unfilled', 'unfilled_end']);   // 推送的 Urgency: high（Web Push 头）+ 夜里照常发
 // 11-02 你定的：像短信一样，申请 / 同意 / 婉拒 / 邀约这类人对人的提醒夜里也立刻推（但不算 Urgency high）；只有 LOW（赛后回顾、徽章、等级…）夜里才顺延到 8 点
-export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined', 'chat']);   // chat = 新消息：像短信一样夜里也立刻推（11-04 你定的：消息要及时推送）
+export const ANYTIME = new Set(['request', 'approved', 'rejected', 'full', 'player_left', 'joined', 'expired', 'invite', 'invite_counter', 'invite_accepted', 'invite_declined', 'chat', 'buddy_request', 'buddy_accepted']);   // chat = 新消息：像短信一样夜里也立刻推（11-04 你定的：消息要及时推送）
 export const LOW = new Set(['recap', 'follow_game', 'badge', 'levelup', 'reopen', 'invite_expired', 'noshow', 'account_status', 'sb_ball', 'sb_reply', 'sb_reply_to']);   // 场边互动（第七批 S2b+）：夜里顺延到 8 点
 export const GO = new Set(['soon', 'game_cancelled', 'changed', 'postponed']);
 // 邮件只发三类
@@ -94,6 +94,7 @@ export function pushText(n, ctx) {
     expired: ['发起人没来得及确认', w], player_left: [`${a} 取消了参加`, `${w} · 名额已重新开放`], game_cancelled: [`${a} 取消了球局`, w], changed: ['球局有改动', w], postponed: ['球局顺延了 1 小时', w],
     soon: ['30 分钟后开打', w], unfilled: ['还缺人', w], unfilled_end: ['这局没有凑齐', w], reopen: ['又有空位了', w], follow_game: [`${a} 发了新球局`, w], recap: ['打得怎么样？', w],
     invite: [`${a} 约你打球`, ''], invite_counter: [`${a} 想换个时间`, ''], invite_accepted: [`${a} 接受了你的邀约`, w], invite_declined: [`${a} 这次不方便`, ''], invite_expired: ['邀约已失效', ''],
+    buddy_request: [`${a} 想加你为球友`, '点开确认'], buddy_accepted: [`你和 ${a} 成为球友了`, ''],   // 球友（#110）：当面扫码，像邀约一样立刻推
     noshow: ['有球友反馈你没到场', '可以申诉'], badge: ['获得新徽章', ''], levelup: ['等级提升', ''], account_status: ['账号状态有变化', '点开查看'],
     // 新消息（11-04，用户要求）：不写发送人和内容，文字直接说清楚是什么消息、去哪看
     chat: [ctx.chat && ctx.chat.kind === 'game' ? '球局群聊有新消息' : '你收到一条新私信', ''],   // 正文留空：iOS 会在标题下自动加一行「from 南伴球」，有正文就变三行（11-04 用户嫌啰嗦）

@@ -1237,6 +1237,59 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .rk-act b{font-size:15px;font-weight:600}.rk-act small{font-size:12.5px;color:var(--mut)}
 .rk-act.danger b{color:#D92D20}
 @media (prefers-reduced-motion:reduce){.rk-chip{transition:none}.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
+/* 我的 UTR（#101）：个人页这一行和「我的球拍」同一套尺寸（行高、内边距、.rk-br 标签、.rk-se 主字），不另起字号。
+   不用 .rk 容器：那是球拍列表自己的（测试和逻辑按 .rk .rk-row 数球拍）。 */
+.ut .ut-row{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 18px;border:0;background:none;
+  font:inherit;color:var(--ink);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;transition:background .15s}
+.ut .ut-row:active{background:#F7F8F7}
+.ut .ut-row:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.ut .ut-row .v{flex:1;min-width:0}
+.ut-card{padding-bottom:4px}.ut-card .ut .ut-row{padding:11px 16px;min-height:58px}.ut-card .rk-se{font-size:15px}
+@media (hover:hover){.ut-card .ut .ut-row:hover{background:#FAFBFA}}
+.ut-n{font-variant-numeric:tabular-nums}
+.ut-ap{color:var(--mut);font-weight:500;margin-right:1px}
+/* 「几周前更新」：电脑悬停、手机长按（.tipon）才出现 */
+.ut-tip{margin-left:auto;font-size:12.5px;color:var(--mut);opacity:0;transition:opacity .15s;white-space:nowrap;pointer-events:none}
+.ut-row.tipon .ut-tip{opacity:1}
+@media (hover:hover){.ut-row:hover .ut-tip,.ut-row:focus-visible .ut-tip{opacity:1}}
+
+/* 弹层 */
+.ut-seg{display:flex;gap:2px;padding:3px;margin:14px 0 16px;border-radius:12px;background:#F0F2F0}
+.ut-seg button{flex:1;min-height:36px;border:0;border-radius:9px;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink2);cursor:pointer}
+.ut-seg button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.ut-seg button:focus-visible,.ut-opt:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+/* 数字框要大：手机端全局把输入框固定在 16px（防 iOS 放大），这里用更高的优先级覆盖，仍 ≥ 16px */
+.ut-pk input.inp.ut-num,.device .ut-pk input.inp.ut-num.ut-num:not([type=checkbox]){height:64px;text-align:center;font-size:28px!important;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ut-lk{position:relative;display:block}
+.ut-lk .inp{padding-right:40px;text-overflow:ellipsis}
+.ut-lk .inp::placeholder{font-size:13px}
+.ut-lk-t{margin:12px 0 6px 2px;font-size:12px;color:var(--mut)}
+.ut-ok{position:absolute;right:14px;top:50%;width:18px;height:18px;margin-top:-9px;color:var(--g);display:none}
+.ut-lk.good .ut-ok{display:block}
+.ut-pk .inp.bad{border-color:#F04438;background:#fff}
+.ut-err{min-height:18px;margin:6px 2px 0}
+.ut-opt{flex-direction:row;align-items:center;justify-content:space-between;min-height:52px}
+.ut-opt span{font-size:14px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ut-opt[aria-checked="true"]{background:var(--gss)}
+.ut-opt[aria-checked="true"] b,.ut-opt[aria-checked="true"] span{color:var(--g)}
+.ut-save{margin-top:16px}
+.ut-save[disabled]{opacity:.45}
+@media (prefers-reduced-motion:reduce){.ut-tip{transition:none}}
+/* ===== 球友（#110 PR-B1）：「我的球友」里的待确认行、全部球友列表、确认弹层。类名都带 bd- 前缀（11-09：用了 .t 被全局的 .t b 盖成灰色） ===== */
+.bd-req{display:flex;align-items:center;gap:10px;width:100%;border:0;background:rgba(47,143,91,.07);border-radius:12px;padding:10px 12px;margin:2px 0 8px;font:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+.bd-req .av,.bd-row .av{width:36px;height:36px;flex:none}.bd-req .av svg,.bd-row .av svg,.bd-cf .av svg{width:100%;height:100%}
+.bd-req .bd-t,.bd-row .bd-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.bd-req b,.bd-row b{font-size:14px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-req small,.bd-row small{font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bd-req .go{color:var(--mut);font-size:18px}
+.bd-all{display:block;width:100%;border:0;background:none;font:inherit;font-size:13px;color:var(--mut);padding:6px 0 2px;cursor:pointer}
+.bd-pk{padding:4px 2px 8px}
+.bd-h{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}.bd-h b{font-size:17px}.bd-h small{font-size:12px;color:var(--mut)}
+.bd-row{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:8px 2px;font:inherit;text-align:left;cursor:pointer;color:var(--ink);border-bottom:1px solid rgba(0,0,0,.06)}
+.bd-row:last-child{border-bottom:0}
+.bd-cf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:6px 4px 2px}
+.bd-cf .av{width:64px;height:64px}.bd-cf .bd-nm{font-size:18px;margin-top:4px}.bd-cf p{margin:0;font-size:14px;color:var(--mut);line-height:1.5}
+.bd-bt{display:flex;gap:10px;width:100%;margin-top:12px}.bd-bt>button{flex:1}
+.bd-note{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5}
 /* ===== 第八批：场边页 + 右上角消息 ===== */
 .scr.side{overflow:hidden;padding:0}.scr.side.top{z-index:60}
 #sbHost{position:absolute;inset:0}
@@ -2053,7 +2106,7 @@ function pushBanner(title,body,onTap){const bn=$('#banner');
 /* ============================== 渲染 ============================== */
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2300)}
 // 后端接口的错误码 → 给用户看的话（与 tests/spec/api_spec.md §1 逐条相同，tests/static/api_err.mjs 核对；账号状态、球友约定、表单字段另有专门处理）
-const API_ERR={"login_required":"请先登录","forbidden":"没有权限做这件事","not_found":"这场球局已不存在","state_changed":"状态刚刚变了，已为你刷新","bad_transition":"同上","busy_retry":"网络有点忙，请再试一次","game_full":"刚刚满员了，看看附近其他球局","game_closed":"这局已经取消了","game_started":"这局已经开打了","postpone_once":"只能顺延一次","postpone_too_late":"顺延后会超过 23:00 结束，可以改时间或取消","application_expired":"申请已失效","already_applied":"已经没有空位或已报名","join_not_allowed":"发起人改成了需要确认，请发送申请","level_mismatch":"水平不在这局的范围内，可以发送申请","women_only":"女生局只对女生开放","blocked":"暂时无法约这位球友","not_host":"你不是发起人","host_cannot_leave":"你是发起人，可以取消球局","invite_self":"不能约自己","invite_closed":"TA 暂时不接受邀约","invite_played_only":"TA 只接受一起打过球的球友邀约","invite_daily_limit":"今天已经发出 3 个邀约了，明天再约吧","invite_new_limit":"今天已经约了 2 位新球友，明天再约吧","invite_declined_twice":"对方最近不太方便，过段时间再约吧","invite_pending":"已经约过 TA 了，等 TA 回复吧","invite_ended":"邀约已结束","counter_once":"只能换一次时间","counter_same":"时间和地点都没变，直接接受就好","invite_game_fixed":"邀约已成局","time_past":"这个时间已经过了","time_out_of_range":"只能约接下来 7 天、6:00–21:30","recap_closed":"这局已经过了可以填写的时间","noshow_window_closed":"结束 48 小时后不能再反馈","not_in_game":"已不在这局","report_duplicate":"你已经举报过，我们正在处理","report_note_required":"选「其他」时写一句说明","message_link":"暂不支持发送链接","chat_closed":"这局的群聊已关闭","restore_expired":"这个账号已注销超过 30 天，可以用手机号重新注册","rate_limited":"操作太频繁，请稍后再试","game_daily_limit":"今天已经发了 5 个球局，明天再发吧","game_open_limit":"进行中的球局已有 5 个，打完再发新的吧","apply_hourly_limit":"申请有点频繁，过一会儿再试吧","apply_daily_limit":"今天已经申请了 15 次，明天再来吧","apply_same_limit":"这局今天已经申请过 3 次了","message_too_fast":"发得有点快，稍等一下再发","dm_new_limit":"新账号每天最多和 3 位新球友开始聊天，明天再试","report_daily_limit":"今天的举报次数已达上限，明天再试","nickname_limit":"30 天内只能改 2 次昵称","otp_too_fast":"验证码已发送，60 秒后可以重新获取","otp_daily_limit":"今天获取验证码的次数已用完，明天再试","otp_locked":"验证码错误次数太多，请 30 分钟后再试","nickname_not_allowed":"昵称里不能有链接、联系方式或「官方」「客服」等字样","adult_required":"请先确认你已满 18 岁","city_closed":"这个城市还没开放","topic_too_generic":"这个词有点宽，换个具体点的说法吧","topic_name_not_allowed":"话题名里不能有链接、联系方式或「官方」等字样","topic_ended":"这个话题已经结束了","sb_post_hourly_limit":"发得有点多，过一会儿再发吧","sb_post_daily_limit":"今天已经发了 20 条，明天再来吧","sb_topic_daily_limit":"今天已经发起了 3 个话题，明天再来吧","replies_closed":"作者关闭了回复"};
+const API_ERR={"login_required":"请先登录","forbidden":"没有权限做这件事","not_found":"这场球局已不存在","state_changed":"状态刚刚变了，已为你刷新","bad_transition":"同上","busy_retry":"网络有点忙，请再试一次","game_full":"刚刚满员了，看看附近其他球局","game_closed":"这局已经取消了","game_started":"这局已经开打了","postpone_once":"只能顺延一次","postpone_too_late":"顺延后会超过 23:00 结束，可以改时间或取消","application_expired":"申请已失效","already_applied":"已经没有空位或已报名","join_not_allowed":"发起人改成了需要确认，请发送申请","level_mismatch":"水平不在这局的范围内，可以发送申请","women_only":"女生局只对女生开放","blocked":"暂时无法约这位球友","not_host":"你不是发起人","host_cannot_leave":"你是发起人，可以取消球局","invite_self":"不能约自己","invite_closed":"TA 暂时不接受邀约","invite_played_only":"TA 只接受一起打过球的球友邀约","buddy_self":"这是你自己的码","buddy_limit":"暂时无法发送，过段时间再试吧","buddy_request_ended":"这条申请已经处理过或失效了","card_lookup_limit":"查得太频繁了，过一会儿再试","invite_daily_limit":"今天已经发出 3 个邀约了，明天再约吧","invite_new_limit":"今天已经约了 2 位新球友，明天再约吧","invite_declined_twice":"对方最近不太方便，过段时间再约吧","invite_pending":"已经约过 TA 了，等 TA 回复吧","invite_ended":"邀约已结束","counter_once":"只能换一次时间","counter_same":"时间和地点都没变，直接接受就好","invite_game_fixed":"邀约已成局","time_past":"这个时间已经过了","time_out_of_range":"只能约接下来 7 天、6:00–21:30","recap_closed":"这局已经过了可以填写的时间","noshow_window_closed":"结束 48 小时后不能再反馈","not_in_game":"已不在这局","report_duplicate":"你已经举报过，我们正在处理","report_note_required":"选「其他」时写一句说明","message_link":"暂不支持发送链接","chat_closed":"这局的群聊已关闭","restore_expired":"这个账号已注销超过 30 天，可以用手机号重新注册","rate_limited":"操作太频繁，请稍后再试","game_daily_limit":"今天已经发了 5 个球局，明天再发吧","game_open_limit":"进行中的球局已有 5 个，打完再发新的吧","apply_hourly_limit":"申请有点频繁，过一会儿再试吧","apply_daily_limit":"今天已经申请了 15 次，明天再来吧","apply_same_limit":"这局今天已经申请过 3 次了","message_too_fast":"发得有点快，稍等一下再发","dm_new_limit":"新账号每天最多和 3 位新球友开始聊天，明天再试","report_daily_limit":"今天的举报次数已达上限，明天再试","nickname_limit":"30 天内只能改 2 次昵称","otp_too_fast":"验证码已发送，60 秒后可以重新获取","otp_daily_limit":"今天获取验证码的次数已用完，明天再试","otp_locked":"验证码错误次数太多，请 30 分钟后再试","nickname_not_allowed":"昵称里不能有链接、联系方式或「官方」「客服」等字样","adult_required":"请先确认你已满 18 岁","city_closed":"这个城市还没开放","topic_too_generic":"这个词有点宽，换个具体点的说法吧","topic_name_not_allowed":"话题名里不能有链接、联系方式或「官方」等字样","topic_ended":"这个话题已经结束了","sb_post_hourly_limit":"发得有点多，过一会儿再发吧","sb_post_daily_limit":"今天已经发了 20 条，明天再来吧","sb_topic_daily_limit":"今天已经发起了 3 个话题，明天再来吧","replies_closed":"作者关闭了回复"};
 // 昵称规则：与数据库 nbq_nickname_problem() 同一套（5a-2）；返回提示，空 = 可以
 const NICK_BAD=n=>/[\u0001-\u001F\u007F​-‏‪-‮⁠-⁤﻿]/.test(n)?'昵称里有不支持的字符':/(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|au|cn|io|me|co)(?![a-z]))/i.test(n)?'昵称里不能有链接':(/[0-9０-９]{8,}/.test(n.replace(/[\s\-.()]/g,''))||/(微信|威信|薇信|v信|vx|wx号|wxid|weixin|wechat|加v|加微|whatsapp|telegram|line ?id|qq|扣扣)/i.test(n))?'昵称里不能有联系方式':/(官方|南伴球|客服|管理员|系统|admin|official|support|staff)/i.test(n)?'昵称不能用「官方」「客服」等字样':/(.)\1{4,}/u.test(n)?'昵称不能连续重复同一个字':'';
 const apiErrText=code=>API_ERR[code]||'出了点问题，请再试一次';
@@ -4850,6 +4903,7 @@ function renderMe(){
   <div class="group">${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
     ${often.map(([id,n])=>{const v=VEN[id];return `<div class="club"><span class="ci" style="background:#F0F2F0;color:var(--mut)"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>最近打过 ${n} 次</small></span><button class="pill p-gray" data-a="addClub" data-v="${id}">+ Home</button></div>`}).join('')}
     ${!myClubIds().length&&!often.length?`<button class="club" data-a="editClubs"><span class="ci"><svg><use href="#i-plus"/></svg></span><span class="v"><b>添加我的 Club</b><small>会员 Club 可多选，主 Club 显示在球员卡上</small></span></button>`:''}</div>
+  ${utSectionHTML('pwa')}
   ${rkSectionHTML('pwa')}
   ${partnersHTML()}
   <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册<small>只有自己看得到</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
@@ -5189,10 +5243,10 @@ async function nbqLoadAll(net){
   const [m,vs]=await Promise.all([net.get('/api/me'),net.get('/api/venues',null,{anon:true})]);
   if(!m.ok)return{ok:false,code:m.code};
   if(!m.data.registered)return{ok:true,registered:false,venues:vs.ok?(vs.data.venues||[]).map(nbqFromVenue):[]};
-  const [pub,mine,inv,blk,aft,bdg,rpt,rk]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine'),typeof NBQ_RACKETS_ON!=='undefined'&&NBQ_RACKETS_ON?net.get('/api/me/rackets'):null]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
+  const [pub,mine,inv,blk,aft,bdg,rpt,rk,bd]=await Promise.all([net.get('/api/games'),net.get('/api/games/mine'),net.get('/api/invites'),net.get('/api/blocks'),net.get('/api/me/after'),net.get('/api/me/badges'),net.get('/api/reports/mine'),typeof NBQ_RACKETS_ON!=='undefined'&&NBQ_RACKETS_ON?net.get('/api/me/rackets'):null,typeof NBQ_BUDDIES_ON!=='undefined'&&NBQ_BUDDIES_ON?net.get('/api/buddies'):null]);   // 屏蔽名单 / 赛后记录读不到不算失败（按没有处理）
   for(const r of [vs,pub,mine,inv])if(!r.ok)return{ok:false,code:r.code};
   const users={},put=u=>{if(u&&u.id)users[u.id]=nbqFromUser(u)};
-  put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
+  put(m.data.user);[mine.data.profiles,inv.data.profiles,blk.ok&&blk.data.profiles,bd&&bd.ok&&bd.data.profiles].forEach(o=>Object.values(o||{}).forEach(put));
   const blocked=blk.ok?(blk.data.blocks||[]).map(b=>b.user_id):[];blocked.forEach(id=>{if(!users[id])put({id,nickname:'已屏蔽的球友'})});   // 名片读不到时用占位，名单里不会缺人
   const gm={};[...(pub.data.games||[]),...(mine.data.games||[])].forEach(g=>{gm[g.id]=nbqFromGame(g)});   // 同一局两边都有时以「我的」为准（后写覆盖）
   const games=Object.values(gm),parts=(mine.data.participants||[]).map(nbqFromPart);
@@ -5200,7 +5254,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
-  return{ok:true,registered:true,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
+  return{ok:true,registered:true,buddies:bd&&bd.ok&&typeof nbqFromBuddies==='function'?nbqFromBuddies(bd.data):null,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
 // 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
 function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
   const m=BDG[ME.id]=BDG[ME.id]||{};rows.forEach(b=>{const o=m[b.code];m[b.code]={at:Date.parse(b.earned_at)||null,seen:!!b.seen_at||!!(o&&o.seen)}});
@@ -5216,11 +5270,13 @@ async function nbqLoadPublic(net){
 // 通知（第 5 轮）：后端一行 {id, kind, game_id, actor_id, read_at, created_at} → 前台 NOTIFS 条目。
 // 先接「由球局推出文案」的种类；邀约（要 invite_id）、赛后 / 徽章 / 等级 / 没到场（要附加内容）留给第 6 轮，读到也先不显示。
 const NBQ_INV_KINDS=new Set(['invite','invite_counter','invite_accepted','invite_declined','invite_expired']);
+// 球友（#110）：不带球局；开关开着才收（关着时这两种通知不显示）
+const NBQ_BUDDY_KINDS=new Set(['buddy_request','buddy_accepted']);
 const NBQ_NTF_KINDS=new Set(['request','approved','rejected','full','player_left','game_cancelled','joined','expired','unfilled','unfilled_end','postponed','changed','soon','reopen']);
 function nbqFromNotif(r,me){return{id:Number(r.id),user_id:me,kind:r.kind,game_id:r.game_id||null,from:r.actor_id||null,at:nbqMs(r.created_at),invite_id:r.invite_id||null,read:!!r.read_at,srv:true,synced:!!r.read_at}}
 // 过滤 + 转换（球局不在内存里的先不显示：文案要用球局的时间地点）。返回新到的在前，与前台 unshift 的顺序一致
 // 邀约类通知要带 invite_id，且邀约已读入内存（invIds）；不传 invIds 就不显示邀约类
-const nbqNtfOk=(r,gameIds,invIds)=>NBQ_INV_KINDS.has(r.kind)?!!(r.invite_id&&invIds&&invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id));
+const nbqNtfOk=(r,gameIds,invIds)=>NBQ_BUDDY_KINDS.has(r.kind)?!!(typeof NBQ_BUDDIES_ON!=='undefined'&&NBQ_BUDDIES_ON&&r.actor_id):NBQ_INV_KINDS.has(r.kind)?!!(r.invite_id&&invIds&&invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&gameIds.has(r.game_id));
 function nbqNtfList(rows,me,gameIds,invIds){return(rows||[]).filter(r=>nbqNtfOk(r,gameIds,invIds)).map(r=>nbqFromNotif(r,me))}
 // 需要先补读球局的通知（球局不在内存里）
 const nbqNtfNeedGames=(rows,gameIds,invIds)=>(rows||[]).some(r=>NBQ_INV_KINDS.has(r.kind)?!!(invIds&&r.invite_id&&!invIds.has(r.invite_id)):!!(NBQ_NTF_KINDS.has(r.kind)&&r.game_id&&!gameIds.has(r.game_id)));
@@ -5240,7 +5296,8 @@ const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
 // 会话代数（11-09）：每次清空（退出登录 / 换人）加一。异步读取开始时记下，回来时不一样 = 期间退出过 → 丢掉结果，不套用
 //   （原来读到一半退出，回来后 nbqApply 又把 ME 设回去，等于自动登录回上一个人；读通知时 ME 已空，ME.id 报错）
 let NBQ_EPOCH=0;
-function nbqClear(){NBQ_EPOCH++;Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
+function nbqClear(){NBQ_EPOCH++;if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
+  Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
   SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
 function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
@@ -5248,7 +5305,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);if(typeof nbqBuddiesIn==='function')nbqBuddiesIn(r.buddies);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 
 // 我的举报（11-05）：处理中的举报以服务器为准（刷新 / 换设备后还认得出「已举报」）；读不到（null）时保持原样，不清空
 function nbqApplyReports(list,me){
@@ -5283,7 +5340,7 @@ const NBQ_SNAP_K='nbq_snap',NBQ_SNAP_V=1,NBQ_SNAP_AGE=7*864e5;
 let NBQ_STALE=false,NBQ_SS=0;
 const nbqSetJ=(k,v)=>v instanceof Set?{__set:[...v]}:v,nbqSetR=(k,v)=>v&&typeof v==='object'&&Array.isArray(v.__set)?new Set(v.__set):v;
 function nbqSnapSave(){try{const s=SBA.on()&&SBA.session();if(!s||!ME||NBQ_STALE)return;
-  const r={me:ME.id,users:USERS,venues:Object.values(VEN),games:GAMES,parts:PARTS};
+  const r={me:ME.id,users:USERS,venues:Object.values(VEN),games:GAMES,parts:PARTS,buddies:typeof bdSnap==='function'?bdSnap():null};
   const t=JSON.stringify({v:NBQ_SNAP_V,uid:s.uid,at:Date.now(),r,notifs:NOTIFS},nbqSetJ);if(t.length<1.5e6)localStorage.setItem(NBQ_SNAP_K,t)}catch(e){}}
 function nbqSnapSoon(){if(NBQ_SS)return;NBQ_SS=setTimeout(()=>{NBQ_SS=0;nbqSnapSave()},800)}
 function nbqSnapClear(){try{localStorage.removeItem(NBQ_SNAP_K)}catch(e){}}
@@ -5626,19 +5683,35 @@ function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){
  *   写入走 nbqWrite(PUT /api/me/rackets) 整组替换，成功后用服务器返回的列表；读不到（undefined）时不许改，免得拿空列表把服务器上的冲掉。
  * 演示模式（NBQ_NET 为空）：只改内存。快照（nbq_snap）随 USERS 一起存，刷新不先闪空槽。
  * 开关 NBQ_RACKETS_ON：正式站默认关（上线闸门过了由所有者打开，见 #60 PR-D）；测试环境（分支预览，连测试库）开；
- *   任何设备可用 localStorage nbq_ff_rackets=1 单独打开（真机预看、自动化测试）。关着时不显示入口、也不读接口。 */
+ *   任何设备可用 localStorage nbq_ff_rackets=1 单独打开（真机预看、自动化测试）。关着时不显示入口、也不读接口。
+ * B2（#60，ADR 0009）：选择列表以服务器产品库为准（GET /api/rackets/catalog，第一次打开选拍弹层时读，同一页面只读一次）；
+ *   没读到 / 数据不对 / 演示模式 → 用下面的 RK_BRANDS 兜底。从产品库点选的发 {catalog_id}，包里已有的保留各自的 catalog_id，手写的发 {brand, series}（服务器自动归类）。
+ *   埋点（字典 tests/spec/events_spec.md）：racket_picker_open / racket_brand_pick / racket_save（服务器保存成功后才发）/ racket_invalid；不记手写的文字。 */
 const NBQ_RACKETS_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_rackets')==='1'}catch(_){return false}})();
 const RK_MAX=3,RK_LEN=30;
-// 预设：热门品牌 + 系列（只用文字，不用品牌标志）。列表只在前台，服务器只校验长度和字符，改列表不用迁移
+// 兜底列表：热门品牌 + 系列（只用文字，不用品牌标志）。和产品库种子（迁移 20261108_racket_catalog）一致；正常以产品库为准
 const RK_BRANDS=[['Wilson',['Pro Staff','Blade','Clash','Ultra','Burn','Shift']],['Babolat',['Pure Drive','Pure Aero','Pure Strike']],['Head',['Speed','Radical','Gravity','Prestige','Extreme','Boom']],
   ['Yonex',['EZONE','VCORE','Percept']],['Dunlop',['CX','SX','FX']],['Prince',['Phantom','Textreme']],['Tecnifibre',['TF40','T-Fight']]];
-// 与服务器 nbq_racket_text / nbq_racket_bad 同一套规则（服务器为准，这里只为了当场提示）
+// 与服务器 nbq_racket_text / nbq_racket_bad 同一套规则（服务器为准，这里只为了当场提示；校验见 rkCheck）
 const rkClean=s=>String(s==null?'':s).replace(/[\u0000-\u001f\u007f-\u009f]/g,'').replace(/[\s　 ]+/g,' ').trim();
-const rkBad=s=>/http|www/i.test(s)||/[@＠]/.test(s)||/[0-9０-９]{6,}/.test(s);
 const rkKey=r=>(r.brand||'').toLowerCase()+'\u001f'+String(r.series).toLowerCase();
 // 接口 → 前台：[{slot, brand, series}] → 按 slot 排好的 [{brand|null, series}]；不是数组返回 null（= 没读到）
+const RK_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const rkCid=v=>typeof v==='string'&&RK_UUID.test(v)?v:null;
 function nbqFromRackets(rows){if(!Array.isArray(rows))return null;
-  return rows.filter(r=>r&&typeof r.series==='string'&&r.series).sort((a,b)=>(+a.slot||0)-(+b.slot||0)).slice(0,RK_MAX).map(r=>({brand:typeof r.brand==='string'&&r.brand?r.brand:null,series:r.series}))}
+  return rows.filter(r=>r&&typeof r.series==='string'&&r.series).sort((a,b)=>(+a.slot||0)-(+b.slot||0)).slice(0,RK_MAX).map(r=>({brand:typeof r.brand==='string'&&r.brand?r.brand:null,series:r.series,catalog_id:rkCid(r.catalog_id)}))}
+// 产品库 → 选择列表：{catalog:[{id, brand, series}]} → [[品牌, [{id, series}]]]，品牌按第一次出现的顺序（服务器已按 sort 排好）；
+//   id 不是 uuid、名字不是文字 / 为空 / 超长的行丢掉；一行都不剩返回 null（= 用兜底列表）
+function nbqFromRacketCatalog(d){const rows=d&&Array.isArray(d.catalog)?d.catalog:null;if(!rows)return null;const m=new Map();
+  rows.forEach(r=>{if(!r||!rkCid(r.id)||typeof r.brand!=='string'||typeof r.series!=='string')return;const b=rkClean(r.brand),se=rkClean(r.series);
+    if(!b||!se||[...b].length>RK_LEN||[...se].length>RK_LEN)return;if(!m.has(b))m.set(b,[]);m.get(b).push({id:r.id,series:se})});
+  return m.size?[...m]:null}
+const RK_CAT={groups:null,p:null};   // 产品库：读到一次就用到页面刷新；读失败不记，下次打开再试
+const rkGroups=()=>RK_CAT.groups||RK_BRANDS.map(([b,l])=>[b,l.map(se=>({id:null,series:se}))]);
+function rkCatLoad(){if(RK_CAT.groups||RK_CAT.p||!nbqOn())return;
+  RK_CAT.p=Promise.resolve().then(()=>NBQ_NET.get('/api/rackets/catalog',null,{noauth:true})).then(r=>{const g=r&&r.ok?nbqFromRacketCatalog(r.data):null;if(!g)return;RK_CAT.groups=g;
+    if(RK.view==='pick'&&rkOpen())rkDraw()}).catch(()=>{}).finally(()=>{RK_CAT.p=null})}   // 选品牌 / 系列时到了就换上；正在「其他」里打字不重画
+// 埋点直接写 track('事件名', …)：static/check 按这个写法核对「代码里的事件名都在字典里、两端一致」；props 与字典逐字一致，不传手写文字
 // 读入（nbqApply 调用）：读到了 → 以服务器为准；没读到 → 保留这次之前的（同一个人），不清空
 function nbqRacketsIn(me,list,old){if(!me)return;if(Array.isArray(list)){me.rackets=list;return}if(!Array.isArray(me.rackets)&&Array.isArray(old))me.rackets=old}
 // 当前的球拍：null = 真实模式还没读到（不显示槽位、不许改）
@@ -5660,23 +5733,25 @@ function rkSectionHTML(kind){if(!NBQ_RACKETS_ON||!ME)return '';
     :`<div class="sec-t">${h}</div><div class="group rk">${rows}</div>`}
 
 /* ---- 弹层（PWA 底部弹层 / 网页端弹窗，同一份内容）---- */
-const RK={i:0,mode:'add',brand:null,step:'brand'};
+const RK={i:0,mode:'add',brand:null,step:'brand',view:null};
 const rkSheet=()=>typeof openSheet==='function';
 const rkCls=()=>rkSheet()?{t:'sh-t',s:'sh-s'}:{t:'m-t',s:'m-s'};
 function rkShow(html){html=`<div class="rk-pk">${html}</div>`;if(rkSheet())openSheet(html);else openModal(`<div class="m-b">${html}</div>`,'sm')}
-const rkHide=()=>{if(rkSheet())closeSheet();else closeModal()};
+const rkHide=()=>{RK.view=null;if(rkSheet())closeSheet();else closeModal()};
+// 选拍弹层开着吗（看底板：手机端 #sheet 的 show 要下一帧才加，#sbg 是立刻加的）
+const rkOpen=()=>rkSheet()?!!(document.querySelector('#sbg.show')&&document.querySelector('#sheet .rk-pk')):!!(document.querySelector('#mbg.show')&&document.querySelector('#modal .rk-pk'));
 // 包里别的槽位已有的（换一把时，被换掉的那把不算）
-const rkTaken=()=>{const L=rkList()||[];return new Set(L.filter((_,j)=>!(RK.mode==='swap'&&j===RK.i)).map(rkKey))};
+const rkTaken=()=>{const L=rkList()||[],o=new Set();L.forEach((r,j)=>{if(RK.mode==='swap'&&j===RK.i)return;o.add(rkKey(r));if(r.catalog_id)o.add('id:'+r.catalog_id)});return o};
 function rkBack(){return `<button class="rk-back" data-a="rkBack" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
-function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:null;
+function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:null;RK.view=RK.step==='other'?'other':'pick';
   if(RK.step==='brand'){
     const sub=RK.mode==='swap'?`换掉 ${esc(rkName(cur))}`:RK.i===0||!L.length?'这把会是你的主力。':'品牌和系列，点一下就好。';
     rkShow(`<div class="${c.t}">${RK.mode==='swap'?'换一把':'添一把球拍'}</div><p class="${c.s}">${sub}</p>
-      <div class="rk-grid">${RK_BRANDS.map(([b])=>`<button class="rk-chip brand" data-a="rkBrand" data-b="${esc(b)}">${esc(b)}</button>`).join('')}<button class="rk-chip oth" data-a="rkOther">其他品牌</button></div>`);return}
-  if(RK.step==='series'){const tk=rkTaken(),list=(RK_BRANDS.find(x=>x[0]===RK.brand)||[,[]])[1];
+      <div class="rk-grid">${rkGroups().map(([b])=>`<button class="rk-chip brand" data-a="rkBrand" data-b="${esc(b)}">${esc(b)}</button>`).join('')}<button class="rk-chip oth" data-a="rkOther">其他品牌</button></div>`);return}
+  if(RK.step==='series'){const tk=rkTaken(),list=(rkGroups().find(x=>x[0]===RK.brand)||[,[]])[1];
     rkShow(`<div class="rk-nav">${rkBack()}<div class="${c.t}">${esc(RK.brand)}</div></div><p class="${c.s}">选系列，点一下就保存。</p>
-      <div class="rk-grid">${list.map(s=>{const k=rkKey({brand:RK.brand,series:s}),own=tk.has(k),same=cur&&rkKey(cur)===k;
-        return `<button class="rk-chip" data-a="rkSeries" data-s="${esc(s)}"${own||same?' disabled':''}>${esc(s)}${own?'<small>已在包里</small>':same?'<small>现在这把</small>':''}</button>`}).join('')}<button class="rk-chip oth" data-a="rkOther">其他系列</button></div>`);return}
+      <div class="rk-grid">${list.map(({id,series:s})=>{const k=rkKey({brand:RK.brand,series:s}),own=tk.has(k)||!!id&&tk.has('id:'+id),same=!!cur&&(rkKey(cur)===k||!!id&&cur.catalog_id===id);
+        return `<button class="rk-chip" data-a="rkSeries" data-s="${esc(s)}"${id?` data-c="${esc(id)}"`:''}${own||same?' disabled':''}>${esc(s)}${own?'<small>已在包里</small>':same?'<small>现在这把</small>':''}</button>`}).join('')}<button class="rk-chip oth" data-a="rkOther">其他系列</button></div>`);return}
   // 「其他」：唯一的输入框。回车只收键盘；保存按钮不绑回车
   const ph=RK.brand?'系列 / 型号，例如 Pro Staff 97':'品牌和型号，例如 Diadem Elevate';
   rkShow(`<div class="rk-nav">${rkBack()}<div class="${c.t}">${RK.brand?esc(RK.brand)+' · 其他系列':'其他品牌'}</div></div>
@@ -5686,42 +5761,199 @@ function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:nu
   const i=$('#rkName'),sv=document.querySelector('[data-a="rkSave"]');if(!i)return;
   i.addEventListener('input',()=>{const v=rkClean(i.value);$('#rkN').textContent=[...i.value].length+'/'+RK_LEN;$('#rkErr').textContent='';if(sv)sv.disabled=!v});
   i.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))i.blur()})}
-function rkSlotSheet(i){const L=rkList()||[],r=L[i],c=rkCls();
+function rkSlotSheet(i){const L=rkList()||[],r=L[i],c=rkCls();RK.view='slot';
   rkShow(`<div class="rk-hero">${r.brand?`<small class="rk-br">${esc(r.brand)}</small>`:''}<div class="rk-ht"><b class="${c.t}">${esc(r.series)}</b>${i===0?'<span class="rk-main">主力</span>':''}</div></div>
     <div class="rk-acts">${i>0?`<button class="rk-act" data-a="rkMain"><b>设为主力</b><small>和现在的主力换个位置</small></button>`:''}
       <button class="rk-act" data-a="rkSwap"><b>换一把</b></button><button class="rk-act danger" data-a="rkDel"><b>移除</b></button></div>`)}
 
 /* ---- 写：整组替换。真实模式走 nbqWrite（快照期间 / 连点 / 失败提示都在里面），成功后以服务器返回为准 ---- */
-async function rkCommit(next,done,btn){const L=rkList();
+// ev = {action, source}：服务器保存成功后才发 racket_save
+async function rkCommit(next,done,btn,ev){const L=rkList();
   if(L===null){toast('球拍还没读到，稍等一下再试');return false}
-  const list=next.slice(0,RK_MAX).map(r=>({brand:r.brand||null,series:r.series}));
+  const keep=next.slice(0,RK_MAX).map(r=>({brand:r.brand||null,series:r.series,catalog_id:rkCid(r.catalog_id)}));
+  const list=keep.map(r=>r.catalog_id?{catalog_id:r.catalog_id}:{brand:r.brand,series:r.series});   // 产品库里的发 id（名字以产品库为准），手写的发品牌 + 系列
   const pk=document.querySelector('.rk-pk');if(pk)pk.classList.add('busy');if(btn)btn.classList.add('busy');
   try{
     if(nbqOn()){const d=await nbqWrite('rackets',n=>n.put('/api/me/rackets',{rackets:list}));if(d===null)return false;
       const got=nbqFromRackets(d.rackets);if(ME&&got)ME.rackets=got}
-    else ME.rackets=list;
+    else ME.rackets=keep;
+    if(ev)track('racket_save',{action:ev.action,source:ev.source,n_after:(rkList()||[]).length});
     rkHide();toast(done);render();return true}
   finally{if(pk)pk.classList.remove('busy');if(btn)btn.classList.remove('busy')}}
-function rkPut(r,btn){const L=[...(rkList()||[])];
-  if(RK.mode==='swap'){L[RK.i]=r;return rkCommit(L,'已换上 '+rkName(r),btn)}
-  L.push(r);return rkCommit(L,L.length===1?'主力拍已就位':'已放进包里',btn)}
+// source：catalog = 从列表点选（产品库或兜底列表）· other = 自己写的
+function rkPut(r,btn,source){const L=[...(rkList()||[])];
+  if(RK.mode==='swap'){L[RK.i]=r;return rkCommit(L,'已换上 '+rkName(r),btn,{action:'swap',source})}
+  L.push(r);return rkCommit(L,L.length===1?'主力拍已就位':'已放进包里',btn,{action:'add',source})}
+// 当场校验（与服务器同一套规则，服务器为准）：返回 [原因, 提示]；原因进 racket_invalid
+function rkCheck(v){if(!v)return['empty','写一下拍子的名字'];if([...v].length>RK_LEN)return['long',`最多 ${RK_LEN} 个字`];
+  const bad='名字里不能有链接、@ 或一长串数字';if(/http|www/i.test(v))return['link',bad];if(/[@＠]/.test(v))return['at',bad];if(/[0-9０-９]{6,}/.test(v))return['digits',bad];
+  if(rkTaken().has(rkKey({brand:RK.brand,series:v})))return['dup','这把已经在包里了'];return null}
 // 事件（两端 0270 的 switch 转过来）
 function rkAct(a){const d=a.dataset,L=rkList();
   switch(d.a){
     case'rkSlot':{if(L===null){toast('球拍还没读到，稍等一下再试');return}const i=+d.i||0;
-      if(L[i]){RK.i=i;rkSlotSheet(i);return}RK.i=L.length;RK.mode='add';RK.brand=null;RK.step='brand';rkDraw();return}
-    case'rkSwap':RK.mode='swap';RK.brand=null;RK.step='brand';rkDraw();return;
-    case'rkBrand':RK.brand=d.b;RK.step='series';rkDraw();return;
-    case'rkOther':RK.step='other';rkDraw();setTimeout(()=>{const i=$('#rkName');if(i)i.focus()},rkSheet()?320:60);return;
+      if(L[i]){RK.i=i;rkSlotSheet(i);return}RK.i=L.length;RK.mode='add';RK.brand=null;RK.step='brand';rkCatLoad();rkDraw();
+      track('racket_picker_open',{mode:'add',slot:RK.i+1});return}
+    case'rkSwap':RK.mode='swap';RK.brand=null;RK.step='brand';rkCatLoad();rkDraw();track('racket_picker_open',{mode:'swap',slot:RK.i+1});return;
+    case'rkBrand':RK.brand=d.b;RK.step='series';rkDraw();track('racket_brand_pick',{brand:d.b});return;   // 品牌名来自产品库 / 兜底列表，不是手写
+    case'rkOther':if(RK.step==='brand')track('racket_brand_pick',{brand:'other'});RK.step='other';rkDraw();setTimeout(()=>{const i=$('#rkName');if(i)i.focus()},rkSheet()?320:60);return;
     case'rkBack':RK.step=RK.step==='other'&&RK.brand?'series':'brand';if(RK.step==='brand')RK.brand=null;rkDraw();return;
-    case'rkSeries':return void rkPut({brand:RK.brand,series:d.s},a);
-    case'rkSave':{const i=$('#rkName'),e=$('#rkErr'),v=rkClean(i&&i.value);
-      const err=!v?'写一下拍子的名字':[...v].length>RK_LEN?`最多 ${RK_LEN} 个字`:rkBad(v)?'名字里不能有链接、@ 或一长串数字':rkTaken().has(rkKey({brand:RK.brand,series:v}))?'这把已经在包里了':'';
-      if(err){if(e)e.textContent=err;return}if(i)i.blur();return void rkPut({brand:RK.brand,series:v},a)}
+    case'rkSeries':return void rkPut({brand:RK.brand,series:d.s,catalog_id:rkCid(d.c)},a,'catalog');
+    case'rkSave':{const i=$('#rkName'),e=$('#rkErr'),v=rkClean(i&&i.value),err=rkCheck(v);
+      if(err){if(e)e.textContent=err[1];track('racket_invalid',{reason:err[0]});return}if(i)i.blur();return void rkPut({brand:RK.brand,series:v,catalog_id:null},a,'other')}
     case'rkMain':{if(!L||!L[RK.i]||!RK.i)return;const n=[...L];[n[0],n[RK.i]]=[n[RK.i],n[0]];   // 和 1 号位交换，不做拖拽排序
-      return void rkCommit(n,'已设为主力',a)}
-    case'rkDel':{if(!L||!L[RK.i])return;const r=L[RK.i];return void rkCommit(L.filter((_,j)=>j!==RK.i),'已移除 '+rkName(r),a)}
+      return void rkCommit(n,'已设为主力',a,{action:'main',source:L[RK.i].catalog_id?'catalog':'other'})}   // source：被设为主力的那把有没有归到产品库
+    case'rkDel':{if(!L||!L[RK.i])return;const r=L[RK.i];return void rkCommit(L.filter((_,j)=>j!==RK.i),'已移除 '+rkName(r),a,{action:'remove',source:r.catalog_id?'catalog':'other'})}
   }}
+/* ============================== 我的 UTR（#101） ==============================
+ * 个人页一行（和「我的球拍」同一套样式）：小标签「正式 / 自评」+ 数字；整行可点开弹层。自评数字前加 ≈。
+ * 「几周前更新」平时不显示：电脑鼠标悬停、手机长按时才出现。球员卡不变（只显示数字，不带 ≈）。
+ * 数据：数值和类型就是已有的 ME.ntrp / ME.utr_estimated；主页编号和更新时间在 UT 里，打开个人页时读一次 GET /api/me/utr。
+ *   写入只走 nbqWrite(PUT /api/me/utr)，成功后以服务器返回为准；校验、频率（24 小时 5 次）在服务器，这里只为当场提示。
+ * 开关 NBQ_UTR_ON：正式站默认关；测试环境（分支预览，连测试库）开；任何设备可用 localStorage nbq_ff_utr=1 单独打开。 */
+const NBQ_UTR_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_utr')==='1'}catch(_){return false}})();
+// 自评五档（用户 11-07 定；注册页的 UTR_EST 是另一套，统一见 #103）
+const UT_EST=[['刚开始学',1],['能稳定对拉',1.5],['会发球、能打比赛',2],['常打比赛',3],['校队 / 高水平',4]];
+const UT={uid:null,at:null,profile:null,got:false,p:null,mode:'off',est:1};
+const utFmt=v=>String(Math.round((+v||0)*100)/100);
+const utShown=()=>ME.utr_estimated?'≈'+(+ME.ntrp).toFixed(1):utFmt(ME.ntrp);
+function utAgo(t){if(!t)return '';const d=Math.floor((Date.now()-t)/864e5);return d<1?'今天更新':d<7?d+' 天前更新':d<60?Math.floor(d/7)+' 周前更新':d<730?Math.floor(d/30)+' 个月前更新':'很久没更新'}
+// 链接 → 主页编号（与服务器 api_set_utr 同一套；空 = ''，认不出 = null）
+function utProfile(s){s=String(s==null?'':s).trim();if(!s)return '';if(/^\d{4,12}$/.test(s))return s;
+  const m=s.match(/^(?:https?:\/\/)?(?:app\.|www\.)?(?:utrsports\.net|universaltennis\.com)\/profiles\/(\d{4,12})(?:[/?#].*)?$/i);return m?m[1]:null}
+function utNum(s){s=String(s||'').trim().replace(/[，。]/g,'.');if(!s)return {e:'填一下 UTR',r:'empty'};if(!/^\d{1,2}(\.\d{1,2})?$/.test(s))return {e:'最多两位小数',r:'format'};
+  const v=+s;return v<1||v>16.5?{e:'UTR 在 1 – 16.5 之间',r:'range'}:{v}}
+function nbqFromUtr(d){return d&&typeof d==='object'&&isFinite(+d.utr)?{utr:+d.utr,estimated:!!d.estimated,profile:typeof d.profile==='string'?d.profile:null,at:Date.parse(d.updated_at)||null}:null}
+function utIn(x){if(!x||!ME)return;ME.ntrp=x.utr;ME.utr_estimated=x.estimated;UT.profile=x.profile;UT.at=x.at;UT.got=true}
+function utLoad(){if(UT.uid!==ME.id){UT.uid=ME.id;UT.at=null;UT.profile=null;UT.got=false}   // 换了账号 / 退出再登录：不沿用上一个人的
+  if(UT.got||UT.p)return;
+  if(!nbqOn()){if(!UT.at)UT.at=Date.parse(ME.created_at)||Date.now();return}   // 演示模式（或真实模式还没接上）：不标记已读，接上后照常读一次
+  const uid=ME.id;UT.p=Promise.resolve().then(()=>NBQ_NET.get('/api/me/utr')).then(r=>{const x=r&&r.ok?nbqFromUtr(r.data&&r.data.utr):null;if(!x||!ME||ME.id!==uid)return;utIn(x);
+    if(document.querySelector('.ut-row')&&!document.querySelector('.ut-pk'))render()})   /* 个人页开着、弹层没开：重画一次（数值 / 时间以服务器为准） */.catch(()=>{}).finally(()=>{UT.p=null})}
+
+/* ---- 个人页一行 ---- */
+const UT_ICO='<svg class="rk-hi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4.2-5.2"/><circle cx="12" cy="16" r="1.4" fill="currentColor" stroke="none"/></svg>';
+function utSectionHTML(kind){if(!NBQ_UTR_ON||!ME)return '';utLoad();
+  const k=ME.utr_estimated?'自评':'正式',n=ME.utr_estimated?`<span class="ut-ap">≈</span>${(+ME.ntrp).toFixed(1)}`:utFmt(ME.ntrp);
+  const row=`<button class="ut-row" data-a="utOpen" aria-label="我的 UTR：${k} ${utShown()}${UT.at?'，'+utAgo(UT.at):''}，点开更新"><span class="v"><small class="rk-br">${k}</small><b class="rk-se ut-n">${n}</b></span><span class="ut-tip" aria-hidden="true">${utAgo(UT.at)}</span></button>`;
+  const h=`<span class="rk-h">${UT_ICO}我的 UTR</span>`;
+  return kind==='web'?`<div class="card rk-card ut-card"><div class="ch-h">${h}</div><div class="ut">${row}</div></div>`:`<div class="sec-t">${h}</div><div class="group ut">${row}</div>`}
+// 手机长按显示「几周前更新」（电脑悬停由 CSS 管）；长按后的那次点按不打开弹层
+let UT_LP=0;
+if(typeof document!=='undefined'){
+  document.addEventListener('touchstart',e=>{const r=e.target.closest&&e.target.closest('.ut-row');if(!r)return;clearTimeout(UT_LP);UT_LP=setTimeout(()=>{r.classList.add('tipon');UT_LP=-1},450)},{passive:true});
+  document.addEventListener('touchmove',()=>{if(UT_LP>0){clearTimeout(UT_LP);UT_LP=0}},{passive:true});
+  document.addEventListener('touchend',e=>{const r=e.target.closest&&e.target.closest('.ut-row');if(UT_LP===-1&&r){e.preventDefault();setTimeout(()=>r.classList.remove('tipon'),1400)}else clearTimeout(UT_LP);UT_LP=0});
+  document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.ut-row'))e.preventDefault()})}
+
+/* ---- 弹层：正式 / 自评 ---- */
+const utSheet=()=>typeof openSheet==='function';
+function utDraw(){const c=utSheet()?'sh-t':'m-t',off=UT.mode==='off';
+  const html=`<div class="rk-pk ut-pk"><div class="${c}">我的 UTR</div>
+    <div class="ut-seg" role="tablist"><button role="tab" data-a="utMode" data-m="off" aria-selected="${off}">正式</button><button role="tab" data-a="utMode" data-m="self" aria-selected="${!off}">自评</button></div>
+    ${off?`<input id="utrNum" class="inp ut-num" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="如 4.6" aria-label="UTR" value="${ME.utr_estimated?'':utFmt(ME.ntrp)}">
+    <div class="ut-lk-t" aria-hidden="true">UTR 主页链接（选填）</div><label class="ut-lk"><input id="utrLink" class="inp" inputmode="url" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="如 https://app.utrsports.net/profiles/6144618" aria-label="UTR 主页链接（选填）" value="${esc(UT.profile||'')}"><svg class="ut-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></label>
+    <div class="rk-err ut-err" id="utErr" role="alert"></div>`
+    :`<div class="rk-acts ut-opts" role="radiogroup" aria-label="自评">${UT_EST.map(([l,v],i)=>`<button class="rk-act ut-opt" role="radio" data-a="utEst" data-i="${i}" aria-checked="${i===UT.est}"><b>${l}</b><span>≈ ${v.toFixed(1)}</span></button>`).join('')}</div>`}
+    <button class="btn btn-p ut-save" data-a="utSave">保存</button></div>`;
+  if(utSheet())openSheet(html);else openModal(`<div class="m-b">${html}</div>`,'sm');
+  if(!off)return;
+  const n=$('#utrNum'),l=$('#utrLink'),chk=()=>{const p=utProfile(l.value);l.parentNode.classList.toggle('good',!!p);$('#utErr').textContent='';n.classList.remove('bad');l.classList.remove('bad')};
+  chk();[n,l].forEach(x=>{x.addEventListener('input',chk);x.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();if(!nbqImeEnter(e))utSave(document.querySelector('[data-a="utSave"]'))})})}
+async function utSave(btn){let body;
+  if(UT.mode==='off'){const n=utNum($('#utrNum').value),p=utProfile($('#utrLink').value),e=$('#utErr');
+    if(n.e||p===null){$('#utrNum').classList.toggle('bad',!!n.e);$('#utrLink').classList.toggle('bad',p===null);e.textContent=n.e||'不是 UTR 主页链接';
+      track('utr_invalid',{reason:n.r||'link'});return}
+    body={utr:n.v,estimated:false,profile:p||null}}
+  else body={utr:UT_EST[UT.est][1],estimated:true};
+  const was=ME.ntrp;if(btn)btn.disabled=true;
+  try{let x;
+    if(nbqOn()){const d=await nbqWrite('utr',net=>net.put('/api/me/utr',body));if(d===null)return;x=nbqFromUtr(d.utr)}
+    else x={utr:body.utr,estimated:body.estimated,profile:'profile' in body?body.profile:UT.profile,at:Date.now()};
+    utIn(x);track('utr_save',{mode:body.estimated?'self':'off',linked:!!(x&&x.profile),change:x&&x.utr>was?'up':x&&x.utr<was?'down':'same'});
+    utSheet()?closeSheet():closeModal();toast('已保存');render()}
+  finally{if(btn)btn.disabled=false}}
+function utAct(a){const d=a.dataset;
+  switch(d.a){
+    case'utOpen':if(a.classList.contains('tipon'))return;UT.mode=ME.utr_estimated?'self':'off';track('utr_open',{mode:UT.mode,linked:!!UT.profile});
+      UT.est=Math.max(0,UT_EST.findIndex(([,v])=>v===+ME.ntrp));utDraw();return;
+    case'utMode':if(UT.mode===d.m)return;UT.mode=d.m;utDraw();return;
+    case'utEst':UT.est=+d.i||0;document.querySelectorAll('.ut-opt').forEach((b,i)=>b.setAttribute('aria-checked',i===UT.est));return;
+    case'utSave':return void utSave(a)}}
+/* ============================== 球友（#110 PR-B1） ==============================
+ * 关系只有两种来源：一起打过（前台按球局算，不落表）+ 当面扫码、对方确认（服务器 buddies 表）。没有远程「加好友」，不显示球友数。
+ * 数据：BUDDY = {ok, list:[{uid, since}], incoming:[{id, from, at, exp}], outgoing:[{id, to, at, exp}]}，只认服务器：
+ *   读入 nbqLoadAll（开关开时读 GET /api/buddies，卡片进 USERS）→ nbqApply → nbqBuddiesIn；没读到（null）保留之前的，不清空。
+ *   写走 nbqWrite（成功后整体重读，页面以服务器为准）；失败由 nbqWrite 提示并重读。
+ * 「我的球友」：开关开时替换个人页的「常一起打」—— 扫码球友 + 半年内一起打过的人（不再要求 ≥ 2 场）；多遇到在前，少遇到不显示；仅本人可见。
+ *   待确认的申请常驻在这一节最上面（错过通知也找得到）。
+ * 通知：buddy_request = 待处理（处理完之前保持未读，点开是确认页）；buddy_accepted 点开是 TA 的球员卡。
+ * 确认页只有「确认」和「忽略」：没有拒绝，忽略不通知对方（页面上写明）。
+ * 开关 NBQ_BUDDIES_ON：正式站默认关（上线闸门过了由所有者打开）；测试环境（分支预览，连测试库）开；
+ *   localStorage nbq_ff_buddies=1 单独打开（真机预看、自动化测试）。关着时不读接口、不收这两种通知、个人页还是「常一起打」。
+ * 演示模式（NBQ_NET 为空）：没有扫码球友和申请，只显示一起打过的人；演示截图基准不变（开关在演示环境是关的）。 */
+const NBQ_BUDDIES_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_buddies')==='1'}catch(_){return false}})();
+var BUDDY={ok:false,list:[],incoming:[],outgoing:[]};
+// 接口 → 前台：不是期望的形状 = 没读到 → null
+function nbqFromBuddies(d){if(!d||typeof d!=='object'||!Array.isArray(d.buddies))return null;const ms=x=>Date.parse(x)||0;
+  return{ok:true,list:d.buddies.filter(x=>x&&x.user_id).map(x=>({uid:x.user_id,since:ms(x.since)})),
+    incoming:(d.incoming||[]).filter(x=>x&&x.id&&x.from_user).map(x=>({id:x.id,from:x.from_user,at:ms(x.created_at),exp:ms(x.expires_at)})),
+    outgoing:(d.outgoing||[]).filter(x=>x&&x.id&&x.to_user).map(x=>({id:x.id,to:x.to_user,at:ms(x.created_at),exp:ms(x.expires_at)}))}}
+function nbqBuddiesIn(b){if(b)BUDDY=b}
+// 存进快照（nbq_snap）：连同我设了「少遇到」的人一起存 —— 刷新时偏好还没读回来，靠它不让这些人闪出来
+function bdSnap(){if(!BUDDY.ok||!ME)return null;const p=ME.id+'>';return{...BUDDY,less:Object.keys(OPIN).filter(k=>k.startsWith(p)&&OPIN[k]&&OPIN[k].v==='less').map(k=>k.slice(p.length))}}
+const bdHidden=uid=>lessHas(ME.id,uid)||(typeof NBQ_STALE!=='undefined'&&NBQ_STALE&&(BUDDY.less||[]).includes(uid));
+// 还没失效、对方还在的待确认申请
+const bdIn=()=>!ME?[]:BUDDY.incoming.filter(r=>r.exp>Date.now()&&U(r.from)&&!blockedPair(ME.id,r.from));
+const bdWhen=t=>Date.now()-t<120e3?'刚刚':ago(t);
+// 我的球友：扫码球友 ∪ 半年内一起打过的人；多遇到在前，其次最近一次（一起打 / 成为球友）更近的在前
+function bdAll(){if(!ME)return[];const m=new Map();
+  partnersOf(ME.id).forEach(x=>m.set(x.uid,{uid:x.uid,n:x.n,last:x.last,scan:false}));
+  BUDDY.list.forEach(b=>{const o=m.get(b.uid);if(o){o.scan=true;o.last=Math.max(o.last,b.since)}else m.set(b.uid,{uid:b.uid,n:0,last:b.since,scan:true})});
+  return[...m.values()].filter(x=>U(x.uid)&&!blockedPair(ME.id,x.uid)&&!bdHidden(x.uid))
+    .sort((a,b)=>followHas(ME.id,b.uid)-followHas(ME.id,a.uid)||b.last-a.last)}
+const bdLine=x=>x.n?`一起打过 ${x.n} 场`:'当面扫码认识';
+const BD_SHOW=8;
+
+/* ---- 画 ---- */
+const bdReqHTML=r=>{const u=U(r.from);return `<button class="bd-req" data-act="bdOpen" data-id="${esc(r.id)}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>想加你为球友 · ${esc(bdWhen(r.at))}扫了你的码</small></span><span class="go" aria-hidden="true">›</span></button>`};
+function bdSectionHTML(){if(!ME)return'';const L=bdAll(),inc=bdIn();if(!L.length&&!inc.length)return'';
+  const pals=L.slice(0,BD_SHOW).map(x=>{const u=U(x.uid);return `<button class="pal" data-user="${x.uid}">${av(u)}<b>${esc(u.name.split(' ')[0])}</b><small>${x.n?x.n+' 场':'扫码'}</small></button>`}).join('');
+  return SX_SEC('我的球友','仅你可见',`<div class="bd">${inc.map(bdReqHTML).join('')}${L.length?`<div class="pals">${pals}</div>`:''}${L.length>BD_SHOW?`<button class="bd-all" data-act="bdList">全部 ${L.length} 位 ›</button>`:''}</div>`)}
+{const _pals=partnersHTML;partnersHTML=function(){return NBQ_BUDDIES_ON?bdSectionHTML():_pals()}}
+// 弹层：手机端底部弹层，网页端居中小弹窗
+const bdShow=html=>{html=`<div class="bd-pk">${html}</div>`;if(typeof openSheet==='function')openSheet(html);else openModal(`<div class="m-b">${html}</div>`,'sm')};
+const bdClose=()=>{try{if(typeof closeSheet==='function')closeSheet();else closeModal()}catch(_){}};
+function bdConfirmHTML(r){const u=U(r.from),k=playedCount(ME.id,r.from);
+  return `<div class="bd-cf">${av(u)}<b class="bd-nm">${esc(u.name)}</b><p>${esc(bdWhen(r.at))}扫了你的码，想加你为球友${k?` · 你们一起打过 ${k} 场`:''}</p>
+    <div class="bd-bt"><button class="${SX_BTN.p}" data-act="bdAccept" data-id="${esc(r.id)}">确认</button><button class="${SX_BTN.s}" data-act="bdIgnore" data-id="${esc(r.id)}">忽略</button></div>
+    <small class="bd-note">成为球友后，过几天想约也找得到对方。忽略不会通知 TA。</small></div>`}
+function bdOpen(id,via){const r=bdIn().find(x=>x.id===id);if(!r){toast('这条申请已经处理过或失效了');render();return}
+  track('buddy_request_open',{request_id:id,via});bdShow(bdConfirmHTML(r))}
+function bdListOpen(){const L=bdAll();track('buddy_list_open',{n_buddies:L.filter(x=>x.scan).length,n_played:L.filter(x=>x.n).length});
+  bdShow(`<div class="bd-ls"><div class="bd-h"><b>我的球友</b><small>仅你可见 · ${L.length} 位</small></div>${L.map(x=>{const u=U(x.uid);return `<button class="bd-row" data-user="${x.uid}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>${esc(bdLine(x))}</small></span></button>`}).join('')}</div>`)}
+
+/* ---- 确认 / 忽略：写服务器，成功后整体重读 ---- */
+async function bdRespond(id,act){const r=BUDDY.incoming.find(x=>x.id===id);if(!r||!ME)return;
+  if(!NBQ_NET){toast('演示模式里不能加球友');return}
+  const d=await nbqWrite('bd:'+id,net=>net.post(`/api/buddies/requests/${encodeURIComponent(id)}/${act}`,{}));
+  if(d===null)return;
+  track('buddy_respond',{request_id:id,action:act,wait_min:Math.max(0,Math.round((Date.now()-r.at)/6e4))});
+  NOTIFS.forEach(n=>{if(n.kind==='buddy_request'&&n.from===r.from&&!n.read)n.read=true});if(typeof nrBadge==='function')nrBadge();
+  bdClose();const u=U(r.from);toast(act==='accept'?`你和 ${u?u.name.split(' ')[0]:'TA'} 成为球友了`:'已忽略，TA 不会收到通知');render()}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act^="bd"]');if(!b||!ME)return;e.stopPropagation();e.preventDefault();
+  const k=b.dataset.act,id=b.dataset.id;
+  if(k==='bdOpen')bdOpen(id,'list');else if(k==='bdList')bdListOpen();else if(k==='bdAccept'||k==='bdIgnore')bdRespond(id,k==='bdAccept'?'accept':'ignore')},true);
+
+/* ---- 通知：文案（纯文字，列表自己转义）、待处理、点开去哪 ---- */
+{const _t=ntfText;ntfText=function(n){if(n&&(n.kind==='buddy_request'||n.kind==='buddy_accepted')){const u=U(n.from),nm=u?u.name:'一位球友';
+  return n.kind==='buddy_request'?[`${nm} 想加你为球友`,'当面扫了你的码 · 点开确认 ›']:[`你和 ${nm} 成为球友了`,'以后想约，在「我的球友」里找 TA ›']}return _t.apply(this,arguments)}}
+{const _td=nrTodo;nrTodo=function(n){if(n&&n.kind==='buddy_request')return bdIn().some(r=>r.from===n.from);return _td.apply(this,arguments)}}
+{const _o=nrOpen;nrOpen=function(n){if(!n||(n.kind!=='buddy_request'&&n.kind!=='buddy_accepted'))return _o.apply(this,arguments);
+  const push=typeof AN!=='undefined'&&AN.qp&&AN.qp.n!=null&&String(AN.qp.n)===String(n.id);
+  if(n.kind==='buddy_request'){const r=bdIn().find(x=>x.from===n.from);if(r){bdOpen(r.id,push?'push':'notif');return}
+    n.read=true;nrBadge();toast('这条申请已经处理过或失效了');return}
+  n.read=true;nrBadge();if(U(n.from))openCard(n.from)};if(NR_PLAT==='mobile')ntfOpen=nrOpen}
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
@@ -5996,6 +6228,7 @@ DEV.addEventListener('click',e=>{
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
     case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）
+    case'utOpen':case'utMode':case'utEst':case'utSave':utAct(a);break;   // 我的 UTR（0499）
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'enablePush':enablePush();break;

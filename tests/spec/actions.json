@@ -114,6 +114,10 @@
   "a:readAll": "baseline",
   "a:pushRecheck": "write:push_onboarding（授权后补订阅）",
   "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）",
+  "a:utOpen": "nav：打开我的 UTR 弹层（长按后的那次不打开）",
+  "a:utMode": "local：弹层里切换 正式 / 自评",
+  "a:utEst": "local：自评选一档",
+  "a:utSave": "write:utr（PUT /api/me/utr）",
   "a:rkSlot": "nav：打开空槽的选拍弹层 / 已有那把的操作弹层",
   "a:rkSwap": "nav：换一把 → 回到选品牌",
   "a:rkBrand": "nav：选品牌 → 系列",
@@ -122,6 +126,10 @@
   "a:rkSeries": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
   "a:rkSave": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
   "a:rkMain": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
-  "a:rkDel": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）"
+  "a:rkDel": "write:frontend/rackets（PUT /api/me/rackets 整组替换，保存 → 清空内存 → 重读 → 还在）",
+  "act:bdOpen": "nav：打开加球友确认页（我的球友里的待确认行）",
+  "act:bdList": "nav：打开全部球友列表",
+  "act:bdAccept": "write:frontend/buddies（POST /api/buddies/requests/:id/accept，确认 → 清空内存 → 重读 → 两边都是球友）",
+  "act:bdIgnore": "write:frontend/buddies（POST /api/buddies/requests/:id/ignore，忽略 → 清空内存 → 重读 → 申请不再出现）"
  }
 }

@@ -39,7 +39,7 @@ const why = e => { const c = String(e && e.code || ''), m = String(e && e.messag
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 数据库错误（P0001，message = 错误码，见 tests/spec/api_spec.md §1）→ HTTP 状态；表里没有的按 409
 const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game']);
-const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed']);
+const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed', 'buddy_self']);
 export const statusOf = code => code === 'login_required' ? 401 : code === 'not_found' ? 404 : code === 'pact_required' ? 428 : code === 'restore_expired' ? 410
   : /^account_/.test(code) || ST403.has(code) ? 403 : ST422.has(code) ? 422
   : code !== 'game_open_limit' && /(_limit|_too_fast)$|^rate_limited$|^otp_/.test(code) ? 429 : 409;
@@ -80,7 +80,7 @@ async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon 
 }
 const str = v => typeof v === 'string' ? v : null;   // 不是文字的字段一律当没填，让数据库的检查去报错
 const bad = () => Object.assign(new Error('invalid'), { code: '22023' });
-const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'utr', 'utr_estimated', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
+const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
 const one = async (q, sql, args) => (await q(sql, args)).rows[0];
 
 
@@ -226,6 +226,13 @@ const ROUTES = {
     const blocks = (await q('select blocked_id as user_id, created_at from blocks where blocker_id = nbq_uid() order by created_at desc limit 200')).rows;
     return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  // 球友（#110 PR-A）：当面扫码 → 申请 → 对方确认 / 忽略；规则全在 api_buddy_* 里（pg/buddies 测），被忽略的申请对发起人仍显示为等待
+  'GET /api/buddies': (req, d, p) => act(req, d, p, async q => { const v = (await one(q, 'select api_buddies() as v')).v;   // 带上相关的人的球员卡（和 /api/invites 一样），前台画头像和名字
+    return { ...v, profiles: await cardsOf(q, [...v.buddies.map(x => x.user_id), ...v.incoming.map(x => x.from_user), ...v.outgoing.map(x => x.to_user)]) } }, { body: false }),
+  'POST /api/buddies/requests': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.to_user) || '')) throw bad(); return (await one(q, 'select api_buddy_request($1, $2) as v', [b.to_user, str(b.source)])).v }),
+  'POST /api/buddies/requests/:id/accept': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'accept') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'POST /api/buddies/requests/:id/ignore': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'ignore') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'DELETE /api/buddies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_buddy_remove($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   // 赛后读回（11-04 第 6 轮 6d）：我的多遇到 / 少遇到、近 7 天的赛后感受、我给的印象、我的没到场反馈、我的申诉。全部是我自己的数据（RLS）
   'GET /api/me/after': (req, d, p) => act(req, d, p, async q => {
     const prefs = (await q(`select target_id, pref, game_id, updated_at from player_prefs where user_id = nbq_uid() order by updated_at desc limit 500`)).rows;
@@ -313,11 +320,22 @@ const ROUTES = {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
   // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
-  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  // 球拍产品库（选择列表）：不用登录，只给可选的（active）；改动不频繁，缓存 1 小时
+  'GET /api/rackets/catalog': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select id, brand, series from racket_catalog where status = 'active' order by sort, brand, series`)).rows);
+    return send(200, { catalog: rows }, { 'Cache-Control': 'public, max-age=3600' });
+  },
   'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
-    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')) throw bad();
-    const list = r.map(x => ({ brand: x.brand ?? null, series: x.series }));   // 只转发这两个字段
+    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')))) throw bad();
+    const list = r.map(x => UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id } : { brand: x.brand ?? null, series: x.series });   // 选自产品库只转 id；自由文字只转品牌 + 系列
     return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
+  // 我的 UTR（#101）：正式 / 自评；写入只走 api_set_utr（校验、频率、历史都在库里），PATCH /api/me 不再放行 utr
+  'GET /api/me/utr': (req, d, p) => act(req, d, p, async q => ({ utr: (await one(q, 'select api_my_utr() as v')).v }), { body: false }),
+  'PUT /api/me/utr': (req, d, p) => act(req, d, p, async (q, b) => {
+    if (typeof b.utr !== 'number' || typeof b.estimated !== 'boolean' || ('profile' in b && b.profile !== null && typeof b.profile !== 'string')) throw bad();
+    const body = { utr: b.utr, estimated: b.estimated }; if ('profile' in b) body.profile = b.profile;   // 只转发这三个字段
+    return { utr: (await one(q, 'select api_set_utr($1::jsonb) as v', [JSON.stringify(body)])).v } }),
   'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
     await q('delete from user_clubs where user_id = nbq_uid()'); for (const v of ids) await q('insert into user_clubs(user_id, venue_id) values (nbq_uid(), $1)', [v]);
@@ -395,6 +413,10 @@ const ROUTES = {
     const ids = (new URL(req.url).searchParams.get('ids') || '').split(',').filter(Boolean);
     if (!ids.length || ids.length > 50 || !ids.every(i => UUID.test(i))) throw bad();
     return { profiles: await cardsOf(q, ids) } }, { body: false }),
+  // 扫码 / 链接落地（#110）：按球员编号取卡片；必须登录、限频（api_card_by_no），内容和 GET /api/players/:id 同一份
+  'GET /api/players/no/:no': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const id = (await one(q, 'select api_card_by_no($1) as id', [x.no])).id, c = (await cardsOf(q, [id]))[id];
+    if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { nums: ['no'], body: false }),
   'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
   // 新号码第一次登录后建资料：手机号取自登录令牌里的 phone（不信请求里写的）；同一个号码重复提交 = 返回已有资料
