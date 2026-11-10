@@ -138,12 +138,23 @@ jobs:
       - name: 跑测试
         if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
-            node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
-          elif [ "${{ inputs.mode }}" = "quick" ]; then
-            node tests/run_all.mjs --quick --fast --jobs=2
-          else
-            node tests/run_all.mjs --jobs=2
+          run_tests() {
+            if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
+              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
+            elif [ "${{ inputs.mode }}" = "quick" ]; then
+              node tests/run_all.mjs --quick --fast --jobs=2
+            else
+              node tests/run_all.mjs --jobs=2
+            fi
+          }
+          # 11-10（ADR 0010）：失败先只重跑失败项一次；重跑通过 = 偶发失败，不挡合并，但留下警告（同一条在 ≥ 2 次运行里偶发 = 缺陷，开 Issue 修，不当「抖动」放过）
+          if ! run_tests; then
+            cp tests/reports/failed.json /tmp/failed_first.json 2>/dev/null || echo '[]' > /tmp/failed_first.json
+            echo "::group::第一次失败的项（只重跑这些一次）"; cat /tmp/failed_first.json; echo; echo "::endgroup::"
+            if node tests/run_all.mjs --failed --jobs=2; then
+              echo "::warning title=偶发失败（重跑通过）::$(tr -d '\n ' < /tmp/failed_first.json | cut -c1-500)"
+              echo "偶发失败（重跑通过）：$(tr -d '\n ' < /tmp/failed_first.json)" >> "$GITHUB_STEP_SUMMARY"
+            else exit 1; fi
           fi
 
       - name: 摘要
