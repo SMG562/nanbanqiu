@@ -24,6 +24,9 @@ description: 用到南伴球 logo / 标志 / 字标时使用：海报落款、�
 签名 `logo(kind, on, x, y, w, anchor)`；on = dark / light / lime / black / white；anchor = bottom（默认）/ center / top / topleft。
 **新海报不再用 `wordmark()`**（未转曲、整体左偏约 7 px）。
 
+## 英文名
+**Nanbanqiu**（连写，只首字母大写；标志内 NANBANQIU）。不写 Nan Ban Qiu / NanBanQiu，不意译。说明句：`Nanbanqiu · Tennis partners in Melbourne`；读音 `nahn-bahn-chee-oh`。
+
 ## 配色铁律
 黄绿球只上深底；浅底、黄绿底整个标志深绿单色（`on` 会自动处理）。不拉伸、不旋转、不加描边投影渐变、不换字体、不调换大小球。安全区 = 1 个小球直径。
 
