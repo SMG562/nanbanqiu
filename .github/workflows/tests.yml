@@ -60,6 +60,7 @@ on:
 permissions:
   contents: write
   actions: read          # 复用结果要查这个提交以前的运行
+  pull-requests: read    # 压缩合并后按「内容相同」找 PR 上测过的提交（tools/ci_reuse.sh）
 
 concurrency:                    # 同一分支 / 同一 PR 连续推送时，只跑最新的那次
   group: tests-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || github.ref }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'x' }}   # 手动触发各自独立，不互相取消

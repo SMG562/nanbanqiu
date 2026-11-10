@@ -92,7 +92,7 @@ T('pr_merge.sh：判断「没有运行记录」用 null* 前缀匹配，不用 =
 { const { execSync } = await import('child_process');
   const cond = L => execSync(`L='${L}'; W=tests-fast; if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then echo yes; else echo no; fi`, { shell: '/bin/bash' }).toString().trim();
   T('pr_merge.sh 的判断：「null  null」「null」「」都算没有记录；「completed success 123」不算', cond('null  null') === 'yes' && cond('null') === 'yes' && cond('') === 'yes' && cond('completed success 123') === 'no' && cond('in_progress  123') === 'no') }
-T('复用只按完全相同的提交号查（head_sha），只认通过的运行，不认重拍截图基准的运行', reuse.includes('head_sha=$SHA') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
+T('复用按提交号（head_sha）或「内容 tree 完全相同」查，只认通过的运行，不认重拍截图基准的运行（ADR 0010）', reuse.includes('head_sha=$1') && reuse.includes('find_id "$SHA"') && reuse.includes('.commit.tree.sha') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
 const testIf = /needs: reuse\n\s+if: \$\{\{ !cancelled\(\) && needs.reuse.outputs.hit != '1'( && !\(github.event_name == 'pull_request' && github.event.pull_request.draft\))? \}\}/;
 T('两个工作流都只在「推到 main」时开复用检查；没检查 / 检查出错照常测试，只有命中才跳过', /reuse:[^\n]*\n\s+if: github.event_name == 'push'\n/.test(tests) && /reuse:[^\n]*\n\s+if: github.ref == 'refs\/heads\/main' && github.event_name == 'push'\n/.test(fastY)
   && testIf.test(tests) && testIf.test(fastY));
