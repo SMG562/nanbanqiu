@@ -1,5 +1,5 @@
 // 第五批 5b-2：隐私（schema ⑯）。同意记录与 18 岁确认、下载我的数据（有什么、没有什么）、关闭「使用数据」、注销匿名化补漏、保存期限任务。
-import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
+import fs from 'fs'; import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath } from 'url';
 import { startCluster, loadSchema } from './cluster.mjs';
 const require = createRequire(import.meta.url); const pg = require('pg');
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
@@ -50,6 +50,13 @@ try {
   await q(`insert into reports(reporter_id,target_type,target_id,reason,source,via) values ($1,'user',$2,'harass','in_app','card')`, [D, A]);   // D 举报了 A
   await q(`insert into reports(reporter_id,target_type,target_id,reason,source,via,note) values ($1,'user',$2,'other','in_app','chat','说明')`, [A, D]);
   await q(`insert into blocks(blocker_id,blocked_id) values ($1,$2)`, [A, D]);
+  // #71：球拍 / UTR 历史 / 球友（A 有一把球拍、一条 UTR 改动、和 B 是球友、发给 C 的申请被忽略、D 发给 A 的申请等待中）
+  await q(`insert into user_rackets(user_id, slot, brand, series) values ($1, 1, 'Head', 'Speed')`, [A]);
+  await q(`update users set utr_profile = '1234567', utr_at = now() where id = $1`, [A]);
+  await q(`insert into utr_changes(user_id, old_utr, new_utr, old_est, new_est) values ($1, 4, 5.5, true, false)`, [A]);
+  const [ba, bb] = [A, B].sort(); await q(`insert into buddies(user_a, user_b) values ($1, $2)`, [ba, bb]);
+  await q(`insert into buddy_requests(from_user, to_user, status, responded_at) values ($1, $2, 'ignored', now())`, [A, C]);
+  await q(`insert into buddy_requests(from_user, to_user, status, source) values ($1, $2, 'pending', 'link')`, [D, A]);
   r = await call(A, `select api_export_me()`); const X = r.v || {}, XS = JSON.stringify(X);
   T('导出成功', r.ok && X.exported_at && X.profile, r);
   T('包含资料（手机号、邮箱、微信号、同意记录、注册 IP）', X.profile.phone_e164 && X.profile.email === 'amy@x.com' && X.profile.wechat_id && X.profile.privacy_version === 2 && X.profile.signup_ip);
@@ -60,6 +67,20 @@ try {
   T('给出的印象有对象；收到的只有数量', X.impressions_given.length === 1 && X.impressions_given[0].kinds[0] === 'ontime' && X.impressions_received_count === 1 && !('impressions_received' in X));
   T('自己的举报、屏蔽在里面；别人举报我的不在（举报人身份不泄露）', X.reports_made.length === 1 && X.blocked.length === 1 && !XS.includes('harass'));
   T('不含风险分', !/risk/.test(Object.keys(X).join(',')));
+  // #71：球拍 / UTR 历史 / 球友
+  T('#71 导出含 UTR 主页编号（在资料里）和改动历史', X.profile.utr_profile === '1234567' && X.utr_history.length === 1 && +X.utr_history[0].new_utr === 5.5 && X.utr_history[0].old_estimated === true && X.utr_history[0].new_estimated === false, [X.profile.utr_profile, X.utr_history]);
+  T('#71 导出含球拍', X.rackets.length === 1 && X.rackets[0].brand === 'Head' && X.rackets[0].series === 'Speed' && X.rackets[0].slot === 1, X.rackets);
+  T('#71 导出含球友（对方昵称、成为球友的时间）', X.buddies.length === 1 && typeof X.buddies[0].player === 'string' && !!X.buddies[0].since, X.buddies);
+  const sent = X.buddy_requests.find(x => x.direction === 'sent'), got = X.buddy_requests.find(x => x.direction === 'received');
+  T('#71 我发出被忽略的申请：导出里是「等待中」，没有处理时间（发起人永远不知道被忽略）', X.buddy_requests.length === 2 && sent.status === 'pending' && sent.responded_at === null && !XS.includes('"ignored"'), X.buddy_requests);
+  T('#71 收到的申请：带来源和状态', got.status === 'pending' && got.source === 'link', got);
+  await q(`update buddy_requests set expires_at = now() - interval '1 hour' where from_user = $1`, [A]); await q(`delete from rate_hits`);
+  r = await call(A, `select api_export_me()`); T('#71 过期后被忽略的申请显示「已失效」', r.ok && r.v.buddy_requests.find(x => x.direction === 'sent').status === 'expired', r.v && r.v.buddy_requests);
+  const fnSrc = (await q(`select prosrc from pg_proc where proname = 'api_export_me'`)).rows[0].prosrc;
+  const mig = fs.readFileSync(path.join(DIR, 'server/migrations/20261113_export_more.sql'), 'utf8');
+  let e1 = null; try { await q(mig); await q(mig) } catch (e) { e1 = e.message } T('#71 迁移连跑两次不报错', e1 === null, e1);
+  T('#71 迁移里的函数与 schema.sql 一致', (await q(`select prosrc from pg_proc where proname = 'api_export_me'`)).rows[0].prosrc === fnSrc);
+  await q(`delete from buddies`); await q(`delete from buddy_requests`); await q(`delete from user_rackets`); await q(`delete from utr_changes`);   // 清掉本段的数据，后面按总数核对的用例不受影响
   r = await call(A, `select api_export_me()`); T('每天只能导出 1 次', !r.ok && r.err === 'rate_limited' && +r.detail > 80000, r);
   r = await call(null, `select api_export_me()`); T('没登录不能导出', !r.ok && r.err === 'login_required', r);
 
@@ -85,6 +106,9 @@ try {
   await q(`insert into player_prefs(user_id,target_id,pref) values ($1,$2,'less'),($2,$1,'more')`, [F, G]);
   await q(`insert into gender_changes(user_id,from_g,to_g) values ($1,'m','f')`, [F]);
   await q(`insert into user_rackets(user_id,slot,brand,series) values ($1,1,'Head','Speed'),($1,2,null,'老拍'),($2,1,'Wilson','Blade')`, [F, G]);
+  const Hh = await user('Hal'); const pr = (x, y) => [x, y].sort();
+  await q(`insert into buddies(user_a,user_b) values ($1,$2),($3,$4),($5,$6)`, [...pr(F, G), ...pr(F, Hh), ...pr(G, Hh)]);
+  await q(`insert into buddy_requests(from_user,to_user) values ($1,$2),($2,$3),($3,$2)`, [F, G, Hh]);
   const gf = (await one(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max) values ('pv2',$1,$2,now()-interval '40 days',90,'singles',2,3,7) returning id`, [G, V])).id;
   await q(`insert into impressions(game_id,from_id,to_id,kinds) values ($1,$2,$3,'{ontime}'),($1,$3,$2,'{kind}')`, [gf, F, G]);
   await q(`insert into email_outbox(user_id,to_email,kind,merge_key,subject,send_after) values ($1,'fay@x.com','result','k','s',now()),($1,'fay@x.com','result','k2','s',now())`, [F]);
@@ -95,6 +119,8 @@ try {
   const fu = await one(`select * from users where id=$1`, [F]);
   T('性别、注册设备 / IP、退订 token 清空', fu.gender === null && fu.signup_device === null && fu.signup_ip === null && fu.email_unsub_token === null && fu.nickname === '已注销' && fu.email === null);
   T('旧推送订阅、设备、改性别记录删除', +(await one(`select (select count(*) from push_subscriptions where user_id=$1)+(select count(*) from user_devices where user_id=$1)+(select count(*) from gender_changes where user_id=$1) n`, [F])).n === 0);
+  T('球友：注销匿名化后删除 TA 的球友关系和申请，别人之间的不动（#110）', +(await one(`select count(*) from buddies where $1 in (user_a,user_b)`, [F])).count === 0
+    && +(await one(`select count(*) from buddy_requests where $1 in (from_user,to_user)`, [F])).count === 0 && +(await one(`select count(*) from buddies`)).count === 1 && +(await one(`select count(*) from buddy_requests`)).count === 2);
   T('我的球拍：注销匿名化后删除，别人的不动（#60 A2）', +(await one(`select count(*) from user_rackets where user_id=$1`, [F])).count === 0 && +(await one(`select count(*) from user_rackets where user_id=$1`, [G])).count === 1);
   T('本人设的偏好删除；别人对 TA 的保留', !(await one(`select 1 x from player_prefs where user_id=$1`, [F])) && !!(await one(`select 1 x from player_prefs where user_id=$1 and target_id=$2`, [G, F])));
   T('印象保留计入汇总（两个方向）', +(await one(`select count(*) from impressions where game_id=$1`, [gf])).count === 2);

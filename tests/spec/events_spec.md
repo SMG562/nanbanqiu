@@ -86,6 +86,12 @@
 | invite_counter_send | 邀约 | C | 提议新时间 | invite_id |
 | invite_withdraw | 邀约 | C | 撤回邀约 / 撤回新时间 | invite_id, what(invite/counter) |
 | invite_setting | 邀约 | C | 「谁可以约我」 | value(all/played/none) |
+| buddy_scan_view | 球友 | C | 扫码落地页看到「加球友」 | target_uid, logged_in, source(qr/link/other) |
+| buddy_request_send | 球友 | C | 加球友申请发出（含已是球友 / 失败） | target_uid, result(pending/buddies/fail), err, source(qr/link/other) |
+| buddy_request_open | 球友 | C | 打开加球友确认页 | request_id, via(push/notif/list) |
+| buddy_respond | 球友 | C | 确认 / 忽略加球友申请 | request_id, action(accept/ignore), wait_min |
+| buddy_remove | 球友 | C | 删除球友 | target_uid, played_together |
+| buddy_list_open | 球友 | C | 打开我的球友 | n_buddies, n_played |
 | recap_open | 打完之后 | C | 打开赛后卡片 | game_id, via(notif/detail) |
 | feel_set | 打完之后 | C | 这局感受 | game_id, value(hard/ok/easy) |
 | impression_give | 打完之后 | C | 留个好印象（含撤回） | target_uid, tag, on, bulk |
@@ -116,6 +122,13 @@
 | gender_set | 我的 | C | 保存性别（不记录值） | first, changed |
 | club_add_open | 我的 | C | 打开添加 Club | — |
 | home_clubs_save | 我的 | C | 保存我的 Club | n |
+| utr_open | 我的 | C | 打开我的 UTR 弹层（长按看时间那次不算） | mode(off/self), linked |
+| utr_invalid | 我的 | C | 我的 UTR 当场校验没通过（不发请求、不记填的内容） | reason(empty/format/range/link) |
+| utr_save | 我的 | C | 我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号） | mode(off/self), linked, change(up/down/same) |
+| racket_picker_open | 我的 | C | 打开选拍弹层（添一把 / 换一把；从系列返回不算） | mode(add/swap), slot(1-3) |
+| racket_brand_pick | 我的 | C | 选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字） | brand |
+| racket_save | 我的 | C | 球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库 | action(add/swap/main/remove), source(catalog/other), n_after |
+| racket_invalid | 我的 | C | 手写拍子名当场没通过校验（不发请求、不记文字） | reason(empty/long/link/at/digits/dup) |
 | community_open | 我的 | C | 打开微信约球群 | — |
 | series_end | 我的 | C | 停止每周发布 | game_id |
 | follow_open | 打完之后 | C | 打开「TA 发了新球局」 | game_id |

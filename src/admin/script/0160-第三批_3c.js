@@ -67,7 +67,7 @@ pageUsers=function(){const D=DB,dk=DEVK(),M=MM(),N=TU(),US=D.users.filter(u=>B3.
 const RISK_RULES=[['no_show','确认爽约',25,2,30],['late_leave','参加者 24 小时内退出',10,3,30],['host_late_cancel','发起人临时取消',10,2,30],['reported','被不同的人举报',30,2,30],['pact_violation','违反球友约定',30,1,180],
   ['blocked_by','被多人屏蔽',15,3,30],['less_marked','被多人标少遇到',10,3,90],['invite_declined','30 天内邀约被婉拒',10,2,30],['declined_streak','被婉拒后仍高频申请',10,8,7],['women_probe','未确认性别反复试女生局',20,3,30],
   ['gender_flip','注册 30 天内男生改为女生',20,1,30],['dm_burst','新账号 24 小时内私信很多人',15,5,1],['link_spam','反复尝试发链接',15,3,7],
-  ['same_device','同一设备注册多个账号',15,2,30],['same_ip','同一网络一天注册 3 个以上账号',10,3,1],['contact_lure','新账号私信里留联系方式（≥2 人）',15,2,7],['apply_churn','申请后反复撤回',10,6,7],['rate_hit','反复触发频率限制',10,5,1]];
+  ['same_device','同一设备注册多个账号',15,2,30],['same_ip','同一网络一天注册 3 个以上账号',10,3,1],['contact_lure','新账号私信里留联系方式（≥2 人）',15,2,7],['apply_churn','申请后反复撤回',10,6,7],['rate_hit','反复触发频率限制',10,5,1],['buddy_ignored','加球友申请被多人忽略',10,3,7]];
 const RISK_UNIT={reported:'人',blocked_by:'人',less_marked:'人',dm_burst:'人',contact_lure:'人',same_device:'个号',same_ip:'个号'};
 const U3R=(()=>{const D=DB,now=+NOW,DAY=D.DAY,ix=(arr,k)=>{const m=new Map();arr.forEach(x=>{const v=x[k];let a=m.get(v);if(!a){a=[];m.set(v,a)}a.push(x)});return m},E=[];
   const pU=ix(D.game_participants,'user_id'),gH=ix(D.games,'host_id'),rT=ix(D.reports.filter(r=>r.target_type==='user'),'target_id'),bB=ix(D.blocks,'blocked_id'),lT=ix(D.player_prefs.filter(p=>p.pref==='less'),'target_id'),
@@ -84,7 +84,7 @@ const U3R=(()=>{const D=DB,now=+NOW,DAY=D.DAY,ix=(arr,k)=>{const m=new Map();arr
     c.women_probe=sg('women_probe').filter(s=>s.at>=w(30)).length;c.gender_flip=sg('gender_m2f').filter(s=>s.at>=w(30)&&s.at-u.created_at<=30*DAY).length;
     c.dm_burst=Math.max(0,...sg('dm_burst').filter(s=>s.at>=w(1)||now-u.created_at<=3*DAY).map(s=>s.n));c.link_spam=sg('link').filter(s=>s.at>=w(7)).length;
     const mx=(k,d)=>Math.max(0,...sg(k).filter(s=>s.at>=w(d)).map(s=>s.n||1)),ct=(k,d)=>sg(k).filter(s=>s.at>=w(d)).length;
-    c.same_device=mx('same_device',30);c.same_ip=mx('same_ip',1);c.contact_lure=ct('contact_lure',7);c.apply_churn=ct('apply_churn',7);c.rate_hit=ct('rate_hit',1);return c}
+    c.same_device=mx('same_device',30);c.same_ip=mx('same_ip',1);c.contact_lure=ct('contact_lure',7);c.apply_churn=ct('apply_churn',7);c.rate_hit=ct('rate_hit',1);c.buddy_ignored=0;return c}   // 演示数据里没有加球友申请（#110），真数据由 risk_values 算
   // 只算可能有信号的人（有过爽约、举报、屏蔽、少遇到、取消、被婉拒、退出或其他信号）
   const cand=new Set([...nT.keys(),...rT.keys(),...bB.keys(),...lT.keys(),...sU.keys()]);D.games.forEach(g=>g.status==='cancelled'&&cand.add(g.host_id));D.invites.forEach(i=>i.status==='declined'&&cand.add(i.from_user));
   D.game_participants.forEach(p=>(p.status==='left'||(p.status==='rejected'&&p.decided_at>=now-7*DAY))&&cand.add(p.user_id));

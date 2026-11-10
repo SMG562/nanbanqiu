@@ -94,6 +94,10 @@ add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { p
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/buddies', ['node', path.join(HERE, 'pg/buddies.mjs')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-A
+add('pg', 'pg/admin_buddies', ['node', path.join(HERE, 'pg/admin_buddies.mjs')], { pass: [/admin_buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友统计 #110 PR-A3
+add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
+add('pg', 'pg/admin_utr', ['node', path.join(HERE, 'pg/admin_utr.mjs')], { pass: [/admin_utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR 后台 #101
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/e2e_admin_login', ['node', path.join(HERE, 'e2e/admin_login.mjs')], { pass: [/admin_login: \d+ 通过, 0 失败/], timeout: 600 });   // #27 B1 后台真登录 + 真模式外壳（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）；放 frontend 档：CI 的浏览器档才有 Chromium + PostgreSQL
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
@@ -116,10 +120,14 @@ add('pg', 'pg/perf@对照', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { N
 if (!QUICK) add('pg', 'pg/perf@一年', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { NBQ_PERF_SCALE: '1' }, pass: [/\d+ passed, 0 failed/], timeout: 2400, solo: true, slow: true });
 add('frontend', 'frontend/verify', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify.js')], { pass: [/\d+ passed, 0 failed/], timeout: 1200 });
 add('frontend', 'frontend/verify2', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify2.js')], { pass: [/\d+ passed, 0 failed/], timeout: 900 });
+add('frontend', 'frontend/web_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_me.js')], { pass: [/PASS web_me/], timeout: 300 });   // 网页端「我的」标签 #134 P1
+add('frontend', 'frontend/pwa_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pwa_me.js')], { pass: [/PASS pwa_me/], timeout: 300 });   // 手机端设置子页 #134 P2
 add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pages.js')], { pass: [/PASS pages/], timeout: 300 });
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
+add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
+add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
@@ -142,6 +150,7 @@ add('frontend', 'frontend/notif_open', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/dst', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dst.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/xss', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { pass: [/PASS xss/], timeout: 900 });
 add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/csp.js')], { pass: [/PASS csp/], timeout: 600 });
+add('frontend', 'frontend/vendor_load', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/vendor_load.js')], { pass: [/PASS vendor_load/], timeout: 300 });
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/sb_login', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sb_login.js')], { pass: [/sb_login: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_data', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_data.js')], { pass: [/real_data: \d+ 通过, 0 失败/], timeout: 600 });
@@ -247,10 +256,15 @@ if (LIST.some(t => t.suite === 'pg')) {
   const base = '/usr/lib/postgresql', hasPg = !!process.env.NBQ_PGBIN || (fs.existsSync(base) && fs.readdirSync(base).some(v => fs.existsSync(path.join(base, v, 'bin', 'initdb'))));
   const hasGis = !!process.env.NBQ_PGBIN || (fs.existsSync('/usr/share/postgresql') && fs.readdirSync('/usr/share/postgresql').some(v => fs.existsSync(path.join('/usr/share/postgresql', v, 'extension', 'postgis.control'))));
   need(hasPg && hasGis, '真实数据库测试需要 PostgreSQL 15/16 和 PostGIS（' + (hasPg ? '缺 PostGIS' : '缺 PostgreSQL') + '）。一条命令装好：bash tools/setup_env.sh（或 apt install postgresql postgresql-16-postgis-3，或设置 NBQ_PGBIN）；暂时跳过：--only=static,schema,frontend,admin,regression');
-  const pd = path.join(CACHE, 'pg');
-  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg'))) {
-    fs.mkdirSync(pd, { recursive: true }); fs.copyFileSync(path.join(HERE, 'pg', 'package.json'), path.join(pd, 'package.json'));
-    console.log('首次运行：安装 pg 到 ' + pd + ' …');
+}
+// pg 这个 npm 包：数据库测试要用，tests/e2e/*.mjs（浏览器测试组里的端到端）也要用。只选浏览器测试时以前不装，
+// 靠缓存碰巧有；tests/pg/package.json 一变（依赖升级）缓存失效，e2e 就报「Cannot find module 'pg'」（11-11 dependabot #93 暴露）。
+if (LIST.some(t => t.suite === 'pg' || t.cmd.some(x => /tests\/e2e\//.test(String(x))))) {
+  const pd = path.join(CACHE, 'pg'), want = fs.readFileSync(path.join(HERE, 'pg', 'package.json'), 'utf8');
+  const cur = fs.existsSync(path.join(pd, 'package.json')) ? fs.readFileSync(path.join(pd, 'package.json'), 'utf8') : '';
+  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg')) || cur !== want) {
+    fs.mkdirSync(pd, { recursive: true }); fs.writeFileSync(path.join(pd, 'package.json'), want);
+    console.log('首次运行 / 依赖变了：安装 pg 到 ' + pd + ' …');
     try { execSync('npm install --no-audit --no-fund', { cwd: pd, stdio: 'inherit' }) } catch (_) { need(false, 'pg 安装失败（需要能访问 npm）') }
   }
 }

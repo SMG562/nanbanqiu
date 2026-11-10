@@ -31,22 +31,22 @@ for(const plat of ['PWA','Web']){const W=plat==='Web';
   await S('pact_detail',[['pact_view',{via:'detail'}]],()=>click(`${det} [data-pact="1"]`));await close();
   await S('safety',[['safety_open',{}],['pact_view',{via:'safety'}]],()=>click(`${det} [data-a="safety"]`));await close();
   // 设置：提醒方式 · 邮件 · 谁可以约我 · 等级说明 · 联系我们 · 微信群
-  if(!W)await js(()=>{if(UI.detail)closeDetail();go('me')});else await js(()=>{UI.tab='mine';UI.sel=null;render()});await wait(300);
-  const L=W?'#colL':'#meBody';
-  await S('nr_settings',[['notif_settings_open',{}]],()=>click(`${L} [data-a="nrSet"]`));
-  if(!W){await S('a2hs',[['a2hs_open',{env:x=>!!x}]],()=>click('[data-a="enablePush"]'));await close();await js(()=>{setEnv('pwa');go('me')});await click(`${L} [data-a="nrSet"]`);await wait(300)}
+  if(!W)await js(()=>{if(UI.detail)closeDetail();go('me')});else await js(()=>{UI.tab='me';UI.sel=null;render()});await wait(300);
+  const L=W?'#modal':'#sheet';   // 设置在齿轮弹层里（#134 P2）
+  await S('nr_settings',[['notif_settings_open',{}]],()=>js(()=>openSettings()).then(()=>click(`${L} [data-a="nrSet"]`)));
+  if(!W){await S('a2hs',[['a2hs_open',{env:x=>!!x}]],()=>click('[data-a="enablePush"]'));await close();await js(()=>{setEnv('pwa');go('me')});await js(()=>openSettings()).then(()=>click(`${L} [data-a="nrSet"]`));await wait(300)}
   if(W)T('网页端提醒方式页没有「开启推送」（11-03：提醒只推手机）',!(await pg.$('[data-a="enablePush"]')));
   else await S('push',[['push_enable',{env:x=>!!x,result:x=>['granted','denied','unsupported'].includes(x)}]],async()=>{await click('[data-a="enablePush"]');await pg.waitForFunction(()=>AN_LOG.some(e=>e.ev==='push_enable'),null,{timeout:5000,polling:50}).catch(()=>{})});   // 等权限回应（E2：原来固定等 2.5 秒）
   OUT[plat].pushProps=all.filter(e=>e.ev==='push_enable').map(e=>e.props);await close();
-  await S('email_bad',[],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','not-an-email');await click('[data-em="setSave"]')});await close();
-  await S('email_ok',[['email_settings_save',{on:true}]],async()=>{await click(`${L} [data-em="settings"]`);await pg.fill('#emSet','j@x.com');await click('[data-em="setSave"]')});
-  await S('email_off',[['email_settings_save',{on:false}]],async()=>{await click(`${L} [data-em="settings"]`);await click('[data-em="off"]')});
-  await S('ivset',[['invite_setting',{value:'played'}]],async()=>{await click(`${L} [data-ivset="open"]`);await click('[data-ivset="played"]')});
-  await S('lvinfo',[['level_info_open',{}]],()=>click(`${L} [data-sx="lvinfo"]`));await close();
-  await S('clubs_open',[['club_add_open',{}]],()=>click(`${L} [data-a="editClubs"]`));
+  await S('email_bad',[],async()=>{await js(()=>openSettings()).then(()=>click(`${L} [data-em="settings"]`));await pg.fill('#emSet','not-an-email');await click('[data-em="setSave"]')});await close();
+  await S('email_ok',[['email_settings_save',{on:true}]],async()=>{await js(()=>openSettings()).then(()=>click(`${L} [data-em="settings"]`));await pg.fill('#emSet','j@x.com');await click('[data-em="setSave"]')});
+  await S('email_off',[['email_settings_save',{on:false}]],async()=>{await js(()=>openSettings()).then(()=>click(`${L} [data-em="settings"]`));await click('[data-em="off"]')});
+  await S('ivset',[['invite_setting',{value:'played'}]],async()=>{await js(()=>openSettings()).then(()=>click(`${L} [data-ivset="open"]`));await click('[data-ivset="played"]')});
+  await S('lvinfo',[['level_info_open',{}]],()=>click(`${W?'#colL':'#meBody'} [data-sx="lvinfo"]`));await close();
+  await S('clubs_open',[['club_add_open',{}]],()=>click(`${W?'#colL':'#meBody'} [data-a="editClubs"]`));
   await S('clubs_save',[['home_clubs_save',{n:1}]],()=>click('[data-a="saveClubs"]'));
-  if(!W){await S('community',[['community_open',{}]],()=>click(`${L} [data-a="community"]`));await close();
-    await S('contact',[['contact_open',{}]],()=>click(`${L} [data-a="contact"]`));await close()}
+  if(!W){await S('community',[['community_open',{}]],()=>js(()=>openSettings()).then(()=>click(`${L} [data-a="community"]`)));await close();
+    await S('contact',[['contact_open',{}]],()=>js(()=>openSettings()).then(()=>click(`${L} [data-a="contact"]`)));await close()}
   else{await S('contact',[['contact_open',{}]],async()=>{await click('[data-a="umenu"]');await click('#umenu [data-a="contact"]')});await close()}
   // 发起人：每周发布 · 多人申请排序 / 展开
   await js(()=>{setWho('han',true)});const sg=await js(W=>{const g=GAMES.find(g=>g.series_id==='S1'&&new Date(g.starts_at)>NOW);AN.ctx='list';W?select(g.id):openDetail(g.id);return g.id},W);await wait(300);
