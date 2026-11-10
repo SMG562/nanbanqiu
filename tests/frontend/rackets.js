@@ -45,7 +45,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
-    const until = async (fn, n = 30) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(200) } return false };
+    // 按真实时间等条件成立（n × 200ms）：pg.settle 页面空闲时会提前返回，产品库延迟 1.5s 的用例 20 轮可能 1s 不到就判「没到」（#141 根因）
+    const until = async (fn, n = 30) => { const t0 = Date.now(); while (Date.now() - t0 < n * 200) { try { if (await fn()) return true } catch (_) { } await new Promise(r => setTimeout(r, 100)) } return false };
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的球拍（DOM），不是内存
     const tiles = () => pg.evaluate(() => [...document.querySelectorAll('.rk .rk-row')].map(t => t.classList.contains('rk-add') ? '+' : (t.querySelector('.rk-main') ? '*' : '') + (t.querySelector('.rk-br') ? t.querySelector('.rk-br').textContent + '/' : '') + t.querySelector('.rk-se').textContent).join(' '));
