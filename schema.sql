@@ -4304,6 +4304,15 @@ begin
     'appeals', (select coalesce(jsonb_agg(to_jsonb(a) - 'user_id'), '[]') from noshow_appeals a where a.user_id = u),
     'reports_made', (select coalesce(jsonb_agg(jsonb_build_object('target_type', r.target_type, 'reason', r.reason, 'note', r.note, 'status', r.status, 'at', r.created_at)), '[]') from reports r where r.reporter_id = u),
     'blocked', (select coalesce(jsonb_agg(jsonb_build_object('player', o.nickname, 'at', b.created_at)), '[]') from blocks b join users o on o.id = b.blocked_id where b.blocker_id = u),
+    -- 球拍 / UTR / 球友（#71，11-10）：自己填的 UTR 主页编号和确认时间已在 profile 里（users 整行）；这里补改动历史、球拍、球友关系和申请
+    --   球友申请：我发出的被「忽略」时导出里不显示被忽略（和界面一致，发起人永远不知道）：24 小时内算「等待中」，过期算「已失效」
+    'utr_history', (select coalesce(jsonb_agg(jsonb_build_object('at', c.at, 'old_utr', c.old_utr, 'new_utr', c.new_utr, 'old_estimated', c.old_est, 'new_estimated', c.new_est) order by c.at), '[]') from utr_changes c where c.user_id = u),
+    'rackets', (select coalesce(jsonb_agg(jsonb_build_object('slot', r.slot, 'brand', r.brand, 'series', r.series, 'added_at', r.created_at, 'updated_at', r.updated_at) order by r.slot), '[]') from user_rackets r where r.user_id = u),
+    'buddies', (select coalesce(jsonb_agg(jsonb_build_object('player', o.nickname, 'since', b.created_at) order by b.created_at), '[]') from buddies b join users o on o.id = case when b.user_a = u then b.user_b else b.user_a end where u in (b.user_a, b.user_b)),
+    'buddy_requests', (select coalesce(jsonb_agg(jsonb_build_object('direction', case when r.from_user = u then 'sent' else 'received' end, 'player', o.nickname, 'source', r.source, 'created_at', r.created_at,
+                         'status', case when r.from_user = u and r.status = 'ignored' then (case when r.expires_at > now() then 'pending' else 'expired' end) else r.status end,
+                         'responded_at', case when r.from_user = u and r.status = 'ignored' then null else r.responded_at end) order by r.created_at), '[]')
+                  from buddy_requests r join users o on o.id = case when r.from_user = u then r.to_user else r.from_user end where u in (r.from_user, r.to_user)),
     -- 场边（第七批 S2c，表在 ㉕）：自己的发布（含后台隐藏的、过了 24 小时在相册里的；删了的不含）、回复、点过的网球、不感兴趣、发起的话题、浏览数
     --   不含：后台隐藏原因、照片识别标签和审核结果（和前台一样拿不到）；别人给我的网球只有数量（在发布里）
     'sideline', jsonb_build_object(
@@ -7626,5 +7635,6 @@ insert into schema_migrations(version) values
   ('20261109_racket_events'),
   ('20261110_my_utr'),
   ('20261111_utr_events'),
-  ('20261112_utr_admin')
+  ('20261112_utr_admin'),
+  ('20261113_export_more')
 on conflict do nothing;
