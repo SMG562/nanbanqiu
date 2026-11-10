@@ -78,3 +78,81 @@ def person(x, gy, s=1.0, sex='f', top='#E9DCC2', bottom='#3B4A5A', hair='#2B2320
             f'<ellipse cx="4" cy="0" rx="46" ry="7" fill="#000" opacity=".12"/>'
             f'{behind}{bag_s}{hair_b}{legs_s}{shoes}{torso}{strap}'
             f'{arm((-30, -206), L, Le, -1)}{arm((30, -206), R, Re, 1)}{head}{hair_f}{front}</g>')
+
+
+# ---------- v2 人物（11-10）：修长比例、细线描边、能看清的手和鞋 ----------
+OUT = '#3A2A22'
+
+
+def _q(p0, p1, p2, t):
+    a, b, c = (1 - t) ** 2, 2 * (1 - t) * t, t * t
+    return (a * p0[0] + b * p1[0] + c * p2[0], a * p0[1] + b * p1[1] + c * p2[1])
+
+
+def limb(p0, p1, p2, w0, w1, fill, sw=1.5):
+    """沿二次曲线的渐细肢体：填色 + 两侧细描边（端头通常被手 / 鞋 / 衣服盖住）。"""
+    Ls, Rs = [], []
+    for i in range(15):
+        t = i / 14
+        x, y = _q(p0, p1, p2, t)
+        dx = 2 * (1 - t) * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0])
+        dy = 2 * (1 - t) * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1])
+        n = math.hypot(dx, dy) or 1
+        nx, ny = -dy / n, dx / n
+        w = (w0 + (w1 - w0) * t) / 2
+        Ls.append((x + nx * w, y + ny * w)); Rs.append((x - nx * w, y - ny * w))
+    pl = lambda P: ' '.join(f'{x:.1f} {y:.1f}' for x, y in P)
+    return (f'<path d="M{pl(Ls)} L{pl(Rs[::-1])} Z" fill="{fill}"/>'
+            f'<circle cx="{p0[0]}" cy="{p0[1]}" r="{w0/2:.1f}" fill="{fill}"/>'
+            f'<path d="M{pl(Ls)}" fill="none" stroke="{OUT}" stroke-width="{sw}" stroke-linecap="round"/>'
+            f'<path d="M{pl(Rs)}" fill="none" stroke="{OUT}" stroke-width="{sw}" stroke-linecap="round"/>')
+
+
+def hand(x, y, ang=0, kind='open', s=1.0, mirror=1):
+    """手：指尖朝 +y 方向（ang 旋转）。open 自然张开、palm 掌心朝上托着、hold 握住、hook 两指勾着。"""
+    sk = f'fill="{SKIN}" stroke="{OUT}" stroke-width="1.4" stroke-linejoin="round"'
+    ln = f'fill="none" stroke="{OUT}" stroke-width="1.1" stroke-linecap="round"'
+    if kind == 'open':
+        g = (f'<path d="M-7 -2 C-8 6 -7 13 -4 17 C-2 19 0 18 0 15 L1 18 C2 20 5 19 5 16 L6 17 C8 18 9 16 8 12 C8 6 8 2 7 -2 Z" {sk}/>'
+             f'<path d="M6 2 C11 3 13 8 11 11 C9 12 8 9 7 7" {sk}/>')
+    elif kind == 'palm':  # 掌心朝上、手指平伸
+        g = (f'<path d="M-8 -2 C-9 6 -6 10 -2 11 L14 13 C18 13 18 9 15 8 L17 7 C20 6 19 2 16 2 L9 1 C9 -1 8 -3 6 -3 Z" {sk}/>'
+             f'<path d="M3 -3 C6 -9 11 -10 12 -7 C12 -5 9 -3 7 -1" {sk}/><path d="M2 6 L14 7 M3 9 L13 10" {ln} opacity=".6"/>')
+    elif kind == 'hold':
+        g = (f'<path d="M-8 -2 C-10 6 -8 14 0 15 C7 15 9 8 8 -2 Z" {sk}/>'
+             f'<path d="M-6 5 Q0 7 6 5 M-6 9 Q0 11 6 9" {ln} opacity=".7"/><path d="M6 -1 C10 2 10 7 6 8" {sk}/>')
+    else:  # hook：两根手指勾着东西
+        g = (f'<path d="M-7 -2 C-8 5 -6 10 -2 12 L4 12 C8 12 9 8 7 -2 Z" {sk}/>'
+             f'<path d="M-3 11 C-4 18 2 20 3 15 M2 11 C2 17 7 18 7 13" {sk}/><path d="M6 1 C10 2 11 6 8 8" {sk}/>')
+    return f'<g transform="translate({x} {y}) rotate({ang}) scale({s * mirror} {s})">{g}</g>'
+
+
+def sneaker(x, y, rot=0, d=1, upper='#FFFFFF', accent='#2F7552', high=False):
+    """系带球鞋，侧面，d=1 鞋头朝右；(x, y) 是鞋底中心。"""
+    top = '-30' if high else '-16'
+    g = (f'<path d="M-24 2 C-27 -8 -22 {top} -10 {top} L0 -14 C10 -8 20 -7 27 -2 C30 1 29 4 26 4 L-24 4 Z" fill="{upper}" stroke="{OUT}" stroke-width="1.5" stroke-linejoin="round"/>'
+         f'<path d="M-27 4 H28 C31 7 28 10 23 10 H-24 C-29 10 -29 6 -27 4 Z" fill="#EFE8DA" stroke="{OUT}" stroke-width="1.5"/>'
+         f'<path d="M-27 7 H29" stroke="{OUT}" stroke-width="1" opacity=".5"/>'
+         f'<path d="M14 -6 C19 -5 24 -3 27 -1" stroke="{accent}" stroke-width="3" fill="none" stroke-linecap="round"/>'
+         f'<path d="M-14 -4 C-8 -6 -2 -6 4 -4" stroke="{accent}" stroke-width="2.4" fill="none"/>'
+         + ''.join(f'<path d="M{-6 + i*5} -15 L{-1 + i*5} -9 M{-1 + i*5} -15 L{-6 + i*5} -9" stroke="{OUT}" stroke-width="1.1"/>' for i in range(3))
+         + (f'<path d="M-22 -18 H-12" stroke="{OUT}" stroke-width="1.2"/>' if high else ''))
+    return f'<g transform="translate({x} {y}) rotate({rot}) scale({d} 1)">{g}</g>'
+
+
+def maryjane(x, y, rot=0, d=1):
+    g = (f'<path d="M-20 2 C-22 -8 -14 -12 -4 -11 C8 -10 18 -6 22 -1 C24 3 20 5 16 5 L-18 5 Z" fill="#1D1A1A" stroke="{OUT}" stroke-width="1.4"/>'
+         f'<path d="M-6 -11 C-2 -16 6 -16 10 -8" stroke="#1D1A1A" stroke-width="3" fill="none"/><circle cx="9" cy="-8" r="2" fill="#D8C08A"/>'
+         f'<path d="M-2 -8 C4 -8 10 -6 16 -3" stroke="#fff" stroke-width="1.6" opacity=".45" fill="none"/>'
+         f'<path d="M-20 5 H18" stroke="#6B4A3A" stroke-width="2.5"/>')
+    return f'<g transform="translate({x} {y}) rotate({rot}) scale({d} 1)">{g}</g>'
+
+
+def wc_filter(fid, seed=4):
+    """水彩填色：形状里不均匀的深浅 + 轻微抖边。"""
+    return (f'<filter id="{fid}" x="-10%" y="-10%" width="120%" height="120%">'
+            f'<feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="3" seed="{seed}" result="n"/>'
+            f'<feDisplacementMap in="SourceGraphic" in2="n" scale="3" result="d"/>'
+            f'<feColorMatrix in="n" values="0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .1 0 0 0 -.6 .3" result="m"/>'
+            f'<feComposite in="m" in2="d" operator="in" result="s"/>'
+            f'<feMerge><feMergeNode in="d"/><feMergeNode in="s"/></feMerge></filter>')
