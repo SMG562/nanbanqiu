@@ -5033,9 +5033,18 @@ function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2c
   // 手机上画布太大 / 内存不够会失败：3 倍清晰度不行就降到 2、1 倍再试；仍失败把原因留在 SC_ERR（提示里带出来，方便定位）
   // iPhone Safari 会因为头像里的 SVG 滤镜把画布判成「不安全」(The operation is insecure)，导出就失败：
   // 依次试 ① 原样 3 倍 ② 2 倍 ③ 去掉 SVG 滤镜 / 遮罩 ④ 再去掉头像里所有 SVG（只剩底色）；成功就停，全失败把原因留在 SC_ERR
-  const strip=lv=>doc=>{doc.querySelectorAll('[filter],[mask]').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask')});doc.querySelectorAll('filter,mask').forEach(e=>e.remove());
+  // ⑤ 兜底：整张图不含任何 SVG / CSS 里的 SVG 纹理，二维码改用画布直接画成 PNG（PNG 不会让 Safari 判画布不安全）
+  const qrPng=col=>{const a=qrMatrix(profileUrl(U(uid),typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments')),n=a.length,k=12,pad=k/2,c=document.createElement('canvas');c.width=c.height=(n+1)*k;const x=c.getContext('2d');x.fillStyle=x.strokeStyle=col||'#fff';
+    const dot=(i,j)=>{x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()};
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7)))dot(i,j);
+    const fin=(i,j)=>{x.lineWidth=k;x.beginPath();x.roundRect?x.roundRect(pad+(i+.5)*k,pad+(j+.5)*k,6*k,6*k,1.8*k):x.rect(pad+(i+.5)*k,pad+(j+.5)*k,6*k,6*k);x.stroke();x.beginPath();x.roundRect?x.roundRect(pad+(i+2)*k,pad+(j+2)*k,3*k,3*k,.9*k):x.rect(pad+(i+2)*k,pad+(j+2)*k,3*k,3*k);x.fill()};
+    fin(0,0);fin(n-7,0);fin(0,n-7);return c.toDataURL('image/png')};
+  const strip=lv=>doc=>{
+    if(lv>=3){const q=doc.querySelector('.bk .q');if(q){const col=getComputedStyle(q).color,im=doc.createElement('img');im.src=qrPng(col);im.style.cssText='display:block;width:100%;height:100%';q.innerHTML='';q.appendChild(im)}
+      doc.querySelectorAll('svg').forEach(e=>e.remove());doc.querySelectorAll('.pc-grain,.pc-light').forEach(e=>e.style.backgroundImage='none');return}
+    doc.querySelectorAll('[filter],[mask]').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask')});doc.querySelectorAll('filter,mask').forEach(e=>e.remove());
     if(lv>=2)doc.querySelectorAll('.pc-av svg').forEach(e=>e.remove())};
-  const plan=[[3,0],[2,0],[2,1],[2,2]];
+  const plan=[[3,0],[2,0],[2,1],[2,2],[2,3]];
   const go=n=>{const [k,lv]=plan[n];return html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k,onclone:lv?strip(lv):undefined}).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
     .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(n<plan.length-1)return go(n+1);throw e})};
   go(0).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
