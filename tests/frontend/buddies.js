@@ -50,7 +50,10 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
-    const until = async (fn, n = 30) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(200) } return false };
+    // 按真实时间等条件成立（n × 200ms）：pg.settle 页面空闲时会提前返回（#141 同类根因）
+    const until = async (fn, n = 30) => { const t0 = Date.now(); while (Date.now() - t0 < n * 200) { try { if (await fn()) return true } catch (_) { } await new Promise(r => setTimeout(r, 100)) } return false };
+    // 徽章 / 等级庆祝是时序偶发的全屏层，会盖住按钮（CI 上 58 次「intercepts pointer events」超时）：点之前先去掉，verify / verify2 同做法
+    const noFx = () => pg.evaluate(() => { const f = document.getElementById('bdgFx'); if (f) f.remove() });
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的「我的球友」（DOM）：待确认行 | 小头像（名字/副标题）
     const sec = () => pg.evaluate(() => { const r = document.querySelector('.bd'); if (!r) return null;
@@ -89,7 +92,7 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     T(tag('点开「想加你为球友」→ 确认页（名字、刚刚扫了你的码、确认 / 忽略、忽略不会通知 TA）'), /Xin.*刚刚扫了你的码，想加你为球友.*确认.*忽略.*忽略不会通知 TA/.test(await layer() || ''), await layer());
 
     // —— 确认（真实点击）：POST accept → 页面：Xin 进了球友、待确认少一条 → 清空内存 → 重读 → 还在
-    await pg.click(W ? '#modal [data-act="bdAccept"]' : '#sheet [data-act="bdAccept"]'); await pg.settle(500);
+    await noFx(); await pg.click(W ? '#modal [data-act="bdAccept"]' : '#sheet [data-act="bdAccept"]'); await pg.settle(500);
     T(tag('确认：发 POST /api/buddies/requests/:id/accept'), S.posts.join() === 'accept:' + RX, S.posts);
     T(tag('确认：弹层关了，有提示'), (await layer()) === null && /成为球友了/.test(await toastTxt()), await toastTxt());
     await toMe(); await pg.settle(200);
@@ -99,9 +102,9 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     T(tag('确认：清空内存 → 重读 → 还在'), await reread() === want1, await sec());
 
     // —— 忽略（从「我的球友」的待确认行进入）：POST ignore → 页面不再有 Yan → 重读 → 还是没有
-    await until(async () => (await sec() || '').includes('REQ:Yan')); await pg.click('.bd-req[data-act="bdOpen"]'); await until(async () => (await layer()) !== null);
+    await until(async () => (await sec() || '').includes('REQ:Yan')); await noFx(); await pg.click('.bd-req[data-act="bdOpen"]'); await until(async () => (await layer()) !== null);
     T(tag('点待确认行 → 确认页（Yan，3 小时前）'), /Yan.*3 小时前扫了你的码/.test(await layer() || ''), await layer());
-    await pg.click(W ? '#modal [data-act="bdIgnore"]' : '#sheet [data-act="bdIgnore"]'); await pg.settle(500);
+    await noFx(); await pg.click(W ? '#modal [data-act="bdIgnore"]' : '#sheet [data-act="bdIgnore"]'); await pg.settle(500);
     T(tag('忽略：发 POST …/ignore，提示「TA 不会收到通知」'), S.posts[1] === 'ignore:' + RY && /TA 不会收到通知/.test(await toastTxt()), [S.posts, await toastTxt()]);
     await toMe(); await pg.settle(200);
     const want2 = '<img/扫码 | Zoe/扫码 | Pat/1 场';
@@ -110,8 +113,8 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
 
     // —— 处理失败（别的设备已经处理过 / 已失效）：提示 + 以服务器为准，不显示成球友
     const RW = '10000000-0000-4000-8000-000000000003'; S.cards[Y] = card(Y, 'Yan', 2002); S.incoming = [{ id: RW, from: Y, at: iso(-1), exp: iso(23) }];
-    await reread(); await until(async () => (await sec() || '').includes('REQ:Yan')); await pg.click('.bd-req[data-act="bdOpen"]'); await until(async () => (await layer()) !== null); S.failNext = 'buddy_request_ended';
-    await pg.click(W ? '#modal [data-act="bdAccept"]' : '#sheet [data-act="bdAccept"]'); await pg.settle(600);
+    await reread(); await until(async () => (await sec() || '').includes('REQ:Yan')); await noFx(); await pg.click('.bd-req[data-act="bdOpen"]'); await until(async () => (await layer()) !== null); S.failNext = 'buddy_request_ended';
+    await noFx(); await pg.click(W ? '#modal [data-act="bdAccept"]' : '#sheet [data-act="bdAccept"]'); await pg.settle(600);
     T(tag('确认失败：提示「已经处理过或失效了」'), /已经处理过或失效了/.test(await toastTxt()), await toastTxt());
     await toMe(); await pg.settle(200);
     T(tag('确认失败：页面以服务器为准（Yan 不是球友，待确认也没了）'), await sec() === want2, await sec());
