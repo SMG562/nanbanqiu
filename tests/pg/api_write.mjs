@@ -208,7 +208,14 @@ try {
 
 
   // ---- 续 2：我的资料、球场 / 区、聊天记录 ----
-  r = await call('PATCH', '/api/me', tP, { nickname: '新昵称', utr: 7.25, card_theme: 'clay' }); T('资料：改昵称 / 水平 / 卡片主题 → 200 返回新资料', r.s === 200 && r.j.user.nickname === '新昵称' && Number(r.j.user.utr) === 7.25 && r.j.user.card_theme === 'clay', r);
+  r = await call('PATCH', '/api/me', tP, { nickname: '新昵称', card_theme: 'clay' }); T('资料：改昵称 / 卡片主题 → 200 返回新资料', r.s === 200 && r.j.user.nickname === '新昵称' && r.j.user.card_theme === 'clay', r);
+  r = await call('PATCH', '/api/me', tP, { utr: 7.25 }); T('资料：UTR 不再能经 PATCH 改（11-07 起只走 PUT /api/me/utr）→ 403', r.s === 403, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 7.25, estimated: false, profile: 'https://app.utrsports.net/profiles/1234567', extra: 'x' }); T('我的 UTR：PUT 正式 + 链接 → 200 只存编号', r.s === 200 && Number(r.j.utr.utr) === 7.25 && r.j.utr.profile === '1234567' && r.j.utr.estimated === false, r);
+  r = await call('GET', '/api/me/utr', tP); T('我的 UTR：GET 读回', r.s === 200 && Number(r.j.utr.utr) === 7.25 && r.j.utr.profile === '1234567' && !!r.j.utr.updated_at, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: '7', estimated: false }); T('我的 UTR：数值是文字 → 422', r.s === 422, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 17, estimated: false }); T('我的 UTR：超出范围 → 422 utr', r.s === 422 && r.j.detail === 'utr', r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 4, estimated: false, profile: 'abc' }); T('我的 UTR：链接不认 → 422 profile', r.s === 422 && r.j.detail === 'profile', r);
+  r = await call('GET', '/api/me/utr'); T('我的 UTR：没登录 → 401', r.s === 401);
   T('资料：返回里没有手机号 / 登录 id', !/phone|auth_id|\+61/.test(JSON.stringify(r.j)));
   r = await call('PATCH', '/api/me', tP, { status: 'active' }); T('资料：改状态 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden', r);
   r = await call('PATCH', '/api/me', tP, { level: 5 }); T('资料：改等级 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden');

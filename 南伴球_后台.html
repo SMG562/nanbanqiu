@@ -1572,6 +1572,13 @@ const B1_EVENTS=[   // 与 events_spec.md v2 逐条一致（名称、分类、�
  ["gender_set", "我的", "保存性别（不记录值）", "first, changed", "client"],
  ["club_add_open", "我的", "打开添加 Club", "", "client"],
  ["home_clubs_save", "我的", "保存我的 Club", "n", "client"],
+ ["utr_open", "我的", "打开我的 UTR 弹层（长按看时间那次不算）", "mode(off/self), linked", "client"],
+ ["utr_invalid", "我的", "我的 UTR 当场校验没通过（不发请求、不记填的内容）", "reason(empty/format/range/link)", "client"],
+ ["utr_save", "我的", "我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号）", "mode(off/self), linked, change(up/down/same)", "client"],
+ ["racket_picker_open", "我的", "打开选拍弹层（添一把 / 换一把；从系列返回不算）", "mode(add/swap), slot(1-3)", "client"],
+ ["racket_brand_pick", "我的", "选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）", "brand", "client"],
+ ["racket_save", "我的", "球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库", "action(add/swap/main/remove), source(catalog/other), n_after", "client"],
+ ["racket_invalid", "我的", "手写拍子名当场没通过校验（不发请求、不记文字）", "reason(empty/long/link/at/digits/dup)", "client"],
  ["community_open", "我的", "打开微信约球群", "", "client"],
  ["series_end", "我的", "停止每周发布", "game_id", "client"],
  ["follow_open", "打完之后", "打开「TA 发了新球局」", "game_id", "client"],
@@ -3625,6 +3632,21 @@ if(NBQ_MODE==='real'){document.addEventListener('click',e=>{const b=e.target.clo
 
 // ---------- 球友（#27 第 3 步，只读）：搜索 · 按状态筛 · 每页 50 ----------
 const UP={rows:[],counts:{},more:false,q:'',st:'',loading:false,loaded:false,err:null,gen:0,tm:0};
+// 我的 UTR（#101）：球友页顶上一张卡片（概况 + 需要留意的人）；列表里 UTR 带类型（自评 ≈）和「已关联」✓。主页编号只在「同一主页多个账号」时显示
+const UTP={d:null,loading:false,err:null};
+async function utpLoad(){UTP.loading=true;UTP.err=null;const r=await admApi('GET','/utr');UTP.loading=false;
+  if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(r.ok&&r.body&&r.body.summary&&Array.isArray(r.body.flags))UTP.d=r.body;else UTP.err=r.status===403?'你的角色不能查看':r.ok?'服务返回的内容不对，请稍后再试':realErr(r);
+  if(RL.me&&S.page==='users')render()}
+const utpUtr=u=>(u.utr_estimated?'≈'+(+u.utr).toFixed(1):String(+u.utr))+(u.utr_linked?' <span title="已关联 UTR 主页" style="color:var(--ok,#176B4D)">✓</span>':'');
+function utpCard(){if(!UTP.d&&!UTP.loading&&!UTP.err)utpLoad();
+  if(!UTP.d)return `<div class="card"><div class="ch"><b>UTR</b><small>${UTP.err?esc(UTP.err):'读取中…'}</small></div>${UTP.err?'<button class="btn sm" data-up="utr">重试</button>':''}</div>`;
+  const s=UTP.d.summary,pc=n=>s.total?Math.round(n*100/s.total)+'%':'—';
+  const why=f=>[f.often_n?`近 7 天改了 ${f.often_n} 次`:'',f.jump_to!=null?`30 天内 ${f.jump_from} → ${f.jump_to}`:'',f.dup_profile?`主页 <a href="https://app.utrsports.net/profiles/${encodeURIComponent(f.dup_profile)}" target="_blank" rel="noopener noreferrer">#${esc(f.dup_profile)}</a> 还关联了别的账号`:''].filter(Boolean).join('；');
+  return `<div class="card"><div class="ch"><b>UTR</b><small>在册 ${s.total} 人</small></div>
+  <p class="cap" style="margin:4px 0 8px">正式 ${s.official}（${pc(s.official)}）· 自评 ${s.self}（${pc(s.self)}）· 关联主页 ${s.linked}（${pc(s.linked)}）· 近 30 天确认过 ${s.updated_30d} · 近 7 天改动 ${s.changes_7d} 次 / ${s.changers_7d} 人</p>
+  ${UTP.d.flags.length?`<table><thead><tr><th>编号</th><th>昵称</th><th>UTR</th><th>需要留意</th></tr></thead><tbody>${UTP.d.flags.map(f=>`<tr><td class="mono">#${String(f.member_no).padStart(4,'0')}</td><td>${esc(f.nickname)}${f.last_initial?' '+esc(f.last_initial)+'.':''}</td><td>${utpUtr(f)}</td><td>${why(f)}</td></tr>`).join('')}</tbody></table>`:'<p class="cap">没有需要留意的人。</p>'}
+  <p class="cap">只读。规则：近 7 天改 3 次以上 · 30 天内正式→正式一次跳 2 以上 · 同一主页关联了多个账号。</p></div>`}
 const UP_ST={active:'正常',review:'待核实',limited:'受限',suspended:'暂停',banned:'封禁',deleted:'已注销'};
 async function upLoad(more){const g=++UP.gen;UP.loading=true;UP.err=null;
   const r=await admApi('GET','/users?q='+encodeURIComponent(UP.q)+'&status='+UP.st+'&offset='+(more?UP.rows.length:0));
@@ -3640,8 +3662,8 @@ function realUsersPage(){
   const total=Object.values(UP.counts).reduce((a,b)=>a+b,0);
   const chips=`<button class="btn sm${UP.st===''?' p':''}" data-up="st" data-v="">全部 ${total}</button>`+Object.keys(UP_ST).map(k=>`<button class="btn sm${UP.st===k?' p':''}" data-up="st" data-v="${k}">${UP_ST[k]} ${UP.counts[k]||0}</button>`).join('');
   const row=u=>`<tr><td class="mono">#${String(u.member_no).padStart(4,'0')}</td><td><b style="font-weight:600">${esc(u.nickname)}${u.last_initial?' '+esc(u.last_initial)+'.':''}</b></td><td>${esc((CITY_ADM&&CITY_ADM[u.city]&&CITY_ADM[u.city].name)||u.city||'—')}</td>
-    <td>${esc(UP_ST[u.status]||u.status)}${u.status==='suspended'&&u.status_until?'<br><small style="color:var(--mut)">到 '+upDate(u.status_until)+'</small>':''}</td><td>UTR ${u.utr} · L${u.level}</td><td class="mono">${esc(u.phone_tail||'')}</td><td>${upDate(u.created_at)}</td><td>${upDate(u.last_active_at)}</td><td>${esc(u.signup_source||'—')}</td></tr>`;
-  return `<div class="card"><div class="ch"><b>球友</b><small>${UP.loaded?'共 '+total+' 人':'读取中…'}</small></div>
+    <td>${esc(UP_ST[u.status]||u.status)}${u.status==='suspended'&&u.status_until?'<br><small style="color:var(--mut)">到 '+upDate(u.status_until)+'</small>':''}</td><td>UTR ${utpUtr(u)} · L${u.level}</td><td class="mono">${esc(u.phone_tail||'')}</td><td>${upDate(u.created_at)}</td><td>${upDate(u.last_active_at)}</td><td>${esc(u.signup_source||'—')}</td></tr>`;
+  return utpCard()+`<div class="card"><div class="ch"><b>球友</b><small>${UP.loaded?'共 '+total+' 人':'读取中…'}</small></div>
   <div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${chips}</div>
   <input class="search" data-upq style="width:100%;max-width:320px" placeholder="搜昵称或编号（如 62）" value="${esc(UP.q)}">
   ${UP.err?`<p class="cap" style="color:var(--crit)">${esc(UP.err)} <button class="btn sm" data-up="reload">重试</button></p>`:''}
@@ -3652,7 +3674,8 @@ if(NBQ_MODE==='real'){
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-up]');if(!b||b.disabled)return;const k=b.dataset.up;
     if(k==='st'){UP.st=b.dataset.v;UP.loaded=false;UP.rows=[];render();upLoad(false)}
     else if(k==='more')upLoad(true);
-    else if(k==='reload'){UP.err=null;UP.loaded=false;render()}});
+    else if(k==='reload'){UP.err=null;UP.loaded=false;render()}
+    else if(k==='utr'){UTP.err=null;UTP.d=null;render()}});
   document.addEventListener('input',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i||e.isComposing)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)});
   document.addEventListener('compositionend',e=>{const i=e.target.closest&&e.target.closest('[data-upq]');if(!i)return;UP.q=i.value;clearTimeout(UP.tm);UP.tm=setTimeout(()=>{UP.loaded=false;UP.rows=[];upLoad(false)},350)})}
 

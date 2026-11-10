@@ -206,8 +206,8 @@
 ## 3. 我的资料
 
 ### PATCH /api/me · 直接 update users（行级权限只允许改资料类的列）
-- 可改：nickname（1–20 字）、last_initial、utr（1.00–16.50）、utr_estimated、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
-- 不可改：status、level、member_no、手机号等 → 403 `forbidden`
+- 可改：nickname（1–20 字）、last_initial、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
+- 不可改：status、level、member_no、手机号、utr / utr_estimated（11-07 起只走 PUT /api/me/utr）等 → 403 `forbidden`
 - 频率：改昵称 30 天 2 次 → 429 `nickname_limit`（注册 24 小时内不计）
 - 昵称规则（前台 NICK_BAD 与数据库 nbq_nickname_problem 同一套）：不能有链接、联系方式（8 位以上数字、微信 / vx / WhatsApp 等说法）、「官方 / 南伴球 / 客服 / 管理员 / 系统 / admin」等字样、不可见字符、同一个字连续 5 次 → 422 `nickname_not_allowed`（detail = link / contact / impersonate / invisible / repeat）
 - 事件：card_customize / invite_setting / email_settings_save / analytics_off / analytics_on（前端，按改的内容）
@@ -233,6 +233,13 @@
 - 清洗：去控制字符、连续空白并成一个、去首尾空白（含全角空格）；同一把（品牌 + 系列，不分大小写）重复 → 失败
 - 校验（将来球员卡公开，一次到位）：各 ≤ 30 字、系列必填、拒绝 http / www、@ / ＠、连续 6 位以上数字 → 422 invalid，detail = `rackets`（不是数组 / 超过 3 把 / 元素不是对象）· `brand` · `series` · `duplicate`；失败时原来的不丢
 - 产品库（#60 A4，ADR 0009）：`GET /api/rackets/catalog` 不用登录，`{catalog:[{id, brand, series}]}` 只给 active，缓存 1 小时。PUT 的元素可以是 `{catalog_id}`（只转 id；隐藏的只有本来就有的人能留、合并掉的跟到新条目，不合法 → 422 detail `catalog_id`）或 `{brand, series}`（按品牌 + 系列 / 整串 / 别名不分大小写自动归到产品库，名字换成产品库的写法）。返回和 GET 都带 `catalog_id`（自由文字归不上为 null）
+
+### GET /api/me/utr · PUT /api/me/utr `{utr, estimated, profile?}` · `api_set_utr(p jsonb)` / `api_my_utr()`（#101）
+- 返回 `{utr:{utr, estimated, profile, updated_at}}`（GET 和 PUT 一样）；updated_at 没确认过 = 注册时间；接口层只转发这三个字段，类型不对 → 422 invalid
+- 两种：正式（estimated = false）/ 自评（estimated = true，前台显示 ≈）；utr 1–16.5、最多两位小数，否则 422 invalid detail=`utr`；estimated 不是布尔 → detail=`estimated`
+- profile：不传 = 不动；null / 空串 = 清掉；纯数字（4–12 位）或 UTR 主页链接（utrsports.net / universaltennis.com 的 `/profiles/<数字>`）→ 只存数字；其他 → 422 invalid detail=`profile`
+- 数值或类型变了：记一行 `utr_changes`（只许本人读）+ 频率 24 小时 5 次 → 429 `rate_limited`；只改链接、原样再确认只刷新 updated_at，不计次数
+- 隐私：profile 只在 users（本人可读），public_profiles 不加；注销匿名化时清掉 profile 和历史（触发器 `trg_users_utr_wipe`）
 
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks

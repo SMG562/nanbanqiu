@@ -161,6 +161,19 @@ try {
   r = await stats('nbq_service', `select job_nightly() v`); T('A5 每晚任务照常跑，并记了昨天的快照', r.ok && +(await q(`select count(*) from racket_daily_total where day = $1`, [await day(1)])).rows[0].count === 1, r);
   e1 = null; try { await q(st4); await q(st4) } catch (e) { e1 = e.message } T('A5 迁移连跑两次不报错', e1 === null, e1);
   T('A5 迁移后 job_nightly 与 schema.sql 一致且含快照', (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc === nightSrc0 && /racket_rollup/.test(nightSrc0));
+
+  // B2：4 个前台埋点的登记迁移（schema.sql 已含，先删掉再跑两次 = 正式库第一次执行的情形）；结果与字典 events_spec.md 逐字一致
+  const EV = ['racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid'];
+  const evRows = async () => (await q(`select event, category, description, props, source, status from event_definitions where event = any($1) order by event`, [EV])).rows;
+  const fromSchema = JSON.stringify(await evRows());
+  await q(`delete from event_definitions where event = any($1)`, [EV]); await q(`delete from schema_migrations where version = '20261109_racket_events'`);
+  const ev9 = fs.readFileSync(path.join(DIR, 'server/migrations/20261109_racket_events.sql'), 'utf8');
+  e1 = null; try { await q(ev9); await q(ev9) } catch (e) { e1 = e.message } T('B2 埋点迁移连跑两次不报错', e1 === null, e1);
+  const spec = fs.readFileSync(path.join(DIR, 'tests/spec/events_spec.md'), 'utf8').split('\n').filter(l => /^\| racket_/.test(l)).map(l => l.split('|').slice(1, -1).map(x => x.trim()))
+    .map(([event, category, src, description, props]) => ({ event, category, description, props, source: src === 'C' ? 'client' : 'server', status: 'active' })).sort((x, y) => x.event < y.event ? -1 : 1);
+  T('B2 迁移后 4 个事件 = 字典（名称、分类、说明、props、来源）', JSON.stringify(await evRows()) === JSON.stringify(spec) && spec.length === 4, { db: await evRows(), spec });
+  T('B2 迁移结果 = schema.sql 载入的结果', JSON.stringify(await evRows()) === fromSchema);
+  T('B2 schema_migrations 记了一次', +(await q(`select count(*) from schema_migrations where version='20261109_racket_events'`)).rows[0].count === 1);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
