@@ -24,7 +24,7 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   const close=()=>js(W=>{W?closeModal():closeSheet()},W);
   const SH=W?'#modal':'#sheet',DET=W?'#colR':'#detail';
   const openGame=id=>js(([id,W])=>{AN.ctx='list';if(W){UI.tab='disc';select(id)}else{if(UI.detail)closeDetail();openDetail(id)}},[id,W]);
-  const goTab=t=>js(([t,W])=>{if(W){if(t==='notif'){togglePop(true);return}closeModal();UI.landing=null;UI.tab=t==='me'?'mine':t;UI.sel=null;render()}else{closeSheet();if(UI.detail)closeDetail();if(t==='notif')UI.msgTab='ntf';if(t==='chat'){UI.msgTab='chat';t='notif'}go(t)}},[t,W]);
+  const goTab=t=>js(([t,W])=>{if(W){if(t==='notif'){togglePop(true);return}closeModal();UI.landing=null;UI.tab=t;UI.sel=null;render()}else{closeSheet();if(UI.detail)closeDetail();if(t==='notif')UI.msgTab='ntf';if(t==='chat'){UI.msgTab='chat';t='notif'}go(t)}},[t,W]);
   const who=u=>js(u=>{typeof closeSheet==='function'?closeSheet():closeModal();if(typeof closeDetail==='function'&&UI.detail)closeDetail();setWho(u,true)},u);
   async function S(name,expect,fn,opt={}){if(!opt.keep)await clean();await ev();try{await fn()}catch(e){T(plat+' '+name+' (run)',false,e.message.split('\n')[0])}await wait(opt.wait||350);
     const L=await ev();ALL[plat].push(...L);const core=L.filter(e=>!NOISE.has(e.ev));R[plat][name]={core,common:opt.common!==false,all:L};

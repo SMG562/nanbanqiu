@@ -48,7 +48,7 @@ const CASES = [
         row.querySelector('.nb b').click(); await wait(700);
         const sh = document.querySelector('#sheet.show') || document.querySelector('#mbg.show #modal');
         const detail = NR_PLAT === 'mobile' ? (document.querySelector('#detail.show') ? UI.detail : null) : UI.sel;
-        const me = NR_PLAT === 'mobile' ? UI.tab === 'me' : (UI.tab === 'mine' && !UI.sel);
+        const me = UI.tab === 'me' && !UI.sel;
         return { text, row: true, detail, gid: n.game_id, sheet: sh ? sh.innerText.replace(/\s+/g, ' ').slice(0, 80) : '', me, read: n.read, toast: toasts.slice(-1)[0] || '', pop: !!document.querySelector('#pop.show') }
       }, [kind, who]);
       out[f][kind] = r;

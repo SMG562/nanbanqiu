@@ -31,7 +31,7 @@ for(const plat of ['PWA','Web']){const W=plat==='Web';
   await S('pact_detail',[['pact_view',{via:'detail'}]],()=>click(`${det} [data-pact="1"]`));await close();
   await S('safety',[['safety_open',{}],['pact_view',{via:'safety'}]],()=>click(`${det} [data-a="safety"]`));await close();
   // 设置：提醒方式 · 邮件 · 谁可以约我 · 等级说明 · 联系我们 · 微信群
-  if(!W)await js(()=>{if(UI.detail)closeDetail();go('me')});else await js(()=>{UI.tab='mine';UI.sel=null;render()});await wait(300);
+  if(!W)await js(()=>{if(UI.detail)closeDetail();go('me')});else await js(()=>{UI.tab='me';UI.sel=null;render()});await wait(300);
   const L=W?'#colL':'#meBody';
   await S('nr_settings',[['notif_settings_open',{}]],()=>click(`${L} [data-a="nrSet"]`));
   if(!W){await S('a2hs',[['a2hs_open',{env:x=>!!x}]],()=>click('[data-a="enablePush"]'));await close();await js(()=>{setEnv('pwa');go('me')});await click(`${L} [data-a="nrSet"]`);await wait(300)}

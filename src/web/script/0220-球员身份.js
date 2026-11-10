@@ -28,7 +28,11 @@ function profileHTML(){
     <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
     <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>`;
 }
-function renderLeft(){$('#colL').innerHTML=UI.tab==='disc'?filtersHTML():profileHTML();bindSub($('#colL'))}
+// 「我的球局」左栏只放摘要；资料、UTR、球拍、球友、设置都在「我的」标签（#134 P1）
+function mineSumHTML(){if(!ME)return profileHTML();
+  const s=stats(ME.id),t=new Date(),m=api.mine().filter(c=>c.past&&c.status!=='cancelled'&&(c.mine==='approved'||c.isHost)&&new Date(c.start).getFullYear()===t.getFullYear()&&new Date(c.start).getMonth()===t.getMonth()).length;
+  return `<div class="card minesum"><b class="ms-n">${esc(cardName(ME))}</b><span class="ms-l">${JOURNEY[s.lv].e} Lv${s.lv+1} ${LV[s.lv][1]}</span><span class="ms-m">本月打了 ${m} 场 · 共 ${s.played} 场</span><button class="btn btn-sm" data-tab="me">编辑资料 ›</button></div>`}
+function renderLeft(){$('#colL').innerHTML=UI.tab==='disc'?filtersHTML():UI.tab==='me'?profileHTML():mineSumHTML();bindSub($('#colL'))}
 /* ---------- 选区域：一个输入框，输入区名或邮编即时联想；空着时给「最近用过」和「附近有球局的区域」 ----------
  * 第一版只做墨尔本都会区约 70 个常用区（名称 + 邮编 + 中心点，随页面一起下发，不调用任何接口）；
  * 以后扩到全维州 ~3,000 个 locality：数据来自 Vicmap / ABS 的公开边界，压缩后约 60KB，仍然是本地搜索。 */
@@ -60,7 +64,7 @@ function bindSub(root){const inp=$('#fSub',root),dd=$('#fSubDD',root);if(!inp)re
   dd.onmousedown=e=>{e.preventDefault();const lt=e.target.closest('[data-sbl]');if(lt){SBS.letter=lt.dataset.sbl||null;subDD(root);dd.scrollTop=0;return}const b=e.target.closest('[data-subpick]');if(b){inp.blur();subPick(b.dataset.subpick)}}}
 
 /* ---------- 中栏：发现 ---------- */
-function renderCenter(){UI.tab==='disc'?renderDisc():renderMine()}
+function renderCenter(){UI.tab==='disc'?renderDisc():UI.tab==='me'?($('#colC').innerHTML=''):renderMine()}
 function renderDisc(){
   const all=api.list(),d0=dayAt(UI.page),d4=dayAt(UI.page+4),nf=F.levels.size+F.types.size+(F.tags?F.tags.size:0);
   let h=`<div class="ctool"><div><h1>${d0.getMonth()+1}月${d0.getDate()}日 – ${d4.getMonth()===d0.getMonth()?'':d4.getMonth()+1+'月'}${d4.getDate()}日</h1><div class="sub">${esc(LOC.label)+' · '+F.radius+' km 内'}${Object.keys(LIST_HIDDEN).length?` · 球局较多，每天只显示最近的 ${DAY_CAP} 局`:''}</div></div>

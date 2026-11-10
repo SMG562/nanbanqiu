@@ -4702,7 +4702,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
  * 其余种类沿用 nrOpen 原来的去处（申请 → 定位到申请人；还缺人 → 还缺人卡片；赛后 → 赛后卡片；徽章 / 等级 → 庆祝页；邀约 → 邀约卡片）
  * ===================================================================== */
 function acctGo(){if(NR_PLAT==='mobile'){closeSheet();if(UI.detail)closeDetail();go('me')}
-  else{$('#pop')&&$('#pop').classList.remove('show');try{closeModal()}catch(_){}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}UI.tab='mine';UI.sel=null;render()}
+  else{$('#pop')&&$('#pop').classList.remove('show');try{closeModal()}catch(_){}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}UI.tab='me';UI.sel=null;render()}
   const s=acctSt(ME);if(ME&&s!=='active')setTimeout(()=>acctBlock(s,'info'),250)}
 {const _o=nrOpen;nrOpen=function(n){if(!n)return;const k=n.kind,done=()=>{if(!nrTodo(n))n.read=true;nrBadge()};
   if(k==='account_status'){done();acctGo();return}

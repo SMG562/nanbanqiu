@@ -21,7 +21,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
 
   // ---- 导航 ----
   const tabs = await E(() => [...document.querySelectorAll('#tabs [data-tab]')].map(x => x.dataset.tab));
-  T('导航：发现球局 / 我的球局 / 场边', JSON.stringify(tabs) === '["disc","mine","side"]', tabs);
+  T('导航：发现球局 / 我的球局 / 场边 / 我的', JSON.stringify(tabs) === '["disc","mine","side","me"]', tabs);
   T('「场边」右上角带 24h', await E(() => { const b = document.querySelector('#tabs [data-tab="side"]'), s = b.querySelector('.h24'); if (!s) return false; const r = s.getBoundingClientRect(), t = b.getBoundingClientRect();
     return s.textContent === '24h' && r.bottom < t.top + t.height / 2 && r.left > t.left + 20 }));
   T('三个导航按钮高度、上边一样', await E(() => new Set([...document.querySelectorAll('#tabs [data-tab]')].map(b => { const r = b.getBoundingClientRect(); return r.top + ',' + r.height })).size === 1));
