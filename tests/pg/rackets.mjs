@@ -139,6 +139,8 @@ try {
   await q(`delete from user_rackets`);
   const P = []; for (let i = 0; i < 8; i++) { const u = '00000000-0000-0000-0000-0000000005' + String(i).padStart(2, '0'); P.push(u); await q(`insert into users(id,phone_e164,nickname,utr) values ($1,$2,$3,5)`, [u, '+614100005' + String(i).padStart(2, '0'), 'P' + i]) }
   const day = async n => (await q(`select ((now() at time zone 'Australia/Melbourne')::date - $1::int) as d`, [n])).rows[0].d;
+  // job_nightly 的「今天」= 所有城市里最早的本地日期（见迁移）；测试库里有比墨尔本晚的时区时，墨尔本 0–3 点两者差一天——用同一口径，不是按墨尔本算（11-11 午夜 pg/rackets 红的根因）
+  const jobDay = async n => (await q(`select ((select min((now() at time zone tz)::date) from cities) - $1::int) as d`, [n])).rows[0].d;
   // 8 天前：2 个人有 Head Speed
   for (const u of P.slice(0, 2)) await set(u, [{ catalog_id: cat('Head', 'Speed') }]);
   await q(`select racket_rollup((now() at time zone 'Australia/Melbourne')::date - 8)`);
@@ -163,7 +165,7 @@ try {
   r = await stats('nbq_viewer', `select admin_racket_stats(0) v`); T('A5 天数不对 → invalid', !r.ok && r.err === 'invalid', r);
   r = await as(P[0], `select admin_racket_stats(7) v`); T('A5 前台不能调后台统计', !r.ok && /permission denied/.test(r.err), r);
   r = await as(P[0], `select count(*) v from racket_daily`); T('A5 前台读不到快照表', !r.ok && /permission denied/.test(r.err), r);
-  r = await stats('nbq_service', `select job_nightly() v`); T('A5 每晚任务照常跑，并记了昨天的快照', r.ok && +(await q(`select count(*) from racket_daily_total where day = $1`, [await day(1)])).rows[0].count === 1, r);
+  r = await stats('nbq_service', `select job_nightly() v`); T('A5 每晚任务照常跑，并记了昨天的快照', r.ok && +(await q(`select count(*) from racket_daily_total where day = $1`, [await jobDay(1)])).rows[0].count === 1, r);
   e1 = null; try { await q(st4); await q(st4) } catch (e) { e1 = e.message } T('A5 迁移连跑两次不报错', e1 === null, e1);
   T('A5 迁移后 job_nightly 与 schema.sql 一致且含快照', (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc === nightSrc0 && /racket_rollup/.test(nightSrc0));
 
