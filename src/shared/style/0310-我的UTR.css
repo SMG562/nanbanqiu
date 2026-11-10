@@ -1,0 +1,38 @@
+/* 我的 UTR（#101）：个人页这一行和「我的球拍」同一套尺寸（行高、内边距、.rk-br 标签、.rk-se 主字），不另起字号。
+   不用 .rk 容器：那是球拍列表自己的（测试和逻辑按 .rk .rk-row 数球拍）。 */
+.ut .ut-row{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 18px;border:0;background:none;
+  font:inherit;color:var(--ink);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;transition:background .15s}
+.ut .ut-row:active{background:#F7F8F7}
+.ut .ut-row:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.ut .ut-row .v{flex:1;min-width:0}
+.ut-card{padding-bottom:4px}.ut-card .ut .ut-row{padding:11px 16px;min-height:58px}.ut-card .rk-se{font-size:15px}
+@media (hover:hover){.ut-card .ut .ut-row:hover{background:#FAFBFA}}
+.ut-n{font-variant-numeric:tabular-nums}
+.ut-ap{color:var(--mut);font-weight:500;margin-right:1px}
+/* 「几周前更新」：电脑悬停、手机长按（.tipon）才出现 */
+.ut-tip{margin-left:auto;font-size:12.5px;color:var(--mut);opacity:0;transition:opacity .15s;white-space:nowrap;pointer-events:none}
+.ut-row.tipon .ut-tip{opacity:1}
+@media (hover:hover){.ut-row:hover .ut-tip,.ut-row:focus-visible .ut-tip{opacity:1}}
+
+/* 弹层 */
+.ut-seg{display:flex;gap:2px;padding:3px;margin:14px 0 16px;border-radius:12px;background:#F0F2F0}
+.ut-seg button{flex:1;min-height:36px;border:0;border-radius:9px;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink2);cursor:pointer}
+.ut-seg button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.ut-seg button:focus-visible,.ut-opt:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+/* 数字框要大：手机端全局把输入框固定在 16px（防 iOS 放大），这里用更高的优先级覆盖，仍 ≥ 16px */
+.ut-pk input.inp.ut-num,.device .ut-pk input.inp.ut-num.ut-num:not([type=checkbox]){height:64px;text-align:center;font-size:28px!important;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ut-lk{position:relative;display:block}
+.ut-lk .inp{padding-right:40px;text-overflow:ellipsis}
+.ut-lk .inp::placeholder{font-size:13px}
+.ut-lk-t{margin:12px 0 6px 2px;font-size:12px;color:var(--mut)}
+.ut-ok{position:absolute;right:14px;top:50%;width:18px;height:18px;margin-top:-9px;color:var(--g);display:none}
+.ut-lk.good .ut-ok{display:block}
+.ut-pk .inp.bad{border-color:#F04438;background:#fff}
+.ut-err{min-height:18px;margin:6px 2px 0}
+.ut-opt{flex-direction:row;align-items:center;justify-content:space-between;min-height:52px}
+.ut-opt span{font-size:14px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ut-opt[aria-checked="true"]{background:var(--gss)}
+.ut-opt[aria-checked="true"] b,.ut-opt[aria-checked="true"] span{color:var(--g)}
+.ut-save{margin-top:16px}
+.ut-save[disabled]{opacity:.45}
+@media (prefers-reduced-motion:reduce){.ut-tip{transition:none}}

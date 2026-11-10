@@ -64,7 +64,8 @@ web/style/0330-约_TA_打球.css
 web/style/0340-场边.css
 shared/style/0290-约_TA_打球.css
 shared/style/0300-我的球拍.css
-shared/style/0310-球友.css
+shared/style/0310-我的UTR.css
+shared/style/0320-球友.css
 web/page/0020-页面.html
 shared/page/0010-页面.html
 shared/script/0010-开头.js
@@ -146,7 +147,8 @@ shared/script/0495-接口调用.js
 shared/script/0496-推送引导.js
 shared/script/0497-测试环境横幅.js
 shared/script/0498-我的球拍.js
-shared/script/0499-球友.js
+shared/script/0499-我的UTR.js
+shared/script/0500-球友.js
 web/script/0260-分享球员卡.js
 web/script/0270-事件.js
 web/script/0280-演示.js

@@ -95,6 +95,15 @@ try {
   r = await call('GET', '/api/me/rackets', tQ); T('球拍：失败后原来的还在', rk(r.j.rackets) === '1:-/老拍 2:Head/Speed', r);
   r = await call('PUT', '/api/me/rackets', tQ, '{bad'); T('球拍：JSON 不对 → 400', r.s === 400 && r.j.error === 'bad_json', r);
   r = await call('PUT', '/api/me/rackets', tQ, { rackets: [] }); T('球拍：全部移除', r.s === 200 && r.j.rackets.length === 0, r);
+  // 产品库（#60 A4，ADR 0009）：不用登录就能读，只给可选的；按 catalog_id 保存只转 id
+  await admin.query(`update racket_catalog set status = 'hidden' where brand = 'Wilson' and series = 'Burn'`);
+  r = await call('GET', '/api/rackets/catalog', null); const cl = (r.j && r.j.catalog) || [];
+  T('产品库：没登录也能读，只有可选的，带缓存头', r.s === 200 && cl.length === 24 && !cl.some(x => x.series === 'Burn') && cl.every(x => UUIDre.test(x.id) && x.brand && x.series) && /max-age=3600/.test(r.h.get('cache-control') || ''), [r.s, cl.length, r.h.get('cache-control')]);
+  const blade = cl.find(x => x.brand === 'Wilson' && x.series === 'Blade');
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ catalog_id: blade.id, brand: 'x', series: 'ignored' }, { series: 'head speed' }] });
+  T('球拍：按 catalog_id 保存（只转 id）+ 自由文字自动归类，返回带 catalog_id', r.s === 200 && rk(r.j.rackets) === '1:Wilson/Blade 2:Head/Speed' && r.j.rackets[0].catalog_id === blade.id && UUIDre.test(r.j.rackets[1].catalog_id || ''), r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：重读带 catalog_id', r.s === 200 && r.j.rackets[0].catalog_id === blade.id, r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ catalog_id: 'nope' }] }); T('球拍：catalog_id 不是 uuid 又没 series → 422', r.s === 422, r);
   r = await call('GET', '/api/me/badges', null); T('徽章：没登录 → 401', r.s === 401, r);
   r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
 
@@ -218,7 +227,14 @@ try {
 
 
   // ---- 续 2：我的资料、球场 / 区、聊天记录 ----
-  r = await call('PATCH', '/api/me', tP, { nickname: '新昵称', utr: 7.25, card_theme: 'clay' }); T('资料：改昵称 / 水平 / 卡片主题 → 200 返回新资料', r.s === 200 && r.j.user.nickname === '新昵称' && Number(r.j.user.utr) === 7.25 && r.j.user.card_theme === 'clay', r);
+  r = await call('PATCH', '/api/me', tP, { nickname: '新昵称', card_theme: 'clay' }); T('资料：改昵称 / 卡片主题 → 200 返回新资料', r.s === 200 && r.j.user.nickname === '新昵称' && r.j.user.card_theme === 'clay', r);
+  r = await call('PATCH', '/api/me', tP, { utr: 7.25 }); T('资料：UTR 不再能经 PATCH 改（11-07 起只走 PUT /api/me/utr）→ 403', r.s === 403, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 7.25, estimated: false, profile: 'https://app.utrsports.net/profiles/1234567', extra: 'x' }); T('我的 UTR：PUT 正式 + 链接 → 200 只存编号', r.s === 200 && Number(r.j.utr.utr) === 7.25 && r.j.utr.profile === '1234567' && r.j.utr.estimated === false, r);
+  r = await call('GET', '/api/me/utr', tP); T('我的 UTR：GET 读回', r.s === 200 && Number(r.j.utr.utr) === 7.25 && r.j.utr.profile === '1234567' && !!r.j.utr.updated_at, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: '7', estimated: false }); T('我的 UTR：数值是文字 → 422', r.s === 422, r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 17, estimated: false }); T('我的 UTR：超出范围 → 422 utr', r.s === 422 && r.j.detail === 'utr', r);
+  r = await call('PUT', '/api/me/utr', tP, { utr: 4, estimated: false, profile: 'abc' }); T('我的 UTR：链接不认 → 422 profile', r.s === 422 && r.j.detail === 'profile', r);
+  r = await call('GET', '/api/me/utr'); T('我的 UTR：没登录 → 401', r.s === 401);
   T('资料：返回里没有手机号 / 登录 id', !/phone|auth_id|\+61/.test(JSON.stringify(r.j)));
   r = await call('PATCH', '/api/me', tP, { status: 'active' }); T('资料：改状态 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden', r);
   r = await call('PATCH', '/api/me', tP, { level: 5 }); T('资料：改等级 → 403 forbidden', r.s === 403 && r.j.error === 'forbidden');
