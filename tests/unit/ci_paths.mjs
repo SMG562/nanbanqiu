@@ -42,7 +42,8 @@ T('通配对照：一次推送里图标 + 业务代码，只要有一个触发�
 
 // ② 分类：每个已跟踪文件，要么触发，要么在不测名单里
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));   // 开发规矩：git 的测试去掉 GIT_* 变量
-const ls = spawnSync('git', ['ls-files', '-z'], { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 64 << 20 });
+// 已跟踪 + 还没 add 的新文件（-c -o --exclude-standard，不含 .gitignore 忽略的）：11-10 新加的 .gitattributes 没 add 就跑检查，只看已跟踪文件 → 漏掉，CI 才红
+const ls = spawnSync('git', ['ls-files', '-z', '-c', '-o', '--exclude-standard'], { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 64 << 20 });
 const FILES = (ls.stdout || '').split('\0').filter(Boolean);
 T('能列出已跟踪文件', ls.status === 0 && FILES.length > 100, { status: ls.status, n: FILES.length });
 const NO_TEST = [
