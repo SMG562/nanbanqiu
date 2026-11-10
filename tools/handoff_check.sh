@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 R=gh; REPO=SMG562/nanbanqiu; F=进度记录.md
 # 11-10（逃逸缺陷 #160）：对话里的人默认就是 gh 账号本人（用户 11-10 明确：别再问）。给用户的步骤按这个角色写
 me=$($R api user --jq .login 2>/dev/null || echo "?"); case "$me" in SMG562) role="所有者";; "?") role="未知（gh 读不到，先问）";; *) role="协作者";; esac
-echo "身份：本会话 gh 账号 $me → 对话里的人就是 $me 本人（$role）。不要再问身份；给的步骤只写 $role 能做的，所有者的事写成「转给所有者」"
+echo "身份：本会话 gh 账号 $me → 对话里的人就是 $me 本人（$role）。不要再问身份；给的步骤只写 $role 能做的，所有者的事直接留言到 #108（@SMG562），不让用户转达；等所有者的后续订阅那个 PR 自动接上，不让用户盯"
 git fetch -q --depth=200 origin main 2>/dev/null
 last=$(git log -1 --format=%H origin/main -- "$F"); when=$(git log -1 --format=%cI "$last")
 echo "进度记录最后更新：$(git log -1 --format='%h %ci' "$last")"
