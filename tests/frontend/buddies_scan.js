@@ -51,12 +51,14 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     // 按真实时间等条件成立（pg.settle 页面空闲时会提前返回，#141）
     const until = async (fn, n = 30) => { const t0 = Date.now(); while (Date.now() - t0 < n * 200) { try { if (await fn()) return true } catch (_) { } await new Promise(r => setTimeout(r, 100)) } return false };
+    // 徽章 / 等级庆祝是时序偶发的全屏层，会盖住按钮（main a616692：buddies 在 CI 上 58 次「intercepts pointer events」超时）：点之前先去掉，同 buddies / verify 做法
+    const noFx = () => pg.evaluate(() => { const f = document.getElementById('bdgFx'); if (f) f.remove() });
     const layerText = () => pg.evaluate(W => { const el = W ? document.querySelector('#mbg.show #modal') : document.querySelector('#sheet.show'); return el ? el.innerText.replace(/\s+/g, ' ') : '' }, W);
     const cardBtns = () => pg.evaluate(W => { const el = W ? document.querySelector('#mbg.show #modal') : document.querySelector('#sheet.show'); if (!el) return null;
       return { add: !!el.querySelector('[data-act="bdAdd"]'), wait: !!el.querySelector('.bd-wait'), buddy: /你们是球友/.test((el.querySelector('.bd-st') || {}).textContent || ''), del: !!el.querySelector('[data-act="bdDel"]') } }, W);
     const toastTxt = () => pg.evaluate(() => { const t = document.querySelector('#toast'); return t ? t.textContent : '' });
     const evs = k => pg.evaluate(k => (window.AN_LOG || []).filter(e => e.ev === k).map(e => e.props), k);
-    const login = async () => { await until(async () => !!(await pg.$('#ph')), 25); await pg.fill('#ph', '0412 345 678'); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456');
+    const login = async () => { await until(async () => !!(await pg.$('#ph')), 25); await pg.fill('#ph', '0412 345 678'); await noFx(); await pg.click('[data-a="sendCode"]'); await pg.settle(400); await pg.fill('#otp', '123456');
       await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Sam', null, { timeout: 10000 }).catch(() => { }); await pg.settle(400) };
     const land = async q => { await pg.goto('https://nanbanqiu.app/p/' + q); await pg.settle(300) };
 
@@ -77,7 +79,7 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     T(tag('埋点 buddy_scan_view（登录后）'), (await evs('buddy_scan_view')).some(p => p.target_uid === X && p.logged_in === true && p.source === 'qr'), await evs('buddy_scan_view'));
 
     // —— 加为球友（真实点击）：POST 带来源 → 卡片「已发送，等 TA 确认」→ 清空内存 → 重读 → 还在
-    await pg.click(W ? '#modal [data-act="bdAdd"]' : '#sheet [data-act="bdAdd"]');
+    await noFx(); await pg.click(W ? '#modal [data-act="bdAdd"]' : '#sheet [data-act="bdAdd"]');
     T(tag('POST /api/buddies/requests {to_user, source: qr}'), await until(async () => S.posts.length === 1) && S.posts[0].to_user === X && S.posts[0].source === 'qr', S.posts);
     T(tag('卡片变成「已发送，等 TA 确认」，有提示'), await until(async () => (await cardBtns() || {}).wait) && /已发送/.test(await toastTxt()), [await cardBtns(), await toastTxt()]);
     T(tag('埋点 buddy_request_send（pending）'), (await evs('buddy_request_send')).some(p => p.target_uid === X && p.result === 'pending' && p.err === null && p.source === 'qr'), await evs('buddy_request_send'));
@@ -91,14 +93,14 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     // —— 对方先扫过我（分享链接进来）：直接成为球友；来源记 link
     S.incoming = [{ id: '30000000-0000-4000-8000-000000000001', from: Y }];
     await land('2002?s=moments'); await until(async () => /yan/i.test(await layerText()));
-    await pg.click(W ? '#modal [data-act="bdAdd"]' : '#sheet [data-act="bdAdd"]');
+    await noFx(); await pg.click(W ? '#modal [data-act="bdAdd"]' : '#sheet [data-act="bdAdd"]');
     T(tag('互相扫了：来源 link，直接成为球友'), await until(async () => S.posts.length === 2) && S.posts[1].source === 'link' && await until(async () => /成为球友了/.test(await toastTxt())), [S.posts, await toastTxt()]);
     T(tag('卡片显示「你们是球友 · 删除球友」'), await until(async () => { const c = await cardBtns() || {}; return c.buddy && c.del && !c.add }), await cardBtns());
 
     // —— 删除球友：先确认 → DELETE → 不再是球友 → 重读 → 还是不是
-    await pg.click(W ? '#modal [data-act="bdDel"]' : '#sheet [data-act="bdDel"]'); await pg.settle(300);
+    await noFx(); await pg.click(W ? '#modal [data-act="bdDel"]' : '#sheet [data-act="bdDel"]'); await pg.settle(300);
     T(tag('删除前确认：写明 TA 不会收到通知'), /删除球友 Yan.*TA 不会收到通知/.test(await layerText()), await layerText());
-    await pg.click(W ? '#modal [data-act="bdDelYes"]' : '#sheet [data-act="bdDelYes"]');
+    await noFx(); await pg.click(W ? '#modal [data-act="bdDelYes"]' : '#sheet [data-act="bdDelYes"]');
     T(tag('DELETE /api/buddies/:uid'), await until(async () => S.dels.join() === Y), S.dels);
     T(tag('删除后：提示「TA 不会收到通知」'), await until(async () => /已删除，TA 不会收到通知/.test(await toastTxt())), await toastTxt());   // 提示在埋点之后，等到它再断言埋点（不抢跑）
     T(tag('删除后：卡片不再显示「你们是球友」'), await until(async () => { const c = await cardBtns() || {}; return !c.buddy && !c.del }), await cardBtns());
