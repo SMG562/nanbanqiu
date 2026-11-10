@@ -973,6 +973,8 @@ button.me[data-a=umenu] .av{width:34px;height:34px}button.me[data-a=umenu]:hover
 .is-me .layout{grid-template-columns:minmax(0,640px);justify-content:center}
 .is-me .col-c{display:none}
 @media (max-width:980px){.is-me .layout{grid-template-columns:minmax(0,1fr)}.is-me .col-l{display:flex;position:static;max-height:none}}
+.mehd{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px}.mehd b{font-size:17px}.mehd .gear{width:34px;height:34px;display:grid;place-items:center;border:0;background:none;color:var(--ink);cursor:pointer;border-radius:50%}.mehd .gear:hover{background:rgba(0,0,0,.05)}.mehd .gear svg{width:22px;height:22px}
+.sh-t{margin:0 0 6px;font-size:18px}
 .iv-lv{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#F4F7F5}
 .iv-lv b{font-size:14px;font-weight:800;color:#1F2A23;white-space:nowrap}.iv-lv span{font-size:12.5px;color:#8A928A}
 .ntq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -1357,6 +1359,7 @@ button.me[data-a=umenu] .av{width:34px;height:34px}button.me[data-a=umenu]:hover
   <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
   <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
@@ -4815,7 +4818,7 @@ function profileHTML(){
   const s=stats(ME.id),freq={};api.mine().filter(c=>c.past&&(c.mine==='approved'||c.isHost)).forEach(c=>freq[c.venue_id]=(freq[c.venue_id]||0)+1);
   const often=Object.entries(freq).filter(([id])=>!myClubIds().includes(id)).sort((a,b)=>b[1]-a[1]).slice(0,2);
   const pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;
-  return `<div class="card mycard" data-a="myCard"><div style="width:212px;height:304px;overflow:hidden"><div style="transform:scale(.7067);transform-origin:top left">${playerCard(ME.id)}</div></div>
+  return `<div class="mehd"><b>我的</b><button class="gear" data-a="settings" aria-label="设置"><svg><use href="#i-gear"/></svg></button></div><div class="card mycard" data-a="myCard"><div style="width:212px;height:304px;overflow:hidden"><div style="transform:scale(.7067);transform-origin:top left">${playerCard(ME.id)}</div></div>
     <div class="lvline"><div style="display:flex;justify-content:space-between;align-items:center"><b>${JOURNEY[s.lv].e} Lv${s.lv+1} ${LV[s.lv][1]}</b><button class="lvc-info" data-sx="lvinfo">等级说明 ›</button></div>${journeyPath(s)}<p class="jhint">${s.hint}</p></div></div>
   <div class="card"><div class="ch-h"><span>我的 Club</span><button data-a="editClubs">编辑</button></div>
     ${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
@@ -4824,13 +4827,7 @@ function profileHTML(){
   ${utSectionHTML('web')}
   ${rkSectionHTML('web')}
   ${partnersHTML()}
-  <div class="card" style="padding:4px 0">
-    <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
-    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span></button>
-    <button class="set" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span></button>
-    ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
-    <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
-    <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>`;
+  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span></button></div>`}`;
 }
 // 「我的球局」左栏只放摘要；资料、UTR、球拍、球友、设置都在「我的」标签（#134 P1）
 function mineSumHTML(){if(!ME)return profileHTML();
@@ -5000,7 +4997,16 @@ function renderRight(){const R=$('#colR');
 function select(id){UI.sel=id;{const g0=GAMES.find(g=>g.id===id);if(!g0||g0.venue_id!==UI.selVenue)UI.selVenue=null}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}
   const g=GAMES.find(g=>g.id===id);if(g&&UI.tab==='disc'){const o=dOff(new Date(g.starts_at));if(o>=0&&o<7&&(o<UI.page||o>=UI.page+5))UI.page=o<=4?0:2}
   render();if(MAP.lf){const c=api.get(id);MAP.lf.panTo([c.v.lat,c.v.lng])}}
-
+// 设置子页（#134 P2）：设置收进「我的」右上角齿轮
+function settingsHTML(){return `<div class="m-b"><h3 class="sh-t">设置</h3>
+  <div>
+    <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
+    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span></button>
+    <button class="set" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span></button>
+    ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
+    <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
+    <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div></div>`}
+function openSettings(){if(!ME){toast('请先登录');return}openModal(settingsHTML(),'sm')}
 /* ============================== 落地页 ============================== */
 function renderLanding(){
   const c=api.byCode(UI.landing);if(!c){UI.landing=null;render();return}
@@ -6154,6 +6160,7 @@ document.addEventListener('click',e=>{
     case'commClose':UI.comm=false;renderComm();break;
     case'commOpen':openCommunity();break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':$('#umenu').classList.remove('show');need(()=>openCard(ME.id),'登录后查看你的球员卡');break;

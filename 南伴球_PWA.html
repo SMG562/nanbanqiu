@@ -1305,6 +1305,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .nback{display:inline-grid;place-items:center;width:34px;height:34px;margin:0 2px 0 -10px;color:var(--ink);vertical-align:-4px}
 .nback svg{width:22px;height:22px;transform:rotate(180deg)}
 .li .ico.sb{background:#1E5A44}
+.big-t.wb .tbell+.tbell{margin-left:4px}
 </style>
 </head>
 <body>
@@ -1315,6 +1316,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
   <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-side" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h11M4 17h7"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.8 4.2-5.5 7.5-5.5s6.1 1.7 7.5 5.5"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></symbol>
@@ -1370,7 +1372,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
     </section>
 
     <section class="scr" id="scr-me" hidden>
-      <div class="topbar"><div class="wxtip" data-a="wxguide">🔔 用 Safari 打开，能收到通知，也不再弹提示<b>怎么打开 ›</b></div><div class="big-t wb">我的<button class="tbell" data-tab="notif" aria-label="消息"><svg><use href="#i-bell"/></svg><span class="badge nb-m" hidden></span></button></div></div>
+      <div class="topbar"><div class="wxtip" data-a="wxguide">🔔 用 Safari 打开，能收到通知，也不再弹提示<b>怎么打开 ›</b></div><div class="big-t wb">我的<button class="tbell" data-a="settings" aria-label="设置" style="margin-left:auto;margin-right:0"><svg><use href="#i-gear"/></svg></button><button class="tbell" data-tab="notif" aria-label="消息"><svg><use href="#i-bell"/></svg><span class="badge nb-m" hidden></span></button></div></div>
       <div class="pad" id="meBody"></div>
     </section>
 
@@ -4907,7 +4909,11 @@ function renderMe(){
   ${rkSectionHTML('pwa')}
   ${partnersHTML()}
   <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册<small>只有自己看得到</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
-  <div class="sec-t">设置</div><div class="group">
+  ${PUSH.enabled||ENV==='wechat'?'':`<div class="group" style="margin-top:14px"><button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>`}`;
+}
+// 设置子页（#134 P2）：原来堆在「我的」里的设置，收进右上角齿轮
+function settingsHTML(){return `<h3 class="sh-t">设置</h3>
+  <div class="group">
     <button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${PUSH.enabled?'已开启':ENV==='wechat'?'微信内不可用':'未开启'}</small></span>${PUSH.enabled?'<span class="pill p-green">已开启</span>':'<svg class="ch"><use href="#i-ch"/></svg>'}</button>
     ${ENV!=='pwa'?`<button class="li" data-a="${ENV==='wechat'?'wxguide':'a2hs'}"><span class="ico" style="background:var(--g)"><svg><use href="#i-home"/></svg></span><span class="v">添加到主屏幕<small>像 App 一样打开，接收通知</small></span><svg class="ch"><use href="#i-ch"/></svg></button>`:''}
     <button class="li" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
@@ -4918,9 +4924,8 @@ function renderMe(){
     <button class="li" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="contact"><span class="ico" style="background:#2F80ED"><svg><use href="#i-mail"/></svg></span><span class="v">联系我们 / 举报</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>
-  ${pvLegalHTML()}`;
-}
-
+  ${pvLegalHTML()}`}
+function openSettings(){if(!ME){toast('请先登录');return}openSheet(settingsHTML(),true)}
 /* ============================== 球局详情 ============================== */
 function openDetail(id,landing=false){UI.detail=id;UI.landing=landing;renderDetail();$('#detail').classList.add('show');$('#dBody').scrollTop=0;closeSheet()}
 function closeDetail(){$('#detail').classList.remove('show');UI.detail=null;UI.landing=false;render()}
@@ -6187,6 +6192,7 @@ DEV.addEventListener('click',e=>{
     case'locAllow':requestLocation();break;
     case'commClose':UI.comm=false;render();toast('可在「我的 → 微信约球群」再次找到');break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':need(()=>openCard(ME.id));break;

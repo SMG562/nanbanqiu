@@ -76,7 +76,7 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   await S('leave_late',[['game_leave_open',{game_id:gi}],['game_leave',{game_id:gi,grace:false,after_change:false}]],async()=>{await click((W?'#colR':'#dAct')+' [data-a="leave"]');await click('[data-a="doLeave"]')},{only:true});
   // ===== 4 性别（第一次填写）=====
   await goTab('me');await wait(300);
-  await S('gender_first',[['gender_open',{}],['gender_set',{first:true,changed:false}]],async()=>{await click((W?'#colL':'#meBody')+' [data-sx="gender"]');await click('[data-sx="pickG"][data-v="m"]')},{only:true});
+  await S('gender_first',[['gender_open',{}],['gender_set',{first:true,changed:false}]],async()=>{await js(()=>openSettings());await click('[data-sx="gender"]');await click('[data-sx="pickG"][data-v="m"]')},{only:true});
   // ===== 5 发起人：接受 / 婉拒（看过 / 没看过球员卡）· 取消 =====
   await who('han');await js(()=>{ensureJasonPending()});await openGame('g1');await wait(300);
   await S('approve_nocard',[['host_decide',{game_id:'g1',target_uid:'jason',ok:true,viewed_card:false,has_note:false,ms_since_request:x=>x>0}]],()=>click(`${W?'#colR':'#dBody'} [data-a="approve"][data-u="jason"]`),{only:true});
@@ -206,10 +206,10 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   await wait(1800);
   // ===== 16 性别（改）不记值 =====
   await close();await goTab('me');await wait(300);
-  await S('gender_change',[['gender_open',{}],['gender_set',{first:false,changed:true}]],async()=>{await click((W?'#colL':'#meBody')+' [data-sx="gender"]');await click('[data-sx="pickG"][data-v="f"]');await click('[data-sx="gConfirm"]')},{only:true});
+  await S('gender_change',[['gender_open',{}],['gender_set',{first:false,changed:true}]],async()=>{await js(()=>openSettings());await click('[data-sx="gender"]');await click('[data-sx="pickG"][data-v="f"]');await click('[data-sx="gConfirm"]')},{only:true});
   // ===== 17 退出 → 新 anon；访客关闭使用数据 → 不再发任何事件 =====
   const anon0=await js(()=>AN.anon);
-  await S('logout',[['logout',{}],['session_start',{entry:'direct'}]],async()=>{if(W){await click('[data-a="umenu"]');await click('#umenu [data-a="logout"]')}else{await click('#meBody [data-a="logout"]')}},{only:true});
+  await S('logout',[['logout',{}],['session_start',{entry:'direct'}]],async()=>{if(W){await click('[data-a="umenu"]');await click('#umenu [data-a="logout"]')}else{await js(()=>openSettings());await click('#sheet [data-a="logout"]')}},{only:true});
   {const L=R[plat].logout.all;const lo=L.find(e=>e.ev==='logout'),ss=L.find(e=>e.ev==='session_start');T(plat+' logout → new anon & sid',lo&&ss&&lo.anon===anon0&&ss.anon!==anon0&&ss.sid!==lo.sid&&ss.uid===null,[lo&&lo.anon,ss&&ss.anon])}
   await goTab('me');await wait(300);
   await S('analytics_off',[['analytics_off',{}]],()=>click((W?'#colL':'#meBody')+' [data-anx]'),{only:true});

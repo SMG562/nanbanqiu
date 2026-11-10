@@ -37,6 +37,7 @@ DEV.addEventListener('click',e=>{
     case'locAllow':requestLocation();break;
     case'commClose':UI.comm=false;render();toast('可在「我的 → 微信约球群」再次找到');break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':need(()=>openCard(ME.id));break;

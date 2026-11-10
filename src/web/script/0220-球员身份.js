@@ -11,7 +11,7 @@ function profileHTML(){
   const s=stats(ME.id),freq={};api.mine().filter(c=>c.past&&(c.mine==='approved'||c.isHost)).forEach(c=>freq[c.venue_id]=(freq[c.venue_id]||0)+1);
   const often=Object.entries(freq).filter(([id])=>!myClubIds().includes(id)).sort((a,b)=>b[1]-a[1]).slice(0,2);
   const pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;
-  return `<div class="card mycard" data-a="myCard"><div style="width:212px;height:304px;overflow:hidden"><div style="transform:scale(.7067);transform-origin:top left">${playerCard(ME.id)}</div></div>
+  return `<div class="mehd"><b>我的</b><button class="gear" data-a="settings" aria-label="设置"><svg><use href="#i-gear"/></svg></button></div><div class="card mycard" data-a="myCard"><div style="width:212px;height:304px;overflow:hidden"><div style="transform:scale(.7067);transform-origin:top left">${playerCard(ME.id)}</div></div>
     <div class="lvline"><div style="display:flex;justify-content:space-between;align-items:center"><b>${JOURNEY[s.lv].e} Lv${s.lv+1} ${LV[s.lv][1]}</b><button class="lvc-info" data-sx="lvinfo">等级说明 ›</button></div>${journeyPath(s)}<p class="jhint">${s.hint}</p></div></div>
   <div class="card"><div class="ch-h"><span>我的 Club</span><button data-a="editClubs">编辑</button></div>
     ${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
@@ -20,13 +20,7 @@ function profileHTML(){
   ${utSectionHTML('web')}
   ${rkSectionHTML('web')}
   ${partnersHTML()}
-  <div class="card" style="padding:4px 0">
-    <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
-    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span></button>
-    <button class="set" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span></button>
-    ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
-    <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
-    <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>`;
+  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span></button></div>`}`;
 }
 // 「我的球局」左栏只放摘要；资料、UTR、球拍、球友、设置都在「我的」标签（#134 P1）
 function mineSumHTML(){if(!ME)return profileHTML();
@@ -196,4 +190,13 @@ function renderRight(){const R=$('#colR');
 function select(id){UI.sel=id;{const g0=GAMES.find(g=>g.id===id);if(!g0||g0.venue_id!==UI.selVenue)UI.selVenue=null}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}
   const g=GAMES.find(g=>g.id===id);if(g&&UI.tab==='disc'){const o=dOff(new Date(g.starts_at));if(o>=0&&o<7&&(o<UI.page||o>=UI.page+5))UI.page=o<=4?0:2}
   render();if(MAP.lf){const c=api.get(id);MAP.lf.panTo([c.v.lat,c.v.lng])}}
-
+// 设置子页（#134 P2）：设置收进「我的」右上角齿轮
+function settingsHTML(){return `<div class="m-b"><h3 class="sh-t">设置</h3>
+  <div>
+    <button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${nrDev(ME).mobile.push?'手机推送已开启':PUSH.enabled?'浏览器通知已开启':'未开启推送'}</small></span></button>
+    <button class="set" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span></button>
+    <button class="set" data-sx="gender"><span class="ico" style="background:#C2476B"><svg><use href="#i-user"/></svg></span><span class="v">性别<small>${ME.gender==='f'?'女生':ME.gender==='m'?'男生':'未填写'} · 只用于女生局</small></span></button>
+    ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
+    <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
+    <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div></div>`}
+function openSettings(){if(!ME){toast('请先登录');return}openModal(settingsHTML(),'sm')}
