@@ -211,7 +211,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('B2 刷新后、没打开选拍弹层：不读产品库'), S.catGets === gR, S.catGets - gR);
     const g1 = S.catGets; await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(150);
     T(tag('B2 产品库还没到：先画内置常量（7 个品牌）'), (await brands()).split('|').length === 7 && (await brands()).includes('Babolat'), await brands());
-    T(tag('B2 产品库到了：换成产品库'), await until(async () => (await brands()).startsWith('Solinco'), 20) && S.catGets === g1 + 1, await brands());
+    const arrived = await until(async () => (await brands()).startsWith('Solinco'), 20);   // #141：失败时分开看「到了没有」和「读了几次」
+    T(tag('B2 产品库到了：换成产品库'), arrived && S.catGets === g1 + 1, { brands: await brands(), arrived, catGets: S.catGets, g1, reads: S.catGets - g1 });
     await pg.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } }); await pg.reload(); await pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME && Array.isArray(ME.rackets), null, { timeout: 8000 }).catch(() => { }); await toMe(); await pg.settle(300);
     await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(100); await tap('[data-a="rkOther"]'); await pg.settle(300); await pg.fill('#rkName', 'Pacific X'); await pg.settle(1800);
     T(tag('B2 产品库在打字时到了：输入框和内容都还在'), await pg.evaluate(() => { const i = document.getElementById('rkName'); return !!i && i.value === 'Pacific X' }));
