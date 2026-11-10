@@ -33,4 +33,6 @@ T('所有者改这些文件 → 过', checkBody(OK, ['进度记录.md', '.claude
 T('协作者改别的文档（逃逸缺陷.md）→ 过', checkBody(OK, ['逃逸缺陷.md'], { author: 'MDD1102' }).length === 0);
 T('不传作者（老调用）→ 不检查身份', checkBody(OK, ['进度记录.md']).length === 0);
 T('名字里只是包含、不在开头（docs/进度记录.md）→ 不误伤', checkBody(OK, ['docs/进度记录.md'], { author: 'MDD1102' }).length === 0);
+T('main 合进分支带来的进度记录.md 不算（ownFiles = 三点比较只含 PR 自己的改动）→ 过', checkBody(OK, ['进度记录.md', 'tools/x.mjs'], { author: 'MDD1102', ownFiles: ['tools/x.mjs'] }).length === 0);
+T('PR 自己改了进度记录.md（在 ownFiles 里）→ 不过', checkBody(OK, ['tools/x.mjs'], { author: 'MDD1102', ownFiles: ['进度记录.md'] }).some(x => /进度记录/.test(x)));
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
