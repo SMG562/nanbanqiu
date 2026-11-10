@@ -150,6 +150,7 @@ add('frontend', 'frontend/notif_open', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/dst', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dst.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/xss', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { pass: [/PASS xss/], timeout: 900 });
 add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/csp.js')], { pass: [/PASS csp/], timeout: 600 });
+add('frontend', 'frontend/vendor_load', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/vendor_load.js')], { pass: [/PASS vendor_load/], timeout: 300 });
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/sb_login', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sb_login.js')], { pass: [/sb_login: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_data', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_data.js')], { pass: [/real_data: \d+ 通过, 0 失败/], timeout: 600 });
