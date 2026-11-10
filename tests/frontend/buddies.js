@@ -50,7 +50,8 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
-    const until = async (fn, n = 30) => { for (let i = 0; i < n; i++) { try { if (await fn()) return true } catch (_) { } await pg.settle(200) } return false };
+    // 按真实时间等条件成立（n × 200ms）：pg.settle 页面空闲时会提前返回（#141 根因，同 rackets 的修法）
+    const until = async (fn, n = 30) => { const t0 = Date.now(); while (Date.now() - t0 < n * 200) { try { if (await fn()) return true } catch (_) { } await new Promise(r => setTimeout(r, 100)) } return false };
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的「我的球友」（DOM）：待确认行 | 小头像（名字/副标题）
     const sec = () => pg.evaluate(() => { const r = document.querySelector('.bd'); if (!r) return null;
