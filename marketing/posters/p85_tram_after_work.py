@@ -1,30 +1,14 @@
 from lib import *
-from mao3 import figure3, DOWN_L
+from storybook import INK
+from storybook import wash, hatch, person
 
 
 META = dict(
     id=85, slug='tram-after-work', title='下班了，去打球', lines=['下班了，', '去打球。'],
-    style=['插画', '绘本', '角色', '意境'], tone='深色', demo=False,
-    concept='绘本风（水彩晕染 + 彩铅排线 + 大场景小人物）：墨尔本傍晚，大月亮和满天小星，远处楼群亮着窗，一辆亮着灯的电车开过；路灯下的车站，小毛背着球拍等车，整张最亮的就是这颗球',
-    use='下班后约晚场的朋友圈 / 小红书配图；小毛绘本风第一张',
+    style=['插画', '绘本', '故事', '意境'], tone='深色', demo=False,
+    concept='绘本风（水彩晕染 + 彩铅排线）：墨尔本傍晚，大月亮和满天小星，电车刚开走；穿西装的女生背着球拍包走过来，高跟鞋拎在手上、脚上已经换了球鞋；路灯下的男生拎着一罐新球朝她招手',
+    use='下班后约晚场的朋友圈 / 小红书配图；绘本风第一张',
 )
-
-
-def wash(fid, seed, freq, color, k, b):
-    """水彩晕染：低频噪声当成一层不均匀的颜料。"""
-    return (f'<filter id="{fid}" x="0" y="0" width="{W}" height="{H}" filterUnits="userSpaceOnUse">'
-            f'<feTurbulence type="fractalNoise" baseFrequency="{freq}" numOctaves="4" seed="{seed}"/>'
-            f'<feColorMatrix values="0 0 0 0 {color[0]} 0 0 0 0 {color[1]} 0 0 0 0 {color[2]} {k} 0 0 0 {b}"/></filter>')
-
-
-def hatch(n, x0, y0, x1, y1, color, op, ang=-62, ln=(10, 22), w=1.3):
-    out = []
-    for _ in range(n):
-        x, y = random.uniform(x0, x1), random.uniform(y0, y1)
-        l = random.uniform(*ln)
-        a = math.radians(ang + random.uniform(-6, 6))
-        out.append(f'M{x:.0f} {y:.0f} l{l*math.cos(a):.1f} {l*math.sin(a):.1f}')
-    return f'<path d="{" ".join(out)}" stroke="{color}" stroke-width="{w}" stroke-linecap="round" opacity="{op}" fill="none"/>'
 
 
 def svg():
@@ -75,11 +59,16 @@ def svg():
 </g>
 <circle cx="{lx}" cy="692" r="40" fill="#FFF0B8" opacity=".7" filter="url(#bl14)"/>
 <circle cx="{lx}" cy="692" r="10" fill="#FFF8DA"/>'''
-    bush = '<g filter="url(#rough)">' + ''.join(
-        f'<circle cx="{random.uniform(-20, 420):.0f}" cy="{random.uniform(1110, 1210):.0f}" r="{random.uniform(26, 48):.0f}" fill="{random.choice(["#24583F", "#2B6448", "#1F4E38", "#336F50"])}"/>' for _ in range(34)) + '</g>'
-    bush += ''.join(f'<circle cx="{random.uniform(0, 400):.0f}" cy="{random.uniform(1100, 1190):.0f}" r="4" fill="{random.choice(["#F3C9B8", "#FFF1C8", "#E8B4C8"])}" opacity=".9"/>' for _ in range(22))
-    pose = dict(L=DOWN_L, R=((1.40, .36), (1.30, .30)), legs='stand', racket=True, tilt=3)
-    mao = figure3('m85', lx - 40, 0, 52, pose, 'happy', gy=1162)
+    pump = 'M0 -18 L4 -2 L2 14 H6 L10 0 Q24 4 40 6 Q48 6 48 0 Q46 -8 34 -10 Q20 -10 10 -16 Z'
+    heels = ''.join(f'<path transform="translate({-44 + dx} -112) rotate({78 + dx*2}) translate(0 18)" d="{pump}" fill="#C0392B" stroke="{INK}" stroke-width="1.6"/>' for dx in (-4, 6))
+    her = person(470, 1196, .98, 'f', top='#4A6079', bottom='#8B8F94', hair='#2B2320', bag='#7A4A3A', bag_side=1,
+                 L=(-44, -118), Le=(-50, -160), R=(40, -122), legs='walk', look=1, mood='smile', front=heels)
+    tube = ('<rect x="-62" y="-176" width="24" height="76" rx="8" fill="#E8F0EE" fill-opacity=".75" stroke="#2A211C" stroke-width="1.6"/>'
+            '<circle cx="-50" cy="-162" r="10" fill="#C6EA3D"/><circle cx="-50" cy="-138" r="10" fill="#C6EA3D"/><circle cx="-50" cy="-114" r="10" fill="#C6EA3D"/>'
+            '<rect x="-64" y="-182" width="28" height="10" rx="3" fill="#F4F1E6" stroke="#2A211C" stroke-width="1.4"/>')
+    him = person(860, 1180, 1.0, 'm', top='#EFE3C8', bottom='#2F4A6A', hair='#231C18', bag='#1E5A40', bag_side=-1,
+                 L=(-50, -126), R=(56, -300), Re=(66, -236), legs='stand', look=-1, mood='open', front=tube)
+    wave = '<g stroke="#FFF1C8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"><path d="M934 884 q10 10 0 22"/><path d="M948 876 q16 16 0 38"/></g>'
     body = f'''
 <defs>
  <linearGradient id="bg85" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0D2A3A"/><stop offset=".45" stop-color="#1D4F5A"/><stop offset=".68" stop-color="#6B7F86"/><stop offset=".78" stop-color="#C9A28E"/></linearGradient>
@@ -105,8 +94,7 @@ def svg():
 <g stroke="#2C5A45" stroke-width="2" opacity=".8">{''.join(f'<path d="M{x} 1012 L{x + (x-540)*.9:.0f} 1350"/>' for x in range(-60, 1200, 110))}<path d="M0 1080 H1080 M0 1180 H1080"/></g>
 {tram}
 {stop}
-{bush}
-{mao}
+{her}{him}{wave}
 {hatch(500, 0, 1000, W, 1350, '#3D6B55', .25, ang=-20, ln=(14, 30))}
 {tag('MELBOURNE · 6:40 PM')}
 {headline(META['lines'], y=290, size=64, colors=(C['cream'], C['lime']), lh=82)}

@@ -1,13 +1,12 @@
 from lib import *
-from mao3 import figure3, DOWN_L, DOWN_R
-from posters.p85_tram_after_work import wash, hatch
+from storybook import wash, hatch, person
 
 
 META = dict(
     id=86, slug='rain-ten-minutes', title='雨停了，再等十分钟', lines=['雨停了，', '再等十分钟。'],
-    style=['插画', '绘本', '角色', '雨'], tone='浅色', demo=False,
-    concept='绘本风（水彩晕染 + 彩铅排线）：雨快停了，湿漉漉的球场积着水，树和铁丝网都是灰绿的；小毛撑着一把深绿的大伞，小绒伸手出伞外试雨，指尖上方落下最后一滴；前面的水洼倒映着他俩',
-    use='雨天改期 / 等场地干的朋友圈配图；小毛小绒绘本风',
+    style=['插画', '绘本', '故事', '雨'], tone='浅色', demo=False,
+    concept='绘本风（水彩晕染 + 彩铅排线）：雨快停了，湿漉漉的球场积着水；男生撑着深绿的大伞、肩上搭着擦场地的毛巾，女生把手伸出伞外试雨，指尖上方落下最后一滴；前面的水洼倒映着他俩',
+    use='雨天改期 / 等场地干的朋友圈配图；绘本风',
 )
 
 
@@ -39,20 +38,20 @@ def svg():
     rain = ''.join(f'<path d="M{x:.0f} {y:.0f} l-6 {random.uniform(18, 34):.0f}"/>' for x, y in
                    [(x, y) for x, y in [(random.uniform(0, 1080), random.uniform(0, 1) ** 2.2 * 640) for _ in range(70)] if not (x < 520 and 100 < y < 420)])
     # 角色 + 伞
-    gy, rm, rr = 1104, 80, 75
-    xm, xr = 460, 636
-    cym = gy - 1.53 * rm
-    hm = ((548 - xm) / rm, (950 - cym) / rm)
-    mao_pose = dict(L=DOWN_L, R=((1.30, .25), hm), legs='stand')
-    rong_pose = dict(L=DOWN_L, R=((1.55, .30), (1.84, .02)), legs='stand')
+    gy = 1110
+    xm, xr = 456, 640
+    towel = ('<path d="M-36 -216 Q-46 -200 -44 -150 L-26 -150 Q-26 -196 -18 -214 Z" fill="#FFFFFF" stroke="#2A211C" stroke-width="1.5"/>'
+             '<path d="M-44 -162 H-26 M-44 -156 H-26" stroke="#2F7552" stroke-width="2"/>')
     def pair(sfx):
-        return (figure3('m' + sfx, xm, 0, rm, mao_pose, 'smile', gy=gy, look=1)
-                + figure3('r' + sfx, xr, 0, rr, rong_pose, 'happy', gy=gy, char='rong'))
-    ucx, utop, urim = 548, 700, 812
-    umb = f'''
+        return (person(xm, gy, 1.0, 'm', top='#C9D6CF', bottom='#3C4A5C', hair='#231C18', L=(-44, -118),
+                       R=(92, -206), Re=(70, -166), look=1, mood='smile', front=towel, bag='#7A4A3A', bag_side=-1)
+                + person(xr, gy, .94, 'f', top='#E8C9A8', bottom='#5B6A7A', hair='#3A2A22', L=(-40, -120),
+                         R=(150, -196), Re=(86, -178), look=1, mood='open', bag='#2F4A6A', bag_side=-1))
+    ucx, utop, urim = 548, 640, 752
+    umb = f'''<g transform="translate({ucx} 0) scale(.8 1) translate({-ucx} 0)">
 <g filter="url(#rough2)">
- <path d="M{ucx} {utop + 6} V952" stroke="#171412" stroke-width="5" stroke-linecap="round"/>
- <path d="M{ucx} 952 Q{ucx} 972 {ucx - 16} 972" stroke="#171412" stroke-width="5" fill="none" stroke-linecap="round"/>
+ <path d="M{ucx} {utop + 6} V904" stroke="#171412" stroke-width="5" stroke-linecap="round"/>
+ <path d="M{ucx} 904 Q{ucx} 924 {ucx - 16} 924" stroke="#171412" stroke-width="5" fill="none" stroke-linecap="round"/>
 </g>
 <g filter="url(#rough)">
  <path d="M{ucx - 290} {urim} Q{ucx - 270} {utop - 10} {ucx} {utop} Q{ucx + 270} {utop - 10} {ucx + 290} {urim}
@@ -64,8 +63,8 @@ def svg():
  <path d="M{ucx} {utop} Q{ucx + 40} {utop + 60} {ucx + 97} {urim - 4}"/><path d="M{ucx} {utop} Q{ucx + 150} {utop + 30} {ucx + 194} {urim - 4}"/></g>
 {hatch(160, ucx - 250, utop + 10, ucx + 250, urim - 20, '#0F3A28', .35, ang=-30, ln=(10, 20), w=1.6).replace('<path', '<path clip-path="url(#uc86)"')}
 <clipPath id="uc86"><path d="M{ucx - 290} {urim} Q{ucx - 270} {utop - 10} {ucx} {utop} Q{ucx + 270} {utop - 10} {ucx + 290} {urim} Z"/></clipPath>
-<path d="M{ucx} {utop} V{utop - 22}" stroke="#171412" stroke-width="5" stroke-linecap="round"/>'''
-    drop = f'<path transform="translate({xr + 1.84*rr:.0f} {gy - 1.53*rr - 40:.0f})" d="M0 -16 Q9 -2 9 4 A9 9 0 0 1 -9 4 Q-9 -2 0 -16Z" fill="#BFD9E4" stroke="#171412" stroke-width="2.4" filter="url(#rough2)"/>'
+<path d="M{ucx} {utop} V{utop - 22}" stroke="#171412" stroke-width="5" stroke-linecap="round"/></g>'''
+    drop = f'<path transform="translate({xr + 141:.0f} {gy - 232:.0f})" d="M0 -16 Q9 -2 9 4 A9 9 0 0 1 -9 4 Q-9 -2 0 -16Z" fill="#BFD9E4" stroke="#171412" stroke-width="2.4" filter="url(#rough2)"/>'
     # 前景地面 + 水洼倒影
     pud = '<ellipse cx="548" cy="1170" rx="300" ry="38"/>'
     refl = f'<g clip-path="url(#pc86)" opacity=".38"><g transform="translate(0 {2*gy}) scale(1 -1)">{pair("x")}</g></g>'
@@ -89,8 +88,8 @@ def svg():
 <g fill="#B8CDD0">{pud}</g>
 {refl}
 <g fill="none" stroke="#F4F7F2" stroke-width="2" opacity=".7"><ellipse cx="330" cy="1172" rx="26" ry="5"/><ellipse cx="330" cy="1172" rx="48" ry="9" opacity=".5"/></g>
-{umb}
 {pair('')}
+{umb}
 {drop}
 <rect width="{W}" height="{H}" filter="url(#w86b)" opacity=".22"/>
 {tag('AFTER THE RAIN', color='#0B3B2A', rule='#0B3B2A', op=.8, weight=700)}
