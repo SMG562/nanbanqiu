@@ -256,10 +256,15 @@ if (LIST.some(t => t.suite === 'pg')) {
   const base = '/usr/lib/postgresql', hasPg = !!process.env.NBQ_PGBIN || (fs.existsSync(base) && fs.readdirSync(base).some(v => fs.existsSync(path.join(base, v, 'bin', 'initdb'))));
   const hasGis = !!process.env.NBQ_PGBIN || (fs.existsSync('/usr/share/postgresql') && fs.readdirSync('/usr/share/postgresql').some(v => fs.existsSync(path.join('/usr/share/postgresql', v, 'extension', 'postgis.control'))));
   need(hasPg && hasGis, '真实数据库测试需要 PostgreSQL 15/16 和 PostGIS（' + (hasPg ? '缺 PostGIS' : '缺 PostgreSQL') + '）。一条命令装好：bash tools/setup_env.sh（或 apt install postgresql postgresql-16-postgis-3，或设置 NBQ_PGBIN）；暂时跳过：--only=static,schema,frontend,admin,regression');
-  const pd = path.join(CACHE, 'pg');
-  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg'))) {
-    fs.mkdirSync(pd, { recursive: true }); fs.copyFileSync(path.join(HERE, 'pg', 'package.json'), path.join(pd, 'package.json'));
-    console.log('首次运行：安装 pg 到 ' + pd + ' …');
+}
+// pg 这个 npm 包：数据库测试要用，tests/e2e/*.mjs（浏览器测试组里的端到端）也要用。只选浏览器测试时以前不装，
+// 靠缓存碰巧有；tests/pg/package.json 一变（依赖升级）缓存失效，e2e 就报「Cannot find module 'pg'」（11-11 dependabot #93 暴露）。
+if (LIST.some(t => t.suite === 'pg' || t.cmd.some(x => /tests\/e2e\//.test(String(x))))) {
+  const pd = path.join(CACHE, 'pg'), want = fs.readFileSync(path.join(HERE, 'pg', 'package.json'), 'utf8');
+  const cur = fs.existsSync(path.join(pd, 'package.json')) ? fs.readFileSync(path.join(pd, 'package.json'), 'utf8') : '';
+  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg')) || cur !== want) {
+    fs.mkdirSync(pd, { recursive: true }); fs.writeFileSync(path.join(pd, 'package.json'), want);
+    console.log('首次运行 / 依赖变了：安装 pg 到 ' + pd + ' …');
     try { execSync('npm install --no-audit --no-fund', { cwd: pd, stdio: 'inherit' }) } catch (_) { need(false, 'pg 安装失败（需要能访问 npm）') }
   }
 }
