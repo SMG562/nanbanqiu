@@ -1,14 +1,14 @@
 // 南伴球 · 安全响应头（第五批 5a-3 草稿，5g 部署时接到托管平台 / 反向代理上）。
 //   前台三个页面都是单文件（脚本、样式写在页面里，后台还有 oninput= 这类行内处理），所以 script-src 暂时要 'unsafe-inline'；
 //   防注入主要靠「所有用户文字先 esc() 再显示」（tests/frontend/xss.js、tests/admin/xss.js 保证）。
-//   以后拆成独立 .js 文件后，把 'unsafe-inline' 换成 nonce，并给第三方库加 integrity（或直接放到本站）。
+//   以后拆成独立 .js 文件后，把 'unsafe-inline' 换成 nonce，第三方库已放到本站 vendor/（不再从 cdnjs 加载）。
 export const SUPABASE = process.env.SUPABASE_URL || 'https://xosrdkrkfxkdrwldfhac.supabase.co';
 
 export const STAGING = 'https://nqgyhjtwbvuxmyxvegkf.supabase.co';   // 测试库（分支预览用）
 export const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",            // leaflet / html2canvas / qrcodejs（5g：改为本站托管 + integrity）
-  "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+  "script-src 'self' 'unsafe-inline'",                                          // leaflet / html2canvas / qrcodejs 已改本站托管（vendor/，11-11 L5）
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://basemaps.cartocdn.com",                  // 地图瓦片；分享图 / 二维码是 data: / blob:
   `connect-src 'self' ${SUPABASE} ${SUPABASE.replace(/^https/, 'wss')} ${STAGING} ${STAGING.replace(/^https/, 'wss')}`,        // 接口 + Realtime（页面里提醒）
   "font-src 'self' data:",

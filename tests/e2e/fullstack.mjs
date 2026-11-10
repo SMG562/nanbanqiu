@@ -106,6 +106,7 @@ try {
     const pg = await ctx.newPage(), perr = []; pg.on('pageerror', e => perr.push(e.message));
     const AT = await token(AH);
     await pg.route('https://nanbanqiu.app/**', async r => { const rq = r.request(), u = new URL(rq.url());
+      if (u.pathname.startsWith('/vendor/')) return r.abort();   // 本站托管的库（L5）：等同离线，和原来拦 cdnjs 一样
       if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const init = { method: rq.method(), headers: rq.headers() }; const pd = rq.postData(); if (pd) init.body = pd;
       const res = await handleApi(new Request(u.toString(), init), deps), body = Buffer.from(await res.arrayBuffer());
