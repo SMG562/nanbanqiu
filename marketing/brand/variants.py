@@ -42,6 +42,22 @@ def sig_dots(ink, ball, F=100):
     return body, m['w'], mh + gap + m['h']
 
 
+def sig_dots_center(ink, ball, F=100, optical=.5):
+    """点式签名·居中版（11-10 用户要的第二版）：两点在整个「南伴球」字标正中上方（= 中间「伴」字上方）。
+    对齐：optical=0 按两点外框中心；=1 按两球面积重心（大球偏左，重心在外框中心左边）。
+    默认取一半：纯外框居中看起来点组偏左，纯重心居中又偏右。其余尺寸同点式签名。"""
+    m = L.zh_metrics(F, L.TRACK['sig'])
+    mh = m['h'] * .5
+    b, mw, _ = dots(0, 0, mh, ball)
+    (bx, _, br), (sx, _, sr), W, H = dots_geom()
+    k = mh / H
+    cent = (br * br * bx + sr * sr * sx) / (br * br + sr * sr) * k   # 重心 x（相对点组左边）
+    ax = mw / 2 + (cent - mw / 2) * optical                             # 对准字标中线的那个 x
+    gap = m['h'] * .1
+    body = f'<g transform="translate({m["w"]/2 - ax:.2f} 0)">{b}</g>' + L.wordmark(0, mh + gap - m['top'], F, L.TRACK['sig'], ink)
+    return body, m['w'], mh + gap + m['h']
+
+
 def h_dots(ink, ball, F=100):
     """点式横式：两点在左，与字等高居中。"""
     m = L.zh_metrics(F, L.TRACK['h'])
@@ -257,6 +273,7 @@ def page():
         ('点式', 'Dots', '你选的那版：两颗纯色球分开，间距 = 两倍留白环（≈ 大球半径的 1/4），方向和主标志一样是 44° 对角。周边的主角。',
          dots_only(C['lime'])),
         ('点式签名', 'Dots Signature', '宽字距字标 + 点式，点落在「伴」「球」字缝上方。海报落款、周边印字。', sig_dots(dk['ink'], dk['ball'])),
+        ('点式签名 · 居中', 'Dots Signature Centered', '同一套尺寸，两点在整个字标正中上方（「伴」字上方），按视觉重心对齐。对称、端正，适合居中构图的封面、周边正面、印章式落款。', sig_dots_center(dk['ink'], dk['ball'])),
         ('点式横式', 'Dots Horizontal', '点式放在字左边，比主标志轻松，适合周边吊牌、袋子侧面。', h_dots(dk['ink'], dk['ball'])),
         ('一来一回', 'Rally', '大球打过去，落地一下，小球接住。贴在长条物件上：球拍包、横幅、邮件签名。', rally(C['lime'], line=C['cream'])),
         ('弹跳三点', 'Bounce', '大、中、小三颗依次变低，像球弹了两下停下。加载动画、段落分隔、文章结尾符。', bounce(C['lime'])),
@@ -333,7 +350,7 @@ footer .wrap{{padding-block:36px 56px;color:var(--muted);font-size:13px}}
 <header class="hero"><div class="wrap">
   <div class="hero-art">{svg(*sig_dots(dk['ink'], dk['ball']))}</div>
   <div><div class="eyebrow">Brand Extensions · Merch</div><h1>南伴球周边标志</h1>
-  <p>主标志管“认得出”，衍生标志管“想带走”。十个变体都用主标志的两个半径和 44° 对角，形状变了，认得出来是同一对球。</p></div>
+  <p>主标志管“认得出”，衍生标志管“想带走”。十一个变体都用主标志的两个半径和 44° 对角，形状变了，认得出来是同一对球。</p></div>
 </div></div></header>
 
 <section><div class="wrap">
@@ -372,6 +389,7 @@ def build():
     files = {
         'variant-dots-dark': dots_only(C['lime']), 'variant-dots-light': dots_only(C['deep']),
         'variant-dots-signature-dark': sig_dots(dk['ink'], dk['ball']), 'variant-dots-signature-light': sig_dots(lt['ink'], lt['ball']),
+        'variant-dots-signature-center-dark': sig_dots_center(dk['ink'], dk['ball']), 'variant-dots-signature-center-light': sig_dots_center(lt['ink'], lt['ball']),
         'variant-dots-horizontal-dark': h_dots(dk['ink'], dk['ball']), 'variant-dots-horizontal-light': h_dots(lt['ink'], lt['ball']),
         'variant-rally-dark': rally(C['lime'], line=C['cream']), 'variant-rally-light': rally(C['deep']),
         'variant-bounce-dark': bounce(C['lime']), 'variant-bounce-light': bounce(C['deep']),

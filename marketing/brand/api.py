@@ -29,6 +29,7 @@ KINDS = {
     # ── 衍生（周边、日常海报）──
     'dots':        lambda i, b, g: V.dots_only(b),
     'sig-dots':    lambda i, b, g: V.sig_dots(i, b),
+    'sig-dots-c':  lambda i, b, g: V.sig_dots_center(i, b),
     'h-dots':      lambda i, b, g: V.h_dots(i, b),
     'rally':       lambda i, b, g: V.rally(b, line=i),
     'bounce':      lambda i, b, g: V.bounce(b),
