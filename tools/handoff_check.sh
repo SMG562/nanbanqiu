@@ -4,9 +4,9 @@
 # 用法：bash tools/handoff_check.sh（需要 origin/main 有足够历史：git fetch --depth=200 origin main）
 cd "$(dirname "$0")/.."
 R=gh; REPO=SMG562/nanbanqiu; F=进度记录.md
-# 11-10（逃逸缺陷）：gh 账号 = AI 用的权限，不等于对话里的人。给用户写「你要做的」之前，先按这一行确认对方是谁、各步归谁
+# 11-10（逃逸缺陷 #160）：对话里的人默认就是 gh 账号本人（用户 11-10 明确：别再问）。给用户的步骤按这个角色写
 me=$($R api user --jq .login 2>/dev/null || echo "?"); case "$me" in SMG562) role="所有者";; "?") role="未知（gh 读不到，先问）";; *) role="协作者";; esac
-echo "身份：本会话 gh 账号 $me → AI 按「$role」权限做事。对话里的人是谁没说过就先问；给的步骤逐条标「所有者做 / 协作者做」"
+echo "身份：本会话 gh 账号 $me → 对话里的人就是 $me 本人（$role）。不要再问身份；给的步骤只写 $role 能做的，所有者的事写成「转给所有者」"
 git fetch -q --depth=200 origin main 2>/dev/null
 last=$(git log -1 --format=%H origin/main -- "$F"); when=$(git log -1 --format=%cI "$last")
 echo "进度记录最后更新：$(git log -1 --format='%h %ci' "$last")"
