@@ -1,6 +1,6 @@
 """南伴球标志系统：唯一的几何来源。
 
-python3 marketing/brand/logo.py  → 生成 marketing/brand/svg/*.svg（全部转曲，不依赖字体）
+python3 marketing/brand/logo.py  → 重出全部（之后 python3 marketing/brand/api.py 自检）：svg/*.svg（转曲）+ guide.html + variants.html
 规范说明见同目录 README.md；规范页 guide.html 由 guide.py 生成。
 所有尺寸都从这里的常量推出来，改标志只改这里。
 """
@@ -38,7 +38,7 @@ def seam_path(r):
 def mark(x, y, h, color, seams=True):
     """符号：左上角 (x,y)，外框高 h（px）。单色 + 镂空（球缝和留白环都透出底色），任何颜色都成立。"""
     s = h / BOX_H
-    ma, mb = _id('ma'), _id('mb')
+    ma, mb = _id('nbqma'), _id('nbqmb')
     (bx, by, br), (sx, sy, sr) = BIG, SMALL
     sa = (f'<path d="{seam_path(br)}" transform="translate({bx} {by}) rotate({SEAM_ROT[0]})" stroke="#000" '
           f'stroke-width="{SEAM_W*br:.2f}" stroke-linecap="round" fill="none"/>') if seams else ''
@@ -205,4 +205,9 @@ def build():
 
 
 if __name__ == '__main__':
+    # 一条命令重出全部：主标志 SVG + 衍生 SVG + 两个规范页
     build()
+    import variants, guide
+    variants.build()
+    open(os.path.join(HERE, 'guide.html'), 'w', encoding='utf-8').write(guide.page())
+    print('guide.html 已更新')

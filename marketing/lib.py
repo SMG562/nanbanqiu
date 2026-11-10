@@ -69,7 +69,7 @@ def grain(op=.16, light=False):
 
 
 def wordmark(cy=1262, color="#fff", sub=True, op=1):
-    """底部居中品牌标：双球小图标 + 「南伴球」 + 可选英文行。深色底 color 用 #fff，浅色底用 #0B3B2A。"""
+    """旧版底部品牌标（84 张旧海报在用，保留不动）。新海报用 logo()：已转曲、居中准确。"""
     return f'''
 <g opacity="{op}" fill="{color}">
  <g transform="translate(540 {cy-26})">
@@ -78,6 +78,19 @@ def wordmark(cy=1262, color="#fff", sub=True, op=1):
  <text x="540" y="{cy+22}" text-anchor="middle" font-family="{SANS}" font-weight="700" font-size="40" letter-spacing="14">南伴球</text>
  {'<text x="540" y="%d" text-anchor="middle" font-family="%s" font-weight="500" font-size="15" letter-spacing="9" opacity=".7">NANBANQIU · MELBOURNE</text>' % (cy + 52, SANS) if sub else ''}
 </g>'''
+
+
+def logo(kind="sig-dots", on="dark", x=540, y=1290, w=240, anchor="bottom"):
+    """品牌标志（11-10 标志系统 v1.0，转曲，几何来自 marketing/brand/）。新海报落款用它，不再用 wordmark()。
+    kind：日常海报 sig-dots；正式 / 合作 main-sig；封面 main-v；周边见 marketing/brand/README.md「选哪个标志」。
+    on：放在什么底上 dark / light / lime / black / white（决定配色，浅底自动单色）。
+    默认 = 1080×1350 海报底部居中落款（宽 240 = 画布 22%，字底 y=1290）。anchor: bottom / center / top / topleft。"""
+    import os, sys
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "brand")
+    if d not in sys.path:
+        sys.path.insert(0, d)
+    import api
+    return api.place(kind, on, x, y, w, anchor)
 
 
 def tag(text, x=84, y=150, color="#F7EBD6", rule="#C6EA3D", op=.7, weight=500):

@@ -80,7 +80,7 @@ def outline_mark(color, h=100, sw=2.6):
     """线框符号：同一几何，只描边。压纹、单线刺绣、激光雕刻用。"""
     (bx, by, br), (sx, sy, sr) = L.BIG, L.SMALL
     s = h / L.BOX_H
-    mid = L._id('om')
+    mid = L._id('nbqom')
     st = f'fill="none" stroke="{color}" stroke-width="{sw}" stroke-linecap="round"'
     return (f'<g transform="translate({-L.BOX[0]*s:.2f} {-L.BOX[1]*s:.2f}) scale({s:.4f})">'
             f'<mask id="{mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/>'

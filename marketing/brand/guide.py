@@ -240,7 +240,7 @@ def page():
         ('横式', 'Horizontal', 'App 顶栏、网页导航、文件抬头、横幅。日常使用的主力。', L.lockup_h),
         ('横式 · 双行', 'Horizontal + EN', '需要英文名的场合：对外合作、名片背面、英文页面。', lambda i, b: L.lockup_h(i, b, sub=True)),
         ('竖式', 'Stacked', '启动页、海报封面、周边、正方形 / 竖长空间。最有仪式感。', L.lockup_v),
-        ('签名式', 'Signature', '海报和配图的底部落款。小双球像发球前抛起的球，落在「伴」与「球」之间。', L.lockup_sig),
+        ('签名式', 'Signature', '正式海报、公告、合作物料的落款。日常海报默认用衍生的「点式签名」（两颗纯色球分开）。', L.lockup_sig),
         ('字标', 'Wordmark', '空间极窄、或符号已经在旁边出现过时。', lambda i, b: L.wordmark_only(i)),
         ('符号', 'Mark', 'App 图标、头像、网站图标、球拍贴、地图点。', lambda i, b: L.mark_only(b)),
     ]
@@ -463,7 +463,7 @@ footer .wrap{{padding-block:36px 56px;color:var(--muted);font-size:13px}}
         <li>符号到字 = 0.55 h；字到英文 = 0.34 h</li>
         <li>字距 0.24 em；英文字高 0.22 h，字距自动撑到与中文同宽</li></ul></div></div>
       <div class="spec-row"><div class="spec-art">{spec_sig()}</div><div><h3>签名式</h3><ul>
-        <li>就是现在海报上那一版，定成规范：宽字距 0.32 em</li>
+        <li>正式场合的落款；日常海报用点式签名（同样位置，两颗纯色球）</li>
         <li>符号高 = 0.55 h，中心对准「伴」「球」之间的字缝</li>
         <li>符号底到字顶 = 0.12 h，像球刚被抛起</li>
         <li>不加英文行；需要城市名时在下方另起一行小字，不算标志的一部分</li></ul></div></div>
@@ -537,7 +537,7 @@ footer .wrap{{padding-block:36px 56px;color:var(--muted);font-size:13px}}
   <div class="sh"><div class="no">11</div><h2>应用示例</h2><div class="en">In Use</div></div>
   <div class="body">
     <div class="apps">
-      <figure>{poster_mock()}<figcaption><b>海报（1080 × 1350）</b>：签名式居中，宽 240 px（画布宽 22%），字底距画布底 60 px。小红书 3:4、竖屏 9:16 同样按宽 22%、底边距 4.5% 高。</figcaption></figure>
+      <figure>{poster_mock()}<figcaption><b>海报（1080 × 1350）</b>：签名式（日常用点式签名）居中，宽 240 px（画布宽 22%），字底距画布底 60 px。小红书 3:4、竖屏 9:16 同样按宽 22%、底边距 4.5% 高。</figcaption></figure>
       <div class="apps-r">
         <figure>{app_mock()}<figcaption><b>App 顶栏</b>：横式，高 26 px，左对齐页面边距。</figcaption></figure>
         <figure>{avatar_mock()}<figcaption><b>社交头像</b>：符号外框高 = 圆直径 52%，居中。小红书、微信、Instagram 共用。</figcaption></figure>
