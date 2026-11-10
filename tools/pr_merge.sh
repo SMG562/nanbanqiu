@@ -8,6 +8,8 @@
 #   ④ 动到了 schema.sql 或 server/migrations：db-parity 在这个提交之后跑过且通过（迁移先在正式库跑）；
 #   ⑤ PR 描述有「入口清单」，较大风险的 PR 真机两项（刷新后还在 / 换设备登录还在）已勾（tools/pr_body_check.mjs --merge）；
 #   ⑥ 本地工作区干净（不会把没提交的东西当成测过的）。
+#   ⑦ 级别（ADR 0010，tools/decision_card.mjs 按 CODEOWNERS 判定）：改了红线 → 只有所有者能合；需独立复核的路径 → PR 上要有「独立复核：通过 <提交号前 7 位>」留言；其余自助合并。
+#   所有者：快进推 main（绕过规则，提交号不变）。协作者：不能直推 main，改用 REST 压缩合并（带 sha 守卫，只合测过的那个提交）；主分支会重跑一次测试。
 # 全部满足才推；推送时自动带 NBQ_UNTESTED="PR #N CI 已绿 tests-fast#运行号 tests#运行号 @提交号"（pre-push 闸门认作 PR 上已测过，不再要求本地戳）。
 # 合并后再跑：bash tools/gate.sh <提交号>（tests-fast · tests · smoke 三项）才算上线。
 set -u
@@ -48,10 +50,21 @@ if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migratio
   case "$D" in "completed success "*) yes "改了数据库：db-parity 在这个提交之后通过（运行 ${D##* }）";; *) no "改了数据库：需要在这个提交之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${D:-没有}";; esac
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
+ME=$(gh api user --jq .login 2>/dev/null || echo "")
+case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
+  owner) [ "$ME" = SMG562 ] && yes "改了红线文件：所有者本人合并" || no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）能合，在 PR 上说明后等所有者点头" ;;
+  review) if gh api "repos/$R/issues/$N/comments" --paginate --jq '.[].body' 2>/dev/null | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+    else no "需要独立复核：另开一个没看过本次过程的会话只读复核，在 PR 留言「独立复核：通过 ${SHA:0:7}」（写明看了什么、风险、怎么回退）"; fi ;;
+  *) yes "自助合并：无红线、无需复核" ;;
+esac
 [ -z "$(git status --porcelain)" ] && yes "本地工作区干净" || no "本地有没提交的改动"
 [ $bad = 0 ] || { echo "→ 有没满足的项，没有合并。"; exit 1; }
 [ "$CHECK" = "--check" ] && { echo "→ 全部满足（--check 只核对，没有推）。"; exit 0; }
 # 11-05：pre-push 闸门要本地「相关测试全绿」戳；经 PR 合并的提交已在 GitHub 对同一提交号跑过 tests-fast + tests 且 completed success（上面 ③ 已核对，走到这里即满足），
 # 不再本地重跑——把运行号写进 NBQ_UNTESTED，推送时打印，事后可追溯。没有 PR 的直接推 main 仍要本地戳。
+if [ "$ME" != SMG562 ]; then
+  gh api -X PUT "repos/$R/pulls/$N/merge" -f merge_method=squash -f sha="$SHA" --jq '"→ 已合并（压缩合并）：main = "+.sha[0:7]' || { echo "合并失败（可能被分支规则拦：把原因贴在 PR 上）。"; exit 1; }
+  exit 0
+fi
 NBQ_UNTESTED="PR #$N CI 已绿$CI_IDS @${SHA:0:7}" git push origin "$SHA:refs/heads/main" || { echo "推送失败（不会强推）。"; exit 1; }
 echo "→ 已快进合并：main = ${SHA:0:7}。接着：bash tools/gate.sh $SHA（等 smoke 跑完）"
