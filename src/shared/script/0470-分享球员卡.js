@@ -22,9 +22,14 @@ function scRender(){const b=document.getElementById('scBox');if(b)b.outerHTML=sh
 function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2canvas){SC_ERR='截图库没加载';return res(null)}
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   // 手机上画布太大 / 内存不够会失败：3 倍清晰度不行就降到 2、1 倍再试；仍失败把原因留在 SC_ERR（提示里带出来，方便定位）
-  const go=k=>html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k}).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
-    .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(k>1)return go(k-1);throw e});
-  go(3).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
+  // iPhone Safari 会因为头像里的 SVG 滤镜把画布判成「不安全」(The operation is insecure)，导出就失败：
+  // 依次试 ① 原样 3 倍 ② 2 倍 ③ 去掉 SVG 滤镜 / 遮罩 ④ 再去掉头像里所有 SVG（只剩底色）；成功就停，全失败把原因留在 SC_ERR
+  const strip=lv=>doc=>{doc.querySelectorAll('[filter],[mask]').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask')});doc.querySelectorAll('filter,mask').forEach(e=>e.remove());
+    if(lv>=2)doc.querySelectorAll('.pc-av svg').forEach(e=>e.remove())};
+  const plan=[[3,0],[2,0],[2,1],[2,2]];
+  const go=n=>{const [k,lv]=plan[n];return html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k,onclone:lv?strip(lv):undefined}).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
+    .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(n<plan.length-1)return go(n+1);throw e})};
+  go(0).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
 // 保存图片：能用系统分享就用（iOS 分享面板里选「存储图像」进相册）；不行（或点开太慢分享被拒）就弹出大图，长按保存。不用 <a download>：iOS 里它进的是「文件」不是相册，主屏幕版还会把页面带走
 function imgSave(blob,name){
   const file=blob&&new File([blob],name,{type:'image/png'});
