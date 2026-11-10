@@ -1,5 +1,6 @@
 """85 号的两个人：下班走来的女生、靠着路灯等她的男生（局部坐标，脚底 y=0，身高约 440）。"""
 from storybook import *
+from storyface import head
 
 
 def racket_in_bag(cx, cy, rot, bag, s=1.0):
@@ -33,11 +34,8 @@ def woman_walk():
     g = ''
     # 身后的球拍包（拍头从左肩后探出来）
     g += racket_in_bag(-34, -404, -32, '#2F5D4A')
-    # 长发，被走路带起的风吹向身后
-    g += (f'<path d="M-2 -428 C-40 -432 -58 -404 -60 -374 C-62 -346 -84 -322 -120 -316 C-102 -308 -86 -304 -76 -298 '
-          f'C-98 -286 -116 -286 -134 -290 C-106 -270 -72 -272 -52 -292 C-40 -304 -30 -326 -22 -344 L22 -352 C36 -384 34 -416 -2 -428 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-58 -340 C-80 -326 -110 -330 -138 -322 M-50 -316 C-70 -300 -100 -300 -122 -302 M-40 -366 C-60 -360 -86 -364 -104 -352" stroke="{hair}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-          f'<path d="M-44 -380 C-50 -350 -66 -330 -90 -320" stroke="#6E4A3A" stroke-width="1.4" fill="none" opacity=".7"/>')
+    hb, hf = head('f', 'long', 'smile', look=(1, 0))
+    g += f'<g transform="translate(6 -392)">{hb}</g>'
     # 后腿：脚跟抬起
     g += limb((-6, -228), (-30, -112), (-62, -30), 30, 17, pants)
     g += f'<path d="M-70 -42 L-52 -30 L-56 -22 L-74 -34 Z" fill="#46536A" stroke="{OUT}" stroke-width="1.2"/>'
@@ -68,18 +66,7 @@ def woman_walk():
     g += f'<path d="M70 -246 L86 -232" stroke="{OUT}" stroke-width="1.2"/>'
     g += hand(81, -232, -40, 'open')
     g += f'<rect x="72" y="-246" width="8" height="5" rx="1" fill="#D8C08A" transform="rotate(-40 76 -243)"/>'
-    # 脖子 + 头
-    g += f'<path d="M-2 -362 L12 -362 L14 -338 L0 -338 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
-    g += f'<ellipse cx="6" cy="-390" rx="29" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
-    g += f'<ellipse cx="-14" cy="-384" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/><circle cx="-15" cy="-375" r="2.4" fill="#D8B45A"/>'
-    # 刘海往后梳，几缕碎发
-    g += (f'<path d="M-24 -396 C-26 -430 22 -436 34 -404 C24 -412 10 -414 0 -406 C-8 -400 -16 -396 -24 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-6 -420 C-20 -428 -36 -424 -48 -412 M8 -424 C-6 -440 -26 -440 -40 -432" stroke="{hair}" stroke-width="2" fill="none" stroke-linecap="round"/>')
-    # 脸：笑眯眯的眼睛、腮红、小鼻子、嘴角上扬
-    g += (f'<path d="M6 -390 Q11 -395 16 -390 M24 -390 Q28 -394 32 -390" stroke="{OUT}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-          f'<ellipse cx="10" cy="-377" rx="7" ry="4" fill="#F09A92" opacity=".55"/><ellipse cx="31" cy="-377" rx="5" ry="3.6" fill="#F09A92" opacity=".55"/>'
-          f'<path d="M35 -386 C37 -382 37 -380 34 -379" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
-          f'<path d="M18 -369 Q24 -365 29 -370" stroke="#B5524A" stroke-width="2" fill="none" stroke-linecap="round"/>')
+    g += f'<g transform="translate(6 -392)">{hf}</g>'
     return g
 
 
@@ -107,20 +94,10 @@ def man_lean():
            + ''.join(f'<circle cx="-62" cy="{y}" r="16" fill="#C6EA3D" stroke="#9DBA2A" stroke-width="1"/><path d="M-76 {y - 6} Q-62 {y + 4} -48 {y - 6}" stroke="#fff" stroke-width="2" fill="none"/>' for y in (-512, -484, -456))
            + f'<rect x="-85" y="-540" width="46" height="12" rx="4" fill="#F4F1E6" stroke="{OUT}" stroke-width="1.4"/>')
     g += can + hand(-62, -436, 180, 'hold')
-    # 脖子、头
-    g += f'<path d="M-8 -364 L8 -364 L8 -340 L-8 -340 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
-    g += f'<ellipse cx="-4" cy="-392" rx="30" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
-    g += f'<ellipse cx="22" cy="-388" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/>'
-    g += (f'<path d="M-32 -396 C-38 -432 0 -444 26 -428 C36 -420 36 -404 30 -392 C26 -404 16 -410 6 -408 C-4 -416 -20 -410 -32 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-6 -432 C-10 -446 0 -452 6 -446" stroke="{hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>')
+    hb, hf = head('m', 'short', 'call', look=(1, 0), mirror=-1, hc='#1E1A1D', hl='#5A6680')
+    g += f'<g transform="translate(-4 -392)">{hf}</g>'
     # 围巾绕脖子 + 垂在胸前的一截
     g += (f'<path d="M-24 -358 C-8 -350 12 -350 26 -358 L26 -340 C10 -334 -10 -334 -24 -340 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-14 -344 L-22 -284 L-6 -282 L0 -342 Z" fill="{scarf}" stroke="{OUT}" stroke-width="1.3"/>'
           f'<path d="M-22 -286 l-2 8 M-17 -285 l-1 8 M-12 -284 l0 8" stroke="{scarf}" stroke-width="2"/>')
-    # 脸：朝左喊她
-    g += (f'<circle cx="-20" cy="-392" r="3.6" fill="{OUT}"/><circle cx="-2" cy="-392" r="3.6" fill="{OUT}"/>'
-          f'<path d="M-25 -402 Q-20 -405 -15 -402 M-6 -402 Q-1 -405 4 -402" stroke="{OUT}" stroke-width="1.5" fill="none"/>'
-          f'<ellipse cx="-27" cy="-378" rx="5" ry="3.5" fill="#F09A92" opacity=".5"/><ellipse cx="6" cy="-378" rx="6" ry="3.6" fill="#F09A92" opacity=".5"/>'
-          f'<path d="M-30 -386 C-34 -382 -33 -379 -29 -378" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
-          f'<ellipse cx="-14" cy="-368" rx="5" ry="6" fill="#8C3A34"/>')
     return g

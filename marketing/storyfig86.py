@@ -1,6 +1,7 @@
 """86 号的两个人：撑伞（伞歪向她、自己半边肩膀湿了）的男生，伸手出伞外试雨的女生。"""
 from storybook import *
 from storyfig85 import racket_in_bag
+from storyface import head
 
 
 def umbrella_man():
@@ -42,22 +43,14 @@ def umbrella_man():
     # 右臂举着伞柄
     g += limb((34, -334), (74, -330), (70, -392), 22, 15, jacket)
     g += hand(71, -398, 190, 'hold')
-    # 头：低头看她，笑
-    g += f'<path d="M-8 -364 L8 -364 L8 -342 L-8 -342 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
-    g += f'<ellipse cx="2" cy="-392" rx="30" ry="33" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
-    g += f'<ellipse cx="-24" cy="-388" rx="5" ry="7" fill="{SKIN}" stroke="{OUT}" stroke-width="1.1"/>'
-    g += (f'<path d="M-28 -392 C-36 -430 0 -444 24 -430 C38 -420 38 -404 32 -396 C24 -408 12 -412 0 -408 C-10 -414 -20 -406 -28 -392 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M8 -408 C14 -400 22 -398 28 -398" stroke="{hair}" stroke-width="3" fill="none" stroke-linecap="round"/>')
-    g += (f'<path d="M6 -388 Q10 -392 14 -388 M22 -388 Q26 -392 30 -388" stroke="{OUT}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-          f'<ellipse cx="6" cy="-376" rx="6" ry="3.6" fill="#F09A92" opacity=".5"/><ellipse cx="30" cy="-376" rx="5" ry="3.4" fill="#F09A92" opacity=".5"/>'
-          f'<path d="M33 -384 C36 -380 35 -378 32 -377" stroke="{OUT}" stroke-width="1.3" fill="none"/>'
-          f'<path d="M14 -368 Q20 -363 26 -368" stroke="#9A4A40" stroke-width="2" fill="none" stroke-linecap="round"/>')
+    hb, hf = head('m', 'short', 'smile', look=(1.5, 1.2), hc='#1E1A1D', hl='#5A6680')
+    g += f'<g transform="translate(2 -392)">{hb}{hf}</g>'
     return g
 
 
 def rain_girl():
     hair, card, card_d, skirt = '#3A2520', '#F6EEDC', '#E2D6BC', '#E98C78'
-    g = racket_in_bag(-38, -400, -26, '#2F4A6A')
+    g = racket_in_bag(-38, -400, -26, '#2F4A6A') + '<!--HB-->'
     # 腿、白袜、玛丽珍鞋
     g += limb((-10, -196), (-12, -100), (-14, -26), 24, 13, SKIN)
     g += limb((12, -196), (18, -100), (22, -26), 24, 13, SKIN)
@@ -83,16 +76,7 @@ def rain_girl():
     # 右手伸到伞外，掌心朝上接雨
     g += limb((28, -336), (80, -324), (124, -318), 20, 13, card)
     g += hand(126, -320, 0, 'palm')
-    # 头仰起来看天
-    g += f'<g transform="rotate(-12 4 -362)">'
-    g += (f'<path d="M-36 -392 C-42 -436 34 -444 40 -394 L44 -352 C36 -344 28 -350 24 -358 L-22 -358 C-28 -348 -38 -346 -46 -352 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>'
-          f'<path d="M-40 -356 C-50 -350 -58 -352 -62 -358 M40 -356 C46 -348 54 -348 58 -354" stroke="{hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>')
-    g += f'<path d="M-2 -364 L12 -364 L12 -340 L-2 -340 Z" fill="{SKIN}" stroke="{OUT}" stroke-width="1.2"/>'
-    g += f'<ellipse cx="4" cy="-388" rx="28" ry="32" fill="{SKIN}" stroke="{OUT}" stroke-width="1.4"/>'
-    g += (f'<path d="M-30 -396 C-30 -430 34 -434 36 -396 C26 -404 22 -398 16 -404 C10 -398 2 -404 -4 -398 C-12 -404 -20 -398 -30 -396 Z" fill="{hair}" stroke="{OUT}" stroke-width="1.3"/>')
-    g += (f'<circle cx="0" cy="-386" r="3.8" fill="{OUT}"/><circle cx="20" cy="-386" r="3.8" fill="{OUT}"/>'
-          f'<circle cx="1" cy="-388" r="1.2" fill="#fff"/><circle cx="21" cy="-388" r="1.2" fill="#fff"/>'
-          f'<ellipse cx="-6" cy="-374" rx="6" ry="3.6" fill="#F09A92" opacity=".55"/><ellipse cx="26" cy="-374" rx="6" ry="3.6" fill="#F09A92" opacity=".55"/>'
-          f'<ellipse cx="11" cy="-366" rx="3.6" ry="4.4" fill="#A8443C"/>')
-    g += '</g>'
+    hb, hf = head('f', 'bob', 'o', look=(0.5, -2.2), tilt=-12, hc='#2E1E1A', hl='#8A6050')
+    g = g.replace('<!--HB-->', f'<g transform="translate(4 -390)">{hb}</g>')
+    g += f'<g transform="translate(4 -390)">{hf}</g>'
     return g

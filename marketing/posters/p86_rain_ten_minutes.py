@@ -39,15 +39,15 @@ def svg():
     rain = ''.join(f'<path d="M{x:.0f} {y:.0f} l-6 {random.uniform(18, 34):.0f}"/>' for x, y in
                    [(x, y) for x, y in [(random.uniform(0, 1080), random.uniform(0, 1) ** 2.2 * 640) for _ in range(70)] if not (x < 520 and 100 < y < 420)])
     # 角色 + 伞
-    gy = 1156
-    xm, xr, sc = 350, 600, 1.12
+    gy = 1192
+    xm, xr, sc = 330, 600, 1.25
     def pair(sfx):
         return (f'<g transform="translate({xm} {gy}) scale({sc})" filter="url(#wc86)"><ellipse rx="70" ry="9" fill="#000" opacity=".14"/>{umbrella_man()}</g>'
                 f'<g transform="translate({xr} {gy}) scale({sc})" filter="url(#wc86)"><ellipse rx="64" ry="9" fill="#000" opacity=".14"/>{rain_girl()}</g>')
     umb = ''
     drop = f'<path transform="translate({xr + 150*sc:.0f} {gy - 372*sc:.0f})" d="M0 -16 Q9 -2 9 4 A9 9 0 0 1 -9 4 Q-9 -2 0 -16Z" fill="#BFD9E4" stroke="#171412" stroke-width="2.4" filter="url(#rough2)"/>'
     # 前景地面 + 水洼倒影
-    pud = '<ellipse cx="520" cy="1194" rx="270" ry="26"/>'
+    pud = '<ellipse cx="800" cy="1206" rx="190" ry="17"/>'
     refl = f'<g clip-path="url(#pc86)" opacity=".38"><g transform="translate(0 {2*gy}) scale(1 -1)">{pair("x")}</g></g>'
     body = f'''
 <defs>
@@ -69,7 +69,7 @@ def svg():
 {hatch(500, 0, by, W, 1350, '#A59C86', .3, ang=-10, ln=(12, 26))}
 <g fill="#B8CDD0">{pud}</g>
 {refl}
-<g fill="none" stroke="#F4F7F2" stroke-width="2" opacity=".7"><ellipse cx="330" cy="1196" rx="26" ry="5"/><ellipse cx="330" cy="1196" rx="48" ry="9" opacity=".5"/></g>
+<g fill="none" stroke="#F4F7F2" stroke-width="2" opacity=".7"><ellipse cx="900" cy="1206" rx="26" ry="5"/><ellipse cx="900" cy="1206" rx="48" ry="9" opacity=".5"/></g>
 {pair('')}
 {umb}
 {drop}

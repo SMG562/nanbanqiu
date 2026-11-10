@@ -60,8 +60,8 @@ def svg():
 </g>
 <circle cx="{lx}" cy="692" r="40" fill="#FFF0B8" opacity=".7" filter="url(#bl14)"/>
 <circle cx="{lx}" cy="692" r="10" fill="#FFF8DA"/>'''
-    her = f'<g transform="translate(350 1232) scale(1.05)" filter="url(#wc85)"><ellipse cx="0" cy="0" rx="80" ry="9" fill="#000" opacity=".18"/>{woman_walk()}</g>'
-    him = f'<g transform="translate(850 1212) scale(1.05)" filter="url(#wc85)"><ellipse cx="20" cy="0" rx="70" ry="9" fill="#000" opacity=".16"/>{man_lean()}</g>'
+    her = f'<g transform="translate(320 1250) scale(1.28)" filter="url(#wc85)"><ellipse cx="0" cy="0" rx="80" ry="9" fill="#000" opacity=".18"/>{woman_walk()}</g>'
+    him = f'<g transform="translate(846 1232) scale(1.25)" filter="url(#wc85)"><ellipse cx="20" cy="0" rx="70" ry="9" fill="#000" opacity=".16"/>{man_lean()}</g>'
     body = f'''
 <defs>
  <linearGradient id="bg85" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0D2A3A"/><stop offset=".45" stop-color="#1D4F5A"/><stop offset=".68" stop-color="#6B7F86"/><stop offset=".78" stop-color="#C9A28E"/></linearGradient>
