@@ -1,8 +1,8 @@
-// 首页引导条显示规则（11-08，src/shared/script/0499）：放进空沙盒载入（证明不依赖页面），五个条件逐个翻转。
+// 首页引导条显示规则（11-08，src/shared/script/0501）：放进空沙盒载入（证明不依赖页面），五个条件逐个翻转。
 import fs from 'fs'; import path from 'path'; import vm from 'vm'; import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2] || process.env.NBQ_DIR || path.join(HERE, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x))); };
-const ctx = vm.createContext({}); vm.runInContext(fs.readFileSync(path.join(DIR, 'src/shared/script/0499-首页引导条_规则.js'), 'utf8'), ctx);
+const ctx = vm.createContext({}); vm.runInContext(fs.readFileSync(path.join(DIR, 'src/shared/script/0501-首页引导条_规则.js'), 'utf8'), ctx);
 const D = c => ctx.nbqIntroDecide(c);
 const base = { on: true, loggedIn: false, seen: false, standalone: false, deep: false };
 T('第一次来、没登录、直接打开首页 → 显示', D(base) === 'show');

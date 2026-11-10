@@ -159,7 +159,7 @@ try {
   r = await call(P, `update users set nickname='客服小王' where id=$1`, [P]); T('前台改成不允许的昵称 → nickname_not_allowed（detail = 原因）', !r.ok && r.err === 'nickname_not_allowed' && r.detail === 'impersonate', r);
   r = await call(P, `update users set nickname='小王' where id=$1`, [P]); T('正常昵称可以改', r.ok, r);
   r = await q(`update users set nickname='南伴球客服' where id=$1`, [P]).then(() => ({ ok: true }), e => ({ ok: false, err: e.message })); T('后台改不受限制', r.ok, r);
-  r = await call(P, `update users set utr=6 where id=$1`, [P]); T('昵称没变时改别的资料不检查', r.ok, r);
+  r = await call(P, `update users set card_theme='clay' where id=$1`, [P]); T('昵称没变时改别的资料不检查', r.ok, r);
 
   // ---------- 权限 ----------
   r = await call(N, `select count(*) from risk_events`); T('前台看不到风险信号', !r.ok && /permission denied/.test(r.err), r);

@@ -6,5 +6,5 @@ const API_ERR={"login_required":"请先登录","forbidden":"没有权限做这�
 const NICK_BAD=n=>/[\u0001-\u001F\u007F​-‏‪-‮⁠-⁤﻿]/.test(n)?'昵称里有不支持的字符':/(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|au|cn|io|me|co)(?![a-z]))/i.test(n)?'昵称里不能有链接':(/[0-9０-９]{8,}/.test(n.replace(/[\s\-.()]/g,''))||/(微信|威信|薇信|v信|vx|wx号|wxid|weixin|wechat|加v|加微|whatsapp|telegram|line ?id|qq|扣扣)/i.test(n))?'昵称里不能有联系方式':/(官方|南伴球|客服|管理员|系统|admin|official|support|staff)/i.test(n)?'昵称不能用「官方」「客服」等字样':/(.)\1{4,}/u.test(n)?'昵称不能连续重复同一个字':'';
 const apiErrText=code=>API_ERR[code]||'出了点问题，请再试一次';
 function go(tab){if(tab!=='notif'&&UI.tab!==tab)UI.back=tab;UI.tab=tab;$$('#tabbar [data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));['disc','mine','side','notif','me'].forEach(t=>$('#scr-'+t).hidden=t!==tab);if(tab==='side')sbBoot();
-  if(tab==='disc'&&!LOC.asked&&!nbqIntroShowing())setTimeout(openLocSheet,300);render()}   // 引导条在的时候这次不问位置（0500）
+  if(tab==='disc'&&!LOC.asked&&!nbqIntroShowing())setTimeout(openLocSheet,300);render()}   // 引导条在的时候这次不问位置（shared 0502）
 const INV_OPEN=h=>openSheet(h,false),INV_CLOSE=()=>closeSheet(),INV_BANNER=(t,b,f)=>pushBanner(t,b,f),INV_GAME=id=>{closeSheet();openDetail(id)},INV_RENDER=()=>render();

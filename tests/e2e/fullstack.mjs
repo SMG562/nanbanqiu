@@ -71,6 +71,24 @@ try {
     { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
     { name: '后台处理这条举报后，前台刷新不再显示「已举报」', act: async (pg, x) => { const r = await x.adminHandleReport(x.H, x.P, 'actioned'); T('后台列表里看得到这条举报、处理成功', r.listed && r.handled, r); await pg.reload() }, check: (pg, x) => pg.evaluate(p => typeof NBQ_STALE !== 'undefined' && !NBQ_STALE && !!ME && Object.keys(VEN).length > 0 && !repOpenOf('user', p), x.P) },
     { name: '后台处理后可以重新举报同一位球友', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
+    // ---- 我的球拍 B2（#60，ADR 0009）：选择列表来自真服务器的产品库；点选发 catalog_id；手写的由服务器归到产品库（库里和页面都以产品库写法为准）----
+    { name: '我的球拍 · 从产品库点选（Wilson Blade）', act: async pg => {
+        await clickAttrs(pg, { 'data-a': 'rkSlot', 'data-i': '0' });
+        await pg.waitForFunction(() => typeof RK_CAT !== 'undefined' && !!RK_CAT.groups && !!document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Wilson"]'), null, { timeout: 15000 });
+        await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Wilson"]').click());
+        await pg.waitForSelector('.rk-pk [data-a="rkSeries"][data-s="Blade"][data-c]', { state: 'attached', timeout: 15000 });
+        await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkSeries"][data-s="Blade"]').click());
+        await pg.waitForFunction(() => (ME.rackets || []).length === 1, null, { timeout: 15000 }); await pg.evaluate(() => anFlush()) },   // 埋点先发出去（无头浏览器刷新时不会补发队列里的）
+      check: async (pg, x) => { const id = (await admin.query(`select id from racket_catalog where brand = 'Wilson' and series = 'Blade'`)).rows[0].id, db = (await admin.query(`select catalog_id from user_rackets where user_id = $1 and slot = 1`, [x.H])).rows[0];
+        return !!db && db.catalog_id === id && await pg.evaluate(id => (ME.rackets || []).some(r => r.series === 'Blade' && r.catalog_id === id), id) } },
+    { name: '我的球拍 · 手写「head  speed」→ 服务器归到产品库 Head Speed', act: async pg => {
+        await clickAttrs(pg, { 'data-a': 'rkSlot', 'data-i': '1' });
+        await pg.waitForSelector('.rk-pk [data-a="rkOther"]', { state: 'attached', timeout: 15000 }); await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkOther"]').click());
+        await pg.waitForSelector('#rkName', { state: 'attached', timeout: 15000 });
+        await pg.evaluate(() => { const i = document.getElementById('rkName'); i.value = 'head  speed'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-a="rkSave"]').click() });
+        await pg.waitForFunction(() => (ME.rackets || []).length === 2, null, { timeout: 15000 }); await pg.evaluate(() => anFlush()) },
+      check: async (pg, x) => { const id = (await admin.query(`select id from racket_catalog where brand = 'Head' and series = 'Speed'`)).rows[0].id, db = (await admin.query(`select brand, series, catalog_id from user_rackets where user_id = $1 and slot = 2`, [x.H])).rows[0];
+        return !!db && db.catalog_id === id && db.brand === 'Head' && db.series === 'Speed' && await pg.evaluate(id => { const r = (ME.rackets || [])[1]; return !!r && r.brand === 'Head' && r.series === 'Speed' && r.catalog_id === id }, id) } },
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
@@ -82,7 +100,9 @@ try {
   br = await chromium.launch({ ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox'] });
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     await admin.query('delete from blocks'); await admin.query('delete from user_clubs'); for (const t of ['impressions', 'noshow_reports', 'game_feel', 'player_prefs', 'player_pref_mutes', 'user_badges', 'reports']) await admin.query(`delete from ${t}`); await admin.query('delete from game_participants where user_id = $1 and game_id = $2', [H, G]);   // 两个文件各自从干净状态开始
+    await admin.query('delete from user_rackets'); await admin.query(`delete from events where event like 'racket_%'`);
     const W = f.includes('Web'), ctx = await br.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('nbq_ff_rackets', '1') } catch (_) { } });   // 我的球拍开关（正式站默认关，测试环境开）
     const pg = await ctx.newPage(), perr = []; pg.on('pageerror', e => perr.push(e.message));
     const AT = await token(AH);
     await pg.route('https://nanbanqiu.app/**', async r => { const rq = r.request(), u = new URL(rq.url());
@@ -113,6 +133,12 @@ try {
       if (s.lost) T(`${f} ${s.name}：刷新后丢失（检查能发现没写服务器）`, !(await s.check(pg, ctx0)));
       else T(`${f} ${s.name}：刷新后还在`, await until(() => s.check(pg, ctx0)), await s.check(pg, ctx0));
     }
+    // 球拍埋点经真实的 /api/events 写进 events 表：两次保存各一条、props 与字典一致、不含手写文字
+    await pg.evaluate(() => anFlush());
+    const rkSaves = async () => (await admin.query(`select props from events where event = 'racket_save' and build = $1 order by occurred_at`, [W ? 'web' : 'pwa'])).rows.map(r => r.props);
+    T(`${f} 球拍埋点入库：racket_save = [add/catalog/1, add/other/2]`, await until(async () => JSON.stringify(await rkSaves()) === JSON.stringify([{ action: 'add', source: 'catalog', n_after: 1 }, { action: 'add', source: 'other', n_after: 2 }])), await rkSaves());
+    const rkAll = (await admin.query(`select event, props from events where event like 'racket_%' and build = $1`, [W ? 'web' : 'pwa'])).rows;
+    T(`${f} 球拍埋点入库：打开、选品牌（Wilson / other）都在，不含手写文字`, rkAll.some(r => r.event === 'racket_picker_open') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'Wilson') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'other') && !/head  speed|head speed/.test(JSON.stringify(rkAll)), rkAll);
     T(`${f} 无脚本错误`, perr.length === 0, perr); await ctx.close();
   }
 } catch (e) { fail++; console.log('FAIL 异常 ' + String((e && (e.stack || e.message)) || JSON.stringify(e)).slice(0, 1500)) } finally { try { await br?.close() } catch (_) { } try { await admin?.end() } catch (_) { } c.stop() }

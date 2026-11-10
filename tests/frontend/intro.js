@@ -1,4 +1,4 @@
-// 首页引导条（11-08，src/shared/script/0500）：两端各走一遍。
+// 首页引导条（11-08，src/shared/script/0502）：两端各走一遍。
 //   开关关不显示；第一次来显示、手机端这次不弹位置授权；× / 往下滑 / 点开球局 / Esc 都算看过，「清空内存 → 重读」后不再出现；
 //   从分享 / 球局链接进来不显示也不算看过；有登录快照时从第一帧起就不出现；本机存储报错时不报错、这次打开内不再出现。
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');

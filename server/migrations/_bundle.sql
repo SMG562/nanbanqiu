@@ -725,3 +725,146 @@ alter table schema_migrations enable row level security;
 drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
 grant select, insert on schema_migrations to nbq_service;
 insert into schema_migrations(version) values ('20261108_racket_stats') on conflict do nothing;
+
+-- ===== 20261109_racket_events.sql =====
+-- 我的球拍 B2（#60，ADR 0009）：登记 4 个前台埋点。可重复运行，只加不改。
+--   服务器 /api/events 只收 event_definitions 里 active 的 client 事件：这个迁移执行之前，前台发的这 4 个事件会被丢掉（不报错）。
+--   名称、分类、说明、props 与 tests/spec/events_spec.md 逐字一致（schema/run 测试核对）。
+insert into event_definitions (event,category,description,props,source,status,replaced_by) values
+ ('racket_picker_open','我的','打开选拍弹层（添一把 / 换一把；从系列返回不算）','mode(add/swap), slot(1-3)','client','active',null),
+ ('racket_brand_pick','我的','选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）','brand','client','active',null),
+ ('racket_save','我的','球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库','action(add/swap/main/remove), source(catalog/other), n_after','client','active',null),
+ ('racket_invalid','我的','手写拍子名当场没通过校验（不发请求、不记文字）','reason(empty/long/link/at/digits/dup)','client','active',null)
+on conflict (event) do update set category=excluded.category, description=excluded.description, props=excluded.props,
+  source=excluded.source, status=excluded.status, replaced_by=excluded.replaced_by;
+
+create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
+alter table schema_migrations enable row level security;
+drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
+grant select, insert on schema_migrations to nbq_service;
+insert into schema_migrations(version) values ('20261109_racket_events') on conflict do nothing;
+
+-- ===== 20261110_my_utr.sql =====
+-- 我的 UTR（#101，11-07 用户定的第二版）：个人页随时更新 UTR，两种：正式 / 自评（自评 = 已有的 utr_estimated）；正式可附 UTR 主页编号。
+--   · users 加 utr_profile（UTR 主页编号，只存数字；users 只许本人读，对外的 public_profiles 不加）和 utr_at（上次确认 UTR 的时间）
+--   · utr_changes：每次数值或类型变了记一行（给后台查虚报、将来同步比对）；只许本人读
+--   · 写入只走 api_set_utr(jsonb)：校验、频率（24 小时 5 次）、历史都在库里；PATCH /api/me 不再能改 utr / utr_estimated（收回列权限）
+--   · 注销匿名化时清掉 utr_profile 和历史（触发器，不改 job_anonymize_deleted，免得和其他迁移互相覆盖）
+--   可重复运行；只加不删（收回的是前台账号对两列的直接改权限，注册仍走 /api/me/register）。
+alter table users add column if not exists utr_profile text;
+alter table users add column if not exists utr_at timestamptz;
+alter table users drop constraint if exists users_utr_profile_check;
+alter table users add constraint users_utr_profile_check check (utr_profile is null or utr_profile ~ '^[0-9]{4,12}$');
+
+create table if not exists utr_changes (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references users(id) on delete cascade,
+  old_utr    numeric(4,2),
+  new_utr    numeric(4,2) not null,
+  old_est    boolean,
+  new_est    boolean not null,
+  at         timestamptz not null default now()
+);
+create index if not exists utr_changes_user on utr_changes (user_id, at desc);
+alter table utr_changes enable row level security;
+drop policy if exists svc_all on utr_changes; create policy svc_all on utr_changes to nbq_service using (true) with check (true);
+drop policy if exists own_read on utr_changes; create policy own_read on utr_changes for select to nbq_user using (user_id = nbq_uid());
+revoke all on utr_changes from public, anon, authenticated, nbq_user;
+grant select on utr_changes to nbq_user;
+grant all on utr_changes to nbq_service;
+
+revoke update (utr, utr_estimated) on users from nbq_user;
+
+insert into rate_rules(rule, grp, win, max_hits, per_key, code, note)
+values ('utr_day', 'utr', '24 hours', 5, false, 'rate_limited', '我的 UTR：数值或类型 24 小时内最多改 5 次（只改链接、原样再确认不计）')
+on conflict (rule) do nothing;
+
+-- p = {utr: 数字, estimated: true/false, profile?: 字符串 | null}；profile 不传 = 不动，null / 空串 = 清掉，
+--   可以是 UTR 主页链接（utrsports.net / universaltennis.com 的 /profiles/<数字>）或纯数字。
+-- 返回 {utr, estimated, profile, updated_at}
+create or replace function api_set_utr(p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); v numeric; e boolean; prof text; raw text; o users;
+begin
+  if p is null or jsonb_typeof(p) <> 'object' then perform nbq_err('invalid', 'utr'); end if;
+  if coalesce(jsonb_typeof(p->'utr'), '') <> 'number' then perform nbq_err('invalid', 'utr'); end if;
+  v := (p->>'utr')::numeric;
+  if v < 1 or v > 16.5 or v <> round(v, 2) then perform nbq_err('invalid', 'utr'); end if;
+  if coalesce(jsonb_typeof(p->'estimated'), '') <> 'boolean' then perform nbq_err('invalid', 'estimated'); end if;
+  e := (p->>'estimated')::boolean;
+  select * into o from users where id = u for update;
+  prof := o.utr_profile;
+  if p ? 'profile' then
+    if jsonb_typeof(p->'profile') not in ('string', 'null') then perform nbq_err('invalid', 'profile'); end if;
+    raw := nullif(btrim(p->>'profile'), '');
+    if raw is null then prof := null;
+    elsif raw ~ '^[0-9]{4,12}$' then prof := raw;
+    else
+      prof := substring(raw from '^(?:https?://)?(?:app\.|www\.)?(?:utrsports\.net|universaltennis\.com)/profiles/([0-9]{4,12})(?:[/?#].*)?$');
+      if prof is null then perform nbq_err('invalid', 'profile'); end if;
+    end if;
+  end if;
+  if v is distinct from o.utr or e is distinct from o.utr_estimated then
+    perform nbq_rate(u::text, 'utr');
+    insert into utr_changes(user_id, old_utr, new_utr, old_est, new_est) values (u, o.utr, v, o.utr_estimated, e);
+  end if;
+  update users set utr = v, utr_estimated = e, utr_profile = prof, utr_at = now() where id = u;
+  return jsonb_build_object('utr', v, 'estimated', e, 'profile', prof, 'updated_at', now());
+end $$;
+-- 读自己的：updated_at 没确认过就用注册时间
+create or replace function api_my_utr() returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('utr', utr, 'estimated', utr_estimated, 'profile', utr_profile, 'updated_at', coalesce(utr_at, created_at))
+    from users where id = nbq_me() $$;
+revoke execute on function api_set_utr(jsonb), api_my_utr() from public, anon, authenticated;
+grant execute on function api_set_utr(jsonb), api_my_utr() to nbq_user, nbq_service;
+
+-- 注销匿名化：清掉 UTR 主页编号和改动历史
+create or replace function users_utr_wipe() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.anonymized_at is not null and old.anonymized_at is null then
+    new.utr_profile := null;
+    delete from utr_changes where user_id = new.id;
+  end if;
+  return new;
+end $$;
+revoke execute on function users_utr_wipe() from public, anon, authenticated, nbq_user;
+drop trigger if exists trg_users_utr_wipe on users;
+create trigger trg_users_utr_wipe before update of anonymized_at on users for each row execute function users_utr_wipe();
+
+create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
+alter table schema_migrations enable row level security;
+drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
+grant select, insert on schema_migrations to nbq_service;
+insert into schema_migrations(version) values ('20261110_my_utr') on conflict do nothing;
+
+-- ===== 20261111_utr_events.sql =====
+-- 我的 UTR（#101）：登记 3 个前台埋点（打开 → 校验没通过 / 保存成功）。可重复运行，只加不改。
+--   服务器 /api/events 只收 event_definitions 里 active 的 client 事件：这个迁移执行之前，前台发的这 3 个事件会被丢掉（不报错）。
+--   名称、分类、说明、props 与 tests/spec/events_spec.md 逐字一致（schema/run 测试核对）。
+insert into event_definitions (event,category,description,props,source,status,replaced_by) values
+ ('utr_open','我的','打开我的 UTR 弹层（长按看时间那次不算）','mode(off/self), linked','client','active',null),
+ ('utr_invalid','我的','我的 UTR 当场校验没通过（不发请求、不记填的内容）','reason(empty/format/range/link)','client','active',null),
+ ('utr_save','我的','我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号）','mode(off/self), linked, change(up/down/same)','client','active',null)
+on conflict (event) do update set category=excluded.category, description=excluded.description, props=excluded.props,
+  source=excluded.source, status=excluded.status, replaced_by=excluded.replaced_by;
+
+create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
+alter table schema_migrations enable row level security;
+drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
+grant select, insert on schema_migrations to nbq_service;
+insert into schema_migrations(version) values ('20261111_utr_events') on conflict do nothing;
+
+-- ===== 20261112_utr_admin.sql =====
+-- 我的 UTR（#101）后台只读：运营看 UTR 类型、是否关联主页、改动历史，用来发现虚报和多个账号关联同一个主页。可重复运行，只加不改。
+--   · users 新加的两列（utr_profile、utr_at）补给 nbq_admin 读：schema ④ 的批量授权只覆盖当时已有的列
+--   · utr_changes：nbq_admin 可读（行级安全 adm_read）；只读角色 nbq_viewer 不给（它只看统计，不看个人）
+--   · 限城市的管理员：接口查询都 join users，users 上的 adm_city 限制照样生效
+do $$ begin if to_regclass('public.utr_changes') is null then raise exception '先执行 20261110_my_utr'; end if; end $$;
+grant select (utr_profile, utr_at) on users to nbq_admin;
+grant select on utr_changes to nbq_admin;
+drop policy if exists adm_read on utr_changes; create policy adm_read on utr_changes for select to nbq_admin using (true);
+
+create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
+alter table schema_migrations enable row level security;
+drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
+grant select, insert on schema_migrations to nbq_service;
+insert into schema_migrations(version) values ('20261112_utr_admin') on conflict do nothing;
