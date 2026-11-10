@@ -155,7 +155,7 @@ scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).then(()=>ev(true),err=>{if(!err||err.name!=='AbortError'){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}else ev(false)})}catch(err){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}return}
   fallback()};
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-sc]');if(!b)return;const a=b.dataset.sc;
-  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid);toast('图片已保存')}else toast('保存失败，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
+  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid);toast('图片已保存')}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
   if(a==='link')track('card_share',{channel:SC.to,action:'link',ok:true})},true);
 
 /* ---------- 打完之后：多遇到 · 感受 · 印象 · 完成 · TA 没来 · 申诉 ---------- */

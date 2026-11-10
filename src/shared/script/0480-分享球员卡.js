@@ -6,5 +6,5 @@ async function scGo(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==
 document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!b)return;e.stopPropagation();const a=b.dataset.sc;
   if(a==='to'){SC.to=b.dataset.v;scRender()}
   else if(a==='go')scGo();
-  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid);toast('图片已保存')}else toast('保存失败，请截图保存')})}
+  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid);toast('图片已保存')}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')})}
   else if(a==='link')copy(profileUrl(U(SC.uid),'link'),'球员卡链接已复制，可以发给朋友')},true);

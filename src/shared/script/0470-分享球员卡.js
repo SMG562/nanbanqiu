@@ -19,9 +19,12 @@ function shareCardHTML(uid){const to=SC.to,lab=to==='xhs'?'发到小红书':'分
     <div class="sc-sub"><button data-sc="save"><svg><use href="#i-dl"/></svg>保存图片</button><span></span><button data-sc="link"><svg><use href="#i-link"/></svg>复制链接</button></div>
     <p class="sc-fine">文案会自动复制，发布时粘贴即可</p></div>`}
 function scRender(){const b=document.getElementById('scBox');if(b)b.outerHTML=shareCardHTML(SC.uid)}
-function scBlob(uid){return new Promise(res=>{if(!window.html2canvas)return res(null);
+function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2canvas){SC_ERR='截图库没加载';return res(null)}
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
-  html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:3}).then(cv=>cv.toBlob(b=>{tmp.remove();res(b)},'image/png')).catch(()=>{tmp.remove();res(null)})})}
+  // 手机上画布太大 / 内存不够会失败：3 倍清晰度不行就降到 2、1 倍再试；仍失败把原因留在 SC_ERR（提示里带出来，方便定位）
+  const go=k=>html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k}).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
+    .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(k>1)return go(k-1);throw e});
+  go(3).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
 // 保存图片：能用系统分享就用（iOS 分享面板里选「存储图像」进相册）；不行（或点开太慢分享被拒）就弹出大图，长按保存。不用 <a download>：iOS 里它进的是「文件」不是相册，主屏幕版还会把页面带走
 function imgSave(blob,name){
   const file=blob&&new File([blob],name,{type:'image/png'});
