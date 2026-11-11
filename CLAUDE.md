@@ -18,7 +18,7 @@
 - **同步到 Mac 回读核对**：`sync_files.sh <ref>` → `device_commit_files` → `sync_verify.sh <ref> --paths` → `device_stage_files` → `sync_verify.sh <ref>`；PR 分支的文件用 `--branch=<分支>`，PR 描述写「已同步到电脑：…」。给用户的步骤只引用他电脑上已有的文件。
 - **发送程序部署**：先 `sync_verify.sh --deploy` 一致，再给用户 `node tools/deploy_notify.mjs --expect=<worker_version 指纹>`（staging 加 `--env=staging`，两边都部署）；线上版本只认 `/version.json`、`/api/version`。
 - **上线闸门**：说「通过 / 已上线」前 `bash tools/gate.sh <提交号>` 三项全绿；没跑、被取消、不是这个提交号 = 没过。
-- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**（只快进；main 有新提交就在分支 `git merge origin/main`）。
+- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**（快进；main 前进但只多文档 / 文件不重叠则带 sha 压缩合并，否则 `bash tools/sync_main.sh`）。
 - **两个库**：正式 `nanbanqiu-au`、测试 `nanbanqiu-staging`（分支预览 `*.nanbanqiu-preview.pages.dev` 自动连它）。改结构 / 默认值 / 迁移：可重复运行并处理已有数据 → **先正式库跑迁移、再合并前端** → Actions `db-parity` ✅。迁移只往前、先加后删；回滚办法 `出事处理手册.md` §6。
 - **CI 分工（省额度）**：本地只跑相关的（`--changed[=origin/main]`；改了测试入口用 `--grep=`）；PR 先开**草稿**（只跑 tests-fast），改完、本地测过再点 Ready 才跑浏览器测试（草稿运行标「未测：草稿」，合并 / 复用 / 闸门都不认）；改动攒成一次推送（被取消的运行也计费）；完整档每周日自动，合并前不手动跑；等 CI 放后台、读注解；截图基准用 tests.yml `visual-baseline` 在 CI 重拍；每周一看 Actions `metrics` 周报。
 - **推 main 的顺序是机器管的**：改 → 构建 → `run_all --changed=origin/main` 全绿、工作区干净 → 提交 → 推送（`pre-push` 无记录就拦，跳过要 `NBQ_UNTESTED="原因"`；`pr_merge.sh` 核对 PR CI 后自动带上）。推前 `git diff --stat origin/main..HEAD` 只含预期文件；不用 worktree 分支直推 main；临时仓库跑 git 去掉 `GIT_*`。后台测试没出结果不提交（停止钩子催也先说「测试还在跑」）。新闸门先对照 `pr_merge.sh` 等自动路径。
