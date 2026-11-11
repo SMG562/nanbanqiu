@@ -144,6 +144,10 @@ try {
   // ================= 6. 统计页（白名单接口 + 通用卡片） =================
   {
     await q(`insert into daily_metrics(day,metric,dims,value,additive) values (current_date - 1,'new_users','{}',4,true),(current_date - 2,'new_users','{}',5,true) on conflict do nothing`);
+    const H = await user('统计发起人');
+    await q(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)') on conflict do nothing`).catch(() => { });
+    const V = (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status,city) values ('E2E Court','E2E','Brighton','3186','POINT(145 -37.9)','{hard}','active','melb') returning id`)).id;
+    await q(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max,status,visibility) values ('E2E01',$1,$2,now()-interval '1 day',90,'singles',2,3,6,'open','public')`, [H.id, V]);
     const { p, pe, ctx } = await session('ops@x.com'); await goPage(p, 'overview');
     T('6.1 概览：真数据卡片（活跃、人齐、今天、每天、最活跃的球友），新注册合计 9', await until(async () => { const t = await txt(p, '#page'); return /活跃球友/.test(t) && /开打时人齐/.test(t) && /今天还没开打/.test(t) && /最活跃的球友/.test(t) && /新注册\s*9\b/.test(t) && !/还没接真数据/.test(t) }));
     T('6.2 概览里出现前面几节建的真球友（最活跃的球友表）或「还没有数据」，没有「读不出来」', !/暂时读不出来|读不出来/.test(await txt(p, '#page')));
@@ -154,6 +158,12 @@ try {
     }
     await p.evaluate(() => { S.page = 'overview'; render() }); await p.click('[data-stx="range"][data-v="7"]');
     T('6.4 切到近 7 天：重新读', await until(async () => /新注册\s*9\b/.test(await txt(p, '#page'))));
+    await until(() => p.evaluate(() => !!document.querySelector('[data-stx="export"][data-fn="venue_activity"]')));
+    const dl = p.waitForEvent('download', { timeout: 6000 }).catch(() => null); await p.click('[data-stx="export"][data-fn="venue_activity"]'); const f = await dl;
+    T('6.5a 导出：下载 CSV（中文表头），并记进操作日志', !!f && /球场/.test(fs.readFileSync(await f.path(), 'utf8')) && !!(await one(`select 1 from admin_audit_log where action='data.export' and target='venue_activity'`)));
+    T('6.5b 运营没有「含编号昵称导出」', !(await p.evaluate(() => !!document.querySelector('[data-stx="exportids"]'))));
+    await p.evaluate(() => { S.page = 'events'; render() });
+    T('6.5c 数据口径页：事件定义（库里的）+ 每张卡片的口径', await until(async () => { const t = await txt(p, '#page'); return /事件定义/.test(t) && /每张卡片的口径/.test(t) && /app_open|page_view|signup/.test(t) }));
     T('6.5 没有页面错误', !pe.length, pe); await ctx.close();
     await q(`update admin_users set role='viewer', disabled=false where email='view@x.com'`);
     const v = await session('view@x.com'); await goPage(v.p, 'overview');

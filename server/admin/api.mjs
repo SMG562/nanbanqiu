@@ -131,6 +131,7 @@ const STATS = {
   level_stuck: { sql: 'select * from v_level_stuck', args: () => [], max: 100 },
   invite_outcomes: { sql: 'select * from v_invite_outcomes', args: () => [], max: 100 },
   retention: { sql: 'select * from v_user_retention', args: () => [], max: 60 },
+  event_defs: { sql: 'select event, category, description, props, source, status, replaced_by from event_definitions order by category, event', args: () => [], max: 500 },
   sb_kpis: { sql: 'select * from sb_stat_kpis($1, $2, $3)', args: C3, cityReq: true },
   sb_topics: { sql: 'select * from sb_stat_topics($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
   sb_courts: { sql: 'select name, posts, views, interactions from sb_stat_courts($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
@@ -140,6 +141,13 @@ const STATS = {
   sb_top_posts: { sql: 'select body, topic_id, venue, author, has_photo, views, balls, replies, shares, still_public, status from sb_stat_top_posts($1, $2, $3, 20)', args: C3, cityReq: true, personal: true },
 };
 export const STAT_NAMES = Object.keys(STATS);
+
+// 跑一个白名单统计：去掉内部 uuid 列，bigint / numeric 转成数字；noIds = 再去掉能认出人的列（导出不带用户 ID 时）
+const PERSON_COLS = new Set(['member_no', 'nickname', 'author', 'body']);
+async function runStat(db, name, f, t, c, noIds = false) {
+  const s = STATS[name], res = await db.query(s.sql, s.args(f, t, s.cityReq ? (c || 'melb') : c)), num = new Set(res.fields.filter(x => [20, 1700].includes(x.dataTypeID)).map(x => x.name));
+  return res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(/(^|_)id$/.test(k) && UUID.test(String(v))) && !(noIds && PERSON_COLS.has(k))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
+}
 
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)
 export async function authed(req, d, route, fn, body) {
@@ -424,13 +432,23 @@ export const ROUTES = {
         if (s.personal && a.db_role === 'nbq_viewer') { data[fn] = { error: 'admin_forbidden' }; continue }
         await db.query('savepoint st');
         try {
-          const res = await db.query(s.sql, s.args(f, t, s.cityReq ? (c || 'melb') : c)), num = new Set(res.fields.filter(x => [20, 1700].includes(x.dataTypeID)).map(x => x.name));   // bigint / numeric → 数字
-          data[fn] = res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(/(^|_)id$/.test(k) && UUID.test(String(v)))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
+          data[fn] = await runStat(db, fn, f, t, c);
           await db.query('release savepoint st');
         } catch (e) { await db.query('rollback to savepoint st'); data[fn] = { error: String(e.code || '').startsWith('42501') || /permission denied/.test(e.message) ? 'admin_forbidden' : 'failed' }; if (!data[fn].error.startsWith('admin')) console.error('admin_api stats', fn, e.code || e.message?.slice(0, 60)) }
       }
       return { from: f, to: t, city: c, data };
     });
+  } },
+  // ---------- 导出（#27 第 4 步）：任一统计导出成表格 ----------
+  // 先调 admin_export 拿许可并留痕（不带用户 ID：data.export，owner / 运营；带用户 ID：data.export_ids，只有 owner、必须填理由），再在同一事务里取数。
+  // 不带用户 ID 时去掉编号、昵称、作者、内容这几列。时间 / 城市参数同 /stats
+  'POST /admin/api/export': { name: 'export', perm: 'data.export', body: true, run: (req, d, b, route) => {
+    const now = d.now ? d.now() : Date.now(), to = b.to ? Date.parse(b.to) : now, from = b.from ? Date.parse(b.from) : to - 30 * 864e5;
+    if (!Object.hasOwn(STATS, b.dataset || '') || typeof b.with_ids !== 'boolean' || (b.reason != null && !reasonOk(b.reason)) || !Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5) return fail(bad(), 'export');
+    return authed(req, d, route, async (db, a) => {
+      await db.query('select admin_export($1, $2, $3)', [b.dataset, b.with_ids, b.reason ?? null]);
+      return { dataset: b.dataset, rows: await runStat(db, b.dataset, new Date(from).toISOString(), new Date(to).toISOString(), a.cities ? a.cities[0] : null, !b.with_ids) };
+    }, b);
   } },
   // ---------- 城市（#27 第 4 步，地区扩展 R4）----------
   // 一览：admin_city_overview（库函数按 nbq_admin_sees 只给自己负责的城市）；改状态 / 资料：city.manage（owner，必须填理由，前进要过检查清单）

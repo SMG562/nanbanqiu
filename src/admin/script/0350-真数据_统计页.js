@@ -10,7 +10,7 @@ const STX_LBL={users:'活跃球友',anon_visitors:'未登录访客',started:'到
   cards:'被看的卡',views:'查看',from_outside:'站外来看',external_landings:'站外打开',kind:'类型',channel:'渠道',shares:'分享',opens:'打开',signups:'带来注册',device:'设备',screen:'页面',visitors:'人数',avg_seconds:'平均停留（秒）',entry:'入口',sessions:'次数',people:'人数',via:'从哪进',
   active_people:'活跃人数',fill_rate:'人齐率',env:'打开方式',inapp_users:'在 App 内打开的人',moved:'换到浏览器',acted:'之后有操作',outcome:'结果',n:'次数',type:'类型',step:'步',name:'步骤',
   posts:'发布',posters:'发布人数',balls:'点网球',replies:'回复',with_photo:'带照片',with_topic:'带话题',with_venue:'带球场',later:'稍后公开',replies_closed:'关闭回复',hides:'被隐藏',hide_topic:'不看这个话题',hide_user:'不看这个人',hide_far:'太远不看',reports:'举报',deleted:'作者删除',photos_blurred:'照片打码',
-  topic_id:'话题',title:'话题',interactions:'互动',body:'内容',venue:'球场',author:'作者',has_photo:'有照片',still_public:'还公开',status:'状态',prev_posts:'上期发布'};
+  topic_id:'话题',title:'话题',interactions:'互动',body:'内容',venue:'球场',author:'作者',has_photo:'有照片',still_public:'还公开',status:'状态',prev_posts:'上期发布',event:'事件',category:'类别',description:'说明',props:'属性',source:'谁上报',replaced_by:'合并到'};
 const STX_PCT=new Set(['rate','fill_rate','with_photo','with_topic','with_venue','later','replies_closed']);
 const stxFmt=(k,v)=>v==null?'—':typeof v==='boolean'?(v?'是':'否'):STX_PCT.has(k)&&typeof v==='number'?(v<=1?Math.round(v*100):Math.round(v))+'%':typeof v==='number'?(Number.isInteger(v)?v.toLocaleString('zh-CN'):(+v.toFixed(1)).toLocaleString('zh-CN')):String(v);
 // 每页的卡片：[种类, 标题, 数据源, 选项]；选项 cols = 只显示这些列（顺序），w = 占几栏（共 2 栏）
@@ -26,6 +26,7 @@ const STP={
   life:[['kpis','开打时人齐','fill_rate'],['table','申请的结果','application_outcomes'],['heat','开打时间','start_heatmap',{v:'games',w:2}],['table','球局详情从哪进','game_view_via']],
   after:[['table','邀约的结果','invite_outcomes',{w:2}],['table','「少看」的效果','less_effect_counts']],
   grow:[['table','新用户留存（按注册周）','retention',{w:2}],['table','徽章稀有度','badge_rarity'],['table','升级卡住的人','level_stuck']],
+  events:[['table','事件定义（埋点）','event_defs',{w:2,noExport:true}]],
   sb:[['kpis','场边','sb_kpis',{w:2}],['kpis','发布时的选择','sb_choices',{w:2}],['kpis','负面信号','sb_negative',{w:2}],['table','话题','sb_topics',{w:2}],['table','球场','sb_courts'],['heat','几点发场边','sb_heat',{v:'posts'}],['table','看的人最多的发布','sb_top_posts',{w:2}]],
 };
 const stxKey=p=>p+'@'+STX.range;
@@ -53,14 +54,27 @@ function stxCard([kind,title,fn,o={}],data){const v=data&&data[fn];let body;
   else if(!v||v.error)body=`<p class="cap">${v&&v.error==='admin_forbidden'?'你的角色看不到这一项（含昵称或个人内容）':'这一项暂时读不出来'}</p>`;
   else if(!v.length||(kind==='kpis'&&!Object.keys(v[0]||{}).length))body='<div class="empty">这段时间还没有数据</div>';
   else body=kind==='kpis'?stxKpis(v):kind==='funnel'?stxFunnel(v):kind==='heat'?stxHeat(v,o):kind==='series'?(stxSeries(v)||'<div class="empty">这段时间还没有数据</div>'):stxTable(v,o);
-  return `<div class="card" style="${o.w===2?'grid-column:1/-1':''}"><div class="ch"><b>${esc(title)}</b>${o.note?`<small>${esc(o.note)}</small>`:''}<small class="mono" title="数据源" style="margin-left:auto">${esc(fn)}</small></div>${body}</div>`}
+  const ex=kind==='table'&&!o.noExport&&Array.isArray(v)&&v.length&&realCan('data.export')?`<button class="btn sm" data-stx="export" data-fn="${esc(fn)}">导出</button>${realCan('data.export_ids')&&v.some(r=>'member_no' in r||'nickname' in r||'author' in r)?`<button class="btn sm" data-stx="exportids" data-fn="${esc(fn)}">含编号昵称导出</button>`:''}`:'';
+  return `<div class="card" style="${o.w===2?'grid-column:1/-1':''}"><div class="ch"><b>${esc(title)}</b>${o.note?`<small>${esc(o.note)}</small>`:''}<small class="mono" title="数据源" style="margin-left:auto">${esc(fn)}</small>${ex}</div>${body}</div>`}
+// 导出：服务端先记日志（谁、哪个数据集、带不带编号），再给数据；这里转成 CSV 下载（Excel 能直接打开中文）
+async function stxExport(fn,ids,reason){const to=new Date(),from=new Date(to-STX.range*864e5);
+  const r=await admApi('POST','/export',{dataset:fn,with_ids:ids,reason:reason||undefined,from:from.toISOString(),to:to.toISOString()});
+  if(r.status===401)return toLogin('登录已过期，请重新登录');if(!r.ok||!r.body||!Array.isArray(r.body.rows))return admToast(realErr(r));
+  const rows=r.body.rows,cols=Object.keys(rows[0]||{}),cell=v=>{const x=v==null?'':typeof v==='object'?JSON.stringify(v):String(v);return /[",\n]|^[=+\-@]/.test(x)?'"'+x.replace(/"/g,'""').replace(/^([=+\-@])/,"'$1")+'"':x};
+  const csv=[cols.map(c=>cell(STX_LBL[c]||c)).join(','),...rows.map(x=>cols.map(c=>cell(x[c])).join(','))].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download=`${fn}_${STX.range}d${ids?'_ids':''}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0);
+  admToast(`已导出 ${rows.length} 行（已记进操作日志）`)}
 function realStatsPage(page){const k=stxKey(page),data=STX.cache[k];if(!data&&!STX.err[k])stxLoad(page);
   const R=[[1,'近 24 小时'],[7,'近 7 天'],[30,'近 30 天'],[90,'近 90 天']];
   return `<div class="rowacts" style="margin-bottom:12px;flex-wrap:wrap">${R.map(([n,l])=>`<button class="btn sm${STX.range===n?' p':''}" data-stx="range" data-v="${n}">${l}</button>`).join('')}<button class="btn sm" data-stx="reload" style="margin-left:auto">刷新</button></div>
   ${STX.err[k]?`<div class="card nodata"><h2>读不出来</h2><p>${esc(STX.err[k])} <button class="btn sm" data-stx="reload">重试</button></p></div>`:''}
   <div class="grid g2">${STP[page].map(c=>stxCard(c,data)).join('')}</div><p class="cap">数字来自数据库的统计函数（和「数据口径」页同一套定义）；按墨尔本时间。</p>`}
-if(NBQ_MODE==='real'){for(const p of Object.keys(STP))REAL_PAGES[p]=()=>realStatsPage(p);
+// 数据口径页：事件定义（库里）+ 每张卡片的数据源和口径（CARDSRC，纯文字定义、没有数字）
+function stxCardSrc(){const T2=k=>TITLES[k]||k;return `<div class="card"><div class="ch"><b>每张卡片的口径</b><small>页面 → 卡片 → 数据源和定义</small></div>${Object.entries(typeof CARDSRC==='object'?CARDSRC:{}).map(([pg,cards])=>`<details><summary><b>${esc(T2(pg))}</b> <small style="color:var(--mut)">${Object.keys(cards).length} 张</small></summary><table><tbody>${Object.entries(cards).map(([t,[src,def]])=>`<tr><td>${esc(t)}</td><td class="mono"><small>${esc(src.join(' · '))}</small></td><td><small>${esc(def)}</small></td></tr>`).join('')}</tbody></table></details>`).join('')}</div>`}
+if(NBQ_MODE==='real'){for(const p of Object.keys(STP))REAL_PAGES[p]=()=>realStatsPage(p)+(p==='events'?stxCardSrc():'');
   REAL_RESET.push(()=>{STX.cache={};STX.err={};STX.loading={};STX.gen++});
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stx]');if(!b)return;
     if(b.dataset.stx==='range'){STX.range=+b.dataset.v;render();return}
+    if(b.dataset.stx==='export')return stxExport(b.dataset.fn,false);
+    if(b.dataset.stx==='exportids')return admAskReason('导出含编号和昵称的数据（只有超级管理员）',reason=>stxExport(b.dataset.fn,true,reason));
     if(b.dataset.stx==='reload'){const k=stxKey(S.page);delete STX.cache[k];delete STX.err[k];STX.gen++;STX.loading={};render()}})}

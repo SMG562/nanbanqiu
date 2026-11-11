@@ -35,5 +35,17 @@ try {
   r = await get(['fill_rate'], as.operator, '&from=2026-01-01T00:00:00Z&to=2026-02-01T00:00:00Z'); T('自定时间范围：回显 from / to', r.s === 200 && r.j.from === '2026-01-01T00:00:00.000Z', r.j);
   for (const qs of ['fns=', 'fns=nope', 'fns=fill_rate&from=abc', 'fns=fill_rate&from=2026-02-01T00:00:00Z&to=2026-01-01T00:00:00Z', 'fns=fill_rate&from=2024-01-01T00:00:00Z&to=2026-01-01T00:00:00Z', 'fns=fill_rate&city=MELB', 'fns=' + all.slice(0, 13).join(',')])
     { r = await call('GET', '/admin/api/stats?' + qs, { cookie: as.operator }); T('参数不合法 → 422 ' + qs.slice(0, 70), r.s === 422, r) }
+  // ---- 导出 ----
+  const ex = (body, ck = as.operator) => call('POST', '/admin/api/export', { body: { from: new Date(Date.now() - 30 * 864e5).toISOString(), to: new Date(Date.now() + 864e5).toISOString(), ...body }, cookie: ck });
+  r = await ex({ dataset: 'user_activity', with_ids: false });
+  T('运营导出（不带 ID）：有行，但没有编号、昵称', r.s === 200 && r.j.rows.length > 0 && r.j.rows.every(x => !('member_no' in x) && !('nickname' in x)) && 'score' in r.j.rows[0], r.j);
+  T('导出留痕：data.export + 数据集', !!(await one(`select 1 from admin_audit_log where action='data.export' and target='user_activity'`)));
+  r = await ex({ dataset: 'user_activity', with_ids: true, reason: '核对活跃名单' }); T('运营导出带 ID → 403', r.s === 403, r);
+  r = await ex({ dataset: 'user_activity', with_ids: true }, as.owner); T('owner 带 ID 不填理由 → 422', r.s === 422 && r.j.error === 'admin_reason_required', r);
+  r = await ex({ dataset: 'user_activity', with_ids: true, reason: '核对活跃名单' }, as.owner); T('owner 带 ID + 理由 → 有编号和昵称', r.s === 200 && r.j.rows.some(x => x.nickname === '统计甲'), r.j);
+  r = await ex({ dataset: 'fill_rate', with_ids: false }, as.viewer); T('只读导出 → 403', r.s === 403, r);
+  r = await ex({ dataset: 'fill_rate', with_ids: false }, as.syd); T('限城市的运营导出 → 403（导出是全站数据）', r.s === 403, r);
+  for (const b of [{ dataset: 'nope', with_ids: false }, { dataset: 'fill_rate' }, { dataset: 'fill_rate', with_ids: false, from: 'x' }]) { r = await ex(b); T('导出参数不合法 → 422 ' + JSON.stringify(b).slice(0, 50), r.s === 422, r) }
+  r = await get(['event_defs']); T('事件定义：有上百条，带类别和说明', r.j.data.event_defs.length > 50 && r.j.data.event_defs[0].category && r.j.data.event_defs[0].description, r.j.data.event_defs?.length);
   await K.done();
 } catch (e) { await K.done(e) }

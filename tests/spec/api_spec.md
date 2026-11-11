@@ -526,6 +526,7 @@
 - 已实现 · 城市（#27 第 4 步）：GET /cities（page.view）· POST /cities/status · POST /cities/set `{city, patch:{community_url|hashtag|center_label}, reason}`（city.manage）· POST /cities/waitlist（→ emails）· POST /cities/waitlist/done（city.waitlist）
 - 已实现 · 统计（#27 第 4 步）：GET /stats?fns=a,b&from=&to=&city=（page.view；fns 只能是 server/admin/api.mjs 里 STATS 白名单的名字，每批 ≤ 12；每个查询独立保存点；去掉内部 uuid；personal 的只读角色拿不到）
 - 已实现 · 场边配置（#27 第 4 步，sideline.config）：GET /sideline/config（草稿 + 最近 20 版 + 待放出话题）· POST /sideline/config/set `{part, value, base}` · /config/discard `{base}` · /config/publish `{note, base}` · /config/rollback `{version, base, note?}` · POST /sideline/topics/release `{topic}`；base 不是最新 → 409 admin_config_stale；内容不合格 → 422
+- 已实现 · 导出（#27 第 4 步）：POST /export `{dataset, with_ids, reason?, from?, to?}`（dataset = STATS 白名单名字；先 admin_export 留痕：不带 ID = data.export，带 ID = data.export_ids 只有 owner + 理由；不带 ID 时去掉编号 / 昵称 / 作者 / 内容列；限城市的管理员不能导出）
 - POST /admin/api/users/:id/status `{status, reason_code, reason, days?, note?}` → `admin_user_status`（暂停 1 / 3 / 7 / 30 / 90 / 180 天；连带处理同 §3.11；发 account_status 通知；写 user_status_log）
 - POST /admin/api/users/:id/reset `{what: nickname | avatar, reason}` → `admin_user_reset` · POST /admin/api/users/:id/gender `{action: clear | unlock, reason}` → `admin_user_gender`
 - POST /admin/api/users/:id/phone `{reason}` → `admin_reveal_phone`（owner）
