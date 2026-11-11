@@ -32,6 +32,17 @@ T('src 里只有共用截图函数（0470）直接调 html2canvas', direct.lengt
     r = await run('poster', 2); const c3 = r.calls[2] || {}; T(`${f} 真实海报：第 3 次克隆里二维码 SVG 已换成 PNG、其余 SVG 全部去掉、文字还在（协作者交叉复核 11-11）`, r.ok && r.calls.length === 3 && c3.qrBefore === 1 && c3.svgAfter === 0 && c3.qrPng && c3.text > 20, r);
     r = await run('poster', 0); T(`${f} 真实海报：第 1 次成功时不动 SVG`, r.ok && r.calls.length === 1 && !r.calls[0].clone, r);
     r = await run('shot', 9); T(`${f} nbqShot 全部失败：返回 null，不抛错`, !r.ok && r.calls.length === 3 && /insecure/.test(r.err || ''), r);
+    // 头像印章（用户选的动物 / 印型）：最后一级要画成位图保留；被判不安全 / 画成空白才退化（协作者交叉复核之外，所有者真机 11-12 报：印章被换成字母）
+    const av = (mode) => pg.evaluate(async (mode) => {
+      const u = Object.assign({}, Object.values(USERS)[0], { avatar_kind: 'animal', animal: Object.keys(LA)[0] });
+      const d = document.implementation.createHTMLDocument(''); d.body.innerHTML = '<div class="pc-av" style="width:128px;height:128px">' + avStamp(u, 128) + '</div><div class="x"><svg><use href="#i-share"/></svg></div>';
+      const g = CanvasRenderingContext2D.prototype.getImageData; if (mode === 'taint') CanvasRenderingContext2D.prototype.getImageData = function () { throw new Error('The operation is insecure.') };
+      const before = d.querySelectorAll('svg').length; await nbqShotClean(d); CanvasRenderingContext2D.prototype.getImageData = g;
+      const im0 = d.querySelector('.pc-av img'); let ink = 0, im = im0 && new Image();
+      if (im) { await new Promise(r => { im.onload = im.onerror = r; im.src = im0.src }); const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); x.drawImage(im, 0, 0, 64, 64); const px = x.getImageData(0, 0, 64, 64).data; for (let i = 3; i < px.length; i += 4) if (px[i] > 8) ink++ }
+      return { before, nw: im && im.naturalWidth, svgAfter: d.querySelectorAll('svg').length, avImg: !!im0 && /^data:image\/png/.test(im.src), ink, iconLeft: d.querySelectorAll('.x svg,.x img').length } }, mode);
+    let a = await av('ok'); T(`${f} 头像印章：最后一级把印章画成位图换回（保留图案），页面里 SVG 一个不剩，图标空 SVG 被移除`, a.before >= 1 && a.svgAfter === 0 && a.avImg && a.ink > 200 && a.iconLeft === 0, a);
+    a = await av('taint'); T(`${f} 头像印章：画成位图被判不安全时不卡死、不留 SVG（退化为移除 / 首字母）`, a.svgAfter === 0 && !a.avImg, a);
     T(`${f} 无脚本错误`, errs.length === 0, errs); await ctx.close();
   }
   await b.close(); console.log(`shot_fallback: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

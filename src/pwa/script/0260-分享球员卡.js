@@ -145,7 +145,7 @@ function xhsGo(id){const text=xhsText(api.get(id));
   const nm='nanbanqiu-'+id+'.png',go=bl=>{
     if(!bl){toast('文案已复制，截图保存海报后发布即可');return}
     const f=new File([bl],nm,{type:'image/png'});
-    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).then(()=>toast('文案已复制 · 图片已交给系统，保存后打开小红书发布'),e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
     else{imgSave(bl,nm);toast('文案已复制 · 保存图片后打开小红书发布')}};
   if(XHSP[id])go(XHSP[id]);
   else{const el=document.querySelector('.xhs-pv .ogW');
