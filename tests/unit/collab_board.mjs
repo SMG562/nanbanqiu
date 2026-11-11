@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -50,4 +50,11 @@ const md = render(rows, NOW);
 T('看板：分组标题、在制品计数、草稿单列', /球在所有者（2）/.test(md) && /在制品\*\*：2 \/ 2/.test(md) && /草稿（1）/.test(md), md.slice(0, 300));
 T('看板：超限时提示', /超限/.test(render([...rows, { p: base({ number: 9 }), c: classify(base({ number: 9 }), NOW) }], NOW)));
 T('看板：没有 PR 也不崩', /没有开着的 PR/.test(render([], NOW)));
+// ⑥ 状态抖动（#185：22 秒内 Ready → 草稿）
+const ev = (event, at, actor = 'MDD1102') => ({ event, actor, at }), N2 = Date.parse('2026-11-11T12:45:00Z');
+const f1 = flapOf([ev('ready_for_review', '2026-11-11T12:39:20Z'), ev('convert_to_draft', '2026-11-11T12:39:42Z')], N2);
+T('抖动：10 分钟内两次改状态 → 报警，key 按最后一次时间', f1 && f1.n === 2 && f1.key === 'nbq-flap:2026-11-11T12:39:42Z', f1);
+T('抖动：只改了一次 → 不报；两次但隔了很久 → 不报', !flapOf([ev('ready_for_review', '2026-11-11T12:39:20Z')], N2) && !flapOf([ev('ready_for_review', '2026-11-11T09:00:00Z'), ev('convert_to_draft', '2026-11-11T12:39:42Z')], N2));
+T('抖动：别的事件（评论、标签）不算', !flapOf([ev('labeled', '2026-11-11T12:39:20Z'), ev('commented', '2026-11-11T12:39:42Z')], N2));
+T('抖动提醒：点名分支、脚本和账号，且带去重标记', (x => /pr_state\.sh 185/.test(x) && /feature\/x/.test(x) && x.includes('<!-- nbq-flap:') && /MDD1102/.test(x))(flapText({ number: 185, branch: 'feature/x', draft: true }, f1)));
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
