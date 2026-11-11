@@ -4,7 +4,7 @@
 //   ③ 被 ! 排除的目录：没有测试 / 工具 / 站点引用它，并且有别的轻量检查工作流顶上
 //   ④ 关键文件（依赖、部署配置、海报清单、流程脚本…）一定触发
 // 路径通配按 GitHub 规则近似：** 匹配含 / 的任意字符，* 不含 /；! 只排除它前面的规则（所以排除放最后）。
-// 背景见 开发规矩.md「11-04 · 图稿提交触发全套测试的教训」。
+// 背景见 开发规矩.md §4「CI 路径规则」。
 import fs from 'fs'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = process.env.NBQ_CI_ROOT || path.join(HERE, '..', '..');
 const WF = path.join(ROOT, '.github', 'workflows');
