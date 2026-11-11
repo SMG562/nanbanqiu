@@ -260,7 +260,9 @@ if (FAILED) {
   if (gone.length) console.log(`  这一档里没有（完整档才有，或已改名；去掉 --quick / --fast 再试）：${gone.join(' ')}`);
 }
 if (SEL && !LIST.length && !args.list) { console.log('\n没有要跑的测试。'); process.exit(0) }
-if (args.list) { LIST.forEach(t => console.log(t.suite.padEnd(11), t.id)); process.exit(0) }
+// 11-12：先把整段输出写完再退出。原来 console.log 逐行打印后立刻 process.exit(0)，输出走管道时偶尔被截断（约 4% 的调用只列出前 171 / 183 项，
+//   退出码仍是 0、没有任何报错），unit/shard 因此隔三差五红一次。
+if (args.list) { await new Promise(r => process.stdout.write(LIST.map(t => t.suite.padEnd(11) + ' ' + t.id).join('\n') + '\n', r)); process.exit(0) }
 
 // ---------- 环境检查 ----------
 function need(ok, msg) { if (!ok) { console.error('环境不满足：' + msg); process.exit(2) } }
