@@ -1,3 +1,4 @@
+# 注意：dangerous-triggers 的例外按整个文件忽略，这两个文件以后新增别的危险触发器也会被放过——改它们的触发器时复核要人工看。
 # 存量例外（11-11 基线）：每条写明为什么可以留。新增 high 级问题不在这里，会让 workflow-lint 变红。
 rules:
   dangerous-triggers:
@@ -8,5 +9,5 @@ rules:
       - proposals.yml
   excessive-permissions:
     ignore:
-      # tests.yml 的 visual-baseline 要把重拍的截图基准提交回 main，需要 contents: write；其余任务只读。
+      # tests.yml 顶层 contents: write 是为 visual-baseline 把重拍的截图基准提交回 main；但它写在工作流顶层，所有任务都拿到写权限，且 test 任务检出 PR 头提交时没写 persist-credentials: false（独立复核 11-11 发现）。这是存量技术债，不是「其余任务只读」，收紧见 #178。
       - tests.yml:65
