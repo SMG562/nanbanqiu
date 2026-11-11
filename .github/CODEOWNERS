@@ -23,6 +23,8 @@
 /.github/workflows/pr-checklist.yml  @SMG562
 /.github/workflows/collab-board.yml @SMG562   # 带写评论 / 标签的权限（11-11）
 /.github/workflows/proposals.yml @SMG562      # 带写 Issue 标签 / 评论的权限（11-11）
+/.github/workflows/staging-sync.yml @SMG562   # 带写 staging 分支的权限（11-11）
+/tools/staging_sync.mjs    @SMG562   # 它在 main 上带 contents: write 运行（11-11 独立复核）
 /.githooks/                @SMG562
 /tools/pr_merge.sh         @SMG562
 /tools/gate.sh             @SMG562

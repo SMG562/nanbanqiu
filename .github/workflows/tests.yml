@@ -62,7 +62,7 @@ on:
         default: full
 
 permissions:
-  contents: write
+  contents: read         # 11-11（#178）：顶层只读；只有 baseline-commit 任务拿 contents: write（跑 PR 代码的 shard 任务没有写权限）
   actions: read          # 复用结果要查这个提交以前的运行
   pull-requests: read    # 压缩合并后按「内容相同」找 PR 上测过的提交（tools/ci_reuse.sh）
 
@@ -79,7 +79,7 @@ jobs:
       hit: ${{ steps.r.outputs.hit }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
+        with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false, persist-credentials: false }
       - id: r
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests
@@ -103,6 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false   # 11-11（#178）：令牌不留在 .git/config 里（这里要跑 PR 自己的代码）
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}   # PR：测 PR 最新提交本身（不是临时合并结果）；合并只快进，main 上就是这个提交
       - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
         run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || echo '取不到 origin/main，migration_audit 会跳过这一项'
@@ -137,14 +138,15 @@ jobs:
           npm i -g playwright@1.63.0
           npx -y playwright@1.63.0 install --with-deps chromium
 
-      - name: 重拍截图基准（只在手动选 visual-baseline 时：用 CI 的字体重拍，提交回 main）
+      - name: 重拍截图基准（只在手动选 visual-baseline 时：用 CI 的字体重拍；提交由下面的 baseline-commit 任务做，这里没有写权限）
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline'
-        run: |
-          NBQ_VISUAL_UPDATE=1 node tests/run_all.mjs --only=visual
-          git config user.name "github-actions"; git config user.email "actions@github.com"
-          git add tests/visual/baseline
-          git commit -m "截图基准：用 CI 环境重拍" || echo "基准没有变化"
-          git push origin "HEAD:${GITHUB_REF_NAME}"   # 检出固定在提交号（游离头），裸 git push 会失败；推回触发这次手动运行的分支（main 或 PR 分支）
+        run: NBQ_VISUAL_UPDATE=1 node tests/run_all.mjs --only=visual
+      - name: 上传新基准
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-baseline
+          path: tests/visual/baseline/
 
       - name: 跑测试
         if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
@@ -211,3 +213,27 @@ jobs:
         run: |
           echo "分片结果：$R"
           [ "$R" = success ] || { echo "::error title=浏览器测试::有分片没通过（$R），看上面各个 test (i/n) 任务的注解"; exit 1; }
+
+  baseline-commit:       # 11-11（#178）：重拍的基准提交回触发分支。只有它带 contents: write，且不运行任何测试 / PR 代码，只搬运截图
+    needs: shard
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline' && needs.shard.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read          # gh run download 取上一个任务上传的新基准（不引入新的第三方 action）
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: 提交并推回触发这次运行的分支
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh run download "$RUN_ID" --repo "$REPO" -n visual-baseline -D tests/visual/baseline
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add tests/visual/baseline
+          git commit -m "截图基准：用 CI 环境重拍" || { echo "基准没有变化"; exit 0; }
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:refs/heads/${BRANCH}"   # 检出固定在提交号（游离头）；令牌只在这一条命令里用
