@@ -32,7 +32,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { sparse-checkout: 'tools/collab_board.mjs tools/decision_card.mjs .github/CODEOWNERS', sparse-checkout-cone-mode: false }
+        with:
+          sparse-checkout: |
+            tools/collab_board.mjs
+            tools/decision_card.mjs
+            .github/CODEOWNERS
+          sparse-checkout-cone-mode: false   # 非 cone 模式下多个路径要换行分隔（空格分隔检出的是空目录，首次运行就是这么失败的）
       - name: 更新看板、标签和提醒
         env: { GH_TOKEN: '${{ github.token }}' }
         run: node tools/collab_board.mjs
