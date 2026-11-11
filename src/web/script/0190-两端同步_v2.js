@@ -1,5 +1,0 @@
-  const _sPop=renderPop;renderPop=function(){_sPop();clearTimeout(renderPop._t);renderPop._t=setTimeout(()=>{if(!ME||!$('#pop').classList.contains('show'))return;nrList().forEach(n=>{if(!nrTodo(n))n.read=true});renderNav()},1500)};
-  window.webFocusApplicant=function(uid){setTimeout(()=>{const R=$('#colR');if(!R)return;const el=uid?R.querySelector(`.req[data-rqu="${uid}"]`):R.querySelector('.rq-h');if(!el){const h=R.querySelector('.rq-h');h&&h.scrollIntoView({behavior:'smooth',block:'start'});return}
-    if(!uid){el.scrollIntoView({behavior:'smooth',block:'start'});return}el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1600)},250)};
-  document.addEventListener('click',e=>{const x=e.target.closest('#pop [data-wn]');if(!x||e.target.closest('button,a,[data-user],[data-sx],[data-a]'))return;e.stopPropagation();e.preventDefault();
-    const id=x.dataset.wn,n=id.startsWith('rg')?nrList().find(q=>q.id===id):NOTIFS.find(q=>String(q.id)===id);$('#pop').classList.remove('show');if(n)nrOpen(n)},true);

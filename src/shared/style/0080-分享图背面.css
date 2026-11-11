@@ -1,9 +1,0 @@
-/* 分享图背面：顶光 + 边缘暗角，不越过二维码 */
-.shot .bw .pc-light{background:radial-gradient(85% 42% at 50% -6%,rgba(255,255,255,.2),rgba(255,255,255,.06) 55%,transparent 75%),radial-gradient(130% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.22) 100%)}
-.shot .bw .pc{box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 1px 2px rgba(0,0,0,.14),0 26px 40px -24px rgba(10,30,20,.5)!important}
-.gtags{display:flex;flex-wrap:wrap;gap:6px}.gtags em{font-style:normal;font-size:12px;font-weight:600;color:#4D574F;background:#F1F3F1;border-radius:7px;padding:3px 9px}
-.nglv{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:8px;background:#F1F3F0;border-radius:12px;padding:3px}
-.nglv button{height:36px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:#8A928A;cursor:pointer;border-radius:0;font-variant-numeric:tabular-nums}
-.nglv button.in{background:#DCEBE2;color:#0F5A3F}.nglv button.end{background:#176B4D;color:#fff;border-radius:9px}
-.ngtg button{padding:8px 13px}
-.ngf .iv-l:first-child{margin-top:4px}

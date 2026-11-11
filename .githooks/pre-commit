@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# 提交前检查，见 tools/precommit.sh（启用：git config core.hooksPath .githooks）
-exec bash "$(git rev-parse --show-toplevel)/tools/precommit.sh"
