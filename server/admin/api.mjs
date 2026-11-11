@@ -78,6 +78,11 @@ async function readJson(req) {
   throw Object.assign(new Error('bad_json'), { http: send(400, { error: 'bad_json' }) });
 }
 const strIn = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+const noOk = v => Number.isInteger(v) && v > 0 && v < 1e9;                                   // 会员编号
+const reasonOk = v => typeof v === 'string' && v.length <= 200;                               // 理由：长度上限在这里，「至少 4 个字」由数据库按权限判断（不需要理由的动作可以空）
+const notFound = () => Object.assign(new Error('not_found'), { code: 'not_found' });
+// 会员编号 → id：在后台数据库角色下查（行级安全：限城市的管理员查不到别的城市的人 → 404）
+async function userIdByNo(db, no) { const r = (await db.query('select id from users where member_no = $1::bigint', [String(no)])).rows[0]; if (!r) throw notFound(); return r.id }
 
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)
 export async function authed(req, d, route, fn, body) {
@@ -209,6 +214,45 @@ export const ROUTES = {
       const cnt = (await db.query(`select u.status, count(*)::int n from users u where ($1::text[] is null or u.home_city = any($1::text[])) group by 1`, [c])).rows;
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
+  } },
+  // ---------- 球友详情与处理（#27 第 4 步）----------
+  // 对外只用会员编号 no（不暴露内部 id）。编号 → id 在后台角色的行级安全下查：限城市的管理员查不到别的城市的人 → 404，写操作也就做不了
+  //   （admin_ 函数是 security definer，本身不看城市，所以这一步是城市范围的唯一一道闸，tests/pg/admin_user_ops 有用例）。
+  'GET /admin/api/users/detail': { name: 'users_detail', perm: 'user.status', run: (req, d, b, route) => {
+    const no = new URL(req.url).searchParams.get('no') || '';
+    if (!/^\d{1,9}$/.test(no)) return fail(bad(), 'users_detail');
+    return authed(req, d, route, async db => {
+      const id = await userIdByNo(db, no);
+      const u = (await db.query(`select u.member_no::int as member_no, u.nickname, u.last_initial, u.home_city as city, u.status, u.status_since, u.status_until, u.status_reason,
+               u.gender, u.gender_review, (u.gender_m2f_at is not null) as m2f_used, u.avatar_kind, u.utr::float as utr, u.utr_estimated, u.level, u.created_at, u.last_active_at, u.signup_source, p.phone_tail,
+               (select count(*)::int from games g where g.host_id = u.id) as hosted,
+               (select count(*)::int from game_participants x where x.user_id = u.id and x.role = 'player' and x.status = 'approved') as joined,
+               (select count(*)::int from reports r where r.target_type = 'user' and r.target_id = u.id::text) as reported,
+               (select count(*)::int from reports r where r.target_type = 'user' and r.target_id = u.id::text and r.status = 'open') as reported_open
+          from users u join admin_user_phone p on p.id = u.id where u.id = $1`, [id])).rows[0];
+      const log = (await db.query(`select l.from_status, l.to_status, l.reason, l.note, l.duration_days, l.until, l.created_at, a.name as by_name
+          from user_status_log l left join admin_users a on a.id = l.by_admin where l.user_id = $1 order by l.created_at desc, l.id desc limit 20`, [id])).rows;
+      return { user: u, log };
+    });
+  } },
+  // 改状态：数据库函数决定要 user.status 还是 user.ban（封禁 / 恢复已封禁或已注销 → 只有 owner），并做连带处理、发通知、写状态日志和操作日志
+  'POST /admin/api/users/status': { name: 'users_status', perm: 'user.status', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['active', 'review', 'limited', 'suspended', 'banned'].includes(b.status) || !reasonOk(b.reason)
+      || (b.reason_code != null && !/^[a-z_]{2,20}$/.test(b.reason_code)) || (b.days != null && !Number.isInteger(b.days))) return fail(bad(), 'users_status');
+    return authed(req, d, route, async db => { await db.query('select admin_user_status($1, $2, $3, $4, $5)', [await userIdByNo(db, b.no), b.status, b.reason_code ?? null, b.reason, b.days ?? null]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/users/reset': { name: 'users_reset', perm: 'user.reset', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['nickname', 'avatar'].includes(b.what) || !reasonOk(b.reason)) return fail(bad(), 'users_reset');
+    return authed(req, d, route, async db => { await db.query('select admin_user_reset($1, $2, $3)', [await userIdByNo(db, b.no), b.what, b.reason]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/users/gender': { name: 'users_gender', perm: 'user.gender', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['clear', 'unlock'].includes(b.action) || !reasonOk(b.reason)) return fail(bad(), 'users_gender');
+    return authed(req, d, route, async db => { await db.query('select admin_user_gender($1, $2, $3)', [await userIdByNo(db, b.no), b.action, b.reason]); return { ok: true } }, b);
+  } },
+  // 完整手机号：只有 owner，必须填理由；每次查看都记操作日志。响应 no-store（BASE_H），前端只显示、不缓存
+  'POST /admin/api/users/phone': { name: 'users_phone', perm: 'phone.reveal', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !reasonOk(b.reason)) return fail(bad(), 'users_phone');
+    return authed(req, d, route, async db => ({ phone: (await db.query('select admin_reveal_phone($1, $2) as p', [await userIdByNo(db, b.no), b.reason])).rows[0].p }), b);
   } },
   // ---------- 球友统计（#110，只读）----------
   // 查询参数 from / to（ISO 时间，默认最近 30 天，跨度 ≤ 366 天）。数字来自 buddy_stats（数据库按表算，不是埋点），只读角色也能看（只有汇总数字，没有名单）；限城市的管理员只算自己城市。
