@@ -3,7 +3,7 @@
 const {chromium}=require('playwright');const fs=require('fs');
 const SPEC=new Set(fs.readFileSync(require('path').join(__dirname,'..','spec','events_spec.md'),'utf8').split('\n').map(l=>(l.match(/^\| ([a-z0-9_]+) \|/)||[])[1]).filter(Boolean));
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});let total=0,errs=0;const bad=new Set();
-for(const [p,vp] of [['PWA',{width:390,height:844}],['Web',{width:1360,height:860}]]){
+for(const [p,vp] of [['PWA',{width:390,height:844}],['Web',{width:1360,height:860}]].filter(([p])=>!process.env.SMOKE_ONLY||process.env.SMOKE_ONLY===p)){   // SMOKE_ONLY=PWA|Web：只跑一端（run_all 把两端拆成两项并行）
  const ctx=await b.newContext({viewport:vp});await ctx.addInitScript(()=>{window.AN_LOG=[]});const pg=await ctx.newPage();const e=[];pg.on('pageerror',x=>e.push(x.message));
  const url='file:///mnt/user-data/outputs/南伴球_'+p+'.html';
  await pg.goto(url);await pg.settle(700);

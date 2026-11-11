@@ -150,7 +150,7 @@ add('frontend', 'frontend/account', ['node', '-r', PRELOAD, path.join(HERE, 'fro
 add('frontend', 'frontend/report', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/report.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/notif_open', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/notif_open.js')], { pass: [/\d+ passed, 0 failed/], timeout: 400 });
 add('frontend', 'frontend/dst', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dst.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
-add('frontend', 'frontend/xss', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { pass: [/PASS xss/], timeout: 900 });
+for (const P of ['PWA', 'Web']) add('frontend', 'frontend/xss@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { env: { XSS_ONLY: P }, pass: [/PASS xss/], timeout: 900 });   // 11-11：两端互不依赖，拆成两项并行（原来一项串行约 140s）
 add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/csp.js')], { pass: [/PASS csp/], timeout: 600 });
 add('frontend', 'frontend/vendor_load', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/vendor_load.js')], { pass: [/PASS vendor_load/], timeout: 300 });
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
@@ -167,8 +167,8 @@ add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
-for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
-  { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
+for (const t of TIMES) for (const P of ['PWA', 'Web']) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', '') + '@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
+  { env: { NBQ_TS: t, SMOKE_ONLY: P }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });   // 11-11：两端各一项并行（原来一项串行约 100s）
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
 add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
