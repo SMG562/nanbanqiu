@@ -9,6 +9,7 @@ export const queue = (rows, me) => rows.filter(({ p, c }) => c.ball === 'review'
 function main() {
   const A = process.argv.slice(2), R = process.env.GITHUB_REPOSITORY || 'SMG562/nanbanqiu';
   const me = (A.find(x => x.startsWith('--me=')) || '').slice(5) || execFileSync('gh', ['api', 'user', '--jq', '.login'], { encoding: 'utf8' }).trim();
+  if (!me) { console.error('读不到当前 gh 账号：加 --me=<账号>（不知道自己是谁就没法排除自己写的）'); process.exit(2) }
   const q = queue(gather(R), me);
   if (A.includes('--json')) { console.log(JSON.stringify(q)); return }
   if (!q.length) { console.log(`没有待复核的 PR（我是 ${me}；不含自己写的、草稿、CI 没绿的）`); return }
