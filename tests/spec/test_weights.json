@@ -1,0 +1,15 @@
+{
+  "说明": "测试分片（run_all --shard）用的预估用时，单位秒；只登记慢的，没登记的按 15 秒算。数据来自 tests.yml 注解「用时最长」（11-11，2 核机器同时跑 2 项时的数）。差一些没关系——它只决定怎么分份，不影响测什么；任何一项都不会被漏掉（tests/unit/shard 守着）。刷新：看最近一次 tests 运行的「用时最长」注解，把前 15 项更新到这里。",
+  "seconds": {
+    "frontend/xss": 139,
+    "frontend/verify": 110,
+    "frontend/demos@10-14T1510": 100,
+    "frontend/e2e_admin_login": 59,
+    "frontend/csp": 55,
+    "frontend/side_notif": 53,
+    "frontend/rackets": 45,
+    "frontend/notif_open": 45,
+    "pg/perf@对照": 32,
+    "pg/perf@一年": 540
+  }
+}

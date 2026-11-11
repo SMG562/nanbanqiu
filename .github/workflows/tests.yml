@@ -82,11 +82,17 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests
 
-  test:
+  shard:                 # 11-11：浏览器测试分片并行（n 台机器各跑一份，run_all --shard=i/n；分法见 tests/run_all.mjs，守卫 tests/unit/shard）
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' && !(github.event_name == 'pull_request' && github.event.pull_request.draft) }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过；草稿 PR 不测
+    name: test (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 150
+    strategy:
+      fail-fast: false     # 一份失败不取消其它份：一次就能看到全部失败项，不用修一个再等一轮
+      matrix:
+        # 手动重拍截图基准只能一台机器（它会提交并推回分支）；公开仓库机器免费且 4 核 → 3 份；私有仓库按分钟计费且 2 核 → 2 份（每多一份多付一次装环境的钟点）
+        shard: ${{ fromJSON(inputs.mode == 'visual-baseline' && '["1/1"]' || github.event.repository.private == true && '["1/2","2/2"]' || '["1/3","2/3","3/3"]') }}
     env:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne
@@ -142,18 +148,18 @@ jobs:
         run: |
           run_tests() {
             if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
-              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
+              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --shard=${{ matrix.shard }}   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
             elif [ "${{ inputs.mode }}" = "quick" ]; then
-              node tests/run_all.mjs --quick --fast --jobs=2
+              node tests/run_all.mjs --quick --fast --shard=${{ matrix.shard }}
             else
-              node tests/run_all.mjs --jobs=2
+              node tests/run_all.mjs --shard=${{ matrix.shard }}
             fi
           }
           # 11-10（ADR 0010）：失败先只重跑失败项一次；重跑通过 = 偶发失败，不挡合并，但留下警告（同一条在 ≥ 2 次运行里偶发 = 缺陷，开 Issue 修，不当「抖动」放过）
           if ! run_tests; then
             cp tests/reports/failed.json /tmp/failed_first.json 2>/dev/null || echo '[]' > /tmp/failed_first.json
             echo "::group::第一次失败的项（只重跑这些一次）"; cat /tmp/failed_first.json; echo; echo "::endgroup::"
-            if node tests/run_all.mjs --failed --jobs=2; then
+            if node tests/run_all.mjs --failed; then
               echo "::warning title=偶发失败（重跑通过）::$(tr -d '\n ' < /tmp/failed_first.json | cut -c1-500)"
               echo "偶发失败（重跑通过）：$(tr -d '\n ' < /tmp/failed_first.json)" >> "$GITHUB_STEP_SUMMARY"
             else exit 1; fi
@@ -176,7 +182,7 @@ jobs:
           rs = json.load(open(sys.argv[1]))['results']
           bad = [r for r in rs if not r['ok']]
           print(f"::notice title=测试结果::{len(rs)} 项，失败 {len(bad)} 项" + ("：" + "、".join(r['id'] for r in bad) if bad else ""))
-          slow = sorted(rs, key=lambda r: -r.get('ms', 0))[:8]   # E2：用时最长的几项（会话里量前后用时靠它）
+          slow = sorted(rs, key=lambda r: -r.get('ms', 0))[:15]   # E2：用时最长的几项（会话里量前后用时靠它；11-11 起前 15 项，也是刷新 tests/spec/test_weights.json 的数据）
           print("::notice title=用时最长::" + "、".join(f"{r['id']} {r.get('ms', 0) // 1000}s" for r in slow) + f"；合计 {sum(r.get('ms', 0) for r in rs) // 1000}s")
           for r in bad[:10]:
               msg = '；'.join(r.get('why', []) + r.get('fails', [])).replace('\n', ' ')[:3000]   # fails = 具体的 FAIL / 报错行（run_all 记的）
@@ -187,6 +193,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports-${{ github.run_number }}
+          name: reports-${{ github.run_number }}-${{ strategy.job-index }}   # 每份一个（同名会冲突）
           path: tests/reports/
           retention-days: 14
+
+  test:                  # 汇总：所有分片都成功才算成功。名字保持 test（以前是单个任务）；复用命中 / 草稿 PR 时分片被跳过 → 这里也跳过，整个运行仍是 success（gate / pr_merge / ci_reuse 看的是整个运行的结论）
+    needs: shard
+    if: ${{ !cancelled() && needs.shard.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 所有分片都通过？
+        env: { R: "${{ needs.shard.result }}" }
+        run: |
+          echo "分片结果：$R"
+          [ "$R" = success ] || { echo "::error title=浏览器测试::有分片没通过（$R），看上面各个 test (i/n) 任务的注解"; exit 1; }

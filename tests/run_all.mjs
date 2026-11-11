@@ -11,6 +11,8 @@
  *   --fast                跳过最慢的几项（pg/perf@一年 约 9 分钟）；收尾时不加
  *   --jobs=N              同时跑 N 项（默认 = CPU 数，最多 4）；性能测试总是单独跑，不和别的抢 CPU
  *   --changed[=<ref>]     按改动的文件挑相关测试（规则在 tests/lib/select.mjs）：不带 ref = 没提交的改动 + 新文件；带 ref = 和它的差别（如 origin/main）。隐含 --quick（不含回归和全部时间点）；没有对应规则的文件会列出来
+ *   --shard=i/n           把这一档平均分成 n 份、只跑第 i 份（CI 用：n 台机器并行；11-11）。按 tests/spec/test_weights.json 的用时做确定性的均衡分配（没登记的按默认用时），
+ *                         同样的参数、同样的测试清单 → 每台机器算出同样的分法；所有份合起来 = 不分片的全部，互不重复（tests/unit/shard 守着）
  *   --failed              只重跑「失败过、之后还没通过」的项（名单 tests/reports/failed.json，每次跑完自动更新）；和 --changed 一起用 = 两者的并集
  * 环境变量：
  *   NBQ_FAILED_FILE  失败名单的位置（默认 tests/reports/failed.json；单元测试用）
@@ -212,7 +214,27 @@ if (args.changed) {
 if (args.failed) FAILED = readFailed();
 const SEL = !!(CHG || FAILED);
 const picked = t => (CHG && (t.suite === 'regression' ? CHG.reg.includes(t.id) : (CHG.all || matches(t.id, CHG.tokens)))) || (FAILED && FAILED.includes(t.id));
-const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+// ---------- 分片（11-11）：n 台机器各跑一份，等待时间从「全部之和」降到「最大的一份」 ----------
+//   做法：按预估用时从大到小，每次放进当前总用时最小的那一份（LPT，最坏不超过最优的 4/3）；用时相同按名字排，保证每台机器算出同一结果。
+//   预估用时：tests/spec/test_weights.json（秒；只登记慢的，没登记的按 DEFAULT_W）；刷新办法见 开发规矩.md「11-11 · 测试分片」。
+const SHARD = args.shard === undefined ? null : (m => m && +m[1] >= 1 && +m[1] <= +m[2] ? { i: +m[1], n: +m[2] } : null)(String(args.shard).match(/^(\d+)\/(\d+)$/));
+if (args.shard !== undefined && !SHARD) { console.error('--shard=i/n 不合法（要 1 ≤ i ≤ n，如 --shard=2/3）：' + args.shard); process.exit(2) }
+const DEFAULT_W = 15;
+let WEIGHTS = {}; try { WEIGHTS = JSON.parse(fs.readFileSync(path.join(HERE, 'spec', 'test_weights.json'), 'utf8')).seconds || {} } catch { }
+const weightOf = t => WEIGHTS[t.id] ?? DEFAULT_W;
+function planShards(list, n) {
+  const bins = Array.from({ length: n }, () => ({ w: 0, ids: new Set() }));
+  for (const t of [...list].sort((a, b) => weightOf(b) - weightOf(a) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    const b = bins.reduce((m, x) => (x.w < m.w ? x : m)); b.w += weightOf(t); b.ids.add(t.id);
+  }
+  return bins;
+}
+let LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+if (SHARD) {
+  const bins = planShards(LIST, SHARD.n), mine = bins[SHARD.i - 1];
+  LIST = LIST.filter(t => mine.ids.has(t.id)).sort((a, b) => weightOf(b) - weightOf(a));   // 大的先开跑，最后留小的补缝，机器内部也不拖尾
+  console.log(`--shard=${SHARD.i}/${SHARD.n}：这一份 ${LIST.length} 项，预估 ${mine.w}s（各份预估：${bins.map(b => b.w + 's/' + b.ids.size + '项').join('、')}）`);
+}
 if (CHG) {
   console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`) + (CHG.reg.length ? `；回归（改到的函数 / id 被它们用到）：${CHG.reg.join(' ')}` : ''));
   if (CHG.unmatched.length) console.log(`  没有对应规则（只跑基础的 static + unit；该有规则就补进 tests/lib/select.mjs）：${CHG.unmatched.join(' ')}`);
