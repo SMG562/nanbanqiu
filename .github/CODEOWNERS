@@ -22,6 +22,7 @@
 /.github/workflows/db-parity.yml     @SMG562
 /.github/workflows/pr-checklist.yml  @SMG562
 /.github/workflows/collab-board.yml @SMG562   # 带写评论 / 标签的权限（11-11）
+/.github/workflows/proposals.yml @SMG562      # 带写 Issue 标签 / 评论的权限（11-11）
 /.githooks/                @SMG562
 /tools/pr_merge.sh         @SMG562
 /tools/gate.sh             @SMG562
