@@ -9,7 +9,7 @@ saveCard=function(uid){SC.uid=uid;SC.blob=null;SC.busy=true;SHARE_OPEN(shareCard
 const _scRender=scRender;scRender=function(){_scRender();scBtn()};
 scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'?'小红书':'微信',blob=SC.blob;
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
+  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).catch(err=>{if(!err||err.name!=='AbortError')fallback()})}catch(err){fallback()}return}
   fallback()};

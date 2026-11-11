@@ -43,7 +43,7 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   for (const [name, vp, check] of [['index.html', { width: 390, height: 844 }, () => document.querySelectorAll('a').length === 4],
     ['materials.html', { width: 390, height: 844 }, () => document.querySelectorAll('#grid .card').length >= 16 && document.documentElement.scrollWidth <= innerWidth],
     ['pwa.html', { width: 390, height: 844 }, () => typeof ME !== 'undefined' && document.querySelectorAll('#tabbar [data-tab]').length >= 4 && CITY.slug === 'melbourne'],
-    ['web.html', { width: 1440, height: 900 }, () => typeof ME !== 'undefined' && document.querySelectorAll('#tabs [data-tab]').length === 3 && CITY.slug === 'melbourne'],
+    ['web.html', { width: 1440, height: 900 }, () => typeof ME !== 'undefined' && document.querySelectorAll('#tabs [data-tab]').length === 4 && CITY.slug === 'melbourne'],
     ['admin.html', { width: 1440, height: 900 }, () => getComputedStyle(document.querySelector('#login')).display !== 'none' && /演示身份/.test(document.body.innerText)]]) {
     const ctx = await b.newContext({ viewport: vp }); await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, r => r.abort()); await ctx.route(/^http:\/\/127\.0\.0\.1/, r => r.continue());   // 外部 CDN 不连，只看本站（preload 默认拦掉所有 http，本站放行）
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));

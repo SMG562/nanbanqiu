@@ -16,5 +16,16 @@ r = run(tmp, '--deploy');
 T('有文件没回读到（缺失）也算失败', r.status === 1 && /sender\.mjs/.test(r.stdout), r.stdout);
 r = run(tmp, '--deploy', '--paths');
 T('--paths：给出电脑上的完整路径（device_stage_files 用），每行是一个 JSON 数组', r.status === 0 && JSON.parse(r.stdout.split('\n')[0]).every(p => p.startsWith('/Users/hanliu/Documents/南伴球/')), r.stdout);
+// 11-11：CLAUDE.md 不同步到电脑（电脑上只放指路桩，免得会话把两份都当指令读）。临时仓库里改 CLAUDE.md + a.txt，--paths 只该列 a.txt
+{
+  const g = fs.mkdtempSync(path.join(os.tmpdir(), 'sv-git-')), sh = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: g, encoding: 'utf8' });
+  fs.mkdirSync(path.join(g, 'tools')); fs.copyFileSync(path.join(DIR, 'tools/sync_verify.sh'), path.join(g, 'tools/sync_verify.sh'));
+  sh('init', '-q'); fs.writeFileSync(path.join(g, 'a.txt'), '1'); fs.writeFileSync(path.join(g, 'CLAUDE.md'), '1'); sh('add', '-A'); sh('commit', '-qm', 'a');
+  fs.writeFileSync(path.join(g, 'a.txt'), '2'); fs.writeFileSync(path.join(g, 'CLAUDE.md'), '2'); sh('add', '-A'); sh('commit', '-qm', 'b');
+  const o = spawnSync('bash', [path.join(g, 'tools/sync_verify.sh'), 'HEAD~1', '--paths'], { cwd: g, encoding: 'utf8' }).stdout;
+  T('CLAUDE.md 不在要回读的清单里，其他改动的文件在', /a\.txt/.test(o) && !/CLAUDE\.md/.test(o), o);
+  T('sync_files.sh 两处 git diff 都排除了 CLAUDE.md', (fs.readFileSync(path.join(DIR, 'tools/sync_files.sh'), 'utf8').match(/':!CLAUDE\.md'/g) || []).length === 2);
+  fs.rmSync(g, { recursive: true, force: true });
+}
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`sync_verify: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
