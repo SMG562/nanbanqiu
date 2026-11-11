@@ -1,0 +1,71 @@
+{
+ "说明": "登记「会被改、但真实模式下不写服务器 / 不读回」的内存仓库和改动处。类别写在理由开头：local 只影响本机界面 · demo 只在演示里有 · derived 别的数据算出来的 · todo 欠账（要补，不能当成没事）。新增 / 修改持久数据时先补服务器，补不了才登记。",
+ "stores": {
+  "AV_CACHE": "local：头像图缓存",
+  "LIST_HIDDEN": "local：列表按天折叠",
+  "EMAIL_OUTBOX": "demo：演示用的邮件发件箱",
+  "RQ_BN": "local：多人申请通知的折叠",
+  "NR_LOG": "local：本机通知去重日志",
+  "NR_SYS": "local：系统通知类型表",
+  "NR_CHAT": "local：私信通知 5 分钟去重",
+  "INV_TOLD": "local：邀约过期只提示一次",
+  "XHSP": "local：海报图预生成缓存"
+ },
+ "entries": [
+  {
+   "file": "0150",
+   "store": "INVITES",
+   "why": "demo：演示发邀约；真实模式走 nbqInvite*"
+  },
+  {
+   "file": "0170",
+   "store": "SERIES",
+   "why": "demo：演示固定球局"
+  },
+  {
+   "file": "0180",
+   "store": "SERIES",
+   "why": "demo：演示种子数据"
+  },
+  {
+   "file": "0190",
+   "store": "THREADS",
+   "why": "demo：演示种子数据"
+  },
+  {
+   "file": "0190",
+   "store": "MSGS",
+   "why": "demo：演示种子数据"
+  },
+  {
+   "file": "0190",
+   "store": "LASTREAD",
+   "why": "demo：演示种子数据"
+  },
+  {
+   "file": "0290",
+   "store": "LESS_IV",
+   "why": "demo：setOpin 只在演示用；真实模式走 nbqRecapPref"
+  },
+  {
+   "file": "0290",
+   "store": "OPIN",
+   "why": "demo：同上"
+  },
+  {
+   "file": "0290",
+   "store": "AFTER",
+   "why": "local：看过 / 已通知的界面标记"
+  },
+  {
+   "file": "0310",
+   "store": "KUDOS",
+   "why": "demo：api.kudos 演示实现；真实模式走 nbqKudosAll"
+  },
+  {
+   "file": "0300",
+   "store": "BDG",
+   "why": "derived：bdgInit 只是初始化 / 演示重算；真实模式由 nbqBadgesIn 用服务器记录覆盖，已庆祝走 bdgSync"
+  }
+ ]
+}

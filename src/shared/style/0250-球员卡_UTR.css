@@ -1,0 +1,15 @@
+.pact{background:#F6F8F6;border-radius:16px;padding:14px 16px;margin:14px 0 4px;text-align:left}.pact>b{font-size:14.5px;display:block;margin-bottom:6px}
+.pact ol{margin:0;padding-left:20px;font-size:13.5px;line-height:1.7;color:#2B342E}.pact ol li{padding-left:2px}
+.pact p{margin:8px 0 0;font-size:12px;line-height:1.6;color:#6F786F}.pact.sm ol{font-size:13px;line-height:1.6}
+.pact-h{font-size:19px;font-weight:800}.pact-s{font-size:13px;color:#6F786F;margin:6px 0 0}
+.soon{text-align:left}.sn-k{font-size:12.5px;font-weight:700;color:var(--g)}.sn-t{font-size:22px;font-weight:800;margin:4px 0 8px}
+.sn-p{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:#4A544D}.sn-p span{display:inline-flex;align-items:center;gap:6px}
+.sn-b{display:flex;gap:8px;margin-top:14px}.sn-b>*{flex:1;text-align:center;text-decoration:none}
+.nrs{text-align:left}.nrs-h{font-size:18px;font-weight:800}.nrs-s{font-size:13px;color:#6F786F;margin:4px 0 12px}
+.nrs-r{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.nrs-r>div{flex:1;min-width:0}.nrs-r b{font-size:14.5px;display:block}.nrs-r small{font-size:12px;color:#7A837B;line-height:1.5}
+.nrs-b{flex:none;height:32px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:#fff;font:inherit;font-size:13px;font-weight:700;color:#2B342E;cursor:pointer;white-space:nowrap}.nrs-b.p{background:var(--g);border-color:var(--g);color:#fff}
+.nrs-i{width:34px;height:34px;border-radius:10px;background:#F1F4F1;display:grid;place-items:center;font-size:17px;flex:none}
+.nrs-l{margin:10px 0 0;padding:12px 14px 12px 30px;background:#F6F8F6;border-radius:14px;font-size:12.5px;line-height:1.75;color:#4A544D}
+.av.nrsys{background:#EAF4EE!important;display:grid;place-items:center}.av.nrsys svg{width:62%;height:62%}
+.nrl{font-size:12px;line-height:1.45;padding:6px 0;border-top:1px solid rgba(0,0,0,.06)}.nrl b{display:block;font-weight:600;color:#2B342E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nrl span{color:#6F786F}
+.pact-t2{font-size:13px;font-weight:700;color:var(--mut);margin:16px 0 4px;text-align:left}

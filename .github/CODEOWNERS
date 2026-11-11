@@ -1,0 +1,40 @@
+# 谁必须审：只有「红线」需要所有者（SMG562）。红线以外的改动由作者自助合并（见 docs/adr/0010-常设授权与自助合并.md）。
+# 要让它生效：GitHub → Settings → Rules/Branches → main：勾选「Require review from Code Owners」，「必须审批人数」设为 0。
+
+# ① 正式库：迁移执行、数据、结构
+/schema.sql                @SMG562
+/server/migrations/        @SMG562
+/tests/spec/migration_baseline.json  @SMG562
+
+# ② 部署、密钥、发送程序
+/.github/workflows/deploy-notify.yml  @SMG562
+/wrangler.jsonc            @SMG562
+/worker/                   @SMG562
+/notify-worker/            @SMG562
+/.claude/settings*.json    @SMG562
+
+# ③ 隐私文案与对外政策
+/privacy.html              @SMG562
+/隐私清单.md                @SMG562
+
+# ④ 闸门本身（改了它们等于改游戏规则）
+/.github/CODEOWNERS        @SMG562
+/.github/workflows/db-parity.yml     @SMG562
+/.github/workflows/pr-checklist.yml  @SMG562
+/.githooks/                @SMG562
+/tools/pr_merge.sh         @SMG562
+/tools/gate.sh             @SMG562
+/tools/precommit.sh        @SMG562
+/tools/pr_body_check.mjs   @SMG562
+/tests/spec/doc_budget.json          @SMG562
+
+# ⑤ 规则与业务
+/CLAUDE.md                 @SMG562
+/AGENTS.md                 @SMG562
+/CONTRIBUTING.md           @SMG562
+/协作实践.md                @SMG562
+/docs/adr/                 @SMG562
+/docs/constitution.md      @SMG562
+/业务规则.md                @SMG562
+/出事处理手册.md            @SMG562
+/进度记录.md                @SMG562

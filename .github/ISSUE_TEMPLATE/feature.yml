@@ -1,0 +1,54 @@
+name: 新功能 / 任务
+description: 开工前把话说清楚（Definition of Ready）
+labels: []
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么做（用户的什么问题）
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes:
+      label: 做什么 / 不做什么（范围）
+      description: 验收标准写成「用户做 X，看到 Y」；明确列出这次不做的
+    validations: { required: true }
+  - type: textarea
+    id: entries
+    attributes:
+      label: 用户可改数据的入口（如有）
+      description: grep 出所有修改入口，不是从接口文档列。没有就写「无」
+    validations: { required: true }
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration Proposal（要改库时必填，不改就写「无」）
+      description: 要建 / 改的表、字段、类型、默认值、约束、索引；对已有数据怎么处理；为什么需要。协作者可以写迁移 SQL，但正式库只有所有者执行
+    validations: { required: true }
+  - type: textarea
+    id: adr
+    attributes:
+      label: 是否碰到 docs/adr/ 里的决定，或需要新写一条 ADR
+      description: 涉及公共接口、库结构原则、目录结构、登录 / 数据 / 隐私做法、选用或替换服务时，先在这里说明
+    validations: { required: true }
+  - type: textarea
+    id: split
+    attributes:
+      label: 拆成几个 PR（目标 ≤ 200 行手写改动，硬上限 500；大功能：扩展库 → 界面（开关关）→ 打开开关）
+    validations: { required: true }
+  - type: textarea
+    id: files
+    attributes:
+      label: 文件范围（认领）
+      description: 这次会改的目录 / 文件（如 src/shared/script/05xx、server/api/handler.mjs）。开工前扫一眼别的开着的 Issue / PR 有没有同一批文件；有重叠先在 Issue 里商量谁先做。同一时间一个模块一个人
+    validations: { required: true }
+  - type: textarea
+    id: risk
+    attributes:
+      label: 风险与回退方式
+      description: 涉及登录 / 推送 / 数据读写与迁移 / 启动流程 / Service Worker = 较大风险，走发布流程 B
+    validations: { required: true }
+  - type: input
+    id: owner
+    attributes:
+      label: 负责人（assignee）与评审人

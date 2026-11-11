@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 合并之后（11-10）：按合并后的源文件重新生成 HTML 和 _bundle.sql（.gitattributes 让合并时先留当前分支的那份）。
+#   有变化只提示、不自动提交：git add 后单独提交一次；提交前检查会核对生成文件和源文件一致。
+cd "$(git rev-parse --show-toplevel)" || exit 0
+command -v node >/dev/null || exit 0
+node tools/build.mjs >/dev/null 2>&1; node tools/migrate_bundle.mjs >/dev/null 2>&1
+ch=$(git -c core.quotePath=false status --porcelain -- 南伴球_PWA.html 南伴球_Web.html 南伴球_后台.html server/migrations/_bundle.sql)
+if [ -n "$ch" ]; then
+  echo "合并后已按源文件重新生成："; echo "$ch" | sed 's/^/  /'
+  echo "→ git add 这些文件后单独提交一次（提交信息写「合并后重新生成」）"
+fi
+exit 0

@@ -1,0 +1,11 @@
+/* ---------- 卡片与网格 ---------- */
+.grid{display:grid;gap:16px}.g6{grid-template-columns:repeat(6,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1fr 1fr}.g21{grid-template-columns:2fr 1fr}.g12{grid-template-columns:1fr 2fr}
+.card{background:var(--sf);border-radius:18px;padding:18px 20px;box-shadow:var(--shadow);border:1px solid var(--line);min-width:0}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}.ch b{font-size:15px}.ch small{font-size:12px;color:var(--mut)}.ch .r{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sec{margin-top:16px}
+.kpi{padding:16px 16px 12px}.kpi .l{font-size:12px;color:var(--mut);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .v{font-size:27px;font-weight:800;letter-spacing:-.02em;margin:4px 0 2px;line-height:1.15}
+.kpi .d{font-size:12px;font-weight:600;color:var(--mut)}.kpi .d.up{color:var(--good)}.kpi .d.dn{color:var(--crit)}
+.kpi svg.sp{width:100%;height:30px;display:block;margin-top:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{height:28px;padding:0 11px;border-radius:99px;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink2);background:var(--sf)}
+.chips button.on{background:var(--ink);border-color:var(--ink);color:var(--sf)}

@@ -1,0 +1,17 @@
+# 测试报告、缓存
+tests/reports/
+__pycache__/
+node_modules/
+# 旧的整份备份（改用 git 历史）
+备份/
+# 大文件和历史产出只留在电脑文件夹里
+*.zip
+*.png
+# 预览网站（tools/site.mjs 生成，Cloudflare Pages 部署时现生成）
+site/
+!tests/visual/baseline/*.png
+!icons/*.png
+.wrangler/
+
+# 邮编库（8MB，tools/venues_seed.mjs 的输入，需要时现下载）
+tools/out/australian_postcodes.csv

@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const e=[];
+ const p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});p.on('pageerror',x=>e.push('P '+x.message));
+ await p.goto('file:///mnt/user-data/outputs/南伴球_PWA.html');await p.waitForTimeout(700);
+ await p.evaluate(()=>{try{closeSheet()}catch(x){};setWho('jason',true);const g=api.list().find(c=>stateOf(c)==='open');openApplied(g.id)});await p.waitForTimeout(400);await (await p.$('#dev')).screenshot({path:'r40_1.png'});
+ // 11-03 你定的：邮件默认不发、不主动问邮箱 → 申请后不再出现「留个邮箱」框
+ if(await p.$('#emkIn'))e.push('FAIL 申请后不应再出现「留个邮箱」框（11-03：不主动问邮箱）');await (await p.$('#dev')).screenshot({path:'r40_2.png'});
+ const r1=await p.evaluate(()=>{const g=GAMES.find(x=>x.host_id!=='jason'&&new Date(x.starts_at)>NOW);PARTS.push({game_id:g.id,user_id:'jason',role:'player',status:'pending',message:'',created_at:Date.now()});const h=ME;setWho(g.host_id,true);api.decide(g.id,'jason',true);setWho('jason',true);return EMAIL_OUTBOX.map(x=>x.to+':'+x.kind)});
+ await p.evaluate(()=>{setWho('han',true);openCreate()});await p.waitForTimeout(300);await p.click('[data-ng="publish"]');await p.waitForTimeout(900);await (await p.$('#dev')).screenshot({path:'r40_3.png'});
+ await p.evaluate(()=>{closeSheet();ME.email='han@x.com';emSettings()});await p.waitForTimeout(300);await (await p.$('#dev')).screenshot({path:'r40_4.png'});
+ await p.click('[data-em="tog"][data-k="change"]');await p.click('[data-em="setSave"]');const r2=await p.evaluate(()=>JSON.stringify(ME.emPrefs));
+ const w=await b.newPage({viewport:{width:1440,height:900}});w.on('pageerror',x=>e.push('W '+x.message));await w.goto('file:///mnt/user-data/outputs/南伴球_Web.html');await w.waitForTimeout(700);
+ await w.evaluate(()=>{setWho('jason');const g=api.list().find(c=>stateOf(c)==='open');openApplied(g.id)});await w.waitForTimeout(300);await (await w.$('#modal')).screenshot({path:'r40_5.png'});
+ await w.evaluate(()=>{closeModal();setWho('han');openCreate()});await w.waitForTimeout(300);await w.click('[data-ng="publish"]');await w.waitForTimeout(700);await w.screenshot({path:'r40_6.png'});
+ console.log(e,r1,r2);await b.close()})();

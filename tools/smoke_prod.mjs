@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+/**
+ * 上线后冒烟测试（11-03）：推送后确认「线上真的是这一版、关键页面真的能用」，不靠人工试。
+ *   node tools/smoke_prod.mjs [--sha=<提交号，默认 git HEAD>] [--base=https://nanbanqiu.app] [--no-wait]
+ * 步骤：① 轮询 /version.json 直到 sha = 本次提交（最多 8 分钟）；② /api/health、/api/version；
+ *       ③ 用浏览器打开手机端 / 网页端：没有页面报错、没有一直卡在「正在恢复登录…」、真实数据模式已启用、公开球局读得到；
+ *       ④ /sw.js、/manifest.webmanifest 可取；
+ *       ⑤ 正式首页不是入口页（不露后台、宣传物料）；/admin、/admin.html 被 Cloudflare Access 挡住（不跟着跳到登录页，只看第一跳的去向）。
+ * 全部通过 exit 0，否则 exit 1 并写明哪一步。会话里的 shell 连不上正式站，所以由 GitHub Actions（.github/workflows/smoke.yml）跑，
+ * 或在你电脑上运行。不登录、不写任何数据。
+ */
+import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+const arg = k => (process.argv.find(a => a.startsWith('--' + k + '=')) || '').split('=').slice(1).join('=');
+const BASE = (arg('base') || process.env.NBQ_BASE || 'https://nanbanqiu.app').replace(/\/$/, '');
+const SHA = arg('sha') || (() => { try { return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim() } catch { return '' } })();
+let fail = 0; const T = (n, ok, x) => { console.log((ok ? '✅ ' : '❌ ') + n + (!ok && x !== undefined ? ' → ' + JSON.stringify(x).slice(0, 300) : '')); if (!ok) fail++ };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const get = async p => { const r = await fetch(BASE + p, { headers: { 'Cache-Control': 'no-cache' } }); return { s: r.status, t: await r.text() } };
+
+// ① 等线上换成这一版
+if (SHA && !process.argv.includes('--no-wait')) {
+  let live = null;
+  for (let i = 0; i < 32; i++) { try { live = JSON.parse((await get('/version.json')).t).sha } catch { live = null } if (live && live.startsWith(SHA.slice(0, 7))) break; await sleep(15000) }
+  T(`线上版本 = 本次提交 ${SHA.slice(0, 7)}`, !!live && live.startsWith(SHA.slice(0, 7)), { live });
+}
+// ② 接口
+{ const h = await get('/api/health').catch(() => ({ s: 0 })); T('/api/health 200', h.s === 200, h);
+  const v = await get('/api/version').catch(() => ({ s: 0 })); T('/api/version 200', v.s === 200, v);
+  const ut = await get('/api/me/utr').catch(() => ({ s: 0 })); T('/api/me/utr 已上线（没登录 → 401）', ut.s === 401, ut.s); }
+// 数据库迁移：代码里的每一个迁移，库里的 schema_migrations 都要有记录；缺哪个就报哪个（没跑的迁移）
+{ let code = null, db = null; try { code = JSON.parse((await get('/version.json')).t).migrations } catch { }
+  try { db = JSON.parse((await get('/api/version')).t).schema } catch { }
+  const missing = code && db ? code.filter(m => !(db.versions || []).includes(m)) : null;
+  T(`数据库迁移都已执行（代码里 ${code ? code.length : '?'} 个）${missing && missing.length ? '；没跑：' + missing.join('、') : ''}`, !!missing && missing.length === 0, { missing, db: db && db.latest }) }
+// ④ sw / manifest
+{ const sw = await get('/sw.js').catch(() => ({ s: 0, t: '' })); T('/sw.js 可取', sw.s === 200 && /VERSION/.test(sw.t), sw.s);
+  const m = await get('/manifest.webmanifest').catch(() => ({ s: 0 })); T('/manifest.webmanifest 可取', m.s === 200, m.s); }
+// ⑤ 正式首页与后台保护（11-03 第一轮）
+{ const home = await get('/').catch(() => ({ s: 0, t: '' }));
+  T('首页 / 不是入口页（没有后台、宣传物料链接、「演示数据」）', home.s === 200 && !/admin\.html|materials\.html|演示数据|管理后台/.test(home.t), home.s);
+  // 同站内跳转（如 /admin.html → /admin）跟着走，跳到 cloudflareaccess.com 就算挡住；拿到 200 的后台页面 = 没保护
+  const guard = async p => { let u = BASE + p;
+    for (let i = 0; i < 4; i++) { const r = await fetch(u, { redirect: 'manual' }); const loc = r.headers.get('location');
+      if ([301, 302, 303, 307, 308].includes(r.status) && loc) { const n = new URL(loc, u); if (/cloudflareaccess\.com$/.test(n.hostname)) return 'access'; if (n.origin !== new URL(BASE).origin) return 'away:' + n.hostname; u = n.href; continue }
+      if (r.status === 401 || r.status === 403) return 'denied'; const t = await r.text(); return r.status + (/演示身份|管理后台/.test(t) ? ':admin' : ':other') }
+    return 'loop' };
+  for (const p of ['/admin', '/admin.html', '/admin/api/me', '/admin/api/health']) { const g = await guard(p).catch(e => 'err:' + e.message); T(`${p} 有访问保护（Cloudflare Access）`, g === 'access' || g === 'denied', g) } 
+  // #27：预览站根域名和正式站是同一个生产部署、但前面没有 Access → 后台接口必须在那里 404（ADMIN_HOSTS 白名单只放 nanbanqiu.app）
+  if (new URL(BASE).hostname === 'nanbanqiu.app') { const pv = await fetch('https://nanbanqiu-preview.pages.dev/admin/api/health', { redirect: 'manual' }).then(async r => ({ s: r.status, t: await r.text() })).catch(e => ({ s: 0, t: e.message }));
+    T('预览站根域名不提供后台接口（404 JSON，不是网页、不是 200）', pv.s === 404 && /"not_found"/.test(pv.t), [pv.s, pv.t.slice(0, 80)]) } }
+// ③ 浏览器
+const require = createRequire(import.meta.url); let chromium;
+try { ({ chromium } = require('playwright')) } catch { try { ({ chromium } = require(execSync('npm root -g', { encoding: 'utf8' }).trim() + '/playwright')) } catch { } }
+if (!chromium) { T('找到 playwright', false); process.exit(1) }
+const b = await chromium.launch({ args: ['--no-sandbox'] });
+for (const [name, path] of [['手机端', '/pwa.html'], ['网页端', '/web.html']]) {
+  const ctx = await b.newContext({ viewport: name === '手机端' ? { width: 390, height: 844 } : { width: 1280, height: 800 } }), pg = await ctx.newPage(), errs = [];
+  pg.on('pageerror', e => errs.push(String(e.message).slice(0, 160))); pg.on('console', m => { if (m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text())) errs.push(m.text().slice(0, 160)) });
+  await pg.goto(BASE + path, { waitUntil: 'load' }); await pg.waitForTimeout(4000);
+  const st = await pg.evaluate(() => ({ real: typeof NBQ_NET !== 'undefined' && !!NBQ_NET, games: typeof GAMES !== 'undefined' ? GAMES.length : -1, waiting: typeof sbaWaiting === 'function' ? sbaWaiting() : false, text: document.body.innerText.length, reported: (window.NBQ_ERRS || []).length }));
+  T(`${name}：没有页面报错`, errs.length === 0 && st.reported === 0, { errs, reported: st.reported });
+  T(`${name}：真实数据模式已启用`, st.real, st);
+  T(`${name}：没有卡在「正在恢复登录」`, !st.waiting, st);
+  T(`${name}：页面有内容、公开球局读到了`, st.text > 60 && st.games >= 0, st);
+  await ctx.close();
+}
+await b.close();
+console.log(fail ? `\n冒烟测试：${fail} 项失败` : '\n冒烟测试：全部通过'); process.exit(fail ? 1 : 0);

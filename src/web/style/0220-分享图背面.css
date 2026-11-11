@@ -1,0 +1,3 @@
+.kdb{display:block;width:100%;margin-top:8px;border:0;border-radius:14px;background:#F1F4F1;color:#1F2A23;font:inherit;font-size:14px;font-weight:700;padding:10px 12px;cursor:pointer;text-align:center;box-sizing:border-box}
+.kdb small{display:block;font-size:11.5px;font-weight:500;color:#8A928A;margin-top:1px}.kdb.done{cursor:default;color:#176B4D;background:transparent}
+.ngscroll{max-height:78vh;overflow-y:auto}

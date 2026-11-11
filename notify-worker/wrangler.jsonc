@@ -1,0 +1,18 @@
+{
+  "name": "nanbanqiu-notify",
+  "main": "../worker/notify.mjs",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": { "crons": ["* * * * *"] },
+  "workers_dev": false,
+  // 11-03：测试库（nanbanqiu-staging）的发送程序，和正式的分开部署、分开密钥：
+  //   node tools/staging_push_setup.mjs   第一次：生成测试用推送密钥、填密钥、部署
+  //   node tools/deploy_notify.mjs --env=staging   之后改了发送程序再部署
+  "env": {
+    "staging": {
+      "name": "nanbanqiu-notify-staging",
+      "triggers": { "crons": ["* * * * *"] },
+      "workers_dev": false
+    }
+  }
+}

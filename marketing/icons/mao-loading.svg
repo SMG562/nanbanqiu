@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220"><defs>
+<filter id="fuzz" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 -.25"/></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer></filter>
+<filter id="bl6" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="bl14" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>
+<filter id="bl28" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="28"/></filter>
+<filter id="bl60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
+<filter id="rough" x="-8%" y="-8%" width="116%" height="116%"><feTurbulence type="fractalNoise" baseFrequency=".022" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="9"/></filter>
+<filter id="rough2" x="-8%" y="-8%" width="116%" height="116%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="5" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter>
+</defs><ellipse cx="112.1" cy="198.0" rx="35.7" ry="3.8" fill="#0B3B2A" opacity="0.16" filter="url(#bl6)"/><g ><path d="M70.1 198.0 Q97.4 196.5 116.3 198.0 T149.9 197.8" fill="none" stroke="#171412" stroke-width="1.69" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/></g><g transform="rotate(0 110 133.74)"><g ><path d="M95.7 172.4 Q92.4 181.6 93.2 191.7" fill="none" stroke="#171412" stroke-width="2.42" stroke-linecap="round" stroke-linejoin="round" opacity="1.0"/><path d="M124.3 172.4 Q135.2 175.7 137.7 182.5" fill="none" stroke="#171412" stroke-width="2.42" stroke-linecap="round" stroke-linejoin="round" opacity="1.0"/><g transform="translate(90.7 194.2) rotate(6)"><ellipse rx="8.8" ry="3.8" fill="#FFFBEF" stroke="#171412" stroke-width="1.98"/><path d="M-7.1 1.7 Q0 3.6 7.1 1.7" fill="none" stroke="#171412" stroke-width="1.49" stroke-linecap="round"/><path d="M-1.3 -2.3 l2.5 1.1 M0.8 -3.1 l2.5 0.9" fill="none" stroke="#171412" stroke-width="0.89" stroke-linecap="round"/></g><g transform="translate(140.2 185.0) rotate(-26)"><ellipse rx="8.8" ry="3.8" fill="#FFFBEF" stroke="#171412" stroke-width="1.98"/><path d="M-7.1 1.7 Q0 3.6 7.1 1.7" fill="none" stroke="#171412" stroke-width="1.49" stroke-linecap="round"/><path d="M-1.3 -2.3 l2.5 1.1 M0.8 -3.1 l2.5 0.9" fill="none" stroke="#171412" stroke-width="0.89" stroke-linecap="round"/></g><path d="M70.9 138.8 Q52.0 152.6 57.9 169.9" fill="none" stroke="#171412" stroke-width="2.42" stroke-linecap="round" stroke-linejoin="round" opacity="1.0"/><circle cx="57.9" cy="169.9" r="3.3" fill="#FFFBEF" stroke="#171412" stroke-width="1.98"/><path d="M149.1 138.8 Q173.0 146.3 173.8 131.6" fill="none" stroke="#171412" stroke-width="2.42" stroke-linecap="round" stroke-linejoin="round" opacity="1.0"/><circle cx="173.8" cy="131.6" r="3.3" fill="#FFFBEF" stroke="#171412" stroke-width="1.98"/></g>
+<g transform="translate(110 133.74) scale(0.42)" >
+  <circle r="100" fill="url(#ballgg)"/>
+  <clipPath id="bcg"><circle r="100"/></clipPath>
+  <g clip-path="url(#bcg)">
+    <g transform="rotate(-22)">
+      <path d="M-67 -74 C-30 -34 -30 34 -67 74" fill="none" stroke="#F7FBE8" stroke-width="11" stroke-linecap="round" opacity=".92"/>
+      <path d="M67 -74 C30 -34 30 34 67 74" fill="none" stroke="#F7FBE8" stroke-width="11" stroke-linecap="round" opacity=".92"/>
+    </g>
+    <circle r="100" fill="#000" filter="url(#fuzz)" opacity=".35" style="mix-blend-mode:multiply"/>
+    <circle r="100" fill="url(#rimg)"/>
+  </g>
+</g>
+<defs>
+ <radialGradient id="ballgg" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="#E4F76A"/><stop offset=".55" stop-color="#C6EA3D"/><stop offset="1" stop-color="#7FA21C"/></radialGradient>
+ <radialGradient id="rimg" cx="30%" cy="25%" r="90%"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset=".8" stop-color="#1b2a00" stop-opacity=".0"/><stop offset="1" stop-color="#0b1a00" stop-opacity=".55"/></radialGradient>
+ <filter id="bg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="0"/></filter>
+</defs><g transform="translate(111.7 136.3)"><ellipse cx="-25.6" cy="8.5" rx="5.3" ry="3.2" fill="#E8643C" opacity="0.35"/><ellipse cx="25.6" cy="8.5" rx="5.3" ry="3.2" fill="#E8643C" opacity="0.35"/><path d="M-21.4 2.1 Q-14.9 -5.0 -8.5 2.1" fill="none" stroke="#171412" stroke-width="2.1" stroke-linecap="round"/><path d="M8.5 2.1 Q14.9 -5.0 21.4 2.1" fill="none" stroke="#171412" stroke-width="2.1" stroke-linecap="round"/><path d="M-4.6 10.7 Q0 17.8 4.6 10.7" fill="none" stroke="#171412" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g><g ></g></g><circle cx="173.0" cy="70.7" r="10" fill="#C6EA3D" stroke="#171412" stroke-width="2"/><path d="M166.8 65.2 Q172.0 70.7 166.8 76.2 M179.2 65.2 Q174.0 70.7 179.2 76.2" fill="none" stroke="#FBFFE8" stroke-width="2.2" stroke-linecap="round"/><path d="M173.0 86.74000000000001 Q171.0 104.74000000000001 175.0 120.74000000000001" fill="none" stroke="#171412" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 6.5"/></svg>
