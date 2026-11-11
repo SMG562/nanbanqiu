@@ -134,7 +134,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
 
 ## 5. 改代码后怎么用
 
-0. **前台两端（南伴球_PWA.html、南伴球_Web.html）改 `src/` 里的源文件，改完 `node tools/build.mjs` 拼出 HTML，再 `node tools/lint.mjs` 检查**；不要直接改这两个 HTML（`static/build` 会报）。后台（南伴球_后台.html）还没拆，直接改。
+0. **前台两端（南伴球_PWA.html、南伴球_Web.html）改 `src/` 里的源文件，改完 `node tools/lint.mjs` 检查**；HTML 不入库（ADR 0011）、不要直接改：`run_all` 开跑时现拼，单个测试直接 `node` 跑 / 浏览器打开前先 `node tools/build.mjs`。后台（南伴球_后台.html）同样由 `src/admin/` 拼出。
 1. 每一小轮跑相关的（`--grep=…` 或 `--only=static,schema,pg --fast`，约 2 分钟）；改了前台再加 `--quick`。完整测试和故意改坏检查只在一批收尾、交付或上线前跑（10-26 定）。
 2. 回归快照不一致时，先看 `logs/<测试>.diff.txt`：
    - 是这次改动带来的预期变化 → `--update-snapshots` 更新，并在 `进度记录.md` 里写明原因；

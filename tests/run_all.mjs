@@ -41,6 +41,11 @@ const STAMP = new Date().toLocaleString('sv-SE', { timeZone: 'Australia/Melbourn
 const OUT = path.join(HERE, 'reports', STAMP), LOGS = path.join(OUT, 'logs'), WORK = path.join(os.tmpdir(), 'nbq-work-' + STAMP);
 const PRELOAD = path.join(HERE, 'lib', 'preload.js');
 const SPEC = path.join(HERE, 'spec', 'events_spec.md');
+// ---------- 生成文件（ADR 0011）：三个页面 HTML 和 _bundle.sql 不入库，入口先按 src / 迁移现生成（本地、CI 一致；单个测试直接 node 跑之前也要先生成一次）----------
+if (!args.list) for (const s of ['build.mjs', 'migrate_bundle.mjs']) {
+  try { execFileSync(process.execPath, [path.join(DIR, 'tools', s)], { stdio: 'pipe', encoding: 'utf8' }) }
+  catch (e) { console.error(`生成文件失败：node tools/${s}\n${e.stdout || ''}${e.stderr || ''}`); process.exit(1) }
+}
 
 // ---------- 时间点：覆盖早上、白天、深夜（夜间免打扰）、凌晨、周三晚上（每周重复的局刚过） ----------
 const TIMES_FULL = ['2026-10-14T07:50:00+11:00', '2026-10-14T15:10:00+11:00', '2026-10-14T22:55:00+11:00', '2026-10-17T23:40:00+11:00', '2026-10-18T05:30:00+11:00'];
