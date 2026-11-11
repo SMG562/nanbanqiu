@@ -6,8 +6,10 @@
 # 例外只有 NBQ_PR_OVERRIDE="原因"（所有者当场点头的），原因会写进 PR 留言留痕。
 set -eu
 PR="${1:?用法：bash tools/pr_state.sh <PR号> status|ready|draft}"; ACT="${2:-status}"; R=SMG562/nanbanqiu
-read -r HEAD DRAFT STATE < <(gh api "repos/$R/pulls/$PR" --jq '[.head.ref,.draft,.state]|@tsv')
-echo "PR #$PR 分支 $HEAD ｜ 草稿=$DRAFT ｜ $STATE ｜ 当前检出分支 $(git rev-parse --abbrev-ref HEAD)"
+read -r HEAD DRAFT STATE MERGED SHA < <(gh api "repos/$R/pulls/$PR" --jq '[.head.ref,.draft,.state,.merged,.head.sha[0:7]]|@tsv')
+if gh api "repos/$R/git/ref/heads/$HEAD" --silent 2>/dev/null; then BR=在; else BR=已不在; fi
+echo "PR #$PR 分支 $HEAD（远端$BR）｜ 头提交 $SHA ｜ 草稿=$DRAFT ｜ $STATE 已合并=$MERGED ｜ 当前检出分支 $(git rev-parse --abbrev-ref HEAD)"
+# 向人汇报 PR / 分支现状（在不在、合没合、最新提交号）之前跑 status，数字从这里抄，不凭记忆、不转述别的脚本的提示（11-12：误报「分支没删掉」「最新提交 616ae0b」两次都是没核对）
 [ "$ACT" = status ] && exit 0
 if [ "$ACT" = mine ]; then
   [ "$(git rev-parse --abbrev-ref HEAD)" = "$HEAD" ] && { echo "✅ 是我的 PR（分支 $HEAD）"; exit 0; }
