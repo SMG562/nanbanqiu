@@ -129,7 +129,7 @@ const STATS = {
   less_effect_counts: { sql: 'select * from less_effect_counts($1, $2) order by n desc', args: R2 },
   badge_rarity: { sql: 'select * from v_badge_rarity', args: () => [], max: 100 },
   level_stuck: { sql: 'select * from v_level_stuck', args: () => [], max: 100 },
-  invite_outcomes: { sql: 'select * from v_invite_outcomes', args: () => [], max: 100 },
+  invite_outcomes: { sql: `select status, count(*)::bigint as n, count(*) filter (where played_before)::bigint as played_before, round(avg(reply_minutes)::numeric, 1) as reply_minutes from v_invite_outcomes where created_at >= $1 and created_at < $2 group by 1 order by 2 desc`, args: R2 },
   retention: { sql: 'select * from v_user_retention', args: () => [], max: 60 },
   event_defs: { sql: 'select event, category, description, props, source, status, replaced_by from event_definitions order by category, event', args: () => [], max: 500 },
   sb_kpis: { sql: 'select * from sb_stat_kpis($1, $2, $3)', args: C3, cityReq: true },
@@ -142,11 +142,11 @@ const STATS = {
 };
 export const STAT_NAMES = Object.keys(STATS);
 
-// 跑一个白名单统计：去掉内部 uuid 列，bigint / numeric 转成数字；noIds = 再去掉能认出人的列（导出不带用户 ID 时）
+// 跑一个白名单统计：去掉值是 uuid 的列（按值判断，不按列名：from_user / to_user 这种也算），bigint / numeric 转成数字；noIds = 再去掉能认出人的列（导出不带用户 ID 时）
 const PERSON_COLS = new Set(['member_no', 'nickname', 'author', 'body']);
 async function runStat(db, name, f, t, c, noIds = false) {
   const s = STATS[name], res = await db.query(s.sql, s.args(f, t, s.cityReq ? (c || 'melb') : c)), num = new Set(res.fields.filter(x => [20, 1700].includes(x.dataTypeID)).map(x => x.name));
-  return res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(/(^|_)id$/.test(k) && UUID.test(String(v))) && !(noIds && PERSON_COLS.has(k))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
+  return res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(typeof v === 'string' && UUID.test(v)) && !(noIds && PERSON_COLS.has(k))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
 }
 
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)

@@ -10,6 +10,7 @@ try {
   const V = (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status,city) values ('Stat Court','Stat','Brighton','3186','POINT(145 -37.9)','{hard}','active','melb') returning id`)).id;
   const G = (await one(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max,status,visibility) values ('S0001',$1,$2,now()-interval '2 days',90,'singles',2,3,6,'open','public') returning id`, [A.id, V])).id;
   await q(`insert into game_participants(game_id,user_id,role,status,decided_at) values ($1,$2,'player','approved',now()-interval '3 days')`, [G, B.id]);
+  await q(`begin; set local session_replication_role = replica; insert into invites(from_user,to_user,starts_at,ends_at,venue_name,game_type,status) values ('${A.id}','${B.id}',now()+interval '1 day',now()+interval '1 day 90 minutes','某场','singles','pending'); commit;`).catch(e => T('夹具：邀约', false, e.message));   // v_invite_outcomes 有 from_user / to_user（uuid，列名不带 _id）
   await q(`insert into daily_metrics(day,metric,dims,value,additive) values (current_date - 1,'new_users','{}',3,true),(current_date - 2,'new_users','{}',2,true),(current_date - 1,'dau','{}',7,false)`);
   const all = API.STAT_NAMES;
   const RANGE = `&from=${new Date(Date.now() - 30 * 864e5).toISOString()}&to=${new Date(Date.now() + 864e5).toISOString()}`;   // 夹具时钟在 2027 年，数据按真实时间写：显式给范围
@@ -21,7 +22,7 @@ try {
   const bad = all.filter(f => !Array.isArray(data[f]));
   T(`运营：白名单 ${all.length} 个查询在真库上全部成功`, !bad.length, bad.map(f => [f, data[f]]));
   T('数字是数字（bigint / numeric 转好了）', typeof data.active_users?.[0]?.users === 'number' && typeof data.fill_rate?.[0]?.started === 'number', [data.active_users, data.fill_rate]);
-  T('不含任何内部 uuid', !JSON.stringify(data).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/), JSON.stringify(data).match(/[0-9a-f]{8}-[0-9a-f-]{27}/));
+  T('不含任何内部 uuid（含 from_user / to_user 这种列名不带 _id 的）', !JSON.stringify(data).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/), JSON.stringify(data).match(/[0-9a-f]{8}-[0-9a-f-]{27}/));
   T('有数据时对得上：每日序列里有昨天的 new_users=3、dau=7', data.series.some(x => x.metric === 'new_users' && x.value === 3) && data.series.some(x => x.metric === 'dau' && x.value === 7), data.series);
   T('有数据时对得上：最活跃的球场是 Stat，1 局', data.venue_activity[0]?.short_name === 'Stat' && data.venue_activity[0].games === 1, data.venue_activity);
   T('有数据时对得上：最活跃球友里有发起人（带编号昵称）', data.user_activity.some(x => x.member_no === A.no && x.nickname === '统计甲'), data.user_activity);
