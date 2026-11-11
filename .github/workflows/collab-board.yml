@@ -1,0 +1,43 @@
+# 协作看板（11-11，#167 第四节）：每个 PR「球在谁手里」由机器推出，球换手时自动 @ 对方并写明下一步，所有者只在红线集合变化时被提醒一次。
+#   说明和判定规则见 tools/collab_board.mjs。约 20 秒、只读 PR 元数据，不执行任何 PR 里的代码：
+#   用的触发器（schedule / workflow_run / issue_comment / pull_request_target / 手动）都在默认分支的版本上跑，且只检出默认分支的三个文件。
+name: collab-board
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'          # 兜底：每 3 小时对一次账（久没动的提醒、漏掉的事件）
+  workflow_dispatch:
+  workflow_run:
+    workflows: [tests, tests-fast]
+    types: [completed]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, closed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: collab-board
+  cancel-in-progress: false         # 写评论 / 标签的中途不取消；排队的只留最新一个
+
+jobs:
+  board:
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            tools/collab_board.mjs
+            tools/decision_card.mjs
+            .github/CODEOWNERS
+          sparse-checkout-cone-mode: false   # 非 cone 模式下多个路径要换行分隔（空格分隔检出的是空目录，首次运行就是这么失败的）
+      - name: 更新看板、标签和提醒
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: node tools/collab_board.mjs

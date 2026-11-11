@@ -14,7 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,6 +33,9 @@ export const FILES = {
   'icons/icon-512.png': 'icons/icon-512.png',
   'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
 };
+// 第三方库（L5，11-11）：leaflet / qrcodejs / html2canvas 放在仓库 vendor/，随站点发布（不再从 cdnjs 加载，CSP 也不再放行它）
+const vend = d => fs.readdirSync(path.join(ROOT, 'vendor', d), { withFileTypes: true }).forEach(e => e.isDirectory() ? vend(path.join(d, e.name)) : (FILES[`vendor/${path.join(d, e.name)}`] = `vendor/${path.join(d, e.name)}`));
+vend('');
 // 宣传物料：清单来自 marketing/posters.json（build.py 登记），图在 marketing/img、thumb（webp，已入库）
 export const posterName = p => `${String(p.id).padStart(2, '0')}-${p.slug}`;
 export function posters() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'marketing', 'posters.json'), 'utf8')) } catch { return [] } }
@@ -152,9 +155,14 @@ export const HEADERS = `/*
 /sw.js
   Cache-Control: no-cache
   Service-Worker-Allowed: /
+
+/vendor/*
+  Cache-Control: public, max-age=86400
 `;
 
 export function build(out = path.join(ROOT, 'site')) {
+  // ADR 0011：页面 HTML 不入库，部署构建（构建命令就是 node tools/site.mjs）先从 src/ 现拼；拼不出来就停，不发布旧的
+  execFileSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs')], { stdio: 'inherit' });
   // 只清本脚本建的文件，且只在 site/ 之内
   if (fs.existsSync(out)) {
     if (fs.lstatSync(out).isSymbolicLink()) throw new Error('site/ 是链接，停止');

@@ -7,6 +7,7 @@
  *   4. 浏览器：统一用 NBQ_CHROMIUM（默认 /opt/pw-browsers/chromium），没有就用 Playwright 自带的。
  *   5. 时区固定为墨尔本（NBQ_TZ 可改），与跑测试的机器无关。
  *   6. 外网请求一律拦掉（CDN、Google 等），避免网络状况影响结果；页面已经为离线做了兜底。
+ *   8. 本站 /vendor/ 请求在「返回页面 HTML」的路由里统一拦掉（见 noVendor）。
  *   7. 等页面安静（E2）：page.settle(最多毫秒)——在「最多毫秒」之内会到期的短定时器（≤ 2 秒）都执行完了、没有待执行的
  *      requestAnimationFrame、在那之前会结束的动画（含 Shadow DOM 里的）都结束了，连续两次检查（50 毫秒一次）都这样就继续。
  *      用来代替「点完等固定 N 毫秒」：页面早就安静了就不用干等；一直不安静（比如 rAF 循环）就和原来一样等满。
@@ -67,7 +68,13 @@ Module._load = function (request, parent, isMain) {
   const m = origLoad.apply(this, arguments);
   if (request !== 'playwright' && request !== 'playwright-core') return m;
   if (patched) return patched;
+  // 8. /vendor/（本站托管的 leaflet / qrcodejs / html2canvas，L5）：很多测试用「本站任何路径都返回页面 HTML」的路由，库会拿到 HTML 报 Unexpected token '<'。
+  //    和原来拦 cdnjs 一样，统一拦掉（等同离线）；想真的提供 /vendor/ 文件的测试（vendor_load）路由里写了 /vendor/，不在此列。
+  const noVendor = o => { const route = o.route.bind(o);
+    o.route = (url, handler, opts) => (typeof handler !== 'function' || String(url).includes('/vendor/')) ? route(url, handler, opts)
+      : route(url, (r, q) => { let pn = ''; try { pn = new URL(q.url()).pathname } catch (e) {} return /^\/vendor\//.test(pn) ? r.abort() : handler(r, q) }, opts); return o };
   const wrapPage = page => {
+    noVendor(page);
     const goto = page.goto.bind(page);
     page.goto = (u, o) => goto(fixUrl(u), o);
     page.settle = async (cap = 1600) => {
@@ -86,6 +93,7 @@ Module._load = function (request, parent, isMain) {
   const wrapCtx = ctx => {
     ctx.addInitScript(initScript, { ts: NBQ_TS, seed: NBQ_SEED });
     ctx.route(/^https?:\/\//, r => r.abort()).catch(() => {});
+    noVendor(ctx);
     const np = ctx.newPage.bind(ctx);
     ctx.newPage = async (...a) => wrapPage(await np(...a));
     return ctx;
