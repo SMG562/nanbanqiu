@@ -12,7 +12,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     await ctx.addInitScript(ts => { const off = ts - Date.now(), D = Date; class FD extends D { constructor(...a) { a.length ? super(...a) : super(D.now() + off) } static now() { return D.now() + off } } window.Date = FD }, +new Date(FAKE));
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.settle(600);
     // ① 前台文案和服务端逐个一致
     const rows = await pg.evaluate(() => GAMES.filter(g => g.share_code).map(g => { const c = api.get(g.id); return c && c.host && { rec: { code: g.share_code, o: dOff(c.start), t: hm(c.start), v: c.v.short, type: c.game_type, spots: c.spots, lvl: lvl(c), host: c.host.name, hu: f1(c.host.ntrp) }, title: ogTitle(c), desc: ogDesc(c) } }).filter(Boolean));
@@ -46,7 +46,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
   for (const [name, vp, ua, wantBar] of [['微信手机', { width: 390, height: 844 }, WXUA, false], ['电脑演示（切到微信环境）', { width: 1360, height: 900 }, undefined, true]]) {
     const ctx = await b.newContext({ viewport: vp, userAgent: ua, isMobile: !!ua, hasTouch: !!ua }), pg = await ctx.newPage();
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.settle(600); if (!ua) { await pg.evaluate(() => setEnv('wechat')); await pg.settle(300) }
     const x = await pg.evaluate(() => { const bar = document.querySelector('.wxbar'), top = document.querySelector('.topbar'); return { env: ENV, bar: getComputedStyle(bar).display, wx: getComputedStyle(document.getElementById('dev')).getPropertyValue('--wx').trim(), tip: !!document.querySelector('.wxtip') && getComputedStyle(document.querySelector('.wxtip')).display !== 'none' } });
     T(`${name}：${wantBar ? '演示里的模拟微信顶栏照常显示' : '没有第二层 ✕ / ··· 顶栏，也没给它留位置'}`, wantBar ? (x.env === 'wechat' && x.bar !== 'none' && x.wx === '44px') : (x.env === 'wechat' && x.bar === 'none' && x.wx === '0px'), x);

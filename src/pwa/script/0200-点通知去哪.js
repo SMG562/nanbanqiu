@@ -57,8 +57,8 @@ function renderMap(items){
     const c=l[0];return `<div class="pin ${pk(l)}${sel?' sel':''}" data-pin="${c.id}"><i></i>${hm(c.start)}<span>${lvl(c)}</span></div>`};
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lng],12);
-      (()=>{const tl=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});tileRetry(tl);tl.addTo(MAP.lf)})();
-      L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
+      (()=>{const tl=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'});tileRetry(tl);tl.addTo(MAP.lf)})();
+      L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap © CARTO').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();MAP.mk={};
     L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);
     groups.forEach(l=>{const m=L.marker([l[0].v.lat,l[0].v.lng],{icon:L.divIcon({className:'pinwrap',html:pinHTML(l),iconSize:[0,0]})}).addTo(MAP.layer);l.forEach(c=>MAP.mk[c.id]=m)});

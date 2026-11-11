@@ -11,7 +11,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await ctx.addInitScript(() => { window.AN_LOG = [] });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const open = async p => { await pg.goto('https://nanbanqiu.test' + p); await pg.settle(500) };
     const info = () => pg.evaluate(() => ({ key: CITY.key, title: document.title, loc: LOC && LOC.label, lat: LOC && LOC.lat,
       xhs: (() => { try { return xhsText(api.get(GAMES.find(g => g.share_code).id)) } catch (e) { return 'ERR ' + e.message } })(),
@@ -63,7 +63,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     for (const [tz, want] of [['Australia/Melbourne', false], ['Australia/Perth', true], ['Asia/Shanghai', true]]) {
       const c2 = await b.newContext({ timezoneId: tz, viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } }), p2 = await c2.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message));
       await p2.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
-      await p2.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p2.route('https://tile.openstreetmap.org/**', r => r.abort());
+      await p2.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p2.route('https://basemaps.cartocdn.com/**', r => r.abort());
       await p2.goto('https://nanbanqiu.test/melbourne/'); await p2.settle(600);
       const y = await p2.evaluate(() => { const g = GAMES.find(x => x.share_code), c = api.get(g.id), mel = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(c.start);
         return { lt: lt(c.start), mel, list: [...document.querySelectorAll('.lt')].length } });

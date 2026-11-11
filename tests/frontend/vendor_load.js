@@ -15,7 +15,7 @@ const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     await pg.route(`https://${HOST}/vendor/**`, r => { const p = path.join(DIR, new URL(r.request().url()).pathname); const ok = p.startsWith(path.join(DIR, 'vendor')) && fs.existsSync(p);
       ok ? r.fulfill({ status: 200, body: fs.readFileSync(p), contentType: p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : 'image/png' }) : r.fulfill({ status: 404, body: '' }) });
     await pg.route(`https://${HOST}/`, r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', headers: SECURITY_HEADERS, body: fs.readFileSync(path.join(DIR, f)) }));
-    await pg.route('https://tile.openstreetmap.org/**', r => r.abort()); await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort());
+    await pg.route('https://basemaps.cartocdn.com/**', r => r.abort()); await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort());
     await pg.goto(`https://${HOST}/`); await pg.settle(800);
     const got = await pg.evaluate(() => ({ L: typeof L === 'object' && !!L.map, qr: typeof QRCode === 'function', h2c: typeof html2canvas === 'function',
       css: [...document.styleSheets].some(s => (s.href || '').includes('/vendor/leaflet/leaflet.css') && (() => { try { return s.cssRules.length > 50 } catch (e) { return false } })()) }));

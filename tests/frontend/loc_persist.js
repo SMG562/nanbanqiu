@@ -10,7 +10,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await ctx.addInitScript(() => { window.__geo = 0; try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition() { window.__geo++ } }, configurable: true }) } catch (e) {} });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, file)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const wait = ms => pg.waitForTimeout(ms);
     await pg.goto('https://nanbanqiu.test/'); await wait(900);
     T(name + ' 首次：没存过位置，会询问一次', await pg.evaluate(() => (!!document.querySelector('#sheet.show') || !!document.querySelector('.locprompt'))));

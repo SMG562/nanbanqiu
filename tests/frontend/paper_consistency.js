@@ -15,7 +15,7 @@ const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   for (const [name, file, vp] of [['pwa', '南伴球_PWA.html', { width: 390, height: 844 }], ['web', '南伴球_Web.html', { width: 1280, height: 800 }]]) {
     const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 2 }), pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, file)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.waitForTimeout(800);
     await pg.evaluate(() => { api.login({ name: 'Tess', last: 'L', ntrp: 4, home_club_ids: [], gender: null }); render(); if (typeof renderMe === 'function') renderMe() }); await pg.waitForTimeout(300);
     const want = hex(await pg.evaluate(() => ZAVC[0][1]));

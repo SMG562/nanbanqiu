@@ -13,7 +13,7 @@ const SB = 'https://abc.supabase.co';
     const R = { otp: { s: 200, d: {} }, verify: null, refresh: null };   // 当前假接口的回复，每步前改
     const OKV = uid => ({ s: 200, d: { access_token: 'AT-' + uid, refresh_token: 'RT-' + uid, expires_in: 3600, user: { id: uid, phone: '61412345678' } } });
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.route(SB + '/**', r => { const u = r.request().url(); reqs.push({ u, body: r.request().postData() }); const k = u.includes('/otp') ? 'otp' : u.includes('/verify') ? 'verify' : u.includes('/token') ? 'refresh' : 'logout';
       const x = R[k] || { s: 204, d: null }; r.fulfill({ status: x.s, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: x.d == null ? '' : JSON.stringify(x.d) }) });
     const open = async () => { await pg.goto('https://nanbanqiu.test/'); await pg.settle(500) };

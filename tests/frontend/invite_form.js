@@ -11,7 +11,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     const ctx = await b.newContext({ viewport: name === 'pwa' ? { width: 390, height: 560 } : { width: 1280, height: 560 }, hasTouch: name === 'pwa', isMobile: name === 'pwa' });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, file)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.waitForTimeout(700);
     await pg.evaluate(() => document.querySelector('[data-demo="invsend"]').click()); await pg.waitForTimeout(900);
     const st = () => pg.evaluate(() => { const s = ivScroller(); return s ? { top: s.scrollTop, over: s.scrollHeight - s.clientHeight } : null });

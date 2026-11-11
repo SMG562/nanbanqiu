@@ -18,7 +18,7 @@ const SCAN = () => {
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('file://' + path.join(DIR, f)); await pg.settle(900);
     const tag = s => `${f} ${s}`, scan = () => pg.evaluate(SCAN);
     let r = await scan(); T(tag('首页：id 不重复、引用都存在'), !r.dup.length && !r.miss.length, r);

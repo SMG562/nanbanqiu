@@ -8,7 +8,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
-  await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
+  await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
   await pg.goto('https://nanbanqiu.test/'); await pg.settle(500);
   await pg.evaluate(() => { api.login({ name: 'Tess', last: 'L', ntrp: 4, home_club_ids: [], gender: null }); render() }); await pg.settle(300);
   const shown = () => pg.evaluate(() => document.querySelector('#sheet').classList.contains('show'));
