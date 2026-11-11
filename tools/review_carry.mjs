@@ -15,7 +15,7 @@ export function carries(reviewed, head, base = 'origin/main', cwd = process.cwd(
   if (!ok('merge-base', '--is-ancestor', reviewed, head)) return no('旧提交不是现在头提交的祖先（分支被改写过，或提交了新改动前换过历史）');
   // 逐文件比内容（不用 patch-id：它把缩进、行位置变化当成相同，独立复核 11-11 实测会被骗）：PR 在复核时 / 现在改过的每个文件（含改名的两端），两个提交里的内容必须逐字节相同
   const names = x => g('diff', '--name-only', '--no-renames', `${base}...${x}`).split('\n').filter(Boolean);
-  const blob = (x, f) => { try { return g('rev-parse', `${x}:${f}`).trim() } catch { return '' } };
+  const blob = (x, f) => { try { return g('ls-tree', x, '--', f).split('\t')[0].trim() } catch { return '' } };   // 模式 + 内容哈希（只比内容会漏掉 .sh 的可执行位变化，独立复核 11-11）
   const all = [...new Set([...names(reviewed), ...names(head)])], diff = all.filter(f => blob(reviewed, f) !== blob(head, f));
   if (diff.length) return no(`PR 的文件和复核时不一样：${diff.slice(0, 5).join('、')}（有新提交，或合并时解过冲突 / 夹带了改动）`);
   const mine = names(reviewed), mb = g('merge-base', base, reviewed).trim();
