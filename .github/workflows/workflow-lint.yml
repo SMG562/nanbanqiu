@@ -23,7 +23,7 @@ jobs:
           curl -sSfL -o al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  al.tgz" | sha256sum -c -
           tar -xzf al.tgz actionlint
-          # shellcheck 的四条风格类提示（A && B || C、ls | grep、useless cat）在存量脚本里都是有意写法，不拦；其余 shellcheck 与全部语法 / 表达式问题照拦
+          # 脚本检查（ShellCheck）的四条风格类提示（A && B || C、ls | grep、useless cat）在存量脚本里都是有意写法，不拦；其余脚本检查与全部语法 / 表达式问题照拦
           ./actionlint -ignore 'SC(2002|2010|2012|2015):'
       - name: zizmor（high 才算失败）
         run: |
