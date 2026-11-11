@@ -285,7 +285,9 @@ render=function(){if(NBQ_MODE!=='real')return _realRender.apply(this,arguments);
   const f=REAL_PAGES[S.page];$('#page').innerHTML=f?f():realPlaceholder(S.page)};
 const _realDrawNav=drawNav;
 drawNav=function(){if(NBQ_MODE!=='real')return _realDrawNav.apply(this,arguments);
-  $('#nav').innerHTML=PAGES.map(p=>p[0]==='h'?`<div class="navh">${esc(p[1])}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${esc(p[0])}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]||''}</svg>${esc(p[1])}${REAL_PAGES[p[0]]?'':'<em class="soon">待接入</em>'}</button>`).join('')};
+  const vis=PAGES.filter(p=>p[0]==='h'||S.role!=='viewer'||p[0]==='account'||VIEWER_PAGES.has(p[0]));   // 只读：只列它能看的统计页（服务端照样拦）
+  const nav=vis.filter((p,i)=>p[0]!=='h'||(vis[i+1]&&vis[i+1][0]!=='h'));                              // 去掉下面一项都没有的分组标题
+  $('#nav').innerHTML=nav.map(p=>p[0]==='h'?`<div class="navh">${esc(p[1])}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${esc(p[0])}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]||''}</svg>${esc(p[1])}${REAL_PAGES[p[0]]?'':'<em class="soon">待接入</em>'}</button>`).join('')};
 const _realLogout=logout;
 logout=async function(){if(NBQ_MODE!=='real')return _realLogout.apply(this,arguments);
   const r=await admApi('POST','/logout',{});toLogin(r.ok?'已退出登录':'已在本机退出；网络没通，服务器上的登录会在 12 小时内自动失效')};

@@ -168,6 +168,7 @@ try {
     await q(`update admin_users set role='viewer', disabled=false where email='view@x.com'`);
     const v = await session('view@x.com'); await goPage(v.p, 'overview');
     T('6.6 只读：最活跃的球友那张卡说明看不到，其他照常', await until(async () => { const t = await txt(v.p, '#page'); return /你的角色看不到这一项/.test(t) && /新注册/.test(t) }));
+    T('6.6b 只读的侧栏：只有能看的统计页（没有球友、管理员、待审核），也没有空的分组标题', await v.p.evaluate(() => { const ks = [...document.querySelectorAll('#nav [data-pg]')].map(b => b.dataset.pg), hs = [...document.querySelectorAll('#nav > *')]; return ks.includes('overview') && !ks.includes('users') && !ks.includes('admin') && !ks.includes('review') && hs.every((e, i) => !e.classList.contains('navh') || (hs[i + 1] && !hs[i + 1].classList.contains('navh'))) }));
     T('6.7 只读没有页面错误', !v.pe.length, v.pe); await v.ctx.close();
   }
   // ================= 7. 场边配置（草稿 → 发布 → 退回） =================

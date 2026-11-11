@@ -30,7 +30,7 @@ function scPart(k){const v=SC.d.draft.config[k],can=scCan(),ed=SC.edit===k,b=SC.
   let body;
   if(ed)body=`<textarea id="scJson" class="search mono" style="width:100%;min-height:260px;font-size:12px">${esc(JSON.stringify(v,null,1))}</textarea><div class="admr-e" id="scErr"></div><div class="rowacts" style="margin-top:6px"><button class="btn sm p" data-sc="save" data-k="${k}"${b}>保存到草稿</button><button class="btn sm" data-sc="unedit">取消</button></div>`;
   else if(k==='topics')body=`<table><thead><tr><th>话题</th><th>类型</th><th>问题</th><th>开头句</th><th>上线</th></tr></thead><tbody>${v.map((t,i)=>`<tr><td><b style="font-weight:600">#${esc(t.title)}</b><br><small class="mono" style="color:var(--mut)">${esc(t.id)}</small></td><td>${t.kind==='limited'?`限时${t.starts_at?'<br><small>'+esc(String(t.starts_at).slice(0,10))+' 起</small>':''}`:'常驻'}</td><td>${esc(t.ask||'—')}</td><td><small>${esc((t.starters||[]).join(' / ')||'—')}</small></td>
-    <td>${can?`<button class="btn sm${t.active?' p':''}" data-sc="toggle" data-i="${i}"${b}>${t.active?'上线中':'已下线'}</button>`:t.active?'上线中':'已下线'}</td></tr>`).join('')}</tbody></table>`;
+    <td>${can?`<button class="btn sm${t.active?' p':''}" data-sc="toggle" data-i="${i}" title="${t.active?'点一下下线（先进草稿，发布后生效）':'点一下上线（先进草稿，发布后生效）'}"${b}>${t.active?'上线中':'已下线'}</button>`:t.active?'上线中':'已下线'}</td></tr>`).join('')}</tbody></table>`;
   else body=scPreview(v);
   return `<div class="card"><div class="ch"><b>${esc(SC_PART[k])}</b>${ch?'<span class="pill w">草稿已改</span>':''}${can&&!ed?`<button class="btn sm" data-sc="edit" data-k="${k}" style="margin-left:auto">编辑</button>`:''}</div>${body}</div>`}
 function scPending(){const p=SC.d.pending||[],can=scCan();if(!p.length)return '';

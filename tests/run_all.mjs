@@ -268,7 +268,7 @@ if (FAILED) {
   if (gone.length) console.log(`  这一档里没有（完整档才有，或已改名；去掉 --quick / --fast 再试）：${gone.join(' ')}`);
 }
 if (SEL && !LIST.length && !args.list) { console.log('\n没有要跑的测试。'); process.exit(0) }
-if (args.list) { LIST.forEach(t => console.log(t.suite.padEnd(11), t.id)); process.exit(0) }
+if (args.list) { process.stdout.write(LIST.map(t => t.suite.padEnd(11) + ' ' + t.id).join('\n') + '\n', () => process.exit(0)); await new Promise(() => { }) }   // 一次写完、写完再退出：逐行 console.log 后立刻 exit，输出到管道时高负载下会被截断（11-12 实测 24 次并发 11 次少了 13–40 行，退出码仍是 0，unit/select / unit/shard 因此偶发红）
 
 // ---------- 环境检查 ----------
 function need(ok, msg) { if (!ok) { console.error('环境不满足：' + msg); process.exit(2) } }

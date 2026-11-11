@@ -15,7 +15,7 @@ const STX_PCT=new Set(['rate','fill_rate','with_photo','with_topic','with_venue'
 const stxFmt=(k,v)=>v==null?'—':typeof v==='boolean'?(v?'是':'否'):STX_PCT.has(k)&&typeof v==='number'?(v<=1?Math.round(v*100):Math.round(v))+'%':typeof v==='number'?(Number.isInteger(v)?v.toLocaleString('zh-CN'):(+v.toFixed(1)).toLocaleString('zh-CN')):String(v);
 // 每页的卡片：[种类, 标题, 数据源, 选项]；选项 cols = 只显示这些列（顺序），w = 占几栏（共 2 栏）
 const STP={
-  overview:[['kpis','这段时间的活跃','active_users'],['kpis','开打时人齐','fill_rate'],['kpis','今天','today_board',{note:'不受时间范围影响'}],['series','每天','series',{w:2}],
+  overview:[['kpis','这段时间的活跃','active_users'],['kpis','开打时人齐','fill_rate'],['kpis','今天','today_board',{note:'不受时间范围影响',w:2}],['series','每天','series',{w:2}],
     ['table','最活跃的球友','user_activity',{w:2}],['table','最活跃的球场','venue_activity'],['funnel','从来访到打上球','visit_funnel'],['heat','大家几点打球','start_heatmap',{v:'games',w:2}]],
   cards:[['kpis','球员卡被查看','card_views'],['table','分享与打开','share_attribution',{w:2}]],
   regions:[['table','全部区域','suburb_activity',{w:2}]],
