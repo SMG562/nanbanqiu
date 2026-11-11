@@ -170,7 +170,7 @@ add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, '
 for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
-add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
+add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 11-11：逐像素对比对 CPU 负载敏感——CI 并发从 2 提到 4 后第一次就偶发失败（PR #162），改成单独跑（不和别的抢 CPU，约 +15s）
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
 if (!QUICK) for (const t of ['2026-10-15T07:05:00+11:00', '2026-10-18T05:30:00+11:00']) add('admin', 'admin/data@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { env: { NBQ_TS: t }, pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });
 add('admin', 'admin/consist', ['node', '-r', PRELOAD, path.join(HERE, 'admin/consist.js')], { pass: [/ALL PASS/], timeout: 900 });
