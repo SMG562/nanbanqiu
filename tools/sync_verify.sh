@@ -16,7 +16,7 @@ elif [ "${1:-}" = "--deploy" ]; then MODE=deploy; REF=""; ACTION="${2:-verify}";
 list() {
   if [ "$MODE" = branch ]; then printf '%s\n' "${BFILES[@]}"
   elif [ "$MODE" = deploy ]; then node tools/worker_version.mjs --list
-  else git diff --name-only -z --diff-filter=AM "$REF" HEAD | tr '\0' '\n' | grep -v '^\.github/'; fi   # .github 是受保护文件，写不进电脑，不核对
+  else git diff --name-only -z --diff-filter=AM "$REF" HEAD | tr '\0' '\n' | grep -v -e '^\.github/' -e '^CLAUDE\.md$'; fi   # CLAUDE.md 不同步（电脑上只放指路桩，见 sync_files.sh）   # .github 是受保护文件，写不进电脑，不核对
 }
 if [ "$ACTION" = "--paths" ]; then
   list | python3 -c "

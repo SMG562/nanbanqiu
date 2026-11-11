@@ -246,7 +246,7 @@ async function entries(b,plat){const W=plat==='Web',out={};
   return out}
 
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
-  for(const p of ['PWA','Web']){await run(b,p);await entries(b,p)}
+  await Promise.all(['PWA','Web'].map(async p=>{await run(b,p);await entries(b,p)}))   // 11-11：两端各自独立的浏览器上下文，结果按端存（R / ALL），并行跑；下面的两端对照在两端都跑完之后
   // 字典之外的事件
   for(const p of ['PWA','Web']){const bad=[...new Set(ALL[p].map(e=>e.ev).filter(x=>!SPEC.has(x)&&x!=='ui_action'))];T(p+' only spec events',!bad.length,bad);
     const leak=ALL[p].filter(e=>/secret-xyz|秘密内容|我到了/.test(JSON.stringify(e.props)));T(p+' no chat text in events',!leak.length,leak.map(e=>e.ev));
