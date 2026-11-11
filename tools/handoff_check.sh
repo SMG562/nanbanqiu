@@ -9,6 +9,8 @@ me=$($R api user --jq .login 2>/dev/null || echo "?"); case "$me" in SMG562) rol
 echo "身份：本会话 gh 账号 $me → 对话里的人就是 $me 本人（$role）。不要再问身份；给的步骤只写 $role 能做的，所有者的事直接留言到 #108（@SMG562），不让用户转达；等所有者的后续订阅那个 PR 自动接上，不让用户盯"
 git fetch -q --depth=200 origin main 2>/dev/null
 last=$(git log -1 --format=%H origin/main -- "$F"); when=$(git log -1 --format=%cI "$last")
+# 11-12：协作者的会话常落后 main（新脚本 / 护栏没拉到）。规矩文件、脚本、钩子落后了就先拉
+bh=$(git rev-list --count HEAD..origin/main -- tools .githooks CLAUDE.md docs 2>/dev/null); [ "${bh:-0}" -gt 0 ] && echo "⚠ 本地落后 origin/main：tools/ .githooks/ CLAUDE.md docs/ 有 $bh 个新提交（新脚本、护栏、规矩你还没拿到）——先 bash tools/sync_main.sh（在 main 上用 git pull --ff-only），再开工"
 echo "进度记录最后更新：$(git log -1 --format='%h %ci' "$last")"
 after=$(git log --format='%h %s' "$last"..origin/main -- . ':!marketing' ':!*.md' 2>/dev/null)
 echo "── 之后 main 上的代码提交（不含宣传图和文档）："; [ -n "$after" ] && echo "$after" || echo "  无"

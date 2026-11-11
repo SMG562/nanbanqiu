@@ -1,176 +1,88 @@
 # 南伴球 · 测试体系
 
-一条命令把前台两端、后台、数据库、推送配置全部检查一遍，给出明确的「通过 / 失败」和原因。
+一条命令把前台两端、后台、数据库、发送程序、CI 配置全部检查一遍，给出明确的「通过 / 失败」和原因。
+**单项测试的细节只写在该测试文件开头的注释里**（做什么、为什么、查什么）——那是唯一来源；本文件只讲体系、用法和约定，不逐项复述（逐项复述 11 月已落后 60 多项，不再维护）。权威清单：`node tests/run_all.mjs --list`。
 
+## 1. 怎么跑
 ```bash
-node tests/run_all.mjs --quick              # 快速：约 6–10 分钟，每次改动后跑
-node tests/run_all.mjs                      # 完整：约 30–45 分钟，交付或上线前跑
-node tests/run_all.mjs --only=schema,admin  # 只跑某几类
-node tests/run_all.mjs --only=static,schema,pg --fast   # 每一小轮：数据库 + 静态，约 2 分钟（跳过 9 分钟的一年数据量性能测试）
-node tests/run_all.mjs --grep=sb_,notify     # 只跑名字里含这些字的
-node tests/run_all.mjs --jobs=2              # 同时跑几项（默认 = CPU 数；性能测试总是单独跑）
-node tests/run_all.mjs --changed             # 按改动的文件挑相关测试（没提交的改动 + 新文件；隐含 --quick）；--changed=origin/main 和某个提交 / 分支比
-node tests/run_all.mjs --failed              # 只重跑「失败过、之后还没通过」的项（名单 tests/reports/failed.json，每次跑完自动更新）
-node tests/run_all.mjs --list               # 看会跑哪些
-node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，更新回归快照
+node tests/run_all.mjs --changed=origin/main --skip=visual   # 每轮默认：按改动挑相关的（规则 tests/lib/select.mjs）
+node tests/run_all.mjs --grep=sb_,notify     # 名字含这些字的
+node tests/run_all.mjs --only=static,schema,pg --fast   # 数据库 + 静态，约 2 分钟（跳过一年数据量性能测试）
+node tests/run_all.mjs --quick               # 快速档（PR 上 CI 跑的就是它）；不带参数 = 完整档（每周日 CI 跑）
+node tests/run_all.mjs --failed              # 只重跑「失败过、之后还没通过」的项（tests/reports/failed.json）
+node tests/run_all.mjs --shard=i/n           # CI 分片用，本地不用
+node tests/run_all.mjs --jobs=2 --list --update-snapshots
 ```
+- 退出码：`0` 全过 · `1` 有失败 · `2` 环境不满足或参数非法（会说明缺什么）。
+- 报告在 `tests/reports/<时间>/`：`summary.md`（给人）、`results.json`（给机器）、`logs/`（每项完整输出，快照差异 `*.diff.txt`）。
+- **本地一律带 `--skip=visual`**（截图对比用 CI 字体，本地必然不一致）。**`--changed` 改了 `tests/run_all.mjs` 或 `tests/lib/` 会选中整个快速档**（约 100 项、10 分钟以上）→ 这类改动只 `--grep` 相关项，其余交给 PR 上的 CI。
+- **失败先单独再跑一次**（`--grep=<名字>`；并发时浏览器类偶发超时）；单独也失败才查。同一条偶发失败出现 ≥ 2 次 = 开 Issue 修，不靠重跑糊过去。
+- 单个测试直接 `node tests/…` 或浏览器打开 HTML 前先 `node tools/build.mjs`（三个 HTML 和 `_bundle.sql` 不入库，ADR 0011）。
 
-退出码：`0` 全部通过 · `1` 有失败 · `2` 环境不满足（会说明缺什么、怎么装）。
-报告在 `tests/reports/<时间>/`：`summary.md`（给人看）、`results.json`（给机器看，含被测文件指纹）、`logs/`（每项的完整输出，快照差异在 `*.diff.txt`）。
+**环境**：`bash tools/setup_env.sh` 一条命令装齐（ESLint、pglast、PostgreSQL 16 + PostGIS、提交前检查；`--check` 只检查）。单装：Node ≥ 18；Playwright + Chromium（`npm i -g playwright && npx playwright install chromium`）；`pip install pglast`（切分并解析 `schema.sql`）；PGlite 首次运行自动装到 `~/.cache/nbq-tests/schema`。可选变量：`NBQ_DIR`、`NBQ_CACHE`、`NBQ_CHROMIUM`。
 
----
-
-## 1. 环境
-
-**一条命令装齐**：`bash tools/setup_env.sh`（ESLint、pglast、PostgreSQL 16 + PostGIS、提交前检查；已装的跳过，`--check` 只检查）。下表是各项单独怎么装。
-
-| 需要 | 用途 | 安装 |
-|---|---|---|
-| Node.js ≥ 18 | 全部 | — |
-| Playwright + Chromium | 前台、后台、回归 | `npm i -g playwright && npx playwright install chromium` |
-| Python 3 + pglast | 数据库：切分并解析 schema.sql | `pip install pglast` |
-| PGlite（WASM 版 PostgreSQL） | 数据库：真实执行 SQL | 首次运行自动装到 `~/.cache/nbq-tests/schema`（需要能访问 npm） |
-
-可选环境变量：`NBQ_DIR`（被测文件目录，默认 tests 的上一级）、`NBQ_CACHE`、`NBQ_CHROMIUM`（Chromium 路径）。
-
-## 2. 运行环境怎么保证可重复
-
-所有浏览器测试都通过 `lib/preload.js` 启动（`node -r lib/preload.js 脚本`），不需要改动脚本本身：
-
-- **固定时钟**：页面里的时间统一从 `NBQ_TS` 开始（默认 2026-10-14 15:10 墨尔本时间）；脚本自己指定的时间照样生效。
-- **固定随机数**：页面里的 `Math.random` 换成带种子的伪随机，两次运行输出完全一样，快照才可比。
-- **断网**：外网请求一律拦掉（CDN、Google 等），结果不受网络影响；页面本身有离线兜底。
-- **文件位置**：脚本里写死的 `/mnt/user-data/outputs/` 自动改到 `NBQ_DIR`。
-- **等页面安静**（E2）：`page.settle(最多毫秒)` 代替「点完固定等 N 毫秒」——在这段时间内会到期的短定时器（≤ 2 秒）、rAF、会结束的动画（含 Shadow DOM）都完了，连续两次检查都安静就继续；最多等原来那么久，所以只会更快。页面里等用 `__nbqSettle(毫秒)`。要看哪一步等满了：`NBQ_SETTLE_DEBUG=1`。量位置、等弹窗回应、等真实时间流逝（场边 2.2 / 5.2 秒一条的新动态）这类，写明确的条件（`waitForFunction`），不用 settle。
-
-**截图基准怎么更新**：基准用 CI 的字体拍的，本地渲染不同，本地跑 visual 会不一致（只用来看差异图）。界面改动是预期的 → 推送后在 Actions 手动运行选 `visual-baseline`（不要同时再触发别的手动运行，会互相取消），由 CI 重拍并提交回 main，再 `git pull`。
-
-## 3. 测什么（6 类）
-
-**分层（E2）**：页面里的纯规则（场边的频率、链接、话题名、通知合并、通知文字）放在单独的规则文件里，`unit/` 在 Node 里直接测，不开浏览器（1 秒内，提交前检查也跑）；浏览器测试只管「接上了没有」和界面。改规则先看 `unit/` 有没有覆盖到。
-
-
-| 类 | 测试 | 检查内容 | 判定 |
+## 2. 分层：能用便宜的测试证明的，不用贵的
+| 层 | 目录 | 跑在哪 | 管什么 |
 |---|---|---|---|
-| unit | `unit/side_rules.mjs` | 场边规则（`src/shared/side/0065-发布规则.js`、`0085-场边通知规则.js`）放进空沙盒载入（证明不依赖页面）：频率 = schema.sql rate_rules（窗口、次数、错误码、边界）、链接正则 = api_sb_post、话题名（字数按字符 = char_length、#、太宽的词、相似词、同名、昵称规则的先后）、网球 / 回复合并（起点、正好 10 分钟、不算自己、回复我）、通知文字 = server/notify/rules.mjs pushText（1200 种组合）。故意改坏 13 处全部抓到 | 0 失败 |
-| unit | `unit/sb_auth.mjs` | 5g-1 登录逻辑（0490 的 sbAuthMake，空沙盒）：请求地址 / 内容、错误码归类、登录态保存与续期、退出、资料缓存、未配置不启用 |
-| unit | `unit/nbq_net.mjs` | 5g-3 前台数据层骨架（0495 的接口调用 / 字段转换 / 一次读入，空沙盒 + 假 fetch）：令牌、错误码、断网、401 回调、查询串、后端字段 → 前台数据形状、读入失败不留半份 |
-| unit | `unit/ci_paths.mjs` | CI 路径规则守卫（11-04）：tests-fast.yml / tests.yml 的 paths 两份必须一致；每个已跟踪文件要么触发测试、要么在文件里的「不测名单」写明理由（新目录 / 新类型必须有人决定）；被 `!` 排除的目录没有测试 / 工具 / 站点代码引用、且有别的工作流顶上做轻量检查；关键文件（依赖、部署配置、海报清单、流程脚本、提交前检查）一定触发。改 paths 或新增目录后跑 `--grep=ci_paths`（`--changed` 会忽略 .github，选不到它）。故意改坏 5 处全部抓到 |
-| frontend | `frontend/real_data.js` | 5g-3 第 4 轮（4a）真实数据只在 nanbanqiu.app（两端，假 Supabase + 假 /api）：预览站仍演示、正式域名清空演示数据只读球场、老用户读入并字段对得上、新号码注册 → 常去球场 → 性别 → 读入、刷新恢复、退出清空 |
-| frontend | `frontend/real_write.js` | 5g-3 第 4 轮（4b）球局写操作在真实模式（两端，有状态的假 /api，点击走真实 data-a 事件）：申请 · 撤回 · 失败提示错误码并同步 · 连点只发一次 · 同意 · 婉拒（原因映射）· 取消 · 发局参数映射 · 球友约定先写库再继续 |
-| frontend | `frontend/real_invite.js` | 第 6 轮（6a）邀约在真实模式（两端，有状态的假 /api，点击走真实 data-iv 事件）：读入（时间换成第几天 + 时:分）· 接受 · 婉拒（原因 + 一句话）· 换个时间 · 撤回 · 发邀约（含每天上限失败提示）· 邀约类通知读入 |
-| frontend | `frontend/real_chat.js` | 第 6 轮（6b）聊天在真实模式（两端）：会话列表读入（最后一句 / 未读）· 点开读消息并标已读 · 发消息（失败提示、输入框保留）· 新消息轮询 · 球局群聊首次点开才在服务器建 |
-| frontend | `frontend/real_safety.js` | 第 6 轮（6c）屏蔽 / 举报在真实模式（两端）：屏蔽名单登录时读入 · 屏蔽 / 解除屏蔽调接口（失败不假装成功）· 举报（点原因即提交、「其他」必须写说明、重复举报的提示） |
-| frontend | `frontend/real_after.js` | 第 6 轮（6d）赛后在真实模式（两端）：登录时读入多遇到 / 少遇到 · 赛后卡片点多遇到 / 感受 / 好了 调 recap · 球员卡上改调 pref · 失败不改页面 · 本地不冒假通知 |
-| frontend | `frontend/dom_integrity.js` | 页面完整性（两端）：整页 id 不重复、`url(#x)` 引用都存在（SVG 头像的滤镜 / 裁剪 id 重复会让头像画成空白方块）· 同一个人的头像连画多次（含隐藏容器）· 聊天气泡 / 头像没被别处同名 class 串味（导航 `.me` 药丸边框） |
-| pg | `pg/venues_seed.mjs` | 5g-3 球场 + 区导入（server/seed/venues_seed.sql）：在真实 schema 上执行、数量与前台名录一致、区外键、坐标范围、可重复执行、核对标记、/api/venues 只给 active |
-| frontend | `frontend/sb_login.js` | 5g-1 两端用假 Supabase 接口跑完整登录：演示照旧、发码失败、验证码错、新号码填资料、刷新自动登录、退出、老用户直接进、续期被拒 |
-| frontend | `frontend/img_save.js` | 5e 保存图片（两端）：能分享走系统分享、取消不弹、被拒 / 不支持弹大图长按保存、不触发下载；小红书文案链接带 https:// |
-| frontend | `frontend/a2hs.js` | 添加到主屏幕引导：iOS Safari / iOS 其他浏览器 / App 内置浏览器 / 安卓各给对的步骤，没有演示按钮，安卓有安装事件时一键 |
-| frontend | `frontend/wx_share.js` | 微信分享：前台卡片文案和服务端 server/og 逐个球局一致（两端）；手机端「发到微信群」走系统分享（只带标题 + 链接）、预览 = 真实卡片、取消不复制、微信内置浏览器给提示；单元测试 `unit/og.mjs`：卡片文案、head 改写、兜底、整页处理 |
-| visual | `visual/shots.js` | 截图对比（T4）：手机端 7 张（发现 / 球局 / 我的 / 场边 / 消息 / 发起球局 / 球员卡）、网页端 3 张（发现 / 球局 / 场边）、后台 7 张（登录 / 概览 / 球友 / 球局 / 待审核 / 城市 / 场边数据）在固定时钟、固定账号、关动画下截图，逐像素对 `visual/baseline/*.png`。每个点三通道差 ≤ 16 算同色，不同的点超过总数 0.05% 算不一致；差异图（红点 = 不同）和新图写到 `tests/reports/visual/`（CI 的报告附件里）。比对在 Chromium 里用 canvas 做，不装图片库。故意改坏（标签颜色、导航边距、后台主色）全部抓到 | 0 失败 |
-| static | `static/check.mjs` | 6 个文件齐全并记录指纹；三个页面的脚本和 sw.js 语法；事件字典本身（不重复、5 列、来源 C/S）；两端代码里的事件名都在字典里、不用废弃名、两端一致；两端演示菜单相同；婉拒原因、参加状态、暂停时长在前台/后台/数据库三方一致；manifest 快捷方式在两端都有路由；推送打开参数 n/k 两端都能解析 | 42 项全过 |
-| schema | `schema/run.mjs` | schema.sql 在 PostgreSQL 里**从头到尾真实执行**（PostGIS 用桩代替，其余是真扩展）；37 组样例数据：站内举报约束、账号状态权限 can_act、新婉拒原因、撤回/退出保留记录、线下补位自动满员、取消时间、12 月以后的事件分区、同名不同区球场、UTR 上下限、暂停时长……其中带 `!` 的必须被数据库拒绝；`event_definitions` 与字典逐字段相同 | 0 错误、0 失败、0 差异 |
-| pg | `pg/race.mjs` | 在临时目录起一个**真实的 PostgreSQL + PostGIS**（需本机安装：`apt install postgresql postgresql-16-postgis-3`），先完整执行 schema.sql，再开多个连接让操作真的同时发生：抢最后一个位置、同时通过两个申请、通过 vs 撤回 / 失效 / 取消、接受邀约 vs 过期、双击接受 / 申请、线下补位 vs 直接加入；每个场景 A 先、B 先各一次 + 自由并发 25 次，最后查全库不超员、状态不矛盾 | 0 失败、0 死锁 |
-| pg | `pg/rls.mjs` | 谁能读、谁能写：先查目录（每张表都开了 RLS；Supabase 的 anon / authenticated 和 PUBLIC 对任何表和业务函数都没有权限；前台能碰的表和视图与登记清单一致；每张能读的表都有策略），再用前台球友（按 API 的写法 `set local role nbq_user` + `nbq.uid`）、后台运营、后台只读、公开角色逐条验证能 / 不能（资料、少遇到、举报、爽约反馈、球局可见性、申请、邀约、微信号、私信、通知、操作日志只能追加……） | 0 失败 |
-| pg | `pg/api.mjs` | 后端接口的数据库函数（schema ⑪）按 `spec/api_spec.md` 逐条测：发起 / 修改 / 顺延 / 取消、申请 / 直接加入 / 通过 / 婉拒 / 撤回 / 退出 / 改时间后确认、约人 / 接受 / 换时间 / 婉拒 / 撤回；每次都以前台球友身份调用，核对返回的错误码、写进去的数据和发出的通知；测试里出现的和函数里用到的错误码都必须在规格的错误码表里 | 0 失败 |
-| pg | `pg/api2.mjs` | 接口函数第 2 部分：赛后卡片（感受 / 多遇到少遇到 / 印象）、球员卡上设偏好、一键点赞、爽约反馈 / 撤回 / 申诉 / 标记到场、私信与球局群聊（链接、长度、48 小时关闭）、屏蔽 / 解除、通知已读（待处理的保持未读）、注销与恢复（连带处理） | 0 失败 |
-| pg | `pg/jobs.mjs` | 定时任务（schema ⑫）：申请失效、开打时人数检查 / 没凑齐 / 标为结束、开打前 30 分钟提醒（改时间后再提醒）、还缺人提醒、邀约失效（通知等待的一方）、赛后提醒（夜间顺延、超过 24 小时不发）、暂停到期恢复、注销满 30 天匿名化、每晚汇总；每个都查「再跑一次什么都不做」、job_runs 有记录、前台不能调用；顺带测顺延只能一次、结束不晚于 23:00 | 0 失败 |
-| pg | `pg/notify.mjs` | 通知发送程序（server/notify，第四批 4h）：真数据库 + 假推送 / 假邮件服务。路由 ①–⑧（正在用只在页面提醒、改动类同时推手机、手机优先、没有才推电脑）、夜间顺延到 8 点并合成一条（含夏令时两夜）、过时不推（已读 / 拉黑 / 取消 / 开打 / 已处理）、同局申请 10 分钟只推一次；补发邮件 5 分钟、1 小时合并、每天 5 封、改动先发、开场前 1 / 2 小时规则、各种不发（seen / pushed / pref_off / email_bad / stale）；404 / 410 清订阅、500 保留；退信 / 投诉；两个进程同时跑不重复发 | 0 失败 |
-| pg | `pg/rate.mjs` | 频率限制（schema ⑭，第五批 5a-1）：发局每天 3 个 / 进行中 5 个、申请 + 直接加入每小时 5 / 每天 15 / 同一局 3 次、消息每分钟 10 条、新账号每天主动开始 3 个新对话、举报每天 5 次、改昵称 30 天 2 次、验证码（号码 60 秒 / 每天 5 次、IP 每小时 10 次、连错 5 次锁 30 分钟）；每条测上限、等待秒数、时间窗过后恢复、失败不占次数、同时点不超、例外（对方先发、一起打过球、注册 24 小时内、后台操作）、权限、改表即生效、每晚清理 | 0 失败 |
-| pg | `pg/risk.mjs` | 滥用识别（schema ⑮，第五批 5a-2）：18 条风险规则逐条用真实表的数据触发、差一点 / 不该算的不触发；后台 RISK_RULES 与数据库逐条相同；每小时重算的分数、分级、提醒（更新不重复、处理过的变多才新开、观察期满回到待处理、信号消失归零）；新信号记录（新号私信留联系方式、申请中撤回、被拒操作）；昵称规则（数据库与两端 NICK_BAD 结果相同）；权限；每晚清理信号和注册 IP | 0 失败 |
-| pg | `pg/privacy.mjs` | 隐私（schema ⑯，第五批 5b-2）：18 岁确认与同意版本（改版后要重新同意）、下载我的数据（有什么 / 没有什么：不含别人对我的少遇到、举报人、风险分、被隐藏的消息、别人的对话；每天 1 次）、关闭「使用数据」（会话 / 分享打开 / 事件都不写，已写的去掉账号关联）、注销匿名化补漏、保存期限（25 个月 / 12 个月 / 90 天 / 2 年，操作日志只有任务能删） | 0 失败 |
-| pg | `pg/admin.mjs` | 后台管理员（schema ⑰ + server/admin/auth.mjs，5c）：TOTP 与 RFC 6238 向量一致、密码 scrypt、恢复码；登录（同一个码不能用两次、错误不说哪一步、连错 5 次锁 15 分钟、恢复码只能用一次、失败也记日志）；会话（只存哈希、闲置 1 小时、12 小时、退出、停用后立即失效、只读以 nbq_viewer 连接）；后台不能直接读私信 / 改表；举报里只看被举报那段对话；三种角色逐个函数能 / 不能、理由、操作日志；封禁连带处理；至少保留一位 owner | 0 失败 |
-| pg | `pg/ops.mjs` | 上线后盯什么（schema ⑱ + server/ops，5d）：16 项检查逐项触发 / 不触发（数据量不够不判断）；报警新出现、不重复、升级、6 小时提醒、恢复、再出现；报警邮件只发在职 owner；推送失败和发送程序心跳；页面报错合并计数；加密备份（密钥错、被改一个字节都解不开）；真实的导出 → 恢复 → 18 张表对数 → 自检演练，失败也记录 | 0 失败 |
-| pg | `pg/cities.mjs` | 多城市（schema ⑲，地区扩展 R1-1）：城市配置（时区写错不能存）、前台只看得到已开放的城市、区 → 球场 → 球局的城市（同名区分得清）、城市没开放不能发局；珀斯 / 阿德莱德（半小时）/ 布里斯班的当地发局时段、7 天、顺延截止；邀约的城市、换时间不能换城市、成局城市；赛后提醒按收件人常用城市的夜间；常用城市只能选已开放的；墨尔本结果与原来相同 | 0 失败 |
-| pg | `pg/cities_stats.mjs` | 按城市统计（schema ⑳，地区扩展 R1-2）：6 个城市夏令时切换那天的长度；同城区名唯一、别名按城市；珀斯当地 23:30 的事件算珀斯当天不算墨尔本；汇总按（城市, 当地日期），汇总后读与读原始事件相同；不给城市 = 全部城市；页面、球员卡被查看按城市；今天面板、开打时段 / 钟点、每天申请、留存按当地；每晚汇总所有城市；只读角色能调用 | 0 失败 |
-| pg | `pg/cities_backend.mjs` | 后端按城市 / 国家（schema ㉑ + server/notify，地区扩展 R2）：夜间不打扰按收件人常用城市（珀斯、阿德莱德半小时时区、布里斯班无夏令时、城市自己的时段）；每天 5 封邮件按收件人当地自然日；提醒里的开打时间按球局城市、时区不同标「当地」；手机号和验证码按国家（格式、开放状态、短信配置、前台读不到短信配置）；系统状态业务类按正式开放的城市各一行、报警按（项, 城市）、城市退回试运行自动关报警；每晚 16:10 UTC 对 6 个城市都安全。故意改坏 14 处全部抓到 |
-| pg | `pg/routes.mjs` | 城市网址的后端路由（server/routes.mjs + schema ㉓，地区扩展 R3-2）：/ → /melbourne/；短链接 /g/、/p/ 按球局 / 球员常用城市跳（注销的、找不到的按墨尔本）；补斜杠、大小写、认不出的城市；手机 PWA / 电脑网页端；按城市替换标题、分享预览、安装配置、canonical；每个城市一份 PWA 安装配置；社群链接；同名区的同名球场；「开放时通知我」的写入、去重、格式、频率、权限、保存期限。故意改坏 11 处全部抓到 |
-| pg | `pg/cities_admin.mjs` | 后台按城市（schema ㉔，地区扩展 R4）：运营按城市授权（球友 / 球局 / 球场只看到负责的城市、统计只算负责的城市、处理别的城市的球友 / 举报 / 球场被拦、全局操作只有全部城市的人能做）；城市页一览；检查清单；改上线状态（每步过清单、可退回、记试运行和开放时间）；改城市资料（社群链接只能 https）；开放时通知我（开放前不能导出、导出要理由、标记已通知）；负责城市的设置；会话带城市。故意改坏 11 处全部抓到 |
-| static | `static/xss_static.mjs` | 页面注入静态检查（5a-3）：三个页面 esc() 都转义 & < > " '；没有用数据拼的 javascript: 链接、没有 eval；href / src 里的插值只走白名单（导航 = Google 地图 + encodeURIComponent，举报 = mailto + encodeURIComponent）；后台 CSV 防公式注入；点通知只打开本站页面；推送内容只带 id | 0 失败 |
-| static | `static/admin_perms.mjs` | 后台页面 ADMIN_PERMS = 数据库 admin_perms（17 条）、ADMIN_ERR = 规格 §10.4；只读只能看统计；owner 专属操作；必须填理由的操作 | 0 失败 |
-| static | `static/cities_front.mjs` | 城市网址（地区扩展 R3-1）：前台两端的 CITIES = 数据库 cities 表（key、网址、州、名称、时区、中心、半径、默认位置名、状态、话题、夜间时段），两端一字不差；网址决定城市；代码里没有写死的墨尔本名称 / 时区 / 中心坐标 / 话题；埋点带城市；分享保持短链接；R3-2：COUNTRIES = 数据库已开放国家、登录国家代码不写死、发验证码前按格式检查、即将开放、当地时间 |
-| frontend | `frontend/xss.js` | 页面注入（5a-3）：把昵称、留言、说明、私信、球场名等全部换成恶意字符串，跑两端页签、每个球局 / 球员卡 / 对话 / 分享 / 申请 / 约球和全部演示，再试地址栏参数；页面里不能多出元素或属性、图片 onerror 不能执行 | PASS |
-| frontend | `frontend/csp.js` | 安全响应头草稿（server/headers.mjs）下三个页面全部演示 / 每一页没有被拦的资源、没有报错 | PASS |
-| frontend | `frontend/cities.js` | 网址决定城市（两端）：/、/melbourne/、/g/码、/p/编号、认不出的网址 → 墨尔本且与原来相同；/perth/ 打开时标题、默认位置、分享文案和话题、埋点城市、夜间顺延时区、邮件日期都跟着变；R3-2：未开放城市「即将开放」+ 开放时通知我（提交内容、邮箱校验）、手机号按国家（0412… / +61… 认、座机和少位不认）、手机时区和城市不同时标「当地」时间。前台改坏 15 处全部抓到 |
-| frontend | `场边/t1–t8.cjs`（suite 名 `side_design/t1…t8`） | 场边界面细节 146 项（T2，原来读设计稿 v35，现在测正式页面）：信息流与新动态 · 网球点赞与双击 · 筛选（球场 / 话题 / 只看我的球场；电脑版右栏用网页端）· 详情、回复、三个点菜单、分享图 · 底栏 · 发布页 · 话题墙与相册 · 压力与边界。`场边/lib.cjs` 把设计稿的 `#d3`（手机）/ `#desk`（电脑）指到正式页里 `#sbHost` 的场边 App，断言原样保留；默认不冒新动态（t1 开 live）。设计稿 v35 不再被测试读取 | 0 失败 |
-| admin | `admin/xss.js` | 后台页面注入（5a-3）：副本里昵称、球场名换成恶意字符串，搜索框也填恶意字符串，跑每一页 × 子视图和 50 个抽屉 | ALL PASS |
-| admin | `admin/roles.js` | 后台三种身份（5c）：置灰与拦截、填理由、日志记人和理由、看手机号只有超级管理员、举报里看对话、只读只剩统计页且看不到任何昵称 | 0 失败 |
-| admin | `admin/cities.js` | 后台城市页（R4）：6 个城市和网址、检查清单、往前改状态要过清单（不够就说明缺什么）、要理由记日志、可退回；两个城市开放后顶部出现城市筛选；导出名单 / 标记已通知；运营置灰拦下；只读没有城市页；管理员页显示负责城市。故意改坏 5 处全部抓到 |
-| pg | `pg/sb_schema.mjs` · `pg/sb_api.mjs` · `pg/sb_race.mjs` · `pg/sb_jobs.mjs` · `pg/sb_config.mjs` | 场边 24h（第七批，schema ㉕）：表、读写权限、后台统计；发布 / 话题 / 编号 / 互动 / 互动通知；没登录一律不能写、被拒操作记风险信号、下载我的数据（S2c）；同时操作（编号、网球数、回复数、浏览，A 先 / B 先 / 并发 25 次） | 0 失败 |
-| static | `static/build.mjs` | 两个前台 HTML = `src/` 用 `tools/build.mjs` 拼出来的（逐字节）；list 完整、shared 两端都用；自检：改 src 不重拼 / 直接改 HTML / 漏登记都会失败（R0） |
-| static | `static/lint.mjs` | 前台两端脚本的代码检查（ESLint，版本固定在 `tests/lint/package.json`，run_all 自动装到缓存目录）：没定义的名字、重复声明、重复的键等；问题对回 `src/` 的文件和行；自检 4 项（R0） |
-| static | `static/api_err.mjs` | 前台两端各有一份 `API_ERR`（错误码 → 提示），必须与 `spec/api_spec.md` 的错误码表逐字相同，两端也必须相同 | 0 失败 |
-| pg | `pg/perf.mjs` | 真实 PostgreSQL 上造「上线一年」的数据（`seed_year.sql`：球友 1.2 万、球局 4.6 万、通知 115 万、事件 750 万，最近 30 天约是模拟外推的 1–3 倍），测前台接口和后台每张卡片的数据源用时（清单 `queries.mjs`）；数据量 ×0.05 时另外用 `reference.sql`（改写前的定义）核对改写前后结果逐行相同。报告写到工作目录的 perf.md | 前台 ≤ 50ms · 后台近 30 天 ≤ 2s · 一年 ≤ 5s · 名单 ≤ 3s；对照 0 差异 |
-| frontend | `verify.js` | 两端用真实界面走主流程（访客、登录、申请/撤回、直接加入、审核、取消、发起/修改、顺延、邀约全流程、赛后卡片、徽章、开打前提醒、个性化、分享、筛选、聊天、性别、退出、关闭使用数据、推送打开、分享链接、新路由）：每个动作的事件**只发一次**、props 齐全、两端完全一致、都在字典里；隐私：聊天内容、性别值不进事件，关闭后不再上报 | 429 项 0 失败 |
-| | `verify2.js` | 其余打开类和设置类事件 | 75 项 0 失败 |
-| | `pages.js` | 页面访问与停留时长的切换顺序（底层页面 + 浮层，关掉后回到原页面） | 两端都对 |
-| | `softdelete.js` | 撤回 / 退出保留记录后的整条流程：人数、空位、状态、记录条数、发起人列表和通知 | 20 项 0 失败 |
-| | `account.js` | 账号状态：两端权限矩阵（正常 / 待核实 / 受限 / 暂停 / 封禁 / 注销）、女生局可见性、暂停到期恢复、暂停撤回待确认申请、拦截说明和事件只发一次、我的页提示、注销的连带处理和通知、30 天内恢复 / 超期、封禁不能登录、演示按钮、两端一致 | 57 项 0 失败 |
-| | `report.js` | 站内举报：两端入口（球员卡 / 私信 / 球局聊天）、5 个原因、「其他」必须写说明、记录字段、事件不含说明内容、未处理时不重复、处理后可再举报、暂停中可举报、未登录、安全须知文案、两端一致 | 33 项 0 失败 |
-| | `notif_open.js` | 点通知去哪：两端 19 种场景在消息列表里点开，去处对（球局详情 / 卡片 / 我的页 / 提示）、标为已读、文案没有 undefined、没排上 / 失效 / 满员写明哪一局、详情「看看附近其他球局」到那天、两端一致 | 148 项 0 失败 |
-| | `smoke.js` × 5 个时间点 | 两端每个演示按钮各点一次（每次重新加载），时间点覆盖早上、白天、深夜（免打扰）、周三晚上（每周重复的局刚过）、凌晨：不能有任何页面错误，不能发出字典外的事件 | 每个时间点 50 次运行、0 错误 |
-| admin | `data.js` | 第三批模拟数据层：取值都在 schema 允许范围内（从 schema.sql 读取）、引用存在、时间先后、状态不矛盾、查询自洽、两次打开完全一样、生成 < 1.5 秒；完整模式另在 07:05 和 05:30 各跑一次 | 0 失败 |
-| | `consist.js` | 后台数字的逻辑一致性：去重人数 ≤ 总量、新注册 ≤ 总注册、漏斗单调、上一周期不完整时不显示环比、「开打时人齐」和「分享带来的注册」各页相同、区 = 球场之和、取数稳定、稀有度定义、等级、处理风险后角标立即更新、后台字典 = 事件字典、概览「今天」面板自洽且不受筛选影响；第三批：各页新球局 / 申请 / 开打人齐与汇总一致、全部 = 手机 + 电脑；完整模式另在 07:05 和 23:40 各跑一次 | ALL PASS |
-| | `sweep.js` | 每页 × 5 个时间范围 × 3 个平台 × 各标签和抽屉 × 3 种宽度（1360/1024/390）：无报错，无 NaN / undefined / Infinity / 负数，百分比不超过 100%，页面不横向滚动 | issues=0 |
-| regression | `regression/*.js`（22 个） | 历次功能的回归脚本（临时约球、超时、赛后、多遇到/少遇到、徽章、婉拒、多人申请、性别、分享、两端同步、通知 v2 等）。每个脚本的输出和 `snapshots/` 里的快照逐字比对；不一致时自动再跑一次，两次一致才判定为「真的变了」，差异写进 `logs/*.diff.txt` | 不能有错误输出，且与快照一致 |
+| 静态 | `static/` | Node，秒级 | 源文件拼装一致（`build`）、ESLint（`lint`）、字典 / 错误码 / 权限登记三方一致、注入静态检查、枚举覆盖 |
+| 单元 | `unit/` | Node 空沙盒 | 页面纯规则（场边频率 / 通知文字）、登录与数据层逻辑、**所有 `tools/` 脚本与闸门**（`pr_merge`、`ci_reuse`、`pre_push_guard`、`migration_audit`、`doc_budget`、`ci_paths`…）；提交前检查也跑 |
+| 库结构 | `schema/` | PGlite（PostGIS 用桩） | `schema.sql` 从头到尾真实执行 + 样例数据，带 `!` 的必须被数据库拒绝 |
+| 数据库 | `pg/` | **真实 PostgreSQL 16 + PostGIS**（`cluster.mjs` 临时起关） | 接口函数、定时任务、RLS 谁能读写、同时操作（`race`：A 先 / B 先 / 并发 25 次）、频率限制、风险规则、隐私、后台、城市、场边、通知发送程序、一年数据量性能（`perf`） |
+| 前台 / 后台 | `frontend/` `admin/` `场边/` | Playwright + Chromium，两端 | 真实界面点一遍：断言 **DOM**，不只断言内存；真实模式用「假 Supabase + 有状态的假 /api」（`real_*.js`） |
+| 全栈 | `e2e/` | 真前台 ↔ 真 `handler.mjs` ↔ 真 PG | 「做一次 → 刷新 → 状态还在」；见 `开发规矩.md` §5 |
+| 截图 | `visual/` | CI 字体 | 逐像素对 `visual/baseline/*.png`（三通道差 ≤ 16 算同色，不同点 > 0.05% 算不一致） |
+| 回归 | `regression/` | 只在完整档 | 22 个历次回归脚本，输出与 `snapshots/` 逐字比对；不一致自动再跑一次，两次一致才判「真的变了」 |
 
-**通用失败条件**（所有浏览器测试）：输出里出现 `FAIL`、`TypeError` / `ReferenceError` / `SyntaxError` / `RangeError`、`Cannot read propert…`、非空的页面错误数组、Playwright 超时；退出码非 0；超过时限（每项单独设定，超时直接终止并判失败）。
+**通用失败条件**（所有浏览器测试）：输出含 `FAIL`、`TypeError` / `ReferenceError` / `SyntaxError` / `RangeError`、`Cannot read propert…`、非空页面错误数组、Playwright 超时；退出码非 0；超过该项时限（超时直接终止判失败）。
 
-## 4. 测试本身也经过检验
+## 3. 可重复性（同样的代码，每次结果一样）
+所有浏览器测试经 `lib/preload.js` 启动（`node -r lib/preload.js 脚本`），脚本本身不用改：
+- **固定时钟**：页面时间从 `NBQ_TS` 起（默认 2026-10-14 15:10 墨尔本）；**固定时区**墨尔本（`NBQ_TZ`），与机器无关。「几天前」之类断言按页面时间算（`pg.evaluate(() => Date.now())`）。
+- **固定随机数**：`Math.random` 换成带种子的伪随机（`NBQ_SEED`），快照才可比。
+- **断网**：外网请求一律拦掉，结果不受网络影响（第三方库已由 `vendor/` 本站托管，`frontend/vendor_load` 盯着）。
+- **文件位置**：脚本里写死的 `/mnt/user-data/outputs/` 自动改到 `NBQ_DIR`。
+- **等页面安静**：用 `page.settle(最多毫秒)`（页面内 `__nbqSettle`）代替「点完固定等 N 毫秒」——短定时器、rAF、会结束的动画都完了、连续两次检查安静才继续，最多等原来那么久，只会更快；`NBQ_SETTLE_DEBUG=1` 看哪步等满了。量位置、等弹窗回应、等真实时间流逝这类写明确条件（`waitForFunction`），不用 settle。
+- **前置条件显式写**：不依赖浏览器默认值（如通知权限）；本地和 CI 同环境（含时区）。
+- **临时仓库里跑 git 的测试**：去掉 `GIT_*` 变量并先确认 `rev-parse --show-toplevel` 是临时目录（`tests/lib/git_env.mjs`；11-03、11-11 两次落到真仓库）。
 
-为了确认测试真能抓到问题，做过一轮「故意改坏」的检验（2026-10-15）。另外，回归快照连续两次完整运行结果逐字相同，说明测试环境是可重复的：
+## 4. 写新测试
+1. **先写会失败的测试**（含所有者反馈的问题），看它红，再改代码；改完单独跑那一项。
+2. **文件开头必写注释**：测什么 · 为什么（哪个事故 / 需求）· 查什么 · 查不到什么。
+3. **正例 + 反例 + 影响面**：不只测「我要它做的」，还要测「不该受影响的」和「谁用了这层」。
+4. **放哪**：有明确断言的写到 `frontend/` 或 `admin/`，最后一行输出 `<文件名>: N passed, M failed`，失败 `process.exit(1)`；`frontend/*.js` 自动加入 `run_all`（默认超时 300s），要别的判定 / 超时才在 `run_all.mjs` 写 `add()`；`admin/` 仍要登记。新 pg 接口测试从 `pg/api_events.mjs` 头部复制；新前台真实模式用例往 `real_data.js` / `real_write.js` 的假 /api 加路由，不另起浏览器。
+5. **新事件**先写进 `spec/events_spec.md`（唯一来源），static / schema / frontend / admin 四处按它核对。
+6. **新目录 / 新测试 / 新服务端目录** → 同步 `tests/lib/select.mjs` 的 `RULES`（`unit/select` 核对每个名字都匹配真实测试）。
+7. **很慢的测试（> 60s）** → 登记 `tests/spec/test_weights.json`（分片均衡用）；刷新：看最近一次 tests 运行「用时最长」注解前 15 项。
+8. **键盘 / iOS 输入法 / 推送 / 登录 / Service Worker**：Playwright 模拟不了真机，写模拟（手动加 `.kb`、手发 `compositionend` + Enter）并**仍须真机看过**（`真机清单.md`）。
+9. **别写「总数」断言**（会因别人加一项就红，11-10 冲突治理）；假请求头里别放中文；`page.evaluate` 访问不到 node 变量，要传参。
 
-| 故意改坏的地方 | 被谁抓到 |
-|---|---|
-| 数据库婉拒原因去掉 `blocked` | static（三方不一致）、schema（样例数据写入失败 + 3 条应拒绝/应通过的断言） |
-| 前台 PWA 把 `host_decide` 改名 | static（字典外事件名 + 两端不一致） |
-| 前台撤回/退出改回直接删除记录 | static（保留记录检查）、softdelete（2 项失败） |
-| 后台总注册人数改小 | admin/consist（新注册 ≤ 总注册失败） |
-| 网页端引入一个语法错误 | static（语法检查） |
-| 手机端「30 分钟后开打」改成「30 分钟后开始」 | regression/t6（输出和快照不同） |
+## 5. 快照与截图基准
+- 回归快照不一致：先看 `logs/<测试>.diff.txt`——预期变化 → `--update-snapshots` 并在提交信息写原因；非预期 → 就是回归，先修。
+- 截图基准用 CI 字体拍。界面改动是预期的 → 推送后在 Actions 手动运行选 `visual-baseline`（别同时再触发别的手动运行，会互相取消），CI 重拍并提交回 main，再 `git pull`；重拍期间不并行改界面。
 
-6 处改坏，每一处都被至少一项测试抓到。
+## 6. 测试本身也要被检验
+- **故意改坏**：`python3 tests/lib/mutate.py 计划.json`（跑时不改仓库文件）。一批收尾或做新闸门时对 8–10 处关键规则改坏，每处必须被至少一项测试抓到；抓不到的补测试。10-15 首轮 6 处全抓到；`side_rules` 13 处、`ci_paths` 5 处、城市系列各 11–15 处。
+- **可重复性自检**：回归快照连续两次完整运行结果逐字相同；`unit/shard` 盯分片、`unit/select` 盯选择规则，工具自己也被测。
+- **守卫类测试**（`ci_paths`、`doc_budget`、`enum_cover`、`persist_audit`、`input_audit`…）是把规矩变成机器闸门的落点，加规矩时优先加它们。
 
-## 5. 改代码后怎么用
+## 7. CI 分片与复用（11-11）
+- **分片**：`tests.yml` 的 `shard` 按 matrix 并行（公开仓库 4 份、私有 2 份、重拍基准 1 份），每份 `run_all --shard=i/n`；汇总任务 `test` 全部分片成功才成功，所以 `gate.sh` / `pr_merge.sh` / `ci_reuse.sh` 看「整个运行结论」不变。依据：单机 `--jobs=2` 约 700s，xss / verify / demos 约占四分之一。
+- **分法**：按 `test_weights.json` 预估用时确定性均衡（没登记的按 15s）；`unit/shard` 守「各份合起来 = 全部、互不重复、非法参数退出码 2、登记的名字都存在、`tests.yml` 分片列表完整」。
+- **按端拆开**：xss、demos 拆成 `@PWA` / `@Web` 并行（env `XSS_ONLY` / `SMOKE_ONLY`），verify 两端同进程并行。
+- **并发数**：每台机器 `--jobs=2`。11-11 试过默认（4 核 4 项）：两次运行各偶发 1 项，重跑才过——浏览器测试吃 CPU，并行交给分片，不靠机器内加并发。
+- **周报分钟数**（`weekly_metrics.mjs`）按墙钟算，分片后低估计费分钟（私有仓库才计费）；转私有后改成按任务时长相加。
+- **main 上 `tests` 总是 12 分钟**：复用没坏，是连续直推 main（11-10 / 11-11 调 iPhone「保存图片」连推 6 次）没有 PR、没有可复用的运行。**真机反复试的改动走「分支 → 预览站（staging 库）」，试好后一个 PR 合并**；直推 main 留给一次就对的小修。复用与合并规则见 `开发规矩.md` §3。
 
-0. **前台两端（南伴球_PWA.html、南伴球_Web.html）改 `src/` 里的源文件，改完 `node tools/lint.mjs` 检查**；HTML 不入库（ADR 0011）、不要直接改：`run_all` 开跑时现拼，单个测试直接 `node` 跑 / 浏览器打开前先 `node tools/build.mjs`。后台（南伴球_后台.html）同样由 `src/admin/` 拼出。
-1. 每一小轮跑相关的（`--grep=…` 或 `--only=static,schema,pg --fast`，约 2 分钟）；改了前台再加 `--quick`。完整测试和故意改坏检查只在一批收尾、交付或上线前跑（10-26 定）。
-2. 回归快照不一致时，先看 `logs/<测试>.diff.txt`：
-   - 是这次改动带来的预期变化 → `--update-snapshots` 更新，并在 `进度记录.md` 里写明原因；
-   - 不是预期的 → 就是回归问题，先修。
-3. 新增功能时，同时新增测试：
-   - 有明确断言的写到 `frontend/` 或 `admin/`，最后一行输出 `N passed, M failed`，失败时 `process.exit(1)`，并在 `run_all.mjs` 里登记；
-   - 新事件先写进 `spec/events_spec.md`（唯一来源），static、schema、frontend、admin 四处会自动按它核对。
-
-## 6. 目录
-
+## 8. 目录
 ```
 tests/
-  run_all.mjs            总入口
-  lib/preload.js         固定时钟 / 随机数 / 断网 / 文件位置
-  spec/events_spec.md    事件字典（唯一来源）
-  static/check.mjs       静态检查
-  schema/                run.mjs · preamble.sql（PostGIS 桩）· split.py · tests.sql · package.json
-  pg/                    cluster.mjs（临时起 / 关真实数据库）· race.mjs（同时操作）· rls.mjs（谁能读写）· api.mjs · api2.mjs（接口函数）· jobs.mjs（定时任务）· perf.mjs · queries.mjs · seed_year.sql · reference.sql（一年数据量的速度）· package.json
-  frontend/              verify.js · verify2.js · pages.js · softdelete.js · account.js · report.js · notif_open.js · smoke.js
-  admin/                 data.js · consist.js · sweep.js
-  regression/            22 个历次回归脚本
-  snapshots/             回归脚本的标准输出
-  reports/               每次运行的报告（可删）
+  run_all.mjs  总入口        lib/  preload · select · mutate.py · git_env · backup.py · ci_status.sh
+  spec/  events_spec.md（事件字典，唯一来源）· api_spec.md（接口 + 错误码）· actions / inputs / persist_allow.json（登记）· test_weights.json · doc_budget.json
+  static/ unit/ schema/ pg/ frontend/ admin/ 场边/ e2e/ visual/ regression/ snapshots/ reports/（可删）
 ```
 
-## 7. 已知限制
-
-- 浏览器测试用的是 Chromium；iPhone Safari 的推送、分享面板、添加到主屏幕只能在真机上验证。
-- 测试环境断网，分享图生成（依赖 CDN 上的 html2canvas）只覆盖了「生成失败 → 兜底」这条路径。
-- 数据库测试用 PGlite（PostgreSQL 18 内核），PostGIS 函数是桩；上线前还应在正式的 PostgreSQL 15/16 + PostGIS 上执行一次 schema.sql。
-- 前后台都是原型：没有真实服务端，服务端事件（来源 S）只核对了字典，没有核对实际上报。
-
-## 11-11 · 测试分片与「调真机别直推 main」
-- **浏览器测试分片**：`tests.yml` 的 `shard` 任务按 matrix 并行（公开仓库 4 份、私有仓库 2 份、重拍截图基准 1 份），每份跑 `run_all --shard=i/n`；汇总任务 `test` 全部分片成功才成功，所以 `gate.sh` / `pr_merge.sh` / `ci_reuse.sh` 看「整个运行结论」的做法不变。依据：单机 `--jobs=2` 约 700s，xss / verify / demos 三项约占四分之一。
-- **分法**：按 `tests/spec/test_weights.json` 的预估用时做确定性均衡（没登记的按 15s）；`tests/unit/shard` 守着「各份合起来 = 全部、互不重复、非法参数退出码 2、登记的名字都存在、tests.yml 的分片列表完整」。新增很慢的测试（> 60s）→ 登记进 weights；刷新：看最近一次 tests 运行的「用时最长」注解（前 15 项）。
-- **按端拆开**：xss、demos 拆成 `@PWA` / `@Web` 两项并行（env `XSS_ONLY` / `SMOKE_ONLY`），verify 两端同进程并行；两端互不依赖。
-- **并发数**：每台机器仍是 `--jobs=2`。11-11 试过用默认（4 核跑 4 项）：两次运行各偶发 1 项（visual/shots、frontend/buddies，重跑才过）——浏览器测试吃 CPU，并行交给分片，不靠机器内加并发。
-- **周报分钟数**（`weekly_metrics.mjs`）按运行墙钟时间算，分片后会低估计费分钟（私有仓库才计费）；转私有后改成按任务时长相加。
-- **main 上 `tests` 总是 12 分钟的原因**：复用没坏，是连续直推 main（11-10 / 11-11 调 iPhone「保存图片」连推 6 次）没有 PR，没有可复用的运行，每次全量重跑。**真机上反复试的改动走「分支 → 预览站（staging 库）」，试好后一个 PR 合并**；直推 main 留给一次就对的小修。
+## 9. 已知限制
+- 浏览器测试用 Chromium；iPhone Safari 的推送、分享面板、添加到主屏幕、键盘只能真机验证。
+- `schema/` 用 PGlite（PostGIS 是桩）；`pg/` 才是真实 PostgreSQL 16 + PostGIS。正式库用 PostgreSQL + PostGIS，迁移是否在正式库成立靠 `db-parity`（`开发规矩.md` §8），不靠测试库。
+- 视觉对比只能在 CI 字体下做；本地只用来看差异图。
+- 前台埋点由 `verify*.js` 核对「只发一次、props 齐全、两端一致」；服务端事件（来源 S）至少核对了字典，实际上报是否逐项核对以各测试注释为准。
