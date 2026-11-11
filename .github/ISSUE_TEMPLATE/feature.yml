@@ -37,6 +37,12 @@ body:
       label: 拆成几个 PR（目标 ≤ 200 行手写改动，硬上限 500；大功能：扩展库 → 界面（开关关）→ 打开开关）
     validations: { required: true }
   - type: textarea
+    id: files
+    attributes:
+      label: 文件范围（认领）
+      description: 这次会改的目录 / 文件（如 src/shared/script/05xx、server/api/handler.mjs）。开工前扫一眼别的开着的 Issue / PR 有没有同一批文件；有重叠先在 Issue 里商量谁先做。同一时间一个模块一个人
+    validations: { required: true }
+  - type: textarea
     id: risk
     attributes:
       label: 风险与回退方式

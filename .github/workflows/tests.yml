@@ -26,6 +26,8 @@ on:
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
       - '.githooks/**'          # 提交前 / 推送前检查
+      - '.gitattributes'        # 合并规则（生成文件 / 拼接清单；tests/unit/merge_rules 测它）
+      - 'vendor/**'             # 11-11：第三方库本站托管（leaflet / qrcodejs / html2canvas），页面直接加载
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   pull_request:                 # 11-04：PR 上先测，合并（快进）后 main 复用结果；paths 必须和 push 一致（tests/unit/ci_paths 盯着）
     branches: [main]
@@ -44,6 +46,8 @@ on:
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
       - '.githooks/**'          # 提交前 / 推送前检查
+      - '.gitattributes'        # 合并规则（生成文件 / 拼接清单；tests/unit/merge_rules 测它）
+      - 'vendor/**'             # 11-11：第三方库本站托管（leaflet / qrcodejs / html2canvas），页面直接加载
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   schedule:
     - cron: '0 16 * * 6'        # UTC 周六 16:00 = 墨尔本周日 02:00–03:00
@@ -58,6 +62,7 @@ on:
 permissions:
   contents: write
   actions: read          # 复用结果要查这个提交以前的运行
+  pull-requests: read    # 压缩合并后按「内容相同」找 PR 上测过的提交（tools/ci_reuse.sh）
 
 concurrency:                    # 同一分支 / 同一 PR 连续推送时，只跑最新的那次
   group: tests-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || github.ref }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'x' }}   # 手动触发各自独立，不互相取消
@@ -71,23 +76,30 @@ jobs:
     outputs:
       hit: ${{ steps.r.outputs.hit }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { sparse-checkout: tools/ci_reuse.sh, sparse-checkout-cone-mode: false }
       - id: r
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests
 
-  test:
+  shard:                 # 11-11：浏览器测试分片并行（n 台机器各跑一份，run_all --shard=i/n；分法见 tests/run_all.mjs，守卫 tests/unit/shard）
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' && !(github.event_name == 'pull_request' && github.event.pull_request.draft) }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过；草稿 PR 不测
+    name: test (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 150
+    strategy:
+      fail-fast: false     # 一份失败不取消其它份：一次就能看到全部失败项，不用修一个再等一轮
+      matrix:
+        # 手动重拍截图基准只能一台机器（它会提交并推回分支）；公开仓库机器免费 → 4 份（每台 2 项并发；11-11 实测 3 份 296s，瓶颈已是总工作量/并行度）；私有仓库按分钟计费且 2 核 → 2 份（每多一份多付一次装环境的钟点）
+        shard: ${{ fromJSON(inputs.mode == 'visual-baseline' && '["1/1"]' || github.event.repository.private == true && '["1/2","2/2"]' || '["1/4","2/4","3/4","4/4"]') }}
     env:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne
       NBQ_LITE: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}   # 快速档：下面「跑测试」--skip=static,unit,schema,pg，用不到 pglast / 大磁盘（PostgreSQL 仍要：e2e_fullstack、e2e_admin_login）
+    # 并发数保持每台 2 项（11-11 试过 4：2 次运行各偶发 1 项失败——visual/shots、frontend/buddies，重跑才过；并行已由分片提供）
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}   # PR：测 PR 最新提交本身（不是临时合并结果）；合并只快进，main 上就是这个提交
       - name: 取 origin/main（migration_audit 的「已合并的迁移不许改」要对照它）
@@ -99,7 +111,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
           df -h / | tail -1
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
 
@@ -111,7 +123,7 @@ jobs:
           pip install --break-system-packages -q pglast || pip install -q pglast
 
       - name: 依赖缓存（PGlite、pg、Playwright 浏览器）
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             .nbq-cache
@@ -130,17 +142,28 @@ jobs:
           git config user.name "github-actions"; git config user.email "actions@github.com"
           git add tests/visual/baseline
           git commit -m "截图基准：用 CI 环境重拍" || echo "基准没有变化"
-          git push
+          git push origin "HEAD:${GITHUB_REF_NAME}"   # 检出固定在提交号（游离头），裸 git push 会失败；推回触发这次手动运行的分支（main 或 PR 分支）
 
       - name: 跑测试
         if: github.event_name != 'workflow_dispatch' || inputs.mode != 'visual-baseline'
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
-            node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
-          elif [ "${{ inputs.mode }}" = "quick" ]; then
-            node tests/run_all.mjs --quick --fast --jobs=2
-          else
-            node tests/run_all.mjs --jobs=2
+          run_tests() {
+            if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
+              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --shard=${{ matrix.shard }} --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
+            elif [ "${{ inputs.mode }}" = "quick" ]; then
+              node tests/run_all.mjs --quick --fast --shard=${{ matrix.shard }} --jobs=2
+            else
+              node tests/run_all.mjs --shard=${{ matrix.shard }} --jobs=2
+            fi
+          }
+          # 11-10（ADR 0010）：失败先只重跑失败项一次；重跑通过 = 偶发失败，不挡合并，但留下警告（同一条在 ≥ 2 次运行里偶发 = 缺陷，开 Issue 修，不当「抖动」放过）
+          if ! run_tests; then
+            cp tests/reports/failed.json /tmp/failed_first.json 2>/dev/null || echo '[]' > /tmp/failed_first.json
+            echo "::group::第一次失败的项（只重跑这些一次）"; cat /tmp/failed_first.json; echo; echo "::endgroup::"
+            if node tests/run_all.mjs --failed --jobs=2; then
+              echo "::warning title=偶发失败（重跑通过）::$(tr -d '\n ' < /tmp/failed_first.json | cut -c1-500)"
+              echo "偶发失败（重跑通过）：$(tr -d '\n ' < /tmp/failed_first.json)" >> "$GITHUB_STEP_SUMMARY"
+            else exit 1; fi
           fi
 
       - name: 摘要
@@ -160,7 +183,7 @@ jobs:
           rs = json.load(open(sys.argv[1]))['results']
           bad = [r for r in rs if not r['ok']]
           print(f"::notice title=测试结果::{len(rs)} 项，失败 {len(bad)} 项" + ("：" + "、".join(r['id'] for r in bad) if bad else ""))
-          slow = sorted(rs, key=lambda r: -r.get('ms', 0))[:8]   # E2：用时最长的几项（会话里量前后用时靠它）
+          slow = sorted(rs, key=lambda r: -r.get('ms', 0))[:15]   # E2：用时最长的几项（会话里量前后用时靠它；11-11 起前 15 项，也是刷新 tests/spec/test_weights.json 的数据）
           print("::notice title=用时最长::" + "、".join(f"{r['id']} {r.get('ms', 0) // 1000}s" for r in slow) + f"；合计 {sum(r.get('ms', 0) for r in rs) // 1000}s")
           for r in bad[:10]:
               msg = '；'.join(r.get('why', []) + r.get('fails', [])).replace('\n', ' ')[:3000]   # fails = 具体的 FAIL / 报错行（run_all 记的）
@@ -169,8 +192,20 @@ jobs:
 
       - name: 上传报告
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports-${{ github.run_number }}
+          name: reports-${{ github.run_number }}-${{ strategy.job-index }}   # 每份一个（同名会冲突）
           path: tests/reports/
           retention-days: 14
+
+  test:                  # 汇总：所有分片都成功才算成功。名字保持 test（以前是单个任务）；复用命中 / 草稿 PR 时分片被跳过 → 这里也跳过，整个运行仍是 success（gate / pr_merge / ci_reuse 看的是整个运行的结论）
+    needs: shard
+    if: ${{ !cancelled() && needs.shard.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: 所有分片都通过？
+        env: { R: "${{ needs.shard.result }}" }
+        run: |
+          echo "分片结果：$R"
+          [ "$R" = success ] || { echo "::error title=浏览器测试::有分片没通过（$R），看上面各个 test (i/n) 任务的注解"; exit 1; }

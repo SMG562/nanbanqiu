@@ -37,6 +37,7 @@
   "a:blocklist": "baseline",
   "a:community": "baseline",
   "a:safety": "baseline",
+  "a:settings": "local",
   "a:contact": "baseline",
   "a:logout": "baseline",
   "a:share": "baseline",

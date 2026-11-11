@@ -17,6 +17,7 @@ const IGNORE = /(\.(md|png|webp|jpe?g|svg|zip)|^\.gitignore)$|^(marketing|icons|
 // 顺序无关：一个文件匹配多条就取并集
 export const RULES = [
   // 前台
+  [/^vendor\//, ['frontend/vendor_load', 'frontend/csp', 'frontend/site', 'unit/vendor_local']],   // 第三方库本站托管（L5）
   [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
   [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write']],
   [/^src\/shared\/script\/0495/, ['frontend/e2e_fullstack', 'unit/nbq_net', 'frontend/real_data', 'frontend/real_write', 'frontend/real_invite', 'frontend/real_chat', 'frontend/real_safety', 'frontend/real_after']],

@@ -15,7 +15,7 @@
 <meta property="og:description" content="找到同水平的网球搭子，申请加入附近球局">
 <meta property="og:image" content="https://nanbanqiu.app/icons/icon-512.png">
 <meta property="og:url" content="https://nanbanqiu.app/">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <style>
 :root{
   --g:#176B4D;--g2:#0F5A3F;--gs:#E6F2EB;--gss:#F2F8F4;--lime:#C6EA3D;
@@ -1309,6 +1309,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .nback{display:inline-grid;place-items:center;width:34px;height:34px;margin:0 2px 0 -10px;color:var(--ink);vertical-align:-4px}
 .nback svg{width:22px;height:22px;transform:rotate(180deg)}
 .li .ico.sb{background:#1E5A44}
+.big-t.wb .tbell+.tbell{margin-left:4px}
 /* ===== 首页引导条（11-08，见 shared/script/0502）：品牌深绿 + 荧光黄绿，两端同一份；窄屏文字压在画上，宽屏画在右边 ===== */
 .nbq-intro{display:grid;grid-template-rows:1fr;transition:grid-template-rows .36s cubic-bezier(.3,.7,.2,1),opacity .24s,margin .36s}
 .nbq-intro>.ni-box{min-height:0;overflow:hidden;position:relative;isolation:isolate;border-radius:18px;background:#0B3B2A;color:#F7EBD6}
@@ -1354,6 +1355,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
   <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-side" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h11M4 17h7"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.8 4.2-5.5 7.5-5.5s6.1 1.7 7.5 5.5"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></symbol>
@@ -1410,7 +1412,7 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
     </section>
 
     <section class="scr" id="scr-me" hidden>
-      <div class="topbar"><div class="wxtip" data-a="wxguide">🔔 用 Safari 打开，能收到通知，也不再弹提示<b>怎么打开 ›</b></div><div class="big-t wb">我的<button class="tbell" data-tab="notif" aria-label="消息"><svg><use href="#i-bell"/></svg><span class="badge nb-m" hidden></span></button></div></div>
+      <div class="topbar"><div class="wxtip" data-a="wxguide">🔔 用 Safari 打开，能收到通知，也不再弹提示<b>怎么打开 ›</b></div><div class="big-t wb">我的<button class="tbell" data-a="settings" aria-label="设置" style="margin-left:auto;margin-right:0"><svg><use href="#i-gear"/></svg></button><button class="tbell" data-tab="notif" aria-label="消息"><svg><use href="#i-bell"/></svg><span class="badge nb-m" hidden></span></button></div></div>
       <div class="pad" id="meBody"></div>
     </section>
 
@@ -1476,9 +1478,9 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
   </aside>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script src="/vendor/qrcode.min.js"></script>
+<script src="/vendor/html2canvas.min.js"></script>
 <script>
 // 页面报错上报（5d）：只有错误信息和位置，不含用户内容；同一条只报一次、每页最多 20 条 → POST /api/client-errors → client_error_log()
 window.NBQ_ERRS=[];(()=>{const seen=new Set(),rep=(msg,src,line)=>{const k=msg+'|'+src+'|'+line;if(seen.has(k)||seen.size>=20)return;seen.add(k);
@@ -4009,7 +4011,7 @@ saveCard=function(uid){SC.uid=uid;SC.blob=null;SC.busy=true;SHARE_OPEN(shareCard
 const _scRender=scRender;scRender=function(){_scRender();scBtn()};
 scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'?'小红书':'微信',blob=SC.blob;
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
+  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).catch(err=>{if(!err||err.name!=='AbortError')fallback()})}catch(err){fallback()}return}
   fallback()};
@@ -4468,12 +4470,12 @@ wrap('scRender',o=>function(){const r=o.apply(this,arguments);if(SC.uid&&SC._to!
   scBlobT(uid).then(b=>{if(SC.uid!==uid||SC.to!==to)return;SC.blob=b;SC.busy=false;scBtn()})}return r});
 scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'?'小红书':'微信',blob=SC.blob,ev=ok=>track('card_share',{channel:to,action:'go',ok});
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享');ev(!!blob)};
+  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享');ev(!!blob)};
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).then(()=>ev(true),err=>{if(!err||err.name!=='AbortError'){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}else ev(false)})}catch(err){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}return}
   fallback()};
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-sc]');if(!b)return;const a=b.dataset.sc;
-  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid);toast('图片已保存')}else toast('保存失败，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
+  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
   if(a==='link')track('card_share',{channel:SC.to,action:'link',ok:true})},true);
 
 /* ---------- 打完之后：多遇到 · 感受 · 印象 · 完成 · TA 没来 · 申诉 ---------- */
@@ -4742,7 +4744,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
  * 其余种类沿用 nrOpen 原来的去处（申请 → 定位到申请人；还缺人 → 还缺人卡片；赛后 → 赛后卡片；徽章 / 等级 → 庆祝页；邀约 → 邀约卡片）
  * ===================================================================== */
 function acctGo(){if(NR_PLAT==='mobile'){closeSheet();if(UI.detail)closeDetail();go('me')}
-  else{$('#pop')&&$('#pop').classList.remove('show');try{closeModal()}catch(_){}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}UI.tab='mine';UI.sel=null;render()}
+  else{$('#pop')&&$('#pop').classList.remove('show');try{closeModal()}catch(_){}if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}UI.tab='me';UI.sel=null;render()}
   const s=acctSt(ME);if(ME&&s!=='active')setTimeout(()=>acctBlock(s,'info'),250)}
 {const _o=nrOpen;nrOpen=function(n){if(!n)return;const k=n.kind,done=()=>{if(!nrTodo(n))n.read=true;nrBadge()};
   if(k==='account_status'){done();acctGo();return}
@@ -4820,7 +4822,7 @@ function renderMap(items){
     const c=l[0];return `<div class="pin ${pk(l)}${sel?' sel':''}" data-pin="${c.id}"><i></i>${hm(c.start)}<span>${lvl(c)}</span></div>`};
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lng],12);
-      L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);
+      (()=>{const tl=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'});tileRetry(tl);tl.addTo(MAP.lf)})();
       L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap © CARTO').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();MAP.mk={};
     L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);
@@ -4948,7 +4950,11 @@ function renderMe(){
   ${rkSectionHTML('pwa')}
   ${partnersHTML()}
   <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册<small>只有自己看得到</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
-  <div class="sec-t">设置</div><div class="group">
+  ${PUSH.enabled||ENV==='wechat'?'':`<div class="group" style="margin-top:14px"><button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>`}`;
+}
+// 设置子页（#134 P2）：原来堆在「我的」里的设置，收进右上角齿轮
+function settingsHTML(){return `<h3 class="sh-t">设置</h3>
+  <div class="group">
     <button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${PUSH.enabled?'已开启':ENV==='wechat'?'微信内不可用':'未开启'}</small></span>${PUSH.enabled?'<span class="pill p-green">已开启</span>':'<svg class="ch"><use href="#i-ch"/></svg>'}</button>
     ${ENV!=='pwa'?`<button class="li" data-a="${ENV==='wechat'?'wxguide':'a2hs'}"><span class="ico" style="background:var(--g)"><svg><use href="#i-home"/></svg></span><span class="v">添加到主屏幕<small>像 App 一样打开，接收通知</small></span><svg class="ch"><use href="#i-ch"/></svg></button>`:''}
     <button class="li" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
@@ -4959,9 +4965,8 @@ function renderMe(){
     <button class="li" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="contact"><span class="ico" style="background:#2F80ED"><svg><use href="#i-mail"/></svg></span><span class="v">联系我们 / 举报</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>
-  ${pvLegalHTML()}`;
-}
-
+  ${pvLegalHTML()}`}
+function openSettings(){if(!ME){toast('请先登录');return}openSheet(settingsHTML(),true)}
 /* ============================== 球局详情 ============================== */
 function openDetail(id,landing=false){UI.detail=id;UI.landing=landing;renderDetail();$('#detail').classList.add('show');$('#dBody').scrollTop=0;closeSheet()}
 function closeDetail(){$('#detail').classList.remove('show');UI.detail=null;UI.landing=false;render()}
@@ -5048,6 +5053,8 @@ const SHARE_OPEN=h=>openSheet(h,false);
  * 不支持带图分享的环境（电脑、微信内）：自动保存图片 + 复制文案，提示去 App 里发布
  */
 var SC={uid:null,to:'moments',blob:null};
+// 地图瓦片偶发加载失败（限流 / 网络抖动）会留下灰块：失败的瓦片自动重试 3 次（间隔递增）；失败次数记在 window.TILE_ERR 方便排查
+function tileRetry(l){l.on('tileerror',e=>{const t=e.tile;window.TILE_ERR=(window.TILE_ERR||0)+1;t._rt=(t._rt||0)+1;if(t._rt<=3){const u=(t._u0=t._u0||t.src);setTimeout(()=>{t.src=u+(u.includes('?')?'&':'?')+'_r='+t._rt},700*t._rt)}})}
 function scMini(uid,w){const k=w/640;return `<div class="sc-img" style="width:${w}px;height:${Math.round(520*k)}px"><div style="transform:scale(${k});transform-origin:0 0">${shareShot(uid)}</div></div>`}
 function scText(uid,to){const u=U(uid),s=stats(uid),home=(u.home_club_ids||[])[0]||s.topClub,club=home?VEN[home].short:'';
   return to==='xhs'?{title:`${CITY.zh}找球友｜UTR ${f1(u.ntrp)}${club?' · '+club:''} 🎾`,body:`在南伴球打了 ${s.played} 场，欢迎扫图上的二维码约我打球～\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`}
@@ -5064,9 +5071,26 @@ function shareCardHTML(uid){const to=SC.to,lab=to==='xhs'?'发到小红书':'分
     <div class="sc-sub"><button data-sc="save"><svg><use href="#i-dl"/></svg>保存图片</button><span></span><button data-sc="link"><svg><use href="#i-link"/></svg>复制链接</button></div>
     <p class="sc-fine">文案会自动复制，发布时粘贴即可</p></div>`}
 function scRender(){const b=document.getElementById('scBox');if(b)b.outerHTML=shareCardHTML(SC.uid)}
-function scBlob(uid){return new Promise(res=>{if(!window.html2canvas)return res(null);
+function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2canvas){SC_ERR='截图库没加载';return res(null)}
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
-  html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:3}).then(cv=>cv.toBlob(b=>{tmp.remove();res(b)},'image/png')).catch(()=>{tmp.remove();res(null)})})}
+  // 手机上画布太大 / 内存不够会失败：3 倍清晰度不行就降到 2、1 倍再试；仍失败把原因留在 SC_ERR（提示里带出来，方便定位）
+  // iPhone Safari 会因为头像里的 SVG 滤镜把画布判成「不安全」(The operation is insecure)，导出就失败：
+  // 依次试 ① 原样 3 倍 ② 2 倍 ③ 去掉 SVG 滤镜 / 遮罩 ④ 再去掉头像里所有 SVG（只剩底色）；成功就停，全失败把原因留在 SC_ERR
+  // iPhone Safari 会因为球员卡里的 SVG（头像滤镜、二维码、纹理）把画布判成「不安全」(The operation is insecure)，导出失败；
+  // 而放行的 SVG 又会被画成空白。所以 3 倍、2 倍原样试过之后，直接走「无 SVG」版：二维码用画布画成 PNG 换进去（先载入再截图），头像换成底色圆 + 首字母
+  const qrPng=col=>{const a=qrMatrix(profileUrl(U(uid),typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments')),n=a.length,k=12,pad=k/2,c=document.createElement('canvas');c.width=c.height=(n+1)*k;const x=c.getContext('2d');x.fillStyle=x.strokeStyle=col||'#fff';
+    const box=(i,j,w,r,f)=>{x.beginPath();x.roundRect?x.roundRect(pad+i*k,pad+j*k,w*k,w*k,r*k):x.rect(pad+i*k,pad+j*k,w*k,w*k);f?x.fill():x.stroke()};
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7))){x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()}
+    x.lineWidth=k;[[0,0],[n-7,0],[0,n-7]].forEach(([i,j])=>{box(i+.5,j+.5,6,1.8,0);box(i+2,j+2,3,.9,1)});return c.toDataURL('image/png')};
+  const plain=()=>new Promise(ok=>{const q=tmp.querySelector('.bk .q');if(!q)return ok();const im=new Image();im.style.cssText='display:block;width:100%;height:100%';
+    im.onload=im.onerror=()=>ok();im.src=qrPng(getComputedStyle(q).color);q.innerHTML='';q.appendChild(im)});
+  const noSvg=doc=>{const u=U(uid);doc.querySelectorAll('svg').forEach(e=>{const av=e.closest('.pc-av');if(av&&!av.querySelector('.pc-ini')){const d=doc.createElement('div');d.className='pc-ini';d.textContent=(String(u.name||'?').trim()[0]||'?').toUpperCase();
+      d.style.cssText=`width:100%;height:100%;border-radius:50%;background:${u.color||'#EFE9DA'};display:flex;align-items:center;justify-content:center;font:800 44px system-ui;color:#1D5B43`;av.appendChild(d)}e.remove()});
+    doc.querySelectorAll('.pc-grain,.pc-light').forEach(e=>e.style.backgroundImage='none')};
+  const plan=[[3,0],[2,0],[2,1]];
+  const go=n=>{const [k,lv]=plan[n];return (lv?plain():Promise.resolve()).then(()=>html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k,onclone:lv?noSvg:undefined})).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
+    .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(n<plan.length-1)return go(n+1);throw e})};
+  go(0).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
 // 保存图片：能用系统分享就用（iOS 分享面板里选「存储图像」进相册）；不行（或点开太慢分享被拒）就弹出大图，长按保存。不用 <a download>：iOS 里它进的是「文件」不是相册，主屏幕版还会把页面带走
 function imgSave(blob,name){
   const file=blob&&new File([blob],name,{type:'image/png'});
@@ -5082,11 +5106,11 @@ async function scGo(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}const blob=SC.blob||await scBlob(uid);
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],text}).catch(()=>{});return}
-  if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')}
+  if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!b)return;e.stopPropagation();const a=b.dataset.sc;
   if(a==='to'){SC.to=b.dataset.v;scRender()}
   else if(a==='go')scGo();
-  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid);toast('图片已保存')}else toast('保存失败，请截图保存')})}
+  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')})}
   else if(a==='link')copy(profileUrl(U(SC.uid),'link'),'球员卡链接已复制，可以发给朋友')},true);
 /* ===================== Supabase 登录（5g）=====================
  * 只管手机号验证码登录；球局等业务数据仍走演示 api（接真后端时再换）。
@@ -6288,6 +6312,7 @@ DEV.addEventListener('click',e=>{
     case'locAllow':requestLocation();break;
     case'commClose':UI.comm=false;render();toast('可在「我的 → 微信约球群」再次找到');break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':need(()=>openCard(ME.id));break;
