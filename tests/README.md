@@ -140,7 +140,7 @@ node tests/run_all.mjs --update-snapshots   # 确认改动是预期的之后，�
    - 是这次改动带来的预期变化 → `--update-snapshots` 更新，并在 `进度记录.md` 里写明原因；
    - 不是预期的 → 就是回归问题，先修。
 3. 新增功能时，同时新增测试：
-   - 有明确断言的写到 `frontend/` 或 `admin/`，最后一行输出 `N passed, M failed`，失败时 `process.exit(1)`，并在 `run_all.mjs` 里登记；
+   - 有明确断言的写到 `frontend/` 或 `admin/`，最后一行输出 `<文件名>: N passed, M failed`，失败时 `process.exit(1)`；`frontend/*.js` 自动加入（11-11，默认超时 300s），要别的判定 / 超时才在 `run_all.mjs` 写 `add()`，`admin/` 仍要登记；
    - 新事件先写进 `spec/events_spec.md`（唯一来源），static、schema、frontend、admin 四处会自动按它核对。
 
 ## 6. 目录
