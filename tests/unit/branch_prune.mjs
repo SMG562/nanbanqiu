@@ -1,7 +1,7 @@
 // 远端分支清理（tools/branch_prune.mjs）：只删「确定已进 main / PR 已关闭」的，其余一律不动（11-10）。
 // ① 归类规则：每一类各有正例和反例（误删比漏删贵得多，所以反例更多）；② contained()：在临时仓库里造快进 / 压缩合并 / 未合并 / 冲突四种分支。
 import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os'; import { spawnSync } from 'node:child_process';
-import { classify, contained, PROTECTED } from '../../tools/branch_prune.mjs';
+import { classify, contained, okText, PROTECTED } from '../../tools/branch_prune.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 
 const now = '2026-11-10T00:00:00Z', ago = d => new Date(Date.parse(now) - d * 864e5).toISOString();
@@ -38,6 +38,10 @@ T('pr_merge：叠加 PR 的目标分支不删', /pulls\?state=open&base=\$HEAD/.
 T('pr_merge：合并后又有人推过就不删', /git\/ref\/heads\/\$HEAD[^\n]*\.object\.sha[^\n]*= "\$SHA"/.test(fn));
 T('pr_merge：所有者快进、协作者压缩合并两个出口都删', /^drop_branch$/m.test(pm) && /drop_branch; exit 0/.test(pm));
 
+// 11-11 实际踩到：gh api 查不到标签（404）时错误正文打在 stdout，旧写法把它当成「标签已存在」，--archive 全被跳过
+T('okText：成功时取提交号', okText({ status: 0, stdout: 'abc123\n' }) === 'abc123');
+T('okText：404 时 stdout 里的错误 JSON 不当成提交号', okText({ status: 1, stdout: '{"message":"Not Found","status":"404"}' }) === '');
+T('okText：没有结果对象也不崩', okText(undefined) === '');
 // ③ contained()：真 git 仓库
 const env = { ...process.env }; for (const k of Object.keys(env)) if (k.startsWith('GIT_')) delete env[k];
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-prune-'));
