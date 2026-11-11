@@ -254,6 +254,46 @@ export const ROUTES = {
     if (!noOk(b.no) || !reasonOk(b.reason)) return fail(bad(), 'users_phone');
     return authed(req, d, route, async db => ({ phone: (await db.query('select admin_reveal_phone($1, $2) as p', [await userIdByNo(db, b.no), b.reason])).rows[0].p }), b);
   } },
+  // ---------- 风险提醒与规则（#27 第 4 步）----------
+  // 列表：view = open（待处理）/ watching（观察中）/ done（最近处理或忽略的 50 条）。inner join users：限城市的管理员只看得到自己城市的人的提醒
+  'GET /admin/api/risk': { name: 'risk', perm: 'risk.handle', run: (req, d, b, route) => {
+    const view = new URL(req.url).searchParams.get('view') || 'open';
+    if (!['open', 'watching', 'done'].includes(view)) return fail(bad(), 'risk');
+    return authed(req, d, route, async db => {
+      const alerts = (await db.query(`select a.id::text as id, a.rule_code, r.name as rule_name, a.value::float as value, a.score, a.window_from, a.window_to, a.status, a.watch_until, a.suggested, a.note,
+               a.handled_at, a.created_at, jsonb_typeof(a.detail) = 'object' and a.detail <> '{}' as has_detail, ad.name as reviewed_by_name,
+               u.member_no::int as member_no, u.nickname, u.status as user_status
+          from risk_alerts a join users u on u.id = a.user_id join risk_rules r on r.code = a.rule_code left join admin_users ad on ad.id = a.reviewed_by
+         where case $1 when 'done' then a.status in ('handled', 'ignored') else a.status = $1 end
+         order by case when $1 = 'done' then a.handled_at end desc nulls last, a.score desc, a.created_at limit ${view === 'done' ? 50 : 200}`, [view])).rows;
+      const cnt = (await db.query(`select a.status, count(*)::int n from risk_alerts a join users u on u.id = a.user_id where a.status in ('open', 'watching') group by 1`)).rows;
+      return { alerts, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
+    });
+  } },
+  // 处理：watching（观察 N 天）/ handled / ignored / open（重新打开）。先在行级安全下确认看得到这条（别的城市 → 404），再调库函数（留痕）
+  'POST /admin/api/risk/handle': { name: 'risk_handle', perm: 'risk.handle', body: true, run: (req, d, b, route) => {
+    if (!/^\d{1,18}$/.test(String(b.id ?? '')) || !['watching', 'handled', 'ignored', 'open'].includes(b.status) || (b.note != null && !strIn(b.note, 200))
+      || (b.watch_days != null && ![3, 7, 14, 30].includes(b.watch_days))) return fail(bad(), 'risk_handle');
+    return authed(req, d, route, async db => {
+      const a = (await db.query(`select a.status from risk_alerts a join users u on u.id = a.user_id where a.id = $1::bigint`, [String(b.id)])).rows[0];
+      if (!a) throw notFound();
+      if (a.status === b.status && b.status !== 'watching') throw Object.assign(new Error('state_changed'), { code: 'state_changed' });
+      await db.query('select admin_risk_alert($1::bigint, $2, $3, $4)', [String(b.id), b.status, b.note ?? null, b.watch_days ?? 7]); return { ok: true };
+    }, b);
+  } },
+  // 规则：风险规则（权重、阈值、时间窗、开关）+ 频率规则（次数、时间窗、开关）。看：运营以上；改：只有 owner、必须填理由（库函数记改前改后）
+  'GET /admin/api/rules': { name: 'rules', perm: 'risk.handle', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    risk: (await db.query(`select code, name, weight, threshold::float as threshold, window_days, enabled from risk_rules order by weight desc, code`)).rows,
+    rate: (await db.query(`select rule, grp, extract(epoch from win)::int as win_s, max_hits, per_key, enabled, note, day_reset from rate_rules order by grp, rule`)).rows,
+  })) },
+  'POST /admin/api/rules/set': { name: 'rules_set', perm: 'rules.edit', body: true, run: (req, d, b, route) => {
+    const p = b.patch, isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi, ok = b.kind === 'risk'
+      ? p && typeof p === 'object' && Object.keys(p).length && Object.keys(p).every(k => ({ weight: v => isInt(v, 0, 100), threshold: v => typeof v === 'number' && v > 0 && v <= 1000, window_days: v => isInt(v, 1, 365), enabled: v => typeof v === 'boolean' })[k]?.(p[k]))
+      : b.kind === 'rate' && p && typeof p === 'object' && Object.keys(p).length && Object.keys(p).every(k => ({ max_hits: v => isInt(v, 1, 100000), win_s: v => isInt(v, 60, 366 * 86400), enabled: v => typeof v === 'boolean' })[k]?.(p[k]));
+    if (!ok || !/^[a-z_]{2,40}$/.test(b.rule || '') || !reasonOk(b.reason)) return fail(bad(), 'rules_set');
+    const patch = { ...p }; if (patch.win_s != null) { patch.win = patch.win_s + ' seconds'; delete patch.win_s }
+    return authed(req, d, route, async db => { await db.query('select admin_rule_set($1, $2, $3::jsonb, $4)', [b.kind, b.rule, JSON.stringify(patch), b.reason]); return { ok: true } }, b);
+  } },
   // ---------- 球友统计（#110，只读）----------
   // 查询参数 from / to（ISO 时间，默认最近 30 天，跨度 ≤ 366 天）。数字来自 buddy_stats（数据库按表算，不是埋点），只读角色也能看（只有汇总数字，没有名单）；限城市的管理员只算自己城市。
   'GET /admin/api/buddies/stats': { name: 'buddies_stats', perm: 'page.view', run: (req, d, b, route) => {

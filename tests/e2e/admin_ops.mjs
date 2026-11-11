@@ -84,6 +84,32 @@ try {
     await o.p.click('#ud [data-rux="x"]');
     T('1.14 owner 全程没有页面错误', !o.pe.length, o.pe); await o.ctx.close();
   }
+  // ================= 2. 风险用户 =================
+  {
+    const R = await user('风险丙');
+    const al = (await one(`insert into risk_alerts(user_id,rule_code,value,score,window_from,window_to,suggested) values ($1,'no_show',2,50,now()-interval '30 days',now(),'review') returning id::text`, [R.id])).id;
+    const { p, pe, ctx } = await session('ops@x.com');
+    await goPage(p, 'safety');
+    T('2.1 风险用户页：不再是占位，列出提醒（规则名、球友）', await until(async () => { const t = await txt(p, '#page'); return /爽约/.test(t) && /风险丙/.test(t) && !/还没接真数据/.test(t) }));
+    T('2.2 运营看得到规则，但没有「改」按钮', await until(() => p.evaluate(() => /频率限制/.test(document.getElementById('page').innerText) && !document.querySelector('[data-rsk="edit"]'))));
+    await p.click(`[data-rsk="watch"][data-id="${al}"]`);
+    T('2.3 观察 7 天 → 待处理里没了，库里是观察中', await until(async () => !(await p.evaluate(id => !!document.querySelector(`[data-rsk="watch"][data-id="${id}"]`), al)) && (await one(`select status from risk_alerts where id=$1`, [al])).status === 'watching'));
+    await reload(p); await goPage(p, 'safety'); await until(() => p.evaluate(() => !!document.querySelector('[data-rsk="view"][data-v="watching"]')));
+    await p.click('[data-rsk="view"][data-v="watching"]');
+    T('2.4 刷新后在「观察中」还在，显示处理人', await until(async () => { const t = await txt(p, '#page'); return /风险丙/.test(t) && /Amy/.test(t) }));
+    await p.click(`[data-rsk="user"]`);
+    T('2.5 点球友名字打开详情抽屉', await until(async () => /风险丙/.test(await txt(p, '#ud .ud'))));
+    T('2.6 运营全程没有页面错误', !pe.length, pe); await ctx.close();
+
+    const o = await session('han@x.com'); await goPage(o.p, 'safety');
+    T('2.7 owner 有「改」按钮', await until(() => o.p.evaluate(() => !!document.querySelector('[data-rsk="edit"][data-kind="risk"][data-v="no_show"]'))));
+    await o.p.click('[data-rsk="edit"][data-kind="risk"][data-v="no_show"]'); await o.p.fill('#rkW', '35'); await o.p.fill('#rkWhy', '上线首月调高');
+    await o.p.click('[data-rsk="save"]');
+    T('2.8 owner 改权重 → 库里是 35', await until(async () => (await one(`select weight from risk_rules where code='no_show'`)).weight === 35));
+    await reload(o.p); await goPage(o.p, 'safety');
+    T('2.9 刷新后规则表显示 35', await until(() => o.p.evaluate(() => [...document.querySelectorAll('#page tr')].some(tr => /no_show/.test(tr.innerText) && /\b35\b/.test(tr.innerText)))));
+    T('2.10 owner 全程没有页面错误', !o.pe.length, o.pe); await o.ctx.close();
+  }
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e).toString().slice(0, 800)) }
 finally { try { await br?.close() } catch (_) { } try { srv?.close() } catch (_) { } try { await su?.end() } catch (_) { } c.stop() }
 console.log(`admin_ops: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

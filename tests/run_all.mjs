@@ -100,6 +100,7 @@ add('pg', 'pg/admin_venues', ['node', path.join(HERE, 'pg/admin_venues.mjs')], {
 add('pg', 'pg/admin_users', ['node', path.join(HERE, 'pg/admin_users.mjs')], { pass: [/admin_users: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { pass: [/admin_games: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_user_ops', ['node', path.join(HERE, 'pg/admin_user_ops.mjs')], { pass: [/admin_user_ops: \d+ 通过, 0 失败/], timeout: 300 });   // 球友详情与处理 #27 第 4 步
+add('pg', 'pg/admin_risk', ['node', path.join(HERE, 'pg/admin_risk.mjs')], { pass: [/admin_risk: \d+ 通过, 0 失败/], timeout: 300 });   // 风险提醒与规则 #27 第 4 步
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });

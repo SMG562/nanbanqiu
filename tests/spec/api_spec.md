@@ -520,6 +520,7 @@
 ### 10.3 接口 → 函数
 - **已实现的写法（11-12 起）**：对象 id 放在 JSON 里，不放路径（路由表是「方法 路径」精确匹配）；球友一律用会员编号 `no`，不暴露内部 id。下面是最初的规划写法，实现以 `server/admin/api.mjs` 的 ROUTES 为准。
 - 已实现 · 球友（#27 第 4 步）：GET /users/detail?no= · POST /users/status `{no,status,reason_code,reason,days?}` · POST /users/reset `{no,what,reason}` · POST /users/gender `{no,action,reason}` · POST /users/phone `{no,reason}`（编号→id 在后台角色的行级安全下查：限城市的管理员查不到别的城市 → 404）
+- 已实现 · 风险（#27 第 4 步）：GET /risk?view=open|watching|done · POST /risk/handle `{id,status,note?,watch_days?}` · GET /rules · POST /rules/set `{kind: risk|rate, rule, patch, reason}`（rate 的时间窗用秒 win_s）
 - POST /admin/api/users/:id/status `{status, reason_code, reason, days?, note?}` → `admin_user_status`（暂停 1 / 3 / 7 / 30 / 90 / 180 天；连带处理同 §3.11；发 account_status 通知；写 user_status_log）
 - POST /admin/api/users/:id/reset `{what: nickname | avatar, reason}` → `admin_user_reset` · POST /admin/api/users/:id/gender `{action: clear | unlock, reason}` → `admin_user_gender`
 - POST /admin/api/users/:id/phone `{reason}` → `admin_reveal_phone`（owner）

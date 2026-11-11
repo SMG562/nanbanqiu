@@ -9,7 +9,7 @@ const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo
 const RL={me:null,busy:false,recovery:false,touchAt:0};
 const REAL_RESET=[];   // 退出 / 过期时各真数据页清自己的状态（后面的文件 push 进来）
 const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage(),games:()=>realGamesPage()};
-const REAL_NOTE={review:'待审核。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
+const REAL_NOTE={};   // 个别页面的占位说明（没有就用通用的）
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
 // ---------- 接口 ----------
