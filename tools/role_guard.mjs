@@ -13,6 +13,8 @@
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { execFileSync } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 
 export const OWNER_LOGIN = 'SMG562';
+// 接入方式（.claude/ 是所有者的文件，由所有者加）：.claude/settings.json 的 hooks 里加下面这一段（和 SessionStart 并列）。测试核对它能解析、指向本脚本
+export const HOOK_SNIPPET = '"Stop": [{ "hooks": [{ "type": "command", "command": "node \\"$CLAUDE_PROJECT_DIR/tools/role_guard.mjs\\"", "timeout": 15 }] }]';
 // 只有所有者能做的事（CLAUDE.md「仅所有者」+ CONTRIBUTING：正式库 / 部署 / 密钥 / 合并 / 推 main / 红线文件）
 const OWNER_ACT = [
   [/(执行|跑|运行|应用)\s*(这个|这次|那个)?\s*迁移|迁移.{0,12}(执行|跑一?下|运行)|(正式库|测试库|生产库|两个库|两库|staging\s*库|Supabase).{0,16}(执行|跑|运行|建|改|删)/, '在数据库执行迁移 / 改库'],

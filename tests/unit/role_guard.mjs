@@ -83,9 +83,10 @@ const big = path.join(tmp, 'big.jsonl'); fs.writeFileSync(big, J(Array.from({ le
 const t0 = Date.now(); r = run({ transcript_path: big }, 'MDD1102');
 T('命令行：6 MB 的对话记录只读尾部，1.5 秒内出结果且照样拦', JSON.parse(r.stdout || '{}').decision === 'block' && Date.now() - t0 < 1500, [Date.now() - t0, r.stdout.slice(0, 80)]);
 
-// ---- 钩子配置：.claude/settings.json 里真的挂上了，且用的是这个脚本 ----
-const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8'));
-const stops = (st.hooks?.Stop || []).flatMap(h => h.hooks || []).map(h => h.command || '');
-T('.claude/settings.json 的 Stop 钩子调用 tools/role_guard.mjs', stops.some(c => /node\s+.*tools\/role_guard\.mjs/.test(c)), stops);
+// ---- 接入片段：所有者照抄进 .claude/settings.json 的 hooks（协作者不改 .claude/）。能解析、指向本脚本、带超时；已接入时核对用的是同一条命令 ----
+const snip = (() => { try { return JSON.parse('{' + G.HOOK_SNIPPET + '}') } catch (_) { return null } })(), cmd = snip?.Stop?.[0]?.hooks?.[0];
+T('接入片段：是合法 JSON，Stop 钩子调用 tools/role_guard.mjs、有超时', cmd?.type === 'command' && /node\s+"\$CLAUDE_PROJECT_DIR\/tools\/role_guard\.mjs"/.test(cmd.command) && cmd.timeout > 0, G.HOOK_SNIPPET);
+const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8')), stops = (st.hooks?.Stop || []).flatMap(h => h.hooks || []).map(h => h.command || '');
+T('已接入的话（所有者加了）：命令和接入片段一致', !stops.some(c => /role_guard/.test(c)) || stops.includes(cmd.command), stops);
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

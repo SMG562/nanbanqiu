@@ -36,17 +36,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/tools/role_guard.mjs\"",
-            "timeout": 15
-          }
-        ]
-      }
     ]
   }
 }
