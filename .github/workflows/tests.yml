@@ -91,8 +91,8 @@ jobs:
     strategy:
       fail-fast: false     # 一份失败不取消其它份：一次就能看到全部失败项，不用修一个再等一轮
       matrix:
-        # 手动重拍截图基准只能一台机器（它会提交并推回分支）；公开仓库机器免费且 4 核 → 3 份；私有仓库按分钟计费且 2 核 → 2 份（每多一份多付一次装环境的钟点）
-        shard: ${{ fromJSON(inputs.mode == 'visual-baseline' && '["1/1"]' || github.event.repository.private == true && '["1/2","2/2"]' || '["1/3","2/3","3/3"]') }}
+        # 手动重拍截图基准只能一台机器（它会提交并推回分支）；公开仓库机器免费 → 4 份（每台 2 项并发；11-11 实测 3 份 296s，瓶颈已是总工作量/并行度）；私有仓库按分钟计费且 2 核 → 2 份（每多一份多付一次装环境的钟点）
+        shard: ${{ fromJSON(inputs.mode == 'visual-baseline' && '["1/1"]' || github.event.repository.private == true && '["1/2","2/2"]' || '["1/4","2/4","3/4","4/4"]') }}
     env:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne

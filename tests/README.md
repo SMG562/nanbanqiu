@@ -168,7 +168,7 @@ tests/
 - 前后台都是原型：没有真实服务端，服务端事件（来源 S）只核对了字典，没有核对实际上报。
 
 ## 11-11 · 测试分片与「调真机别直推 main」
-- **浏览器测试分片**：`tests.yml` 的 `shard` 任务按 matrix 并行（公开仓库 3 份、私有仓库 2 份、重拍截图基准 1 份），每份跑 `run_all --shard=i/n`；汇总任务 `test` 全部分片成功才成功，所以 `gate.sh` / `pr_merge.sh` / `ci_reuse.sh` 看「整个运行结论」的做法不变。依据：单机 `--jobs=2` 约 700s，xss / verify / demos 三项约占四分之一。
+- **浏览器测试分片**：`tests.yml` 的 `shard` 任务按 matrix 并行（公开仓库 4 份、私有仓库 2 份、重拍截图基准 1 份），每份跑 `run_all --shard=i/n`；汇总任务 `test` 全部分片成功才成功，所以 `gate.sh` / `pr_merge.sh` / `ci_reuse.sh` 看「整个运行结论」的做法不变。依据：单机 `--jobs=2` 约 700s，xss / verify / demos 三项约占四分之一。
 - **分法**：按 `tests/spec/test_weights.json` 的预估用时做确定性均衡（没登记的按 15s）；`tests/unit/shard` 守着「各份合起来 = 全部、互不重复、非法参数退出码 2、登记的名字都存在、tests.yml 的分片列表完整」。新增很慢的测试（> 60s）→ 登记进 weights；刷新：看最近一次 tests 运行的「用时最长」注解（前 15 项）。
 - **按端拆开**：xss、demos 拆成 `@PWA` / `@Web` 两项并行（env `XSS_ONLY` / `SMOKE_ONLY`），verify 两端同进程并行；两端互不依赖。
 - **并发数**：每台机器仍是 `--jobs=2`。11-11 试过用默认（4 核跑 4 项）：两次运行各偶发 1 项（visual/shots、frontend/buddies，重跑才过）——浏览器测试吃 CPU，并行交给分片，不靠机器内加并发。
