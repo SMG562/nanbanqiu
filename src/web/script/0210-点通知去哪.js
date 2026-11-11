@@ -2,6 +2,7 @@ function render(){
   renderComm();
   if(UI.landing){$('#appRoot').hidden=true;$('#landRoot').hidden=false;renderLanding();return}
   $('#appRoot').hidden=false;$('#landRoot').hidden=true;
+  nbqIntroSync($('#introHost'),UI.tab==='disc');
   document.body.classList.toggle('is-mine',UI.tab==='mine');document.body.classList.toggle('is-disc',UI.tab==='disc');document.body.classList.toggle('is-me',UI.tab==='me');
   const sd=UI.tab==='side';document.body.classList.toggle('is-side',sd);$('#layout').hidden=sd;$('#sbScr').hidden=!sd;
   if(sd){sbBoot();renderNav();renderDemo();return}
