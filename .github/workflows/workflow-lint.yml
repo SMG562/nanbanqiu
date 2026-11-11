@@ -1,0 +1,32 @@
+name: workflow-lint
+# 改 .github/ 的 PR 自动查：actionlint（语法 / 表达式）+ zizmor（Actions 安全：模板注入、权限过大、危险触发器）。
+# 来历：#95 独立复核里手工查的「${{ }} 注入 / 密钥层级 / 权限」这类问题，机器能拦的就不靠人（#167 第四节）。零费用，不用模型密钥。
+# zizmor 只拦 high；medium / low 列在运行页里供参考。存量 high 的例外写在 .github/zizmor.yml（每条带理由）。
+on:
+  pull_request:
+    paths: ['.github/**']
+  push:
+    branches: [main]
+    paths: ['.github/**']
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint（固定版本 + 校验和）
+        run: |
+          curl -sSfL -o al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  al.tgz" | sha256sum -c -
+          tar -xzf al.tgz actionlint
+          ./actionlint
+      - name: zizmor（high 才算失败）
+        run: |
+          pip install --quiet zizmor==1.32.0
+          zizmor --offline --no-progress --min-severity high .github/workflows
+      - name: zizmor 其余提示（不挡合并）
+        run: zizmor --offline --no-progress --min-severity medium .github/workflows || true
