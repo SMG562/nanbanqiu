@@ -29,7 +29,7 @@ export function classify(p, now = Date.now()) {
   const idle = Math.floor((now - Date.parse(p.updated)) / D);
   const R = (ball, reason, next) => ({ ball, reason, next, idle, ping: ['author', 'review', 'merge'].includes(ball) && !p.draft });
   if (p.draft) return R('author', '排队中', '本地测过后转 Ready（在制品 ≤ 2，排队顺序见 #167）');
-  if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `git merge origin/main`，解冲突后推分支');
+  if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `bash tools/sync_main.sh --check` 看冲突文件，`git merge origin/main` 解决后推分支');
   const bad = Object.keys(NAME).filter(k => p.ci[k] === 'failure');
   if (bad.length) return R('author', `CI 红（${bad.map(k => NAME[k]).join('、')}）`, '看注解修；偶发失败先只重跑失败项一次');
   if (Object.keys(NAME).some(k => p.ci[k] === 'pending')) return R('ci', 'CI 在跑', '等待，无需操作');
@@ -38,9 +38,10 @@ export function classify(p, now = Date.now()) {
     if (p.review === 'fix') return R('author', '独立复核结论「要改」', '按复核意见改，推完在 PR 留言「已改，请重新复核 <提交号前7位>」');
     return R('review', p.review === 'rereview' ? '改动后需要重新复核' : '需要独立复核', '另开一个没看过过程的会话只读复核，在 PR 留言复核结论（通过就写「独立复核：通过 <提交号前7位>」，写明看了什么、风险、怎么回退）');
   }
-  if (p.behind > 0) return R('author', 'main 前进了，分支落后（pr_merge 只快进）', '在分支上 `git merge origin/main` 并推送，等 CI 对新提交跑完再合并（需要复核的：新提交要重新留复核）');
-  if (p.level === 'owner') return R('owner', '红线文件：需要所有者当场点头', `所有者看 diff 后 \`bash tools/pr_merge.sh ${p.number}\``);
-  return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核'), `自助合并：\`bash tools/pr_merge.sh ${p.number}\``);
+  // 11-11：落后 main 不再把球推给作者——pr_merge.sh 自己判断（只多文档 / 文件不重叠自动放行，否则提示 sync_main.sh），省掉不必要的合 main 和重跑
+  const bh = p.behind > 0 ? `（main 前进了 ${p.behind} 个提交：只多文档 / 文件不重叠会自动放行，否则它会提示 \`bash tools/sync_main.sh\`）` : '';
+  if (p.level === 'owner') return R('owner', '红线文件：需要所有者当场点头', `所有者看 diff 后 \`bash tools/pr_merge.sh ${p.number}\`${bh}`);
+  return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核'), `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
 }
 
 const h6 = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 6);
