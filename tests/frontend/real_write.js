@@ -53,7 +53,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     const click = async (attrs, extra = '') => { await pg.evaluate(([a, x]) => { const el = document.createElement('button'); el.id = '__t'; Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); const host = typeof DEV !== 'undefined' ? DEV : document.body; host.appendChild(el); if (x) { const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = x; host.appendChild(t) } el.click(); el.remove(); const t = document.getElementById('applyMsg'); if (t && x) t.remove() }, [attrs, extra]); await pg.settle(700) };
     const mine = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? api.get(i).mine : undefined }, id);
     const st = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? g.status : undefined }, id);

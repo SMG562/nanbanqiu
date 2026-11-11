@@ -16,7 +16,7 @@ const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
     const H = f.includes('后台') ? ADMIN_HEADERS : SECURITY_HEADERS;
     await pg.route(`https://${HOST}/**`, r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', headers: H, body: fs.readFileSync(path.join(DIR, f)) }));
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort());          // 测试环境不出网：第三方库加载失败页面也要能用
-    await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     let authed = false;
     if (real) await pg.route(`https://${HOST}/admin/api/**`, r => { const u = new URL(r.request().url()).pathname, j = (st, b) => r.fulfill({ status: st, contentType: 'application/json', body: JSON.stringify(b) });
       if (u.endsWith('/login')) { authed = true; return j(200, { ok: true, role: 'owner' }) } if (u.endsWith('/me')) return authed ? j(200, { name: 'Han', role: 'owner', perms: [{ action: 'page.view', label: '查看统计和名单', need_reason: false }] }) : j(401, { error: 'admin_session_expired' }); return j(404, {}) });

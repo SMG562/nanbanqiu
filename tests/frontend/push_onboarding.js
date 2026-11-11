@@ -12,7 +12,7 @@ const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     await pg.goto('https://nanbanqiu.test/'); await pg.settle(500);
     if (W) {
       const r = await pg.evaluate(() => ({ nudge: typeof pushNudgeHTML === 'function' ? pushNudgeHTML('game') : 'nofn' }));
@@ -53,7 +53,7 @@ const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
       if (u.pathname === '/api/me') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ registered: false }) });
       return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ games: [], venues: [], notifications: [], invites: [], participants: [] }) }) });
     await pg.route(SB + '/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(800);
     const a = await pg.evaluate(async () => { const o = { net: NBQ_NET, env: ENV, kind: a2hsKind() };
       openAuth(null); await new Promise(r => setTimeout(r, 300)); o.first = document.body.innerText; o.hasGo = !!document.querySelector('[data-a="authAnyway"]'); o.hasA2hs = !!document.querySelector('[data-a="a2hs"]');

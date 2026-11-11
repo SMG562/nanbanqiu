@@ -44,7 +44,7 @@ const at = (k, h, m = 0) => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); 
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const u = r.request().url(); const v = u.includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
     const inv1 = id => pg.evaluate(i => { const x = INVITES.find(v => v.id === i); return x && { status: x.status, o: x.o, t: x.t, e: x.e, no: x.no, noNote: x.noNote, counter: x.counter, game_id: x.game_id, venue_id: x.venue_id } }, id);
     const tap = async sel => { await pg.click(sel); await pg.settle(700) };

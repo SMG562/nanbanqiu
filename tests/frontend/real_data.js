@@ -49,7 +49,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
         return r.fulfill({ status: 200, contentType: 'application/json', headers: H, body: JSON.stringify({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) }) }
       const x = u.includes('/otp') ? { access_token: null } : u.includes('/verify') ? { access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } } : null;
       r.fulfill({ status: x ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: x && x.access_token !== null ? JSON.stringify(x) : (x ? '{}' : '') }) });
-    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://tile.openstreetmap.org/**', r => r.abort());
     const REF = { n: 0, mode: 'ok' };
     const state = () => pg.evaluate(() => ({ g: GAMES.length, u: Object.keys(USERS).length, v: Object.keys(VEN).length, me: ME && ME.name, net: !!NBQ_NET }));
     // 页面和内存必须一致（11-03 教训）：网页端右上角槽位要和 ME 对得上；手机端没有这个槽位就只看内存
