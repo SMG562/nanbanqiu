@@ -17,7 +17,7 @@ T('需复核、还没复核：球在复核', ball({ level: 'review' }) === 'revi
 T('复核要改：作者；改过之后要重新复核：复核', ball({ level: 'review', review: 'fix' }) === 'author' && ball({ level: 'review', review: 'rereview' }) === 'review');
 T('复核已通过：可合并', ball({ level: 'review', review: 'pass' }) === 'merge');
 T('红线：球在所有者，且不给作者发提醒', (c => c.ball === 'owner' && !c.ping)(classify(base({ level: 'owner' }), NOW)));
-T('落后 main：作者（pr_merge 只快进），优先于红线 / 可合并', ball({ behind: 3 }) === 'author' && ball({ behind: 3, level: 'owner' }) === 'author');
+T('落后 main 不再推给作者（11-11 放宽）：照常可合并 / 红线归所有者，下一步提到 pr_merge 自动判断', ball({ behind: 3 }) === 'merge' && ball({ behind: 3, level: 'owner' }) === 'owner' && /sync_main/.test(classify(base({ behind: 3 })).next));
 T('什么都满足：可合并，带命令', (c => c.ball === 'merge' && c.ping && c.next.includes('pr_merge.sh 7'))(classify(base(), NOW)));
 T('闲置天数', classify(base({ updated: '2026-11-07T10:00:00Z' }), NOW).idle === 4);
 

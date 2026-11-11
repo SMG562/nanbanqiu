@@ -15,7 +15,7 @@
 .band-red{background:var(--redbg);color:var(--red)}.band-host{background:var(--gss);color:var(--g)}
 .pass-main{padding:22px 22px 20px}
 .pass-day{font-size:14px;font-weight:600;color:var(--mut)}
-.pass-time{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+.pass-time{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin-top:2px}   /* 11-09：窄屏 + 当地时间时换行，不出卡片 */
 .pass-time b{font-size:54px;font-weight:800;letter-spacing:-.035em;line-height:1}
 .pass-time span{font-size:20px;font-weight:600;color:var(--mut)}
 .pass-place{display:flex;align-items:center;gap:10px;margin-top:16px}

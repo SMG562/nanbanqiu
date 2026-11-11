@@ -53,6 +53,7 @@ const NO_TEST = [
   [/^src\/.*\.(css|list)$/, '拼进三个 html，生成的 html 随同一提交入库（提交前检查核对一致），那几个 html 会触发'],
   [/^\.gitignore$/, 'git 配置'],
   [/^\.github\/(CODEOWNERS|dependabot\.yml|ISSUE_TEMPLATE\/)/, 'GitHub 协作配置（谁必须审 / Issue 表单）：不影响运行代码，生效与否在 GitHub 设置里看'],
+  [/^\.github\/zizmor\.yml$/, 'zizmor 例外清单：只被 workflow-lint 读取，改动由它自己在 PR 上跑出结果'],
   [/^\.claude\/(?!.*\.json$)/, '助手说明文档（.claude 里的 json 配置仍会触发）'],
 ];
 const unclassified = FILES.filter(f => !triggers(FAST, f) && !NO_TEST.some(([r]) => r.test(f)));
