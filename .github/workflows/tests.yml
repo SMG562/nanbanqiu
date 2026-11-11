@@ -97,6 +97,7 @@ jobs:
       NBQ_CACHE: ${{ github.workspace }}/.nbq-cache
       TZ: Australia/Melbourne
       NBQ_LITE: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}   # 快速档：下面「跑测试」--skip=static,unit,schema,pg，用不到 pglast / 大磁盘（PostgreSQL 仍要：e2e_fullstack、e2e_admin_login）
+    # 并发数保持每台 2 项（11-11 试过 4：2 次运行各偶发 1 项失败——visual/shots、frontend/buddies，重跑才过；并行已由分片提供）
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -148,18 +149,18 @@ jobs:
         run: |
           run_tests() {
             if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then   # PR 和推 main 跑同一套，复用才成立
-              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --shard=${{ matrix.shard }}   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
+              node tests/run_all.mjs --quick --fast --skip=static,unit,schema,pg --shard=${{ matrix.shard }} --jobs=2   # 静态 / 单元 / 数据库由 tests-fast.yml 跑（不被取消）
             elif [ "${{ inputs.mode }}" = "quick" ]; then
-              node tests/run_all.mjs --quick --fast --shard=${{ matrix.shard }}
+              node tests/run_all.mjs --quick --fast --shard=${{ matrix.shard }} --jobs=2
             else
-              node tests/run_all.mjs --shard=${{ matrix.shard }}
+              node tests/run_all.mjs --shard=${{ matrix.shard }} --jobs=2
             fi
           }
           # 11-10（ADR 0010）：失败先只重跑失败项一次；重跑通过 = 偶发失败，不挡合并，但留下警告（同一条在 ≥ 2 次运行里偶发 = 缺陷，开 Issue 修，不当「抖动」放过）
           if ! run_tests; then
             cp tests/reports/failed.json /tmp/failed_first.json 2>/dev/null || echo '[]' > /tmp/failed_first.json
             echo "::group::第一次失败的项（只重跑这些一次）"; cat /tmp/failed_first.json; echo; echo "::endgroup::"
-            if node tests/run_all.mjs --failed; then
+            if node tests/run_all.mjs --failed --jobs=2; then
               echo "::warning title=偶发失败（重跑通过）::$(tr -d '\n ' < /tmp/failed_first.json | cut -c1-500)"
               echo "偶发失败（重跑通过）：$(tr -d '\n ' < /tmp/failed_first.json)" >> "$GITHUB_STEP_SUMMARY"
             else exit 1; fi
