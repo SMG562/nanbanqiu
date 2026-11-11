@@ -110,6 +110,20 @@ try {
     T('2.9 刷新后规则表显示 35', await until(() => o.p.evaluate(() => [...document.querySelectorAll('#page tr')].some(tr => /no_show/.test(tr.innerText) && /\b35\b/.test(tr.innerText)))));
     T('2.10 owner 全程没有页面错误', !o.pe.length, o.pe); await o.ctx.close();
   }
+  // ================= 3. 待审核 · 场边举报 =================
+  {
+    const W = await user('场边丁'), X = await user('举报戊');
+    const P = (await one(`insert into sb_posts(user_id,city,body) values ($1,'melb','场边不当发布') returning id`, [W.id])).id;
+    await q(`begin; set local session_replication_role = replica; insert into reports(reporter_id,target_type,target_id,reason,source,via) values ('${X.id}','sb_post','${P}','harass','in_app','sideline'); commit;`);
+    const { p, pe, ctx } = await session('ops@x.com');
+    await goPage(p, 'review');
+    T('3.1 待审核页下面有「场边举报」，列出内容、作者、举报原因', await until(async () => { const t = await txt(p, '#page'); return /场边举报/.test(t) && /场边不当发布/.test(t) && /场边丁/.test(t) && /骚扰或冒犯/.test(t) }));
+    await p.click(`[data-sq="hide"][data-id="${P}"]`); await p.fill('#admRin', '骚扰内容已核实'); await p.click('[data-admrok]');
+    T('3.2 隐藏：填理由 → 库里发布已隐藏、举报已处理', await until(async () => (await one(`select status from sb_posts where id=$1`, [P])).status === 'hidden' && (await one(`select status from reports where target_id=$1`, [P])).status === 'actioned'));
+    await reload(p); await goPage(p, 'review');
+    T('3.3 刷新后：这条显示「已隐藏」，按钮变成「恢复显示」', await until(() => p.evaluate(id => !!document.querySelector(`[data-sq="show"][data-id="${id}"]`), P)) && /已隐藏/.test(await txt(p, '#page')));
+    T('3.4 没有页面错误', !pe.length, pe); await ctx.close();
+  }
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e).toString().slice(0, 800)) }
 finally { try { await br?.close() } catch (_) { } try { srv?.close() } catch (_) { } try { await su?.end() } catch (_) { } c.stop() }
 console.log(`admin_ops: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

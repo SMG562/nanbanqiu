@@ -82,6 +82,18 @@ const noOk = v => Number.isInteger(v) && v > 0 && v < 1e9;                      
 const reasonOk = v => typeof v === 'string' && v.length <= 200;                               // 理由：长度上限在这里，「至少 4 个字」由数据库按权限判断（不需要理由的动作可以空）
 const notFound = () => Object.assign(new Error('not_found'), { code: 'not_found' });
 // 会员编号 → id：在后台数据库角色下查（行级安全：限城市的管理员查不到别的城市的人 → 404）
+const sbTarget = b => (b.kind === 'post' && UUID.test(b.id || '')) || (b.kind === 'reply' && /^\d{1,18}$/.test(String(b.id ?? '')));
+// 场边内容所在城市：限城市的管理员只能处理自己城市的（库函数本身不看城市）
+async function sbCityCheck(db, a, b) {
+  const r = (await db.query(b.kind === 'post' ? 'select city from sb_posts where id = $1::uuid' : 'select p.city from sb_replies r join sb_posts p on p.id = r.post_id where r.id = $1::bigint', [String(b.id)])).rows[0];
+  if (!r || (a.cities && !a.cities.includes(r.city))) throw notFound();
+}
+// 逐条走 admin_report_handle（每条都留痕）；返回关掉了几条
+async function sbCloseReports(db, b, action) {
+  const ids = (await db.query(`select id from reports where target_type = $1 and target_id = $2 and status = 'open'`, [b.kind === 'post' ? 'sb_post' : 'sb_reply', String(b.id)])).rows;
+  for (const r of ids) await db.query('select admin_report_handle($1::uuid, $2)', [r.id, action]);
+  return ids.length;
+}
 async function userIdByNo(db, no) { const r = (await db.query('select id from users where member_no = $1::bigint', [String(no)])).rows[0]; if (!r) throw notFound(); return r.id }
 
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)
@@ -144,7 +156,7 @@ export const ROUTES = {
                case when r.target_type = 'user' and r.target_id ~ '^[0-9a-f-]{36}$' then (select nickname from users where id = r.target_id::uuid)
                     when r.target_type = 'game' and r.target_id ~ '^[0-9a-f-]{36}$' then (select hu.nickname from games g join users hu on hu.id = g.host_id where g.id = r.target_id::uuid) end as target_name
           from reports r join users ru on ru.id = r.reporter_id
-         where $1::text[] is null or ru.home_city = any($1::text[])),
+         where ($1::text[] is null or ru.home_city = any($1::text[])) and r.target_type not in ('sb_post', 'sb_reply')),   -- 场边举报在 /sideline/reports（按内容合并）
       pick as (
         (select * from base where status = 'open' order by created_at desc limit 200)
         union all
@@ -253,6 +265,42 @@ export const ROUTES = {
   'POST /admin/api/users/phone': { name: 'users_phone', perm: 'phone.reveal', body: true, run: (req, d, b, route) => {
     if (!noOk(b.no) || !reasonOk(b.reason)) return fail(bad(), 'users_phone');
     return authed(req, d, route, async db => ({ phone: (await db.query('select admin_reveal_phone($1, $2) as p', [await userIdByNo(db, b.no), b.reason])).rows[0].p }), b);
+  } },
+  // ---------- 场边举报（#27 第 4 步）----------
+  // 按被举报的内容合并：同一条发布 / 回复的多条举报一行显示（举报原因、举报人、时间）；附内容原文、作者、现在是否已隐藏。
+  // 待处理 = 还有未处理举报的内容（最多 100）；另给最近处理的 30 条。限城市的管理员只看自己城市的场边。
+  'GET /admin/api/sideline/reports': { name: 'sideline_reports', perm: 'report.handle', run: (req, d, b, route) => authed(req, d, route, async (db, a) => {
+    const rows = (await db.query(`
+      with r0 as (select r.*, case when r.target_type = 'sb_reply' then r.target_id::bigint end as reply_id from reports r where r.target_type in ('sb_post', 'sb_reply') and r.target_id ~ '^([0-9a-f-]{36}|[0-9]{1,18})$'),
+      r as (select r.*, case when r.target_type = 'sb_post' then r.target_id::uuid else (select post_id from sb_replies where id = r.reply_id) end as post_id
+                   from r0 r where r.target_type in ('sb_post', 'sb_reply') and r.target_id ~ '^([0-9a-f-]{36}|[0-9]{1,18})$'),
+      t as (select r.target_type, r.target_id, min(r.post_id::text)::uuid as post_id, min(r.reply_id) as reply_id, bool_or(r.status = 'open') as open, max(coalesce(r.handled_at, r.created_at)) as last_at,
+                   jsonb_agg(jsonb_build_object('id', r.id, 'reason', r.reason, 'status', r.status, 'reporter', (select nickname from users where id = r.reporter_id), 'created_at', r.created_at) order by r.created_at) as reports
+              from r group by 1, 2),
+      x as (select t.*, p.city, case when t.target_type = 'sb_post' then p.body else rp.body end as body, case when t.target_type = 'sb_post' then p.status else rp.status end as status,
+                   case when t.target_type = 'sb_post' then p.deleted_at else rp.deleted_at end is not null as deleted, p.photo_count, p.topic_id,
+                   (select count(*)::int from sb_photos f where f.post_id = p.id and f.review = 'blurred') as photos_pending,
+                   au.member_no::int as author_no, au.nickname as author
+              from t join sb_posts p on p.id = t.post_id left join sb_replies rp on rp.id = t.reply_id
+              join users au on au.id = case when t.target_type = 'sb_post' then p.user_id else rp.user_id end
+             where $1::text[] is null or p.city = any($1::text[]))
+      (select * from x where open order by last_at desc limit 100) union all (select * from x where not open order by last_at desc limit 30)`, [a.cities ?? null])).rows;
+    return { items: rows.map(({ post_id, reply_id, city, ...o }) => ({ ...o, kind: o.target_type === 'sb_post' ? 'post' : 'reply', id: o.target_id })) };
+  }) },
+  // 隐藏 / 恢复显示（message.hide，必须填理由）。隐藏时这条内容上所有未处理的举报一并标成「已处理」（同一个事务）
+  'POST /admin/api/sideline/hide': { name: 'sideline_hide', perm: 'message.hide', body: true, run: (req, d, b, route) => {
+    if (!sbTarget(b) || typeof b.hide !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'sideline_hide');
+    return authed(req, d, route, async (db, a) => {
+      await sbCityCheck(db, a, b);
+      await db.query(b.kind === 'post' ? 'select admin_sb_post_hide($1::uuid, $2, $3)' : 'select admin_sb_reply_hide($1::bigint, $2, $3)', [b.id, b.hide, b.reason]);
+      if (b.hide) await sbCloseReports(db, b, 'actioned');
+      return { ok: true };
+    }, b);
+  } },
+  // 不用处理：这条内容上所有未处理的举报标成「已忽略」（report.handle）。没有未处理的 → 409（别人刚处理过）
+  'POST /admin/api/sideline/dismiss': { name: 'sideline_dismiss', perm: 'report.handle', body: true, run: (req, d, b, route) => {
+    if (!sbTarget(b)) return fail(bad(), 'sideline_dismiss');
+    return authed(req, d, route, async (db, a) => { await sbCityCheck(db, a, b); if (!(await sbCloseReports(db, b, 'dismissed'))) throw Object.assign(new Error('state_changed'), { code: 'state_changed' }); return { ok: true } }, b);
   } },
   // ---------- 风险提醒与规则（#27 第 4 步）----------
   // 列表：view = open（待处理）/ watching（观察中）/ done（最近处理或忽略的 50 条）。inner join users：限城市的管理员只看得到自己城市的人的提醒

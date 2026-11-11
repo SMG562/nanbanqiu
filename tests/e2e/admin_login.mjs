@@ -162,7 +162,7 @@ try {
     T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除已接真数据的 ${REAL.length} 页都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - REAL.length, bad);
     T('7.2 筛选条（日期范围、设备、导出 CSV）真模式下不显示', !(await vis(pg, '.filters')));
     // 从界面点：点导航里的占位页
-    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核在「球场」页、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核在「球场」页；场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
+    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明场边举报在下面、球场审核在「球场」页', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /场边举报在下面一张卡片；球场审核在「球场」页/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
     T('7.4 占位页的导航项带「待接入」标记，已接真数据的没有', await pg.evaluate(REAL => [...document.querySelectorAll('#nav [data-pg]')].every(b => REAL.includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon')), REAL));
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
   }

@@ -114,7 +114,7 @@ function rpMsgs(id){admAskReason('查看被举报的对话',async reason=>{
 function realReviewPage(){
   if(RP.list===null&&!RP.err&&!RP.loading)rpLoad();
   else if(!RP.loading&&Date.now()-RP.loadedAt>30000)rpLoad();                 // 隔一会儿再进来：先画旧的，同时后台重读
-  const note='<p class="cap">这一页只有举报；球场审核在「球场」页；场边举报在后面的步骤接入。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的；处理或忽略后举报人可以重新举报。所有操作写入操作日志。</p>';
+  const note='<p class="cap">这里是球友 / 球局的举报，场边举报在下面一张卡片；球场审核在「球场」页。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的；处理或忽略后举报人可以重新举报。所有操作写入操作日志。</p>';
   if(RP.err&&RP.list===null)return `<div class="card nodata"><h2>举报队列：读不出来</h2><p>${esc(RP.err)}</p><div class="rowacts"><button class="btn sm p" data-rp="reload">重试</button></div></div>`;
   if(RP.list===null)return '<div class="card nodata"><h2>举报队列</h2><p>读取中…</p></div>';
   const L=RP.list,open=L.filter(x=>x.status==='open').length;
