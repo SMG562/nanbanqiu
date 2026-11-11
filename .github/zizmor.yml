@@ -4,6 +4,8 @@ rules:
     ignore:
       # collab-board 有意用 workflow_run / issue_comment / pull_request_target：只读 PR 元数据，只检出默认分支的三个文件，不执行 PR 里的任何代码（见该文件头注释）。
       - collab-board.yml
+      # proposals 有意用 issue_comment：只读 Issue 文字，只在默认分支版本上跑、只检出 tools/proposal_tick.mjs 一个文件，不执行 Issue 里的任何内容（见该文件头注释）。
+      - proposals.yml
   excessive-permissions:
     ignore:
       # tests.yml 的 visual-baseline 要把重拍的截图基准提交回 main，需要 contents: write；其余任务只读。
