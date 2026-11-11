@@ -1,25 +1,16 @@
 // 首页引导条（11-08，src/shared/script/0502）：两端各走一遍。
 //   开关关不显示；第一次来显示、手机端这次不弹位置授权；× / 往下滑 / 点开球局 / Esc 都算看过，「清空内存 → 重读」后不再出现；
 //   从分享 / 球局链接进来不显示也不算看过；有登录快照时从第一帧起就不出现；本机存储报错时不报错、这次打开内不再出现。
-const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
-const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
+const { chromium } = require('playwright'); const { openApp } = require('../lib/app');   // 11-11：打开页面的样板换成公共函数（#172 第 4 项示范）
 let pass = 0, fail = 0;
 const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
-const FLAG = () => { try { localStorage.setItem('nbq_ff_intro', '1') } catch (_) { } };
 (async () => {
   const b = await chromium.launch({});
   const errs = [];
   for (const f of ['PWA', 'Web']) {
-    // 用 https 假域名打开（file:// 下刷新太快时本机存储偶尔来不及写进去，会误报）；nanbanqiu.test 不是正式 / 预览域名，开关默认关
-    const W = f === 'Web', URL0 = 'https://nanbanqiu.test/', HTML = fs.readFileSync(path.join(DIR, '南伴球_' + f + '.html'));
-    const open = async ({ flag = true, init, hash = '' } = {}) => {
-      const ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
-      if (flag) await ctx.addInitScript(FLAG);
-      if (init) await ctx.addInitScript(init);
-      const p = await ctx.newPage(); p.on('pageerror', x => errs.push(f + ' ' + x.message));
-      await p.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: HTML }));
-      await p.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p.route('https://basemaps.cartocdn.com/**', r => r.abort());
-      await p.goto(URL0 + hash); await p.settle(900); return p };
+    // openApp：https 假域名（nanbanqiu.test 不是正式 / 预览域名，开关默认关；不用 file://，见 tests/lib/app.js）、外网拦掉、页面报错收进 errs
+    const W = f === 'Web';
+    const open = async ({ flag = true, init, hash = '' } = {}) => (await openApp(b, { end: f, flags: flag ? ['intro'] : [], init, hash, errs })).page;
     const has = p => p.evaluate(() => { const e = document.getElementById('nbqIntro'); return !!(e && e.offsetHeight > 20 && !e.classList.contains('shut')) });
     const seen = p => p.evaluate(() => { try { return JSON.parse(localStorage.getItem('nbq_intro') || 'null') } catch (_) { return 'ERR' } });
     const locAsk = p => p.evaluate(() => /允许南伴球使用你的位置/.test(document.body.innerText));
