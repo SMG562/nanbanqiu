@@ -80,6 +80,7 @@ async function readJson(req) {
 const strIn = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
 const noOk = v => Number.isInteger(v) && v > 0 && v < 1e9;                                   // 会员编号
 const reasonOk = v => typeof v === 'string' && v.length <= 200;                               // 理由：长度上限在这里，「至少 4 个字」由数据库按权限判断（不需要理由的动作可以空）
+const cityOk = v => typeof v === 'string' && /^[a-z]{2,12}$/.test(v);
 const notFound = () => Object.assign(new Error('not_found'), { code: 'not_found' });
 // 会员编号 → id：在后台数据库角色下查（行级安全：限城市的管理员查不到别的城市的人 → 404）
 const sbTarget = b => (b.kind === 'post' && UUID.test(b.id || '')) || (b.kind === 'reply' && /^\d{1,18}$/.test(String(b.id ?? '')));
@@ -333,6 +334,30 @@ export const ROUTES = {
          order by l.id desc limit 101`, [before, exact ? act : '', exact || !act ? '' : act.replace(/\.$/, '').replace(/_/g, '\\_') + '.'])).rows;
       return { rows: rows.slice(0, 100), more: rows.length > 100 };
     });
+  } },
+  // ---------- 城市（#27 第 4 步，地区扩展 R4）----------
+  // 一览：admin_city_overview（库函数按 nbq_admin_sees 只给自己负责的城市）；改状态 / 资料：city.manage（owner，必须填理由，前进要过检查清单）
+  'GET /admin/api/cities': { name: 'cities', perm: 'page.view', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    cities: (await db.query(`select key, name_zh, slug, status, beta_at, launched_at, suburbs::int, venues::int, players::int, games_30d::int, waitlist::int, waitlist_pending::int, checklist, community_url,
+        (select hashtag from cities c where c.key = o.key) as hashtag, (select center_label from cities c where c.key = o.key) as center_label from admin_city_overview() o`)).rows,
+  })) },
+  'POST /admin/api/cities/status': { name: 'cities_status', perm: 'city.manage', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !['off', 'prep', 'beta', 'on'].includes(b.status) || !reasonOk(b.reason)) return fail(bad(), 'cities_status');
+    return authed(req, d, route, async db => { await db.query('select admin_city_status($1, $2, $3)', [b.city, b.status, b.reason]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/cities/set': { name: 'cities_set', perm: 'city.manage', body: true, run: (req, d, b, route) => {
+    const p = b.patch; if (!cityOk(b.city) || !reasonOk(b.reason) || !p || typeof p !== 'object' || Array.isArray(p) || !Object.keys(p).length
+      || !Object.entries(p).every(([k, v]) => ['community_url', 'hashtag', 'center_label'].includes(k) && typeof v === 'string' && v.length <= 300)) return fail(bad(), 'cities_set');
+    return authed(req, d, route, async db => { await db.query('select admin_city_set($1, $2::jsonb, $3)', [b.city, JSON.stringify(p), b.reason]); return { ok: true } }, b);
+  } },
+  // 开放时通知我：导出还没通知的邮箱（个人信息：owner + 理由，留痕；响应不缓存）· 发完标记已通知
+  'POST /admin/api/cities/waitlist': { name: 'cities_waitlist', perm: 'city.waitlist', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !reasonOk(b.reason)) return fail(bad(), 'cities_waitlist');
+    return authed(req, d, route, async db => ({ emails: (await db.query('select email, created_at from admin_city_waitlist($1, $2)', [b.city, b.reason])).rows }), b);
+  } },
+  'POST /admin/api/cities/waitlist/done': { name: 'cities_waitlist_done', perm: 'city.waitlist', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !reasonOk(b.reason)) return fail(bad(), 'cities_waitlist_done');
+    return authed(req, d, route, async db => ({ marked: (await db.query('select admin_city_waitlist_done($1, $2) as n', [b.city, b.reason])).rows[0].n }), b);
   } },
   // ---------- 风险提醒与规则（#27 第 4 步）----------
   // 列表：view = open（待处理）/ watching（观察中）/ done（最近处理或忽略的 50 条）。inner join users：限城市的管理员只看得到自己城市的人的提醒

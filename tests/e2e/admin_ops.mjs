@@ -39,7 +39,7 @@ try {
   const txt = (p, s) => p.evaluate(s => document.querySelector(s)?.innerText || '', s);
   // 登录一个角色，返回 {p, pe}：pe 收集页面错误和未处理的异步错误（await 里抛的错不算 pageerror）
   const session = async email => {
-    const ctx = await br.newContext({ viewport: { width: 1360, height: 900 } }), p = await ctx.newPage(), pe = [];
+    const ctx = await br.newContext({ viewport: { width: 1360, height: 900 }, acceptDownloads: true }), p = await ctx.newPage(), pe = [];
     p.on('pageerror', e => pe.push(e.message)); await p.addInitScript(() => addEventListener('unhandledrejection', e => console.error('UNHANDLED ' + (e.reason && e.reason.message))));
     p.on('console', m => { if (m.text().startsWith('UNHANDLED')) pe.push(m.text()) });
     await p.goto(URL0); await until(() => vis(p, '#lgEmail'));
@@ -123,6 +123,23 @@ try {
     await reload(p); await goPage(p, 'review');
     T('3.3 刷新后：这条显示「已隐藏」，按钮变成「恢复显示」', await until(() => p.evaluate(id => !!document.querySelector(`[data-sq="show"][data-id="${id}"]`), P)) && /已隐藏/.test(await txt(p, '#page')));
     T('3.4 没有页面错误', !pe.length, pe); await ctx.close();
+  }
+  // ================= 5. 城市 =================
+  {
+    await q(`insert into area_demand(kind, city, email) values ('city_waitlist','melb','w1@x.com')`);
+    const { p, pe, ctx } = await session('han@x.com'); await goPage(p, 'cities');
+    T('5.1 城市页：6 个城市卡片，墨尔本开放、带检查清单', await until(async () => { const t = await txt(p, '#page'); return /墨尔本/.test(t) && /珀斯/.test(t) && /开放/.test(t) && /区数据已导入/.test(t) }));
+    await p.click('[data-rc2="st"][data-c="syd"][data-v="prep"]'); await p.fill('#admRin', '开始准备悉尼'); await p.click('[data-admrok]');
+    T('5.2 悉尼改为准备中 → 库里是 prep', await until(async () => (await one(`select status from cities where key='syd'`)).status === 'prep'));
+    await until(() => p.evaluate(() => !!document.querySelector('[data-rc2="edit"][data-c="syd"]')));
+    await p.click('[data-rc2="edit"][data-c="syd"]'); await p.fill('#rcUrl', 'https://example.com/syd-group'); await p.fill('#rcWhy', '补社群链接'); await p.click('[data-rc2="save"][data-c="syd"]');
+    T('5.3 改资料 → 库里是新链接', await until(async () => (await one(`select community_url from cities where key='syd'`)).community_url === 'https://example.com/syd-group'));
+    const dl = p.waitForEvent('download', { timeout: 6000 }).catch(() => null);
+    await until(() => p.evaluate(() => !!document.querySelector('[data-rc2="wl"][data-c="melb"]'))); await p.click('[data-rc2="wl"][data-c="melb"]'); await p.fill('#admRin', '墨尔本开放通知'); await p.click('[data-admrok]');
+    const f = await dl; T('5.4 导出名单：下载 CSV，里面有邮箱', !!f && /w1@x\.com/.test(fs.readFileSync(await f.path(), 'utf8')));
+    await reload(p); await goPage(p, 'cities');
+    T('5.5 刷新后悉尼显示「准备中」', await until(() => p.evaluate(() => [...document.querySelectorAll('#page .card')].some(c => /悉尼/.test(c.innerText) && /准备中/.test(c.innerText)))));
+    T('5.6 没有页面错误', !pe.length, pe); await ctx.close();
   }
   // ================= 4. 管理员与操作日志（放最后：会改管理员角色） =================
   {
