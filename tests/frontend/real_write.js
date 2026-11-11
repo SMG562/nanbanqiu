@@ -57,7 +57,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const click = async (attrs, extra = '') => { await pg.evaluate(([a, x]) => { const el = document.createElement('button'); el.id = '__t'; Object.entries(a).forEach(([k, v]) => el.setAttribute(k, v)); const host = typeof DEV !== 'undefined' ? DEV : document.body; host.appendChild(el); if (x) { const t = document.createElement('textarea'); t.id = 'applyMsg'; t.value = x; host.appendChild(t) } el.click(); el.remove(); const t = document.getElementById('applyMsg'); if (t && x) t.remove() }, [attrs, extra]); await pg.settle(700) };
     const mine = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? api.get(i).mine : undefined }, id);
     const st = id => pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return g ? g.status : undefined }, id);
-    const until = (fn, n = 24) => pg.until(fn, n * 300);   // 按真实时间等（pg.until，tests/lib/preload 第 8 条）   // 11-05（#40）：先等条件成立再断言——固定 settle 在 CI / 并行负载下不够，红的断言每次不一样
+    const until = (fn, n = 24) => pg.until(fn, n * 300);   // 按真实时间等（pg.until，tests/lib/preload 第 9 条）   // 11-05（#40）：先等条件成立再断言——固定 settle 在 CI / 并行负载下不够，红的断言每次不一样
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);

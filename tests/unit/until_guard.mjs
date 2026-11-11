@@ -1,6 +1,6 @@
 // 轮询等待不许拿 settle 当间隔（11-10）：页面空闲时 pg.settle 会立刻返回，「最多 20 轮 × settle(300)」可能 1 秒不到就判「没到」。
 //   #141（rackets 产品库延迟 1.5s）根因；当时 7 个浏览器测试都有这个写法，real_write / real_safety / real_after 的偶发红都是这一类。
-//   正确写法：pg.until(条件, 最多毫秒)（tests/lib/preload 第 8 条，按真实时间等）。
+//   正确写法：pg.until(条件, 最多毫秒)（tests/lib/preload 第 9 条，按真实时间等）。
 //   拦：计数循环 / while 循环里「if (await 条件)」+「.settle(」写在一行里的轮询；for…of 逐个遍历（点每个演示）不算轮询，不拦。
 // 用法：node tests/unit/until_guard.mjs [仓库根目录]
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';

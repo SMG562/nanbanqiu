@@ -35,7 +35,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
-    const until = (fn, n = 30) => pg.until(fn, n * 200);   // 按真实时间等（pg.until，tests/lib/preload 第 8 条）
+    const until = (fn, n = 30) => pg.until(fn, n * 200);   // 按真实时间等（pg.until，tests/lib/preload 第 9 条）
     const toMe = () => pg.evaluate(W => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } if (W) { UI.tab = 'me'; render() } else go('me') }, W);
     // 页面上画出来的那一行（DOM）：「标签|数字」
     const row = () => pg.evaluate(() => { const r = document.querySelector('.ut .ut-row'); return r ? r.querySelector('.rk-br').textContent + '|' + r.querySelector('.ut-n').textContent : null });
