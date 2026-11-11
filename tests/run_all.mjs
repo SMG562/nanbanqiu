@@ -101,6 +101,7 @@ add('pg', 'pg/admin_users', ['node', path.join(HERE, 'pg/admin_users.mjs')], { p
 add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { pass: [/admin_games: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_user_ops', ['node', path.join(HERE, 'pg/admin_user_ops.mjs')], { pass: [/admin_user_ops: \d+ 通过, 0 失败/], timeout: 300 });   // 球友详情与处理 #27 第 4 步
 add('pg', 'pg/admin_risk', ['node', path.join(HERE, 'pg/admin_risk.mjs')], { pass: [/admin_risk: \d+ 通过, 0 失败/], timeout: 300 });   // 风险提醒与规则 #27 第 4 步
+add('pg', 'pg/admin_appeals', ['node', path.join(HERE, 'pg/admin_appeals.mjs')], { pass: [/admin_appeals: \d+ 通过, 0 失败/], timeout: 300 });   // 爽约申诉 #195
 add('pg', 'pg/admin_sideline', ['node', path.join(HERE, 'pg/admin_sideline.mjs')], { pass: [/admin_sideline: \d+ 通过, 0 失败/], timeout: 300 });   // 场边举报 #27 第 4 步
 add('pg', 'pg/admin_admins', ['node', path.join(HERE, 'pg/admin_admins.mjs')], { pass: [/admin_admins: \d+ 通过, 0 失败/], timeout: 300 });   // 管理员与操作日志 #27 第 4 步
 add('pg', 'pg/admin_cities_api', ['node', path.join(HERE, 'pg/admin_cities_api.mjs')], { pass: [/admin_cities_api: \d+ 通过, 0 失败/], timeout: 300 });   // 城市接口 #27 第 4 步

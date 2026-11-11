@@ -190,6 +190,24 @@ try {
     T('7.6 退回旧版 → 又一个新版本，记着从哪版退回', await until(async () => (await one(`select from_version from sb_config_versions order by version desc limit 1`)).from_version === v0));
     T('7.7 没有页面错误', !pe.length, pe); await ctx.close();
   }
+  // ================= 8. 爽约申诉（风险用户页） =================
+  {
+    const Hh = await user('申诉局发起人'), Aa = await user('申诉人丙');
+    await q(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)') on conflict do nothing`).catch(() => { });
+    const Vv = (await one(`insert into venues(name,short_name,suburb,postcode,location,surfaces,status,city) values ('Appeal E2E','AE','Brighton','3186','POINT(145 -37.9)','{hard}','active','melb') returning id`)).id;
+    const Gg = (await one(`insert into games(share_code,host_id,venue_id,starts_at,duration_min,game_type,capacity,utr_min,utr_max,status,visibility) values ('AE001',$1,$2,now()-interval '2 days',90,'doubles',4,3,6,'open','public') returning id`, [Hh.id, Vv])).id;
+    await q(`insert into game_participants(game_id,user_id,role,status,decided_at) values ($1,$2,'player','approved',now()-interval '3 days')`, [Gg, Aa.id]);
+    await q(`insert into noshow_reports(game_id,target_id,reporter_id) values ($1,$2,$3)`, [Gg, Aa.id, Hh.id]);
+    await q(`insert into noshow_appeals(game_id,user_id,reason) values ($1,$2,'came')`, [Gg, Aa.id]);
+    const { p, pe, ctx } = await session('ops@x.com'); await goPage(p, 'safety');
+    T('8.1 风险用户页最上面是爽约申诉：申诉人、理由、反馈人（发起人）', await until(async () => { const t = await txt(p, '#page'); return /爽约申诉/.test(t) && /申诉人丙/.test(t) && /我到场了/.test(t) && /申诉局发起人（发起人）/.test(t) }));
+    p.once('dialog', d => d.accept('聊天记录显示到了'));
+    await p.click('[data-ap="up"][data-i="0"]');
+    T('8.2 判申诉成立 → 库里 upheld、带备注', await until(async () => (await one(`select status, admin_note from noshow_appeals where game_id=$1`, [Gg]))?.admin_note === '聊天记录显示到了'));
+    await reload(p); await goPage(p, 'safety'); await until(() => p.evaluate(() => !!document.querySelector('[data-ap="view"][data-v="done"]'))); await p.click('[data-ap="view"][data-v="done"]');
+    T('8.3 刷新后在「最近处理」：成立、处理人、备注', await until(async () => { const t = await txt(p, '#page'); return /申诉人丙/.test(t) && /成立/.test(t) && /Amy/.test(t) && /聊天记录显示到了/.test(t) }));
+    T('8.4 没有页面错误', !pe.length, pe); await ctx.close();
+  }
   // ================= 4. 管理员与操作日志（放最后：会改管理员角色） =================
   {
     const op = await session('ops@x.com'); await goPage(op.p, 'admin');

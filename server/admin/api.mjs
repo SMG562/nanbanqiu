@@ -501,6 +501,33 @@ export const ROUTES = {
       await db.query('select admin_risk_alert($1::bigint, $2, $3, $4)', [String(b.id), b.status, b.note ?? null, b.watch_days ?? 7]); return { ok: true };
     }, b);
   } },
+  // ---------- 爽约申诉（#195 ②）----------
+  // 列表：view = pending（待处理）/ done（最近处理的 50 条）。对外用球局分享码 + 会员编号，不给内部 id。
+  // 证据：谁反馈的（昵称、是不是发起人）、发起人是否在出勤里直接标了未到、这位球友近 90 天其他确认爽约次数。inner join users：限城市的管理员只看自己城市的人
+  'GET /admin/api/appeals': { name: 'appeals', perm: 'report.handle', run: (req, d, b, route) => {
+    const view = new URL(req.url).searchParams.get('view') || 'pending';
+    if (!['pending', 'done'].includes(view)) return fail(bad(), 'appeals');
+    return authed(req, d, route, async db => ({ appeals: (await db.query(`
+      select g.share_code, g.starts_at, g.game_type::text as game_type, g.capacity, coalesce(v.name, g.venue_name) as venue, h.nickname as host,
+             u.member_no::int as member_no, u.nickname, a.reason, a.status, a.created_at, a.decided_at, a.admin_note, ad.name as decided_by_name,
+             exists (select 1 from game_participants p where p.game_id = a.game_id and p.user_id = a.user_id and p.attendance = 'no_show') as host_marked,
+             coalesce((select jsonb_agg(jsonb_build_object('name', ru.nickname, 'is_host', n.reporter_id = g.host_id) order by n.created_at) from noshow_reports n join users ru on ru.id = n.reporter_id
+                        where n.game_id = a.game_id and n.target_id = a.user_id), '[]'::jsonb) as reporters,
+             (select count(*)::int from v_confirmed_noshow c where c.user_id = a.user_id and c.game_id <> a.game_id and c.starts_at > now() - interval '90 days') as other_noshows_90d
+        from noshow_appeals a join users u on u.id = a.user_id join games g on g.id = a.game_id
+        left join users h on h.id = g.host_id left join venues v on v.id = g.venue_id left join admin_users ad on ad.id = a.decided_by
+       where case $1 when 'pending' then a.status = 'pending' else a.status <> 'pending' end
+       order by case when $1 = 'pending' then a.created_at end asc, a.decided_at desc nulls last limit ${view === 'pending' ? 200 : 50}`, [view])).rows }));
+  } },
+  // 处理：upheld（申诉成立，这次不计）/ rejected（不成立，重新计入）。先在行级安全下确认看得到这位球友和这条申诉（别的城市 → 404）
+  'POST /admin/api/appeals/handle': { name: 'appeals_handle', perm: 'report.handle', body: true, run: (req, d, b, route) => {
+    if (!strIn(b.game, 20) || !noOk(b.no) || !['upheld', 'rejected'].includes(b.status) || (b.note != null && !reasonOk(b.note))) return fail(bad(), 'appeals_handle');
+    return authed(req, d, route, async db => {
+      const r = (await db.query(`select a.game_id, a.user_id from noshow_appeals a join users u on u.id = a.user_id join games g on g.id = a.game_id where g.share_code = $1 and u.member_no = $2::bigint`, [b.game, String(b.no)])).rows[0];
+      if (!r) throw notFound();
+      await db.query('select admin_noshow_appeal($1, $2, $3, $4)', [r.game_id, r.user_id, b.status, b.note ?? null]); return { ok: true };
+    }, b);
+  } },
   // 规则：风险规则（权重、阈值、时间窗、开关）+ 频率规则（次数、时间窗、开关）。看：运营以上；改：只有 owner、必须填理由（库函数记改前改后）
   'GET /admin/api/rules': { name: 'rules', perm: 'risk.handle', run: (req, d, b, route) => authed(req, d, route, async db => ({
     risk: (await db.query(`select code, name, weight, threshold::float as threshold, window_days, enabled from risk_rules order by weight desc, code`)).rows,

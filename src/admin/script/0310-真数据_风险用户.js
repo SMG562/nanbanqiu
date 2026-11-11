@@ -55,7 +55,7 @@ function realSafetyPage(){if(!RK.d&&!RK.loading&&!RK.err)rkLoad();
     <td>${esc(RK_ST[a.status]||a.status)}${a.status==='watching'&&a.watch_until?`<br><small style="color:var(--mut)">到 ${upDate(a.watch_until)}</small>`:''}${a.reviewed_by_name?`<br><small style="color:var(--mut)">${esc(a.reviewed_by_name)}${a.note?' · '+esc(a.note):''}</small>`:''}</td>
     <td><div class="rowacts">${acts}</div></td></tr>`}).join('')}</tbody></table>`;
   return `<div class="card">${head}${RK.err&&RK.d?`<p class="cap" style="color:var(--crit)">${esc(RK.err)}（下面是上次读到的）</p>`:''}${body}
-  <p class="cap">要暂停、受限或封禁：点球友名字打开详情处理，再回来把提醒标成「已处理」。爽约申诉还没有后台处理函数，需要先加数据库迁移（另开 Issue）。</p></div>${rkRulesCard()}`}
+  <p class="cap">要暂停、受限或封禁：点球友名字打开详情处理，再回来把提醒标成「已处理」。爽约申诉在上面一张卡片。</p></div>${rkRulesCard()}`}
 if(NBQ_MODE==='real'){REAL_PAGES.safety=()=>realSafetyPage();REAL_RESET.push(()=>{Object.assign(RK,{view:'open',d:null,err:null,loading:false,rules:null,rerr:null,edit:null});RK.busy.clear();RK.gen++});
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-rsk]');if(!b||b.disabled)return;const k=b.dataset.rsk,id=b.dataset.id;
     if(k==='view'){RK.view=b.dataset.v;RK.d=null;RK.err=null;render();return rkLoad()}
