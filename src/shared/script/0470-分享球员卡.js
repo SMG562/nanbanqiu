@@ -28,10 +28,7 @@ function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2c
   // 依次试 ① 原样 3 倍 ② 2 倍 ③ 去掉 SVG 滤镜 / 遮罩 ④ 再去掉头像里所有 SVG（只剩底色）；成功就停，全失败把原因留在 SC_ERR
   // iPhone Safari 会因为球员卡里的 SVG（头像滤镜、二维码、纹理）把画布判成「不安全」(The operation is insecure)，导出失败；
   // 而放行的 SVG 又会被画成空白。所以 3 倍、2 倍原样试过之后，直接走「无 SVG」版：二维码用画布画成 PNG 换进去（先载入再截图），头像换成底色圆 + 首字母
-  const qrPng=col=>{const a=qrMatrix(profileUrl(U(uid),typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments')),n=a.length,k=12,pad=k/2,c=document.createElement('canvas');c.width=c.height=(n+1)*k;const x=c.getContext('2d');x.fillStyle=x.strokeStyle=col||'#fff';
-    const box=(i,j,w,r,f)=>{x.beginPath();x.roundRect?x.roundRect(pad+i*k,pad+j*k,w*k,w*k,r*k):x.rect(pad+i*k,pad+j*k,w*k,w*k);f?x.fill():x.stroke()};
-    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7))){x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()}
-    x.lineWidth=k;[[0,0],[n-7,0],[0,n-7]].forEach(([i,j])=>{box(i+.5,j+.5,6,1.8,0);box(i+2,j+2,3,.9,1)});return c.toDataURL('image/png')};
+  const qrPng=col=>qrDataUrl(profileUrl(U(uid),typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments'),col);
   const plain=()=>new Promise(ok=>{const q=tmp.querySelector('.bk .q');if(!q)return ok();const im=new Image();im.style.cssText='display:block;width:100%;height:100%';
     im.onload=im.onerror=()=>ok();im.src=qrPng(getComputedStyle(q).color);q.innerHTML='';q.appendChild(im)});
   const noSvg=doc=>{const u=U(uid);doc.querySelectorAll('svg').forEach(e=>{const av=e.closest('.pc-av');if(av&&!av.querySelector('.pc-ini')){const d=doc.createElement('div');d.className='pc-ini';d.textContent=(String(u.name||'?').trim()[0]||'?').toUpperCase();
@@ -51,11 +48,21 @@ function imgSave(blob,name){
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).catch(e=>{if(!e||e.name!=='AbortError')big()});return}
   big()}
 function scDownload(blob,uid){imgSave(blob,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}
-// 把页面里一块元素截成 PNG（海报 / 球员卡共用，11-11 #161 第 4 项）：手机上内存不够、或 iPhone Safari 把带 SVG 滤镜 / 遮罩 / 纹理的画布判成「不安全」(The operation is insecure) 时逐级降级，
-//   ① 原样 scale 倍 ② 1 倍 ③ 1 倍并在克隆里去掉 SVG 的 filter / mask 和纹理背景；成功就停，全失败返回 null（原因留在 SC_ERR）。不改原页面（只改 html2canvas 的克隆）。
-function nbqShotPlan(scale){return [[scale||2,0],[1,0],[1,1]]}
-function nbqShotClean(doc){doc.querySelectorAll('svg,svg *').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask');if(e.style){e.style.filter='none';e.style.mask='none'}});
-  doc.querySelectorAll('.pc-grain,.pc-light,[class*=grain]').forEach(e=>e.style.backgroundImage='none')}
+// 二维码画成 PNG 的 data 地址（iPhone Safari 会把页面里的 SVG 判成「不安全」，而放行的 SVG 又会被画成空白——所以降级到最后一级时二维码不能留 SVG）。scBlob 和 nbqShot 共用。
+function qrDataUrl(text,col){const a=qrMatrix(text),n=a.length,k=12,pad=k/2,c=document.createElement('canvas');c.width=c.height=(n+1)*k;const x=c.getContext('2d');x.fillStyle=x.strokeStyle=col||'#fff';
+    const box=(i,j,w,r,f)=>{x.beginPath();x.roundRect?x.roundRect(pad+i*k,pad+j*k,w*k,w*k,r*k):x.rect(pad+i*k,pad+j*k,w*k,w*k);f?x.fill():x.stroke()};
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7))){x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()}
+    x.lineWidth=k;[[0,0],[n-7,0],[0,n-7]].forEach(([i,j])=>{box(i+.5,j+.5,6,1.8,0);box(i+2,j+2,3,.9,1)});return c.toDataURL('image/png')}
+// 把页面里一块元素截成 PNG（海报 / 球员卡共用，11-11 #161 第 4 项）：手机上内存不够、或 iPhone Safari 判「不安全」(The operation is insecure) 时逐级降级，
+//   ① 原样 scale 倍 ② 1 倍 ③ 在克隆里去掉全部 SVG（二维码按 data-qr 换成 PNG、纹理背景去掉）再截，倍数取 min(scale,2)；成功就停，全失败返回 null（原因留在 SC_ERR）。不改原页面（只改 html2canvas 的克隆）。
+//   第 ③ 级和 scBlob 的「无 SVG」版同思路（协作者交叉复核 11-11：只去滤镜、二维码 SVG 还在，大概率仍然 insecure）。需要二维码的元素带 data-qr="<链接>"（海报 .t-qr）。
+function nbqShotPlan(scale){const k=scale||2;return [[k,0],[1,0],[Math.min(k,2),1]]}
+function nbqShotClean(doc){doc.querySelectorAll('[data-qr]').forEach(q=>{const t=q.getAttribute('data-qr');if(!t)return;const im=doc.createElement('img');im.style.cssText='display:block;width:100%;height:100%';
+    const done=new Promise(ok=>{im.onload=im.onerror=()=>ok();setTimeout(ok,1500)});   // 图片等不到就不等了：最多多等 1.5 秒，不让保存流程挂住
+    try{im.src=qrDataUrl(t,getComputedStyle(q).color||'#101828')}catch(e){}q.innerHTML='';q.appendChild(im);(doc.__qrWait=doc.__qrWait||[]).push(done)});
+  doc.querySelectorAll('svg').forEach(e=>e.remove());
+  doc.querySelectorAll('.pc-grain,.pc-light,[class*=grain]').forEach(e=>e.style.backgroundImage='none');
+  return Promise.all(doc.__qrWait||[])}
 function nbqShot(el,scale){window.SC_ERR='';if(!el||!window.html2canvas){SC_ERR='截图库没加载';return Promise.resolve(null)}
   const plan=nbqShotPlan(scale),go=n=>{const [k,clean]=plan[n];
     return Promise.resolve().then(()=>html2canvas(el,{backgroundColor:null,scale:k,onclone:clean?nbqShotClean:undefined})).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))

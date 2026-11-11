@@ -17,16 +17,20 @@ T('src 里只有共用截图函数（0470）直接调 html2canvas', direct.lengt
     // 假 html2canvas：前 failN 次抛 iPhone 的 insecure 错误，之后返回 8×8 画布；记录每次的 scale、是否带 onclone、调用时目标元素里有没有二维码 PNG
     const run = (kind, failN) => pg.evaluate(async ({ kind, failN }) => {
       const calls = []; let n = 0; const cv = document.createElement('canvas'); cv.width = cv.height = 8;
-      window.html2canvas = (el, o) => { n++; calls.push({ scale: o.scale, clone: !!o.onclone, qrImg: !!el.querySelector('.bk .q img') });
-        if (o.onclone) { const d = document.implementation.createHTMLDocument(''); d.body.innerHTML = '<svg filter="url(#a)" mask="url(#m)"><g filter="url(#a)"></g></svg><div class="pc-grain" style="background-image:url(x)"></div>'; o.onclone(d); calls[calls.length - 1].cleaned = !d.querySelector('[filter],[mask]') && d.querySelector('.pc-grain').style.backgroundImage === 'none' }
-        return n <= failN ? Promise.reject(new Error('The operation is insecure.')) : Promise.resolve(cv) };
-      let blob; if (kind === 'sc') { const uid = Object.keys(USERS)[0]; blob = await scBlob(uid) } else { const el = document.createElement('div'); el.innerHTML = '<b>x</b>'; document.body.appendChild(el); blob = await nbqShot(el, 2); el.remove() }
+      window.html2canvas = async (el, o) => { n++; calls.push({ scale: o.scale, clone: !!o.onclone, qrImg: !!el.querySelector('.bk .q img') });
+        if (o.onclone) { const d = document.implementation.createHTMLDocument(''); d.body.innerHTML = kind === 'poster' ? el.outerHTML : '<svg filter="url(#a)" mask="url(#m)"><g filter="url(#a)"></g></svg><div class="pc-grain" style="background-image:url(x)"></div>'; const c = calls[calls.length - 1];
+          c.svgBefore = d.querySelectorAll('svg').length; c.qrBefore = d.querySelectorAll('[data-qr] svg').length; await o.onclone(d);
+          c.svgAfter = d.querySelectorAll('svg').length; c.qrPng = /^data:image\/png/.test((d.querySelector('[data-qr] img') || {}).src || ''); c.cleaned = c.svgAfter === 0 && (kind === 'poster' || d.querySelector('.pc-grain').style.backgroundImage === 'none'); c.text = (d.body.textContent || '').length }
+        if (n <= failN) throw new Error('The operation is insecure.'); return cv };
+      let blob; if (kind === 'sc') { const uid = Object.keys(USERS)[0]; blob = await scBlob(uid) } else if (kind === 'poster') { const el = document.createElement('div'); el.innerHTML = ogAHTML(api.get(GAMES.find(g => g.share_code).id)); document.body.appendChild(el); blob = await nbqShot(el.firstElementChild, 2); el.remove() } else { const el = document.createElement('div'); el.innerHTML = '<b>x</b>'; document.body.appendChild(el); blob = await nbqShot(el, 2); el.remove() }
       return { ok: !!blob, type: blob && blob.type, calls, err: window.SC_ERR } }, { kind, failN });
     let r = await run('sc', 0); T(`${f} scBlob 正常：一次出图`, r.ok && r.type === 'image/png' && r.calls.length === 1 && r.calls[0].scale === 3, r);
     r = await run('sc', 2); T(`${f} scBlob 前两次 insecure：第 3 次（去 SVG 版）仍出图，且二维码已换成 PNG`, r.ok && r.calls.length === 3 && r.calls[2].clone && r.calls[2].qrImg, r);
     r = await run('sc', 9); T(`${f} scBlob 全部失败：返回 null，原因留在 SC_ERR`, !r.ok && r.calls.length === 3 && /insecure/.test(r.err || ''), r);
     r = await run('shot', 0); T(`${f} nbqShot 正常：一次出图`, r.ok && r.calls.length === 1 && r.calls[0].scale === 2, r);
-    r = await run('shot', 2); T(`${f} nbqShot 前两次失败：第 3 次去掉 SVG 滤镜 / 遮罩 / 纹理后仍出图`, r.ok && r.calls.length === 3 && r.calls[1].scale === 1 && r.calls[2].clone && r.calls[2].cleaned, r);
+    r = await run('shot', 2); T(`${f} nbqShot 前两次失败：第 3 次去掉全部 SVG / 纹理后仍出图（倍数取 min(scale,2)）`, r.ok && r.calls.length === 3 && r.calls[1].scale === 1 && r.calls[2].scale === 2 && r.calls[2].clone && r.calls[2].cleaned, r);
+    r = await run('poster', 2); const c3 = r.calls[2] || {}; T(`${f} 真实海报：第 3 次克隆里二维码 SVG 已换成 PNG、其余 SVG 全部去掉、文字还在（协作者交叉复核 11-11）`, r.ok && r.calls.length === 3 && c3.qrBefore === 1 && c3.svgAfter === 0 && c3.qrPng && c3.text > 20, r);
+    r = await run('poster', 0); T(`${f} 真实海报：第 1 次成功时不动 SVG`, r.ok && r.calls.length === 1 && !r.calls[0].clone, r);
     r = await run('shot', 9); T(`${f} nbqShot 全部失败：返回 null，不抛错`, !r.ok && r.calls.length === 3 && /insecure/.test(r.err || ''), r);
     T(`${f} 无脚本错误`, errs.length === 0, errs); await ctx.close();
   }
