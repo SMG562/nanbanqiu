@@ -38,6 +38,8 @@ export function classify({ branches, prs, now }) {
 const env = { ...process.env }; for (const k of Object.keys(env)) if (k.startsWith('GIT_')) delete env[k];
 const sh = (cmd, args, opt = {}) => { const p = spawnSync(cmd, args, { encoding: 'utf8', env, maxBuffer: 64 << 20, ...opt }); if (p.status !== 0 && !opt.ok) throw new Error(`${cmd} ${args.join(' ')}: ${p.stderr || p.stdout}`); return p };
 const git = (...a) => sh('git', a).stdout.trim();
+// 查远端引用的提交号：gh api 失败（404 等）时错误正文也会打到 stdout，只有退出码 0 才算有值——否则 404 的 JSON 会被当成「标签已存在」（11-11 实际踩到）
+export const okText = p => (p && p.status === 0 ? String(p.stdout).trim() : '');
 
 // 内容是否已全部在 main：把分支并进 main 得到的树 = main 的树（快进合并、压缩合并、已被别的 PR 吸收都算；冲突算「没进」——宁可漏删不误删）
 export function contained(tip, main = 'origin/main', cwd) {
@@ -76,10 +78,10 @@ function main() {
   for (const r of todo) {
     const enc = r.name.split('/').map(encodeURIComponent).join('/');
     // 删前再读一次远端：提交号变了（有人刚推）就跳过
-    const now = sh('gh', ['api', `repos/${R}/git/ref/heads/${enc}`, '--jq', '.object.sha'], { ok: true }).stdout.trim();
+    const now = okText(sh('gh', ['api', `repos/${R}/git/ref/heads/${enc}`, '--jq', '.object.sha'], { ok: true }));
     if (now !== r.tip) { console.log(`⏭️ ${r.name}：远端已变（${now.slice(0, 7) || '不存在'} ≠ ${r.tip.slice(0, 7)}），跳过`); continue }
     if (r.archive || !r.contained) {
-      const tag = `archive/${r.name}`, have = sh('gh', ['api', `repos/${R}/git/ref/tags/${tag.split('/').map(encodeURIComponent).join('/')}`, '--jq', '.object.sha'], { ok: true }).stdout.trim();
+      const tag = `archive/${r.name}`, have = okText(sh('gh', ['api', `repos/${R}/git/ref/tags/${tag.split('/').map(encodeURIComponent).join('/')}`, '--jq', '.object.sha'], { ok: true }));
       if (have && have !== r.tip) { console.log(`⏭️ ${r.name}：标签 ${tag} 已存在且指向别的提交，跳过`); continue }
       if (!have) sh('gh', ['api', '-X', 'POST', `repos/${R}/git/refs`, '-f', `ref=refs/tags/${tag}`, '-f', `sha=${r.tip}`, '--silent']);
     }
