@@ -45,7 +45,7 @@ function imgSave(blob,name){
     d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px';
     d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px">长按图片，选「存储到相册」</p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
     d.querySelector('img').src=u;const close=()=>{d.remove();URL.revokeObjectURL(u)};d.querySelector('button').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});document.body.appendChild(d)};
-  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).then(()=>{if(typeof toast==='function')toast('已完成 · 选了「存储图像」的话，请到相册查看')},e=>{if(!e||e.name!=='AbortError')big()});return}   // 分享面板走完才提示（之前没有任何提示）；取消不提示
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).then(()=>{if(typeof toast==='function')toast('图像已保存')},e=>{if(!e||e.name!=='AbortError')big()});return}   // 分享面板走完才提示（之前没有任何提示）；取消不提示
   big()}
 function scDownload(blob,uid){imgSave(blob,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}
 // 二维码画成 PNG 的 data 地址（iPhone Safari 会把页面里的 SVG 判成「不安全」，而放行的 SVG 又会被画成空白——所以降级到最后一级时二维码不能留 SVG）。scBlob 和 nbqShot 共用。
