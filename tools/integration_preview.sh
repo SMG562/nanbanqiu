@@ -17,9 +17,7 @@ for N in "$@"; do
   if git merge --no-edit -q FETCH_HEAD >/dev/null 2>&1; then OK+=("#$N"); BODY+="### #$N $(gh api "repos/$R/pulls/$N" --jq .title)"$'\n'"$(gh api "repos/$R/pulls/$N" --jq .body | grep -E '^\s*- \[ \].*(真机|刷新后还在|换设备|预览站)' | head -6)"$'\n'
   else git merge --abort 2>/dev/null; SKIP+=("#$N（和 main / 前面的 PR 冲突）"); fi
 done
-# 生成文件在合并后重新生成（post-merge 钩子可能没启用，这里显式做一次）
-node tools/build.mjs >/dev/null 2>&1; node tools/migrate_bundle.mjs >/dev/null 2>&1
-[ -n "$(git status --porcelain)" ] && { git add -A; git -c user.name=integration -c user.email=integration@local commit -qm "集成预览：合并后重新生成" ; }
+# 页面 HTML 不入库（ADR 0011）：预览站构建时 tools/site.mjs 自己现拼，这里不用再生成、也没有生成文件要提交
 echo "已合并：${OK[*]:-无}"; [ ${#SKIP[@]} -gt 0 ] && echo "跳过：${SKIP[*]}"
 if [ $DRY = 1 ]; then echo "（--dry：没有推送；分支 $B 只在本地）"; else
   NBQ_UNTESTED="集成预览分支，不进 main" git push -q origin "$B" && echo "预览地址（约 1–2 分钟后可用，连测试库）：https://$(echo "$B" | tr '/' '-' ).nanbanqiu-preview.pages.dev"; fi

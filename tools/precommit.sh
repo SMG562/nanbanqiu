@@ -7,8 +7,8 @@
 cd "$(git rev-parse --show-toplevel)" || exit 1
 fail=0
 
-# 1. 改了源文件 / 拼出的 HTML，却有一部分没 add（检查的是工作区，漏 add 会让提交的和检查的不一样）
-un=$(git -c core.quotePath=false diff --name-only -- src tools 南伴球_PWA.html 南伴球_Web.html)
+# 1. 改了源文件，却有一部分没 add（检查的是工作区，漏 add 会让提交的和检查的不一样）
+un=$(git -c core.quotePath=false diff --name-only -- src tools)
 if [ -n "$un" ]; then
   echo "提交前检查：下面这些改了但没 git add，提交的内容会和检查的不一样："; echo "$un" | sed 's/^/  /'; fail=1
 fi
@@ -16,7 +16,7 @@ fi
 # 2. 只有涉及代码的提交才跑检查
 staged=$(git -c core.quotePath=false diff --cached --name-only)
 if echo "$staged" | grep -qE '^(src/|tools/|tests/(static|spec|lint|unit)/|南伴球_|schema\.sql|server/|sw\.js|manifest)'; then
-  node tools/build.mjs --check || { echo "提交前检查：HTML 和 src 拼出来的不一样 → 跑 node tools/build.mjs 再 add"; fail=1; }
+  node tools/build.mjs >/dev/null || { node tools/build.mjs | tail -5; echo "提交前检查：src 拼不出 HTML（上面是原因，多半是新文件没写进 list）"; fail=1; }   # ADR 0011：HTML 不入库，这里只验证能拼
   out=$(node tests/run_all.mjs --grep=static/check,static/build,static/lint,static/persist_audit,static/action_audit,static/input_audit,static/migration_audit,static/doc_budget,unit/ 2>&1)
   echo "$out" | grep -qE '全部通过' || { echo "$out" | grep -vE '^\s*$' | tail -15; echo "提交前检查：静态检查没过（报告见上）"; fail=1; }
 fi

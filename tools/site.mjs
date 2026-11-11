@@ -14,7 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -161,6 +161,8 @@ export const HEADERS = `/*
 `;
 
 export function build(out = path.join(ROOT, 'site')) {
+  // ADR 0011：页面 HTML 不入库，部署构建（构建命令就是 node tools/site.mjs）先从 src/ 现拼；拼不出来就停，不发布旧的
+  execFileSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs')], { stdio: 'inherit' });
   // 只清本脚本建的文件，且只在 site/ 之内
   if (fs.existsSync(out)) {
     if (fs.lstatSync(out).isSymbolicLink()) throw new Error('site/ 是链接，停止');
