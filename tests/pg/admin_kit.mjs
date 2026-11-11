@@ -1,7 +1,7 @@
-// 后台接口真库测试的公共夹具（#27 第 4 步起的新测试用；旧的 admin_*.mjs 各自内联同样的 25 行，动到时再改用这里）。
+// 后台接口真库测试的公共夹具（tests/pg/admin_*.mjs 共用；admin_api.mjs 专测登录本身，不用它）。
 // 真 PostgreSQL + schema.sql + 线上同一个数据库角色 nbq_admin_api；夹具数据用超级用户建。
 //   const K = await adminKit('admin_xxx');  K.T(名字, 条件, 出错时打印的值) · K.call(方法, 路径, {body, cookie}) · K.as.owner / operator / viewer / syd（已登录的 Cookie）
-//   K.user(昵称, {city, status, gender}) → {id, no} · K.q / K.one 超级用户查询 · 最后 await K.done()（打印「名字: N 通过, M 失败」并退出）
+//   K.user(昵称, {city, status, gender}) → {id, no} · K.q / K.one / K.su 超级用户查询 · K.dir 仓库目录 · 最后 await K.done()（打印「名字: N 通过, M 失败」并退出）
 import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath, pathToFileURL } from 'url';
 import { startCluster, loadSchema } from './cluster.mjs';
 const require = createRequire(import.meta.url); const pg = require('pg');
@@ -42,6 +42,6 @@ export async function adminKit(name) {
       let r = await call(method, p, { body }); T(`${p} 没登录 → 401`, r.s === 401, r.s);
       r = await call(method, p, { body, cookie: as.owner, headers: { 'X-NBQ-Admin': '' } }); T(`${p} 不带 X-NBQ-Admin → 403 csrf`, r.s === 403 && r.j?.error === 'csrf', r);
     };
-    return { T, call, as, ids, user, q, one, done, guards, login, mkAdmin, tick: ms => { clock += ms } };
+    return { T, call, as, ids, user, q, one, su, dir: DIR, done, guards, login, mkAdmin, tick: ms => { clock += ms } };
   } catch (e) { await done(e) }
 }

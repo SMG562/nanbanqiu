@@ -2,33 +2,12 @@
 // 真 PostgreSQL + 真的 nbq_admin_api 连接（和线上同一个角色）；夹具用超级用户建。
 // 覆盖：权限（未登录 / 只读 / 运营）· 列表内容与不泄露（手机号、举报人 id）· 限城市 · 处理 / 忽略 · 审计 · 并发重复处理 ·
 //       与前台闭环（处理后 /api/reports/mine 不再返回、可重新举报）· 查看对话必须填理由并留痕 · 输入校验。
-import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath, pathToFileURL } from 'url';
-import { startCluster, loadSchema } from './cluster.mjs';
-const require = createRequire(import.meta.url); const pg = require('pg');
-const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
-const AU = await import(pathToFileURL(path.join(DIR, 'server/admin/auth.mjs')));
-const API = await import(pathToFileURL(path.join(DIR, 'server/admin/api.mjs')));
-let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
-const c = startCluster(); let su;
+import { adminKit } from './admin_kit.mjs';
+const K = await adminKit('admin_venues'), { T, call, q, one, su } = K;   // 夹具：tests/pg/admin_kit.mjs（运营 ops / 只读 view / 限悉尼的运营 syd，和原来内联的同名同角色）
 try {
-  c.createdb('nbq');
-  const errs = loadSchema(c, 'nbq', path.join(DIR, 'schema.sql')); T('schema 执行无错误', !errs.length, errs.slice(0, 3));
-  c.psql('nbq', `-c "alter role nbq_admin_api login"`);
-  su = new pg.Pool({ host: c.host, port: c.port, user: 'postgres', database: 'nbq', max: 4 });
-  const connect = async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_admin_api', database: 'nbq' }); await cl.connect(); return cl };
-  const q = (s, p) => su.query(s, p), one = async (s, p) => (await q(s, p)).rows[0];
-  const PW = 'correct horse battery', SEC = AU.newTotpSecret(), PH = AU.hashPassword(PW);
-  const mk = async (email, role, cities = null) => (await one(`insert into admin_users(email,name,role,password_hash,totp_secret,recovery_hashes,cities) values ($1,$2,$3,$4,$5,'{}',$6) returning id`, [email, email.split('@')[0], role, PH, SEC, cities])).id;
-  const OP = await mk('ops@x.com', 'operator'), VW = await mk('view@x.com', 'viewer'), SYD = await mk('syd@x.com', 'operator', ['syd']);
-  let un = 0; const user = async (nick, city = 'melb') => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at,home_city) values ($1,$2,5,'m',now(),$3) returning id`, ['+6142' + String(++un).padStart(7, '0'), nick, city])).id;
+  const OP = K.ids.operator, VW = K.ids.viewer, SYD = K.ids.syd, op = K.as.operator, vw = K.as.viewer, sy = K.as.syd;
+  const user = async (nick, city = 'melb') => (await K.user(nick, { city })).id;
   const A = await user('小A'), B = await user('小B'), C = await user('小C');
-  let clock = 1_800_000_000_000; const deps = { connect, now: () => clock }; const ORIGIN = 'https://nanbanqiu.test';
-  const call = async (method, p, { body, cookie } = {}) => {
-    const h = { 'X-NBQ-Admin': '1', ...(method !== 'GET' ? { Origin: ORIGIN, 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) };
-    const r = await API.handleAdmin(new Request(ORIGIN + p, { method, headers: h, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) }), deps);
-    const text = await r.text(); let j = null; try { j = JSON.parse(text) } catch (_) { } return { s: r.status, j, text } };
-  const login = async email => { clock += 30e3; const r = await API.handleAdmin(new Request(ORIGIN + '/admin/api/login', { method: 'POST', headers: { 'X-NBQ-Admin': '1', Origin: ORIGIN, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: PW, code: AU.totp(SEC, clock) }) }), deps); return 'nbq_admin=' + (r.headers.get('Set-Cookie').match(/nbq_admin=([^;]+)/) || [])[1] };
-  const op = await login('ops@x.com'), vw = await login('view@x.com'), sy = await login('syd@x.com');
 
 
   await q(`insert into suburbs(name,postcode,centroid) values ('Brighton','3186','POINT(145 -37.9)')`);
@@ -102,5 +81,5 @@ try {
   r = await call('GET', '/admin/api/venues', { cookie: op }); T('处理后的球场不再出现在待审核里', r.j.pending.length === 0, r.j.pending);
   // 前台视角：通过的球场对所有人可见，驳回 / 合并的不可见（和 /api/venues 同一个条件）
   T('前台只看得到 active 的球场', (await q(`select id from venues where status='active' and id = any($1)`, [[P1, P2, P3]])).rows.map(x => x.id).join() === P2);
-} finally { try { await su?.end() } catch (_) { } c.stop() }
-console.log(`admin_venues: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
+  await K.done();
+} catch (e) { await K.done(e) }
