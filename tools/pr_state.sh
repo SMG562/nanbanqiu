@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # PR 状态（草稿 / Ready）只由「PR 所属分支上的会话」改（11-12，#185 事故：同账号两个会话 22 秒内 Ready→草稿）。
-#   bash tools/pr_state.sh <PR号> status|ready|draft
+#   bash tools/pr_state.sh <PR号> status|mine|ready|draft
+#   mine = 被 PR 事件叫醒后的第一步（唤醒闸门）：是我的 PR → 退出码 0；不是 → 退出码 3，并告诉你该做什么。
 # 规矩：一个会话 = 一个 Issue = 一个分支 = 这个分支上的 PR；当前检出的分支 ≠ PR 的分支 → 拒绝（别的会话只许留言）。
 # 例外只有 NBQ_PR_OVERRIDE="原因"（所有者当场点头的），原因会写进 PR 留言留痕。
 set -eu
@@ -8,6 +9,10 @@ PR="${1:?用法：bash tools/pr_state.sh <PR号> status|ready|draft}"; ACT="${2:
 read -r HEAD DRAFT STATE < <(gh api "repos/$R/pulls/$PR" --jq '[.head.ref,.draft,.state]|@tsv')
 echo "PR #$PR 分支 $HEAD ｜ 草稿=$DRAFT ｜ $STATE ｜ 当前检出分支 $(git rev-parse --abbrev-ref HEAD)"
 [ "$ACT" = status ] && exit 0
+if [ "$ACT" = mine ]; then
+  [ "$(git rev-parse --abbrev-ref HEAD)" = "$HEAD" ] && { echo "✅ 是我的 PR（分支 $HEAD）"; exit 0; }
+  echo "⛔ 不是我的 PR（它属于分支 $HEAD）：不改状态、不推提交、不回机器人评论；有话用 bash tools/pr_say.sh 留一条带标签的评论；然后取消订阅这个 PR 的活动。"; exit 3
+fi
 [ "$STATE" = open ] || { echo "PR 不是 open，不改状态"; exit 1; }
 if [ "$(git rev-parse --abbrev-ref HEAD)" != "$HEAD" ]; then
   if [ -z "${NBQ_PR_OVERRIDE:-}" ]; then

@@ -44,6 +44,13 @@ export function classify(p, now = Date.now()) {
   return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核'), `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
 }
 
+// 11-12（#185 事故）：PR 草稿 / Ready 在 FLAP_MIN 分钟内被改 ≥ 2 次 = 有两个会话在抢状态。events = [{ event, actor, at }]，返回 null 或 { n, actors, key }
+export const FLAP_MIN = 10;
+export function flapOf(events, now = Date.now()) {
+  const ch = events.filter(e => /^(ready_for_review|convert_to_draft)$/.test(e.event) && now - Date.parse(e.at) <= FLAP_MIN * 6e4).sort((a, b) => a.at < b.at ? -1 : 1);
+  return ch.length < 2 ? null : { n: ch.length, actors: [...new Set(ch.map(e => e.actor))], key: `nbq-flap:${ch[ch.length - 1].at}` };
+}
+export const flapText = (p, f) => `<!-- ${f.key} -->\n⚠️ 这个 PR 的草稿 / Ready 状态在 ${FLAP_MIN} 分钟内被改了 ${f.n} 次（账号：${f.actors.join('、')}）。多半是两个会话在抢状态。\n规矩（docs/协作分工.md §1b）：**状态只由这个 PR 分支（\`${p.branch}\`）上的会话改**，用 \`bash tools/pr_state.sh ${p.number} ready|draft\`；别的会话只在这里留言【请转草稿】/【请转 Ready】+ 理由。排队顺序不靠改草稿表达，由集成者按看板安排合并。现在状态是「${p.draft ? '草稿' : 'Ready'}」，请所属会话确认后再动，其他会话先别改。`;
 const h6 = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 6);
 export const pingKey = (p, c) => `nbq-ball:${c.ball}:${h6(c.reason)}:${p.sha.slice(0, 7)}`;
 export const isoWeek = t => { const d = new Date(t); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const y = d.getUTCFullYear(); return `${y}-W${Math.ceil(((d - Date.UTC(y, 0, 1)) / D + 1) / 7)}` };
@@ -92,6 +99,11 @@ function main() {
   for (const { p, c } of rows) {
     const want = labelsFor(p.labels, c.ball);
     if (want.slice().sort().join() !== p.labels.slice().sort().join()) { console.log(`[标签 #${p.number}] ${BALL[c.ball]}`); if (!dry) for (const b of Object.keys(BALL)) { try { gh('-X', 'POST', `repos/${R}/labels`, '-f', `name=${BALL[b]}`, '-f', `color=${COLOR[b]}`) } catch { } } if (!dry) gh('-X', 'PUT', `repos/${R}/issues/${p.number}/labels`, ...want.flatMap(l => ['-f', `labels[]=${l}`])) }
+    // 状态抖动告警（只查最近 1 小时动过的 PR，省 API）：同一次抖动只提醒一次（按最后一次改状态的时间去重）
+    if (now - Date.parse(p.updated) < 36e5) {
+      const tl = list(`repos/${R}/issues/${p.number}/timeline?per_page=100`).map(e => ({ event: e.event, actor: e.actor?.login || '', at: e.created_at })), f = flapOf(tl, now);
+      if (f && !already(p.comments, f.key)) post(p.number, flapText(p, f));
+    }
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));
