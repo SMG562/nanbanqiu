@@ -524,6 +524,7 @@
 - 已实现 · 场边举报（#27 第 4 步）：GET /sideline/reports（按内容合并）· POST /sideline/hide `{kind: post|reply, id, hide, reason}`（隐藏时同事务把该内容的未处理举报标成已处理）· POST /sideline/dismiss `{kind,id}`；GET /reports 不再含场边举报。限城市：库函数按举报人城市判断举报、按发布城市判断内容，跨城时整笔 403 回滚
 - 已实现 · 管理员（#27 第 4 步）：GET /admins（owner）· POST /admins/update `{id, role?, disable?, reason}` · POST /admins/cities `{id, cities|null, reason}` · GET /audit?action=&before=（owner、运营；action 不带点 = 按类别）。新增管理员仍用 tools/admin_create.mjs（需迁移 20261114_admin_step4 补列读权限）
 - 已实现 · 城市（#27 第 4 步）：GET /cities（page.view）· POST /cities/status · POST /cities/set `{city, patch:{community_url|hashtag|center_label}, reason}`（city.manage）· POST /cities/waitlist（→ emails）· POST /cities/waitlist/done（city.waitlist）
+- 已实现 · 统计（#27 第 4 步）：GET /stats?fns=a,b&from=&to=&city=（page.view；fns 只能是 server/admin/api.mjs 里 STATS 白名单的名字，每批 ≤ 12；每个查询独立保存点；去掉内部 uuid；personal 的只读角色拿不到）
 - POST /admin/api/users/:id/status `{status, reason_code, reason, days?, note?}` → `admin_user_status`（暂停 1 / 3 / 7 / 30 / 90 / 180 天；连带处理同 §3.11；发 account_status 通知；写 user_status_log）
 - POST /admin/api/users/:id/reset `{what: nickname | avatar, reason}` → `admin_user_reset` · POST /admin/api/users/:id/gender `{action: clear | unlock, reason}` → `admin_user_gender`
 - POST /admin/api/users/:id/phone `{reason}` → `admin_reveal_phone`（owner）

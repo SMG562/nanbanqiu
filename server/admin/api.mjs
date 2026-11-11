@@ -97,6 +97,44 @@ async function sbCloseReports(db, b, action) {
 }
 async function userIdByNo(db, no) { const r = (await db.query('select id from users where member_no = $1::bigint', [String(no)])).rows[0]; if (!r) throw notFound(); return r.id }
 
+// 统计白名单：名字 → SQL + 参数 (from, to, city)。名字与原型的 CARDSRC 数据源同名；cityReq = 函数要求城市（不传就用 melb）；max = 最多返回几行
+const R2 = (f, t) => [f, t], R3 = (f, t, c) => [f, t, c], C3 = (f, t, c) => [c, f, t];
+const STATS = {
+  active_users: { sql: 'select * from active_users($1, $2, $3)', args: R3 },
+  today_board: { sql: 'select * from today_board($1)', args: (f, t, c) => [c] },
+  fill_rate: { sql: 'select * from fill_rate($1, $2)', args: R2 },
+  series: { sql: `select day, metric, sum(value)::float as value from daily_metrics where day >= ($1::timestamptz at time zone 'Australia/Melbourne')::date and day <= ($2::timestamptz at time zone 'Australia/Melbourne')::date
+                    and dims = '{}' and metric in ('dau', 'new_users', 'games_created', 'applications', 'messages', 'shares') group by 1, 2 order by 1, 2`, args: R2, max: 3000 },
+  user_activity: { sql: 'select member_no, nickname, host_ok, played, apply, invite, impression, active_day, no_show, score from user_activity($1, $2, $3) order by score desc nulls last limit 20', args: R3, personal: true },
+  venue_activity: { sql: 'select short_name, suburb, games, played, applications, score from venue_activity($1, $2) order by score desc limit 20', args: R2 },
+  suburb_activity: { sql: 'select * from suburb_activity($1, $2) order by score desc nulls last limit 60', args: R2 },
+  start_heatmap: { sql: 'select * from start_heatmap($1, $2, $3)', args: R3 },
+  visit_funnel: { sql: 'select * from visit_funnel($1, $2) order by step', args: R2 },
+  application_outcomes: { sql: 'select outcome, sum(n)::bigint as n from application_outcomes($1, $2) group by 1 order by 2 desc', args: R2 },
+  card_views: { sql: 'select count(*)::bigint as cards, coalesce(sum(views), 0)::bigint as views, coalesce(sum(from_outside), 0)::bigint as from_outside, coalesce(sum(external_landings), 0)::bigint as external_landings from card_views($1, $2, $3)', args: R3 },
+  share_attribution: { sql: 'select * from share_attribution($1, $2, $3) order by shares desc', args: R3 },
+  page_traffic: { sql: 'select * from page_traffic($1, $2) order by views desc', args: R2 },
+  entry_sources: { sql: 'select * from entry_sources($1, $2) order by sessions desc', args: R2 },
+  game_view_via: { sql: 'select * from game_view_via($1, $2) order by views desc', args: R2 },
+  device_compare: { sql: 'select * from device_compare($1, $2)', args: R2 },
+  env_usage: { sql: 'select * from env_usage($1, $2) order by sessions desc', args: R2 },
+  pwa_install_funnel: { sql: 'select * from pwa_install_funnel($1, $2) order by step', args: R2 },
+  inapp_handoff_funnel: { sql: 'select * from inapp_handoff_funnel($1, $2)', args: R2 },
+  less_effect_counts: { sql: 'select * from less_effect_counts($1, $2) order by n desc', args: R2 },
+  badge_rarity: { sql: 'select * from v_badge_rarity', args: () => [], max: 100 },
+  level_stuck: { sql: 'select * from v_level_stuck', args: () => [], max: 100 },
+  invite_outcomes: { sql: 'select * from v_invite_outcomes', args: () => [], max: 100 },
+  retention: { sql: 'select * from v_user_retention', args: () => [], max: 60 },
+  sb_kpis: { sql: 'select * from sb_stat_kpis($1, $2, $3)', args: C3, cityReq: true },
+  sb_topics: { sql: 'select * from sb_stat_topics($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
+  sb_courts: { sql: 'select name, posts, views, interactions from sb_stat_courts($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
+  sb_heat: { sql: 'select * from sb_stat_heat($1, $2, $3)', args: C3, cityReq: true },
+  sb_choices: { sql: 'select * from sb_stat_choices($1, $2, $3)', args: C3, cityReq: true },
+  sb_negative: { sql: 'select * from sb_stat_negative($1, $2, $3)', args: C3, cityReq: true },
+  sb_top_posts: { sql: 'select body, topic_id, venue, author, has_photo, views, balls, replies, shares, still_public, status from sb_stat_top_posts($1, $2, $3, 20)', args: C3, cityReq: true, personal: true },
+};
+export const STAT_NAMES = Object.keys(STATS);
+
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)
 export async function authed(req, d, route, fn, body) {
   if (!d.connect) return send(503, { error: 'db_unavailable' });
@@ -333,6 +371,31 @@ export const ROUTES = {
          where ($1 = '' or l.id < $1::bigint) and ($2 = '' or l.action = $2) and ($3 = '' or l.action like $3 || '%')
          order by l.id desc limit 101`, [before, exact ? act : '', exact || !act ? '' : act.replace(/\.$/, '').replace(/_/g, '\\_') + '.'])).rows;
       return { rows: rows.slice(0, 100), more: rows.length > 100 };
+    });
+  } },
+  // ---------- 统计（#27 第 4 步）：一个白名单批量接口，给概览和各统计页 ----------
+  // GET /stats?fns=a,b,c&from=&to=&city=  → { from, to, city, data: { a: [行…] | { error } } }
+  //   · 只能调 STATS 里登记的查询（库里的统计函数 / 视图，和原型 CARDSRC 同名同口径）；每个在自己的保存点里跑，一个失败（比如只读角色读不到某张表）不影响其他
+  //   · 去掉内部 id（*_id 且是 uuid 的列）；personal = 结果里有昵称 / 内容，只读角色不给
+  //   · 时间：默认最近 30 天，跨度 ≤ 366 天；city：限城市的管理员只能看自己负责的城市（不传 = 负责的第一个）
+  'GET /admin/api/stats': { name: 'stats', perm: 'page.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, now = d.now ? d.now() : Date.now(), fns = (sp.get('fns') || '').split(',').filter(Boolean);
+    const to = sp.get('to') ? Date.parse(sp.get('to')) : now, from = sp.get('from') ? Date.parse(sp.get('from')) : to - 30 * 864e5, city = sp.get('city') || null;
+    if (!fns.length || fns.length > 12 || !fns.every(f => Object.hasOwn(STATS, f)) || !Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5 || (city && !cityOk(city))) return fail(bad(), 'stats');
+    return authed(req, d, route, async (db, a) => {
+      if (city && a.cities && !a.cities.includes(city)) throw Object.assign(new Error('admin_forbidden'), { code: 'admin_forbidden' });
+      const c = city || (a.cities ? a.cities[0] : null), f = new Date(from).toISOString(), t = new Date(to).toISOString(), data = {};
+      for (const fn of fns) {
+        const s = STATS[fn];
+        if (s.personal && a.db_role === 'nbq_viewer') { data[fn] = { error: 'admin_forbidden' }; continue }
+        await db.query('savepoint st');
+        try {
+          const res = await db.query(s.sql, s.args(f, t, s.cityReq ? (c || 'melb') : c)), num = new Set(res.fields.filter(x => [20, 1700].includes(x.dataTypeID)).map(x => x.name));   // bigint / numeric → 数字
+          data[fn] = res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(/(^|_)id$/.test(k) && UUID.test(String(v)))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
+          await db.query('release savepoint st');
+        } catch (e) { await db.query('rollback to savepoint st'); data[fn] = { error: String(e.code || '').startsWith('42501') || /permission denied/.test(e.message) ? 'admin_forbidden' : 'failed' }; if (!data[fn].error.startsWith('admin')) console.error('admin_api stats', fn, e.code || e.message?.slice(0, 60)) }
+      }
+      return { from: f, to: t, city: c, data };
     });
   } },
   // ---------- 城市（#27 第 4 步，地区扩展 R4）----------

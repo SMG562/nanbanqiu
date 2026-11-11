@@ -141,6 +141,25 @@ try {
     T('5.5 刷新后悉尼显示「准备中」', await until(() => p.evaluate(() => [...document.querySelectorAll('#page .card')].some(c => /悉尼/.test(c.innerText) && /准备中/.test(c.innerText)))));
     T('5.6 没有页面错误', !pe.length, pe); await ctx.close();
   }
+  // ================= 6. 统计页（白名单接口 + 通用卡片） =================
+  {
+    await q(`insert into daily_metrics(day,metric,dims,value,additive) values (current_date - 1,'new_users','{}',4,true),(current_date - 2,'new_users','{}',5,true) on conflict do nothing`);
+    const { p, pe, ctx } = await session('ops@x.com'); await goPage(p, 'overview');
+    T('6.1 概览：真数据卡片（活跃、人齐、今天、每天、最活跃的球友），新注册合计 9', await until(async () => { const t = await txt(p, '#page'); return /活跃球友/.test(t) && /开打时人齐/.test(t) && /今天还没开打/.test(t) && /最活跃的球友/.test(t) && /新注册\s*9\b/.test(t) && !/还没接真数据/.test(t) }));
+    T('6.2 概览里出现前面几节建的真球友（最活跃的球友表）或「还没有数据」，没有「读不出来」', !/暂时读不出来|读不出来/.test(await txt(p, '#page')));
+    for (const k of ['cards', 'regions', 'traffic', 'growth', 'platform', 'env', 'life', 'after', 'grow', 'sb']) {
+      await p.evaluate(k => { S.page = k; render() }, k);
+      const ok = await until(async () => { const t = await txt(p, '#page'); return !/读取中/.test(t) }); const t = await txt(p, '#page');
+      T(`6.3 ${k}：读完、没有「暂时读不出来」的卡片`, ok && !/暂时读不出来/.test(t) && !/还没接真数据/.test(t), t.slice(0, 300));
+    }
+    await p.evaluate(() => { S.page = 'overview'; render() }); await p.click('[data-stx="range"][data-v="7"]');
+    T('6.4 切到近 7 天：重新读', await until(async () => /新注册\s*9\b/.test(await txt(p, '#page'))));
+    T('6.5 没有页面错误', !pe.length, pe); await ctx.close();
+    await q(`update admin_users set role='viewer', disabled=false where email='view@x.com'`);
+    const v = await session('view@x.com'); await goPage(v.p, 'overview');
+    T('6.6 只读：最活跃的球友那张卡说明看不到，其他照常', await until(async () => { const t = await txt(v.p, '#page'); return /你的角色看不到这一项/.test(t) && /新注册/.test(t) }));
+    T('6.7 只读没有页面错误', !v.pe.length, v.pe); await v.ctx.close();
+  }
   // ================= 4. 管理员与操作日志（放最后：会改管理员角色） =================
   {
     const op = await session('ops@x.com'); await goPage(op.p, 'admin');
