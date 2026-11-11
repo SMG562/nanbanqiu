@@ -1,0 +1,10 @@
+/* 「我的」标签（#134 P1）：只有资料栏，居中成一列；「我的球局」左栏是一张摘要卡 */
+.minesum{display:flex;flex-direction:column;gap:6px;padding:16px}
+.minesum .ms-n{font-size:17px}
+.minesum .ms-l,.minesum .ms-m{font-size:13px;color:var(--mut)}
+.minesum .btn{align-self:flex-start;margin-top:6px}
+.is-me .layout{grid-template-columns:minmax(0,640px);justify-content:center}
+.is-me .col-c{display:none}
+@media (max-width:980px){.is-me .layout{grid-template-columns:minmax(0,1fr)}.is-me .col-l{display:flex;position:static;max-height:none}}
+.mehd{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px}.mehd b{font-size:17px}.mehd .gear{width:34px;height:34px;display:grid;place-items:center;border:0;background:none;color:var(--ink);cursor:pointer;border-radius:50%}.mehd .gear:hover{background:rgba(0,0,0,.05)}.mehd .gear svg{width:22px;height:22px}
+.sh-t{margin:0 0 6px;font-size:18px}

@@ -1,41 +1,40 @@
-# 谁必须审：下面这些改动需要所有者（SMG562）批准。
-# 要让它生效：GitHub → Settings → Branches → main 的保护规则里勾选「Require review from Code Owners」。
-# 其余文件：按 CONTRIBUTING.md 的分工，由 Issue 负责人自己负责，互相评审。
+# 谁必须审：只有「红线」需要所有者（SMG562）。红线以外的改动由作者自助合并（见 docs/adr/0010-常设授权与自助合并.md）。
+# 要让它生效：GitHub → Settings → Rules/Branches → main：勾选「Require review from Code Owners」，「必须审批人数」设为 0。
 
-# 闸门与规矩（改了它们等于改游戏规则）
-/CLAUDE.md                 @SMG562
-/开发规矩.md                @SMG562
-/CONTRIBUTING.md           @SMG562
-/协作实践.md                @SMG562
-/AGENTS.md                 @SMG562
-/docs/adr/                 @SMG562
-/docs/constitution.md      @SMG562
-/docs/README.md            @SMG562
-/tests/spec/migration_baseline.json  @SMG562
-/tests/spec/doc_budget.json          @SMG562
-/.github/                  @SMG562
-/.githooks/                @SMG562
-/tools/                    @SMG562
-/.claude/                  @SMG562
-
-# 数据库与部署：正式库只有所有者能执行
+# ① 正式库：迁移执行、数据、结构
 /schema.sql                @SMG562
 /server/migrations/        @SMG562
+/tests/spec/migration_baseline.json  @SMG562
+
+# ② 部署、密钥、发送程序
+/.github/workflows/deploy-notify.yml  @SMG562
 /wrangler.jsonc            @SMG562
 /worker/                   @SMG562
 /notify-worker/            @SMG562
+/.claude/settings*.json    @SMG562
 
-# 业务规则与进度：产品决策归所有者
+# ③ 隐私文案与对外政策
+/privacy.html              @SMG562
+/隐私清单.md                @SMG562
+
+# ④ 闸门本身（改了它们等于改游戏规则）
+/.github/CODEOWNERS        @SMG562
+/.github/workflows/db-parity.yml     @SMG562
+/.github/workflows/pr-checklist.yml  @SMG562
+/.githooks/                @SMG562
+/tools/pr_merge.sh         @SMG562
+/tools/gate.sh             @SMG562
+/tools/precommit.sh        @SMG562
+/tools/pr_body_check.mjs   @SMG562
+/tests/spec/doc_budget.json          @SMG562
+
+# ⑤ 规则与业务
+/CLAUDE.md                 @SMG562
+/AGENTS.md                 @SMG562
+/CONTRIBUTING.md           @SMG562
+/协作实践.md                @SMG562
+/docs/adr/                 @SMG562
+/docs/constitution.md      @SMG562
 /业务规则.md                @SMG562
-/进度记录.md                @SMG562
 /出事处理手册.md            @SMG562
-
-# 公共层（CLAUDE.md 称「shared 01xx/02xx、弹窗、通用监听」）：改一处可能影响几十个页面，必须所有者审。
-# 下面是目前确认属于公共层的文件；发现新的公共文件时，加到这里。
-/src/shared/script/0130-API.js                         @SMG562
-/src/shared/script/0140-渲染.js                        @SMG562
-/src/shared/script/0155-弹层输入框通用规则.js          @SMG562
-/src/shared/script/0495-接口调用.js                    @SMG562
-
-# AI 助手的 skill 和权限：所有协作者的助手都会读，改动要所有者批准
-/.claude/                   @SMG562
+/进度记录.md                @SMG562

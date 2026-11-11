@@ -50,7 +50,7 @@ const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n
       o.sheetApply = sheetText(); o.evApply = ev.filter(e => e[0] === 'account_blocked').map(e => e[1]);
       ev.length = 0; close(); openCreate(); await wait(250); o.sheetCreate = sheetText(); o.evCreate = ev.filter(e => e[0] === 'account_blocked').map(e => e[1]);
       // 我的页提示 + 注销入口
-      close(); if (typeof go === 'function') { UI.detail = null; go('me') } else { UI.tab = 'mine'; UI.sel = null; render() }
+      close(); if (typeof go === 'function') { UI.detail = null; go('me') } else { UI.tab = 'me'; UI.sel = null; render() }
       await wait(250);
       o.note = (document.querySelector('.acnote') || {}).innerText || ''; o.delLink = !!document.querySelector('.acdel');
       // 点提示：打开说明，不记拦截事件
