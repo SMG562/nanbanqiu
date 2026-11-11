@@ -23,6 +23,7 @@
  * 报告：tests/reports/<时间>/summary.md、results.json、logs/<测试>.log
  * ===================================================================== */
 import { spawn, execSync, execFileSync } from 'child_process';
+import { cleanGitEnv } from './lib/git_env.mjs';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -318,7 +319,7 @@ function run(t) {
       cmd = ['node', path.join(sd, 'run.mjs'), stm, path.join(HERE, 'schema', 'tests.sql'), SPEC];
     }
     const t0 = Date.now(); let out = '';
-    const p = spawn(cmd[0], cmd.slice(1), { cwd: wd, env: { ...process.env, NODE_PATH, NBQ_DIR: DIR, ...t.env } });
+    const p = spawn(cmd[0], cmd.slice(1), { cwd: wd, env: { ...cleanGitEnv(process.env), NODE_PATH, NBQ_DIR: DIR, ...t.env } });   // 去掉 GIT_DIR 等：钩子里跑测试时临时仓库的 git 会落到真仓库（tests/lib/git_env.mjs）
     p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d);
     const timer = setTimeout(() => { out += `\n[runner] 超时 ${t.timeout}s，已终止`; p.kill('SIGKILL') }, t.timeout * 1000);
     p.on('close', code => { clearTimeout(timer); res({ code, out, ms: Date.now() - t0 }) });

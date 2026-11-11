@@ -1,5 +1,5 @@
 // 测试入口的 --changed / --failed（tests/lib/select.mjs + run_all.mjs）：选择规则、失败名单更新、规则里的名字没有过期、端到端用临时 git 仓库走一遍
-import fs from 'fs'; import os from 'os'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
+import fs from 'fs'; import os from 'os'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url'; import { cleanGitEnv } from '../lib/git_env.mjs';
 import { BASE, RULES, selectByChanged, matches, updateFailed, missingFrom, touchedNames, regressionHits } from '../lib/select.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), TESTS = path.join(HERE, '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 600))) };
@@ -48,7 +48,7 @@ T('missingFrom：列出这一档里没有的名字', missingFrom(['a', 'b', 'c']
 // ---- 规则里的名字没有过期（测试改名 / 删除后，这里会失败）----
 // 11-03 事故：提交前检查（git hook）里跑这个测试时，环境里带着 GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE，临时仓库的 git 命令全落到真仓库上，
 // 两个测试提交（init 清空文件、x）被推上了 main。所有 git / 子进程一律去掉 GIT_* 变量，并在动手前确认临时目录真的是独立仓库。
-const cleanEnv = e => Object.fromEntries(Object.entries(e).filter(([k]) => !/^GIT_(DIR|WORK_TREE|INDEX_FILE|PREFIX|OBJECT_DIRECTORY|COMMON_DIR|NAMESPACE|ALTERNATE_OBJECT_DIRECTORIES|CEILING_DIRECTORIES)$/.test(k)));
+const cleanEnv = cleanGitEnv;   // 规则统一在 tests/lib/git_env.mjs
 const run = (args, env = {}, cwd) => spawnSync('node', [path.join(TESTS, 'run_all.mjs'), ...args], { encoding: 'utf8', env: cleanEnv({ ...process.env, ...env }), cwd });
 const list = run(['--list']);
 const ids = list.stdout.split('\n').map(l => l.trim().split(/\s+/)[1]).filter(Boolean);

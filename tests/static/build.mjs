@@ -4,7 +4,7 @@
 //   ③ 两端共用的代码只有一份：shared/ 下的文件两份 list 都用到；pwa/ 只在 PWA、web/ 只在网页端
 //   ⑤ ADR 0011：这三个 HTML 和 _bundle.sql 不进 git（.gitignore 里有、没被跟踪），免得又回到「每个 PR 都冲突」
 //   ④ 自检：在临时副本里改一个字 / 加一个没登记的文件，核对必须失败（防止核对本身失效）
-import fs from 'fs'; import os from 'os'; import path from 'path'; import { execFileSync } from 'child_process'; import { fileURLToPath, pathToFileURL } from 'url';
+import fs from 'fs'; import os from 'os'; import path from 'path'; import { execFileSync } from 'child_process'; import { fileURLToPath, pathToFileURL } from 'url'; import { cleanGitEnv } from '../lib/git_env.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2] || process.env.NBQ_DIR || path.join(HERE, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
 const B = await import(pathToFileURL(path.resolve(DIR, 'tools', 'build.mjs')).href);
@@ -20,7 +20,7 @@ for (const [k, file] of Object.entries(B.TARGETS)) {
 }
 if (fs.existsSync(path.join(DIR, '.git'))) {
   const GEN = [...Object.values(B.TARGETS), 'server/migrations/_bundle.sql'];
-  const tracked = execFileSync('git', ['-c', 'core.quotePath=false', 'ls-files', '--', ...GEN], { cwd: DIR, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const tracked = execFileSync('git', ['-c', 'core.quotePath=false', 'ls-files', '--', ...GEN], { cwd: DIR, encoding: 'utf8', env: cleanGitEnv(process.env) }).split('\n').filter(Boolean);
   T('生成文件没有被 git 跟踪（ADR 0011）', !tracked.length, tracked);
   const ign = fs.readFileSync(path.join(DIR, '.gitignore'), 'utf8').split('\n');
   T('生成文件都在 .gitignore 里', GEN.every(f => ign.includes('/' + f)), GEN.filter(f => !ign.includes('/' + f)));
