@@ -114,6 +114,7 @@
   "sx:dlPoster": "baseline",
   "a:readAll": "baseline",
   "a:pushRecheck": "write:push_onboarding（授权后补订阅）",
+  "a:introX": "local（首页引导条的 ×：只在本机记「看过」nbq_intro，不写服务器；frontend/intro）",
   "a:authAnyway": "local（iPhone Safari 提示页选「先在浏览器里用」，只记本次打开）",
   "a:utOpen": "nav：打开我的 UTR 弹层（长按后的那次不打开）",
   "a:utMode": "local：弹层里切换 正式 / 自评",
