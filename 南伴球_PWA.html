@@ -4781,7 +4781,7 @@ function renderMap(items){
     const c=l[0];return `<div class="pin ${pk(l)}${sel?' sel':''}" data-pin="${c.id}"><i></i>${hm(c.start)}<span>${lvl(c)}</span></div>`};
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lng],12);
-      L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);
+      (()=>{const tl=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'});tileRetry(tl);tl.addTo(MAP.lf)})();
       L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap © CARTO').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();MAP.mk={};
     L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);
@@ -5012,6 +5012,8 @@ const SHARE_OPEN=h=>openSheet(h,false);
  * 不支持带图分享的环境（电脑、微信内）：自动保存图片 + 复制文案，提示去 App 里发布
  */
 var SC={uid:null,to:'moments',blob:null};
+// 地图瓦片偶发加载失败（限流 / 网络抖动）会留下灰块：失败的瓦片自动重试 3 次（间隔递增）；失败次数记在 window.TILE_ERR 方便排查
+function tileRetry(l){l.on('tileerror',e=>{const t=e.tile;window.TILE_ERR=(window.TILE_ERR||0)+1;t._rt=(t._rt||0)+1;if(t._rt<=3){const u=(t._u0=t._u0||t.src);setTimeout(()=>{t.src=u+(u.includes('?')?'&':'?')+'_r='+t._rt},700*t._rt)}})}
 function scMini(uid,w){const k=w/640;return `<div class="sc-img" style="width:${w}px;height:${Math.round(520*k)}px"><div style="transform:scale(${k});transform-origin:0 0">${shareShot(uid)}</div></div>`}
 function scText(uid,to){const u=U(uid),s=stats(uid),home=(u.home_club_ids||[])[0]||s.topClub,club=home?VEN[home].short:'';
   return to==='xhs'?{title:`${CITY.zh}找球友｜UTR ${f1(u.ntrp)}${club?' · '+club:''} 🎾`,body:`在南伴球打了 ${s.played} 场，欢迎扫图上的二维码约我打球～\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`}
@@ -5033,19 +5035,19 @@ function scBlob(uid){return new Promise(res=>{window.SC_ERR='';if(!window.html2c
   // 手机上画布太大 / 内存不够会失败：3 倍清晰度不行就降到 2、1 倍再试；仍失败把原因留在 SC_ERR（提示里带出来，方便定位）
   // iPhone Safari 会因为头像里的 SVG 滤镜把画布判成「不安全」(The operation is insecure)，导出就失败：
   // 依次试 ① 原样 3 倍 ② 2 倍 ③ 去掉 SVG 滤镜 / 遮罩 ④ 再去掉头像里所有 SVG（只剩底色）；成功就停，全失败把原因留在 SC_ERR
-  // ⑤ 兜底：整张图不含任何 SVG / CSS 里的 SVG 纹理，二维码改用画布直接画成 PNG（PNG 不会让 Safari 判画布不安全）
+  // iPhone Safari 会因为球员卡里的 SVG（头像滤镜、二维码、纹理）把画布判成「不安全」(The operation is insecure)，导出失败；
+  // 而放行的 SVG 又会被画成空白。所以 3 倍、2 倍原样试过之后，直接走「无 SVG」版：二维码用画布画成 PNG 换进去（先载入再截图），头像换成底色圆 + 首字母
   const qrPng=col=>{const a=qrMatrix(profileUrl(U(uid),typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments')),n=a.length,k=12,pad=k/2,c=document.createElement('canvas');c.width=c.height=(n+1)*k;const x=c.getContext('2d');x.fillStyle=x.strokeStyle=col||'#fff';
-    const dot=(i,j)=>{x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()};
-    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7)))dot(i,j);
-    const fin=(i,j)=>{x.lineWidth=k;x.beginPath();x.roundRect?x.roundRect(pad+(i+.5)*k,pad+(j+.5)*k,6*k,6*k,1.8*k):x.rect(pad+(i+.5)*k,pad+(j+.5)*k,6*k,6*k);x.stroke();x.beginPath();x.roundRect?x.roundRect(pad+(i+2)*k,pad+(j+2)*k,3*k,3*k,.9*k):x.rect(pad+(i+2)*k,pad+(j+2)*k,3*k,3*k);x.fill()};
-    fin(0,0);fin(n-7,0);fin(0,n-7);return c.toDataURL('image/png')};
-  const strip=lv=>doc=>{
-    if(lv>=3){const q=doc.querySelector('.bk .q');if(q){const col=getComputedStyle(q).color,im=doc.createElement('img');im.src=qrPng(col);im.style.cssText='display:block;width:100%;height:100%';q.innerHTML='';q.appendChild(im)}
-      doc.querySelectorAll('svg').forEach(e=>e.remove());doc.querySelectorAll('.pc-grain,.pc-light').forEach(e=>e.style.backgroundImage='none');return}
-    doc.querySelectorAll('[filter],[mask]').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask')});doc.querySelectorAll('filter,mask').forEach(e=>e.remove());
-    if(lv>=2)doc.querySelectorAll('.pc-av svg').forEach(e=>e.remove())};
-  const plan=[[3,0],[2,0],[2,1],[2,2],[2,3]];
-  const go=n=>{const [k,lv]=plan[n];return html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k,onclone:lv?strip(lv):undefined}).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
+    const box=(i,j,w,r,f)=>{x.beginPath();x.roundRect?x.roundRect(pad+i*k,pad+j*k,w*k,w*k,r*k):x.rect(pad+i*k,pad+j*k,w*k,w*k);f?x.fill():x.stroke()};
+    for(let j=0;j<n;j++)for(let i=0;i<n;i++)if(a[j][i]&&!((i<7&&j<7)||(i>=n-7&&j<7)||(i<7&&j>=n-7))){x.beginPath();x.arc(pad+(i+.5)*k,pad+(j+.5)*k,.42*k,0,7);x.fill()}
+    x.lineWidth=k;[[0,0],[n-7,0],[0,n-7]].forEach(([i,j])=>{box(i+.5,j+.5,6,1.8,0);box(i+2,j+2,3,.9,1)});return c.toDataURL('image/png')};
+  const plain=()=>new Promise(ok=>{const q=tmp.querySelector('.bk .q');if(!q)return ok();const im=new Image();im.style.cssText='display:block;width:100%;height:100%';
+    im.onload=im.onerror=()=>ok();im.src=qrPng(getComputedStyle(q).color);q.innerHTML='';q.appendChild(im)});
+  const noSvg=doc=>{const u=U(uid);doc.querySelectorAll('svg').forEach(e=>{const av=e.closest('.pc-av');if(av&&!av.querySelector('.pc-ini')){const d=doc.createElement('div');d.className='pc-ini';d.textContent=(String(u.name||'?').trim()[0]||'?').toUpperCase();
+      d.style.cssText=`width:100%;height:100%;border-radius:50%;background:${u.color||'#EFE9DA'};display:flex;align-items:center;justify-content:center;font:800 44px system-ui;color:#1D5B43`;av.appendChild(d)}e.remove()});
+    doc.querySelectorAll('.pc-grain,.pc-light').forEach(e=>e.style.backgroundImage='none')};
+  const plan=[[3,0],[2,0],[2,1]];
+  const go=n=>{const [k,lv]=plan[n];return (lv?plain():Promise.resolve()).then(()=>html2canvas(tmp.firstElementChild,{backgroundColor:null,scale:k,onclone:lv?noSvg:undefined})).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
     .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(n<plan.length-1)return go(n+1);throw e})};
   go(0).then(b=>{tmp.remove();res(b)}).catch(()=>{tmp.remove();res(null)})})}
 // 保存图片：能用系统分享就用（iOS 分享面板里选「存储图像」进相册）；不行（或点开太慢分享被拒）就弹出大图，长按保存。不用 <a download>：iOS 里它进的是「文件」不是相册，主屏幕版还会把页面带走
