@@ -1,0 +1,19 @@
+// staging 自动同步（tools/staging_sync.mjs，11-11）：只快进、从不强推；核对线上 sha。纯函数 + 工作流写法检查。
+import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
+import { decide, versionOk, SITE } from '../../tools/staging_sync.mjs';
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
+T('main 比 staging 多 → 推（快进）', decide('ahead') === 'push');
+T('一样 → 什么都不做', decide('identical') === 'noop');
+T('staging 比 main 多 / 分叉 → 跳过，不强推', decide('behind') === 'skip' && decide('diverged') === 'skip');
+T('未知状态 → 跳过（宁可不推）', decide('') === 'skip' && decide(undefined) === 'skip');
+const SHA = 'abcdef1234567890abcdef1234567890abcdef12';
+T('version.json 的 sha 等于 main → 通过', versionOk(JSON.stringify({ sha: SHA, schema: 'x' }), SHA));
+T('version.json 是旧提交 → 不通过', !versionOk(JSON.stringify({ sha: '1111111' + SHA.slice(7) }), SHA));
+T('version.json 不是 JSON / 没有 sha（比如 Pages 错误页）→ 不通过', !versionOk('<html>502</html>', SHA) && !versionOk('{}', SHA) && !versionOk('', SHA));
+T('测试站地址是 staging 子域', /^https:\/\/staging\.nanbanqiu-preview\.pages\.dev$/.test(SITE));
+const src = fs.readFileSync(path.join(ROOT, 'tools/staging_sync.mjs'), 'utf8'), wf = fs.readFileSync(path.join(ROOT, '.github/workflows/staging-sync.yml'), 'utf8');
+T('脚本只用 force=false 更新引用（从不强推）', /'-F', 'force=false'/.test(src) && !/force=true|--force/.test(src));
+T('工作流只在推 main 时触发、权限最小（contents: write）、同一时间只跑一个', /branches: \[main\]/.test(wf) && /contents: write/.test(wf) && !/issues: write|pull-requests: write/.test(wf) && /concurrency:/.test(wf));
+T('工作流不检出代码以外的东西：只检出本脚本、不执行 PR 内容', /sparse-checkout:/.test(wf) && /tools\/staging_sync\.mjs/.test(wf) && !/pull_request/.test(wf));
+console.log(`staging_sync: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

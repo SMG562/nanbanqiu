@@ -1,0 +1,30 @@
+# 推 main 后自动把 staging 分支快进到 main，并核对测试站上线的就是这个提交（11-11，#161 原第 2 项）。
+#   以前手动 `git push origin HEAD:refs/heads/staging`，忘了就测到旧版。说明见 tools/staging_sync.mjs。
+#   只快进（force=false）、永不强推；staging 分叉时跳过并报警。用 GITHUB_TOKEN 推引用不会触发别的工作流（同一提交已在 main 上测过）。
+name: staging-sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-sync
+  cancel-in-progress: false         # 排队的按「现在的 main」同步，不会把 staging 拉回旧提交
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            tools/staging_sync.mjs
+          sparse-checkout-cone-mode: false
+      - name: staging 快进到 main 并核对测试站
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: node tools/staging_sync.mjs
