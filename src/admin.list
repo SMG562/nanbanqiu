@@ -47,4 +47,5 @@ admin/script/0290-真登录与真模式.js
 admin/script/0300-真数据_球友处理.js
 admin/script/0310-真数据_风险用户.js
 admin/script/0320-真数据_场边举报.js
+admin/script/0330-真数据_管理员与日志.js
 admin/page/0030-结尾.html

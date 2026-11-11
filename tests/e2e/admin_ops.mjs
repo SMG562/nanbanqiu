@@ -124,6 +124,27 @@ try {
     T('3.3 刷新后：这条显示「已隐藏」，按钮变成「恢复显示」', await until(() => p.evaluate(id => !!document.querySelector(`[data-sq="show"][data-id="${id}"]`), P)) && /已隐藏/.test(await txt(p, '#page')));
     T('3.4 没有页面错误', !pe.length, pe); await ctx.close();
   }
+  // ================= 4. 管理员与操作日志（放最后：会改管理员角色） =================
+  {
+    const op = await session('ops@x.com'); await goPage(op.p, 'admin');
+    T('4.1 运营：看得到操作日志（前面几节的处理都在），看不到管理员名单', await until(async () => { const t = await txt(op.p, '#page'); return /操作日志/.test(t) && /只有超级管理员能看/.test(t) && /Amy/.test(t) && /user\.status/.test(t) }));
+    await op.p.click('[data-ra="cat"][data-v="risk"]');
+    T('4.2 日志按类别筛：只剩风险类', await until(() => op.p.evaluate(() => { const rows = [...document.querySelectorAll('#page table tbody tr')]; return rows.length > 0 && rows.every(r => /risk\./.test(r.innerText)) })));
+    T('4.3 运营没有页面错误', !op.pe.length, op.pe); await op.ctx.close();
+
+    const { p, pe, ctx } = await session('han@x.com'); await goPage(p, 'admin');
+    T('4.4 owner：管理员名单 3 位，提示超级管理员少于 2 位', await until(async () => { const t = await txt(p, '#page'); return /Leo/.test(t) && /Amy/.test(t) && /超级管理员只有 1 位/.test(t) }));
+    const leo = (await one(`select id from admin_users where email='view@x.com'`)).id;
+    await p.selectOption(`[data-rarole="${leo}"]`, 'operator'); await p.fill('#admRin', '升为运营'); await p.click('[data-admrok]');
+    T('4.5 改角色：选「运营」+ 填理由 → 库里是运营', await until(async () => (await one(`select role from admin_users where id=$1`, [leo])).role === 'operator'));
+    await p.click(`[data-ra="city"][data-id="${leo}"]`); await p.check('[data-racity="melb"]'); await p.fill('#raWhy', '只负责墨尔本'); await p.click(`[data-ra="savecity"][data-id="${leo}"]`);
+    T('4.6 改负责城市 → 库里是 melb', await until(async () => JSON.stringify((await one(`select cities from admin_users where id=$1`, [leo])).cities) === '["melb"]'));
+    await p.click(`[data-ra="disable"][data-id="${leo}"]`); await p.fill('#admRin', '测试停用'); await p.click('[data-admrok]');
+    T('4.7 停用 → 库里已停用', await until(async () => (await one(`select disabled from admin_users where id=$1`, [leo])).disabled));
+    await reload(p); await goPage(p, 'admin');
+    T('4.8 刷新后：Leo 显示已停用和理由、负责城市是墨尔本；日志里有这三次操作', await until(async () => { const t = await txt(p, '#page'); return /已停用：测试停用/.test(t) && /墨尔本/.test(t) && (t.match(/admin\.manage/g) || []).length >= 3 }));
+    T('4.9 owner 没有页面错误', !pe.length, pe); await ctx.close();
+  }
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e).toString().slice(0, 800)) }
 finally { try { await br?.close() } catch (_) { } try { srv?.close() } catch (_) { } try { await su?.end() } catch (_) { } c.stop() }
 console.log(`admin_ops: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

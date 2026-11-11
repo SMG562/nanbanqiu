@@ -302,6 +302,38 @@ export const ROUTES = {
     if (!sbTarget(b)) return fail(bad(), 'sideline_dismiss');
     return authed(req, d, route, async (db, a) => { await sbCityCheck(db, a, b); if (!(await sbCloseReports(db, b, 'dismissed'))) throw Object.assign(new Error('state_changed'), { code: 'state_changed' }); return { ok: true } }, b);
   } },
+  // ---------- 管理员与操作日志（#27 第 4 步）----------
+  // 名单：只有 owner（admin.manage）。不返回密码哈希、两步验证密钥、恢复码（列权限本来就读不到），只给恢复码剩几个。
+  // 新增管理员不走网页：用 tools/admin_create.mjs 在本机生成（密码由本人输入、不经过网络）
+  'GET /admin/api/admins': { name: 'admins', perm: 'admin.manage', run: (req, d, b, route) => authed(req, d, route, async (db, a) => ({
+    me: a.id,
+    admins: (await db.query(`select id, email, name, role, cities, disabled, disabled_at, disabled_reason, created_at, last_login_at from admin_users order by disabled, case role when 'owner' then 0 when 'operator' then 1 else 2 end, created_at`)).rows,
+    health: (await db.query('select owners::int, active_admins::int, low_recovery::int, live_sessions::int from admin_health')).rows[0],
+    cities: (await db.query('select key, name_zh from cities order by key')).rows,
+  })) },
+  // 改角色 / 停用 / 恢复：至少保留一位 owner、不能停用自己（库函数挡）；停用时撤销他的全部会话
+  'POST /admin/api/admins/update': { name: 'admins_update', perm: 'admin.manage', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || (b.role != null && !['owner', 'operator', 'viewer'].includes(b.role)) || (b.disable != null && typeof b.disable !== 'boolean') || (b.role == null && b.disable == null) || !reasonOk(b.reason)) return fail(bad(), 'admins_update');
+    return authed(req, d, route, async db => { await db.query('select admin_update($1::uuid, $2, $3, $4)', [b.id, b.role ?? null, b.disable ?? null, b.reason]); return { ok: true } }, b);
+  } },
+  // 负责的城市：null = 全部城市；owner 不能限城市（库函数挡）
+  'POST /admin/api/admins/cities': { name: 'admins_cities', perm: 'admin.manage', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || !(b.cities === null || (Array.isArray(b.cities) && b.cities.length <= 20 && b.cities.every(c => /^[a-z]{2,12}$/.test(c)))) || !reasonOk(b.reason)) return fail(bad(), 'admins_cities');
+    return authed(req, d, route, async db => { await db.query('select admin_set_cities($1::uuid, $2::text[], $3)', [b.id, b.cities, b.reason]); return { ok: true } }, b);
+  } },
+  // 操作日志（audit.view：owner / 运营）。按时间倒序每页 100；before = 上一页最后一条的 id；action 按前缀筛（user. / report. …）。日志只追加，后台不能改
+  'GET /admin/api/audit': { name: 'audit', perm: 'audit.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, before = sp.get('before') || '', act = sp.get('action') || '';
+    if ((before && !/^\d{1,18}$/.test(before)) || (act && !/^[a-z_]{2,20}\.?[a-z_]{0,20}$/.test(act))) return fail(bad(), 'audit');
+    const exact = /\.[a-z_]+$/.test(act);                                      // user.status = 只看这一种；user / user. = 这一类
+    return authed(req, d, route, async db => {
+      const rows = (await db.query(`select l.id::text as id, l.at, l.action, l.target, l.detail, a.name as admin_name, a.role as admin_role
+          from admin_audit_log l left join admin_users a on a.id = l.admin_id
+         where ($1 = '' or l.id < $1::bigint) and ($2 = '' or l.action = $2) and ($3 = '' or l.action like $3 || '%')
+         order by l.id desc limit 101`, [before, exact ? act : '', exact || !act ? '' : act.replace(/\.$/, '').replace(/_/g, '\\_') + '.'])).rows;
+      return { rows: rows.slice(0, 100), more: rows.length > 100 };
+    });
+  } },
   // ---------- 风险提醒与规则（#27 第 4 步）----------
   // 列表：view = open（待处理）/ watching（观察中）/ done（最近处理或忽略的 50 条）。inner join users：限城市的管理员只看得到自己城市的人的提醒
   'GET /admin/api/risk': { name: 'risk', perm: 'risk.handle', run: (req, d, b, route) => {
