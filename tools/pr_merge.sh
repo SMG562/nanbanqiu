@@ -32,7 +32,7 @@ git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev
 RELAXED=0
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
 elif DR=$(bash tools/merge_drift.sh "$SHA" 2>&1); then RELAXED=1; yes "main 前进了，但$DR；改用带 sha 守卫的压缩合并（合并后 main 自己再跑一次测试兜底，红了立刻 revert）"
-else no "不能快进：main 有 PR 之外的新提交（放宽没过：$DR）。在分支上  bash tools/sync_main.sh  合 main 并推分支（不用强推），等 PR 上的测试对新提交跑完再合并"; fi
+else no "不能快进：main 有 PR 之外的新提交（放宽没过：$DR）。在分支上  bash tools/sync_main.sh  合 main 并推分支（不用强推；分支太老没有这个脚本就  git show origin/main:tools/sync_main.sh | bash），等 PR 上的测试对新提交跑完再合并。已有的独立复核留言在「只多合并 main」时自动沿用（tools/review_carry.mjs）"; fi
 # 11-07：只改 *.md 的 PR（没有任何文件会触发 tests / tests-fast 的 paths）不需要测试运行，别为文档白烧 25 分钟 Actions
 CHG=$(git -c core.quotepath=off diff --name-only "$(git merge-base origin/main "$SHA" 2>/dev/null || echo origin/main)" "$SHA" 2>/dev/null)
 DOCS_ONLY=0; [ -n "$CHG" ] && ! echo "$CHG" | grep -qvE '\.md$' && DOCS_ONLY=1
@@ -63,7 +63,9 @@ PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口�
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
 case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   owner) [ "$ME" = SMG562 ] && yes "改了红线文件：所有者本人合并" || no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）能合，在 PR 上说明后等所有者点头" ;;
-  review) if gh api "repos/$R/issues/$N/comments" --paginate --jq '.[].body' 2>/dev/null | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+  review) RV=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '.[]|select(.user.type!="Bot")|.body' 2>/dev/null)
+    if printf '%s' "$RV" | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+    elif CW=$(for o in $(printf '%s' "$RV" | grep -oE '独立复核：通过 *[0-9a-f]{7,40}' | grep -oE '[0-9a-f]{7,40}$' | sort -u); do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
     else no "需要独立复核：另开一个没看过本次过程的会话只读复核，在 PR 留言「独立复核：通过 ${SHA:0:7}」（写明看了什么、风险、怎么回退）"; fi ;;
   *) yes "自助合并：无红线、无需复核" ;;
 esac

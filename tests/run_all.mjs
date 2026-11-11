@@ -55,7 +55,7 @@ const TIMES = QUICK ? ['2026-10-14T15:10:00+11:00'] : TIMES_FULL;
 const NOISE = /agent-proxy|connect_rejected|For details: curl|^\s*-\s+[a-z0-9.-]+:443|oldest \d+ not shown|^\s*$/;
 const COMMON_FORBID = [/^FAIL\b/m, /\b(TypeError|ReferenceError|SyntaxError|RangeError)\b/, /Cannot read propert/, /^\[ ['"`]/m, /errors \[ ['"]/, /Error: page\.|Timeout \d+ms exceeded/];
 const T = [];
-const add = (suite, id, cmd, o = {}) => T.push({ suite, id, cmd, timeout: o.timeout || 300, pass: o.pass || [], forbid: o.forbid ?? COMMON_FORBID, snapshot: !!o.snapshot, env: o.env || {}, needsExit0: o.needsExit0 ?? true, cwd: o.cwd, solo: !!o.solo, slow: !!o.slow });
+const add = (suite, id, cmd, o = {}) => { if (T.some(t => t.id === id)) throw new Error(`测试名重复：${id}（合并 main 后同一项被注册了两次？删掉多的那行）`); return T.push({ suite, id, cmd, timeout: o.timeout || 300, pass: o.pass || [], forbid: o.forbid ?? COMMON_FORBID, snapshot: !!o.snapshot, env: o.env || {}, needsExit0: o.needsExit0 ?? true, cwd: o.cwd, solo: !!o.solo, slow: !!o.slow }) };
 
 add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台两端的错误提示 = 接口规格的错误码表（4f-3）
