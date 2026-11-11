@@ -25,8 +25,11 @@ git(d, 'checkout', '-q', 'main'); W(d, 'other.js', 'o2\n'); git(d, 'commit', '-q
 let H = git(d, 'rev-parse', 'HEAD'), r = carries(R, H, 'main', d); T('只多合并 main（文件不重叠）→ 沿用', r.carry, r);
 r = carries(R, R, 'main', d); T('同一个提交 → 沿用', r.carry, r);
 W(d, 'f.js', '1\n2\nPR\n4\n5\n6\n7\n8\nPR2\n'); git(d, 'commit', '-qam', 'more'); r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('复核之后 PR 又有新改动 → 不沿用', !r.carry && /不一样/.test(r.why), r);
+({ d, R } = mk()); W(d, 'f.js', '1\n2\n  PR\n4\n5\n6\n7\n8\n9\n'); git(d, 'commit', '-qam', '只改缩进（空白）'); r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('复核之后只改了缩进 → 不沿用（独立复核 11-11 实测 patch-id 会被骗）', !r.carry, r);
+({ d, R } = mk()); W(d, 'f.js', 'PR\n1\n2\n4\n5\n6\n7\n8\n9\n'); git(d, 'commit', '-qam', '把那行挪到文件开头'); r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('复核之后只挪了行的位置 → 不沿用', !r.carry, r);
+({ d, R } = mk()); git(d, 'checkout', '-q', 'main'); W(d, 'other.js', 'o2\n'); git(d, 'commit', '-qam', 'main'); git(d, 'checkout', '-q', 'pr'); git(d, 'merge', '-q', '--no-edit', 'main'); W(d, 'other.js', 'o2\nSNEAK\n'); git(d, 'commit', '-qam', '合并后夹带改动'); r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('合并之后夹带改动（改的是 main 带来的文件）→ 不沿用', !r.carry, r);
 ({ d, R } = mk()); git(d, 'checkout', '-q', 'main'); W(d, 'f.js', '1\n2\n3\n4\n5\n6\n7\nMAIN\n9\n'); git(d, 'commit', '-qam', 'main edits f.js (far from PR hunk)'); git(d, 'checkout', '-q', 'pr'); git(d, 'merge', '-q', '--no-edit', 'main');
-r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('main 也改了 PR 改的文件（即使干净合并）→ 不沿用，要重审', !r.carry && /重审/.test(r.why), r);
+r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('main 也改了 PR 改的文件（即使干净合并）→ 不沿用，要重审', !r.carry, r);
 ({ d, R } = mk()); git(d, 'checkout', '-q', 'main'); W(d, 'other.js', 'o2\n'); git(d, 'commit', '-qam', 'main'); git(d, 'checkout', '-q', '-B', 'pr2', 'main'); W(d, 'g.js', 'x\n'); git(d, 'add', '-A'); git(d, 'commit', '-qm', 'other history');
 r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('旧提交不是头提交的祖先（历史被改写）→ 不沿用', !r.carry && /祖先/.test(r.why), r);
 
