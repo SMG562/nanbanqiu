@@ -1,7 +1,7 @@
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
-  if(window.html2canvas)html2canvas(el,{backgroundColor:null,scale:3}).then(cv=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`nanbanqiu-${fmtNo(U(uid).no)}.png`;a.click();tmp.remove();toast('分享图已保存')}).catch(()=>{tmp.remove();toast('保存失败，请截图保存')});
+  if(window.html2canvas)nbqShot(el,3).then(bl=>{tmp.remove();if(bl){imgSave(bl,`nanbanqiu-${fmtNo(U(uid).no)}.png`);toast('分享图已保存')}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')});
   else{tmp.remove();toast('需要联网加载保存组件，也可以直接截图')}}
 function openBlock(uid){const u=U(uid);openModal(`<div class="m-b"><div class="m-t">屏蔽 ${esc(u.name)}？</div><p class="m-s" style="margin-bottom:12px">屏蔽后：</p>
   <ul class="tips"><li><i>🙈</i><div>TA 看不到你发起的球局<small>包括通过分享链接打开</small></div></li><li><i>✋</i><div>TA 无法申请加入你的球局<small>TA 当前的待确认申请会自动婉拒</small></div></li><li><i>👀</i><div>你也不会再看到 TA 发起的球局</div></li><li><i>🔕</i><div>对方不会收到任何通知</div></li></ul>

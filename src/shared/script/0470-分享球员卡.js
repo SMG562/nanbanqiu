@@ -51,3 +51,13 @@ function imgSave(blob,name){
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).catch(e=>{if(!e||e.name!=='AbortError')big()});return}
   big()}
 function scDownload(blob,uid){imgSave(blob,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}
+// 把页面里一块元素截成 PNG（海报 / 球员卡共用，11-11 #161 第 4 项）：手机上内存不够、或 iPhone Safari 把带 SVG 滤镜 / 遮罩 / 纹理的画布判成「不安全」(The operation is insecure) 时逐级降级，
+//   ① 原样 scale 倍 ② 1 倍 ③ 1 倍并在克隆里去掉 SVG 的 filter / mask 和纹理背景；成功就停，全失败返回 null（原因留在 SC_ERR）。不改原页面（只改 html2canvas 的克隆）。
+function nbqShotPlan(scale){return [[scale||2,0],[1,0],[1,1]]}
+function nbqShotClean(doc){doc.querySelectorAll('svg,svg *').forEach(e=>{e.removeAttribute('filter');e.removeAttribute('mask');if(e.style){e.style.filter='none';e.style.mask='none'}});
+  doc.querySelectorAll('.pc-grain,.pc-light,[class*=grain]').forEach(e=>e.style.backgroundImage='none')}
+function nbqShot(el,scale){window.SC_ERR='';if(!el||!window.html2canvas){SC_ERR='截图库没加载';return Promise.resolve(null)}
+  const plan=nbqShotPlan(scale),go=n=>{const [k,clean]=plan[n];
+    return Promise.resolve().then(()=>html2canvas(el,{backgroundColor:null,scale:k,onclone:clean?nbqShotClean:undefined})).then(cv=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('画布转图片失败')),'image/png')))
+      .catch(e=>{SC_ERR=String(e&&e.message||e).slice(0,40);if(n<plan.length-1)return go(n+1);throw e})};
+  return go(0).catch(()=>null)}
