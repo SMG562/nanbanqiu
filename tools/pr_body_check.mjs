@@ -5,7 +5,14 @@ import { execFileSync } from 'child_process'; import { fileURLToPath } from 'url
 const CODE = /^(src\/|server\/|schema\.sql|sw\.js|worker\/)/;
 const ticked = (b, re) => new RegExp(`- \\[[xX]\\][^\\n]*${re}`).test(b);
 const has = (b, re) => new RegExp(`- \\[[ xX]\\][^\\n]*${re}`).test(b);
-export function checkBody(body, files, { merge = false } = {}) {
+// 11-10（逃逸：协作者会话没先核对账号身份，按所有者流程改了进度记录.md 和 .claude/ 技能，到合并前才发现）：
+//   身份写在规矩里靠人记 → 拦不住。改成按 GitHub 上 PR 作者核对：不是所有者的 PR 碰了「仅所有者」文件就红，
+//   并指明把内容写进 PR 描述「请所有者记录」。名单 = CONTRIBUTING.md「仅所有者改」+ 协作者不动的 .claude/。
+export const OWNER = 'SMG562';
+export const OWNER_ONLY = /^(进度记录\.md|进度记录_历史\.md|业务规则\.md|出事处理手册\.md|\.claude\/)/;
+// ownFiles：只算「这个 PR 自己改的」文件（三点比较 main...PR 头）。不能用 pulls/<n>/files：它按 GitHub 记下的旧基准点算，
+//   协作者把 main 合进分支后，main 自己的提交（进度记录.md 等）也会被列进来 → 误报（11-10 #133 自己踩到）。
+export function checkBody(body, files, { merge = false, author = null, ownFiles = null } = {}) {
   const b = body || '', bad = [], code = (files || []).some(f => CODE.test(f)), front = (files || []).some(f => /^src\//.test(f));
   if (code) {
     const sec = /入口清单[^\n]*\n([\s\S]*?)(?=\n#{1,3} |\n## |$)/.exec(b), txt = sec ? sec[1] : '';
@@ -21,6 +28,8 @@ export function checkBody(body, files, { merge = false } = {}) {
     const synced = (/已同步到电脑[:：]([^\n]*)/.exec(b) || [])[1] || '';
     const miss = need.filter(f => !synced.includes(f));
     if (miss.length) bad.push(`「你来做」用到本 PR 才有的文件，没写「已同步到电脑」：${miss.join('、')}（先 bash tools/sync_files.sh --branch=<分支> ${miss.join(' ')}，写到电脑并 sync_verify.sh --branch 回读核对）`) }
+  if (author && author !== OWNER) { const own = (ownFiles || files || []).filter(f => OWNER_ONLY.test(f));
+    if (own.length) bad.push(`PR 作者 ${author} 不是所有者，不能改：${own.join('、')}（退回 main 的版本：git checkout origin/main -- <文件>；要记的内容写进 PR 描述「请所有者记录」）`) }
   if (!ticked(b, '(较大风险|小修小补)')) bad.push('风险类别没勾（较大风险 / 小修小补）');
   if (merge) {
     if (ticked(b, '较大风险') && has(b, '刷新后还在') && !ticked(b, '刷新后还在')) bad.push('真机项「刷新后还在」没勾');
@@ -35,7 +44,11 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   if (!n) { console.error('用法：node tools/pr_body_check.mjs <PR号> [--merge]'); process.exit(2) }
   const gh = a => JSON.parse(execFileSync('gh', ['api', ...a], { encoding: 'utf8', maxBuffer: 1 << 26 }));
   const pr = gh([`repos/${R}/pulls/${n}`]), files = gh(['--paginate', `repos/${R}/pulls/${n}/files?per_page=100`]).map(f => f.filename);
-  const bad = checkBody(pr.body, files, { merge });
+  let ownFiles = null;   // 三点比较：最新 main 和 PR 头的共同祖先 → PR 头，只含 PR 自己的改动
+  try { const c = gh([`repos/${R}/compare/${pr.base.ref}...${pr.head.sha}`]); ownFiles = (c.files || []).map(f => f.filename);
+    if (ownFiles.length >= 300) { console.log('⚠ compare 只返回前 300 个文件，身份核对改用 PR 文件列表'); ownFiles = null } }
+  catch (e) { console.log('⚠ 取不到三点比较，身份核对改用 PR 文件列表（可能误报：main 合进分支的提交也会算进来）') }
+  const bad = checkBody(pr.body, files, { merge, author: pr.user && pr.user.login, ownFiles });
   bad.forEach(x => console.log('❌ ' + x)); if (!bad.length) console.log('✅ PR 描述核对通过' + (merge ? '（含真机项）' : ''));
   process.exit(bad.length ? 1 : 0);
 }

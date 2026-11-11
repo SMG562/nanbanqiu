@@ -24,4 +24,15 @@ T('「你来做」用到本 PR 新文件、没写已同步 → 不过，且点�
 T('只同步了一部分 → 仍不过（点名没同步的那个）', (r => r.some(x => /admin_create/.test(x) && !/x\.sql、/.test(x)))(checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql\n', FILES2)));
 T('全部写了已同步 → 过', checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2).length === 0, checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2));
 T('「你来做」只提 main 上已有的文件 → 不要求', checkBody(TBL + RISK + '## 你来做\n- 看 `tools/site.mjs`\n', FILES2).length === 0);
+// 11-10 仅所有者文件：按 PR 作者核对（协作者会话曾没核对身份就改了进度记录.md、.claude/）
+const OK = '入口清单：无（只改文档，不涉及用户数据）\n- [ ] 较大风险　- [x] 小修小补\n';
+T('协作者改进度记录.md → 不过，并说明怎么退回', checkBody(OK, ['进度记录.md'], { author: 'MDD1102' }).some(x => /不是所有者[\s\S]*进度记录\.md[\s\S]*请所有者记录/.test(x)));
+T('协作者改 .claude/ 技能 → 不过', checkBody(OK, ['.claude/skills/x/SKILL.md'], { author: 'MDD1102' }).some(x => /\.claude\//.test(x)));
+T('协作者改业务规则.md / 出事处理手册.md → 不过', ['业务规则.md', '出事处理手册.md'].every(f => checkBody(OK, [f], { author: 'MDD1102' }).length > 0));
+T('所有者改这些文件 → 过', checkBody(OK, ['进度记录.md', '.claude/skills/x/SKILL.md'], { author: 'SMG562' }).length === 0);
+T('协作者改别的文档（逃逸缺陷.md）→ 过', checkBody(OK, ['逃逸缺陷.md'], { author: 'MDD1102' }).length === 0);
+T('不传作者（老调用）→ 不检查身份', checkBody(OK, ['进度记录.md']).length === 0);
+T('名字里只是包含、不在开头（docs/进度记录.md）→ 不误伤', checkBody(OK, ['docs/进度记录.md'], { author: 'MDD1102' }).length === 0);
+T('main 合进分支带来的进度记录.md 不算（ownFiles = 三点比较只含 PR 自己的改动）→ 过', checkBody(OK, ['进度记录.md', 'tools/x.mjs'], { author: 'MDD1102', ownFiles: ['tools/x.mjs'] }).length === 0);
+T('PR 自己改了进度记录.md（在 ownFiles 里）→ 不过', checkBody(OK, ['tools/x.mjs'], { author: 'MDD1102', ownFiles: ['进度记录.md'] }).some(x => /进度记录/.test(x)));
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
