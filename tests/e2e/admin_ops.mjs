@@ -184,7 +184,16 @@ try {
     T('7.4 发布 → 新版本，草稿清空', await until(async () => (await one(`select max(version)::int v from sb_config_versions`)).v === v0 + 1 && /没有未发布的改动/.test(await txt(p, '#page'))));
     await p.evaluate(() => { S.page = 'sguide'; render() });
     await until(() => p.evaluate(() => !!document.querySelector('[data-sc="edit"][data-k="hints"]'))); await p.click('[data-sc="edit"][data-k="hints"]');
-    await p.fill('#scJson', '{坏的'); await p.click('[data-sc="save"]'); T('7.5 JSON 写坏：页面先拦下', /不是合法的 JSON/.test(await txt(p, '#scErr')));
+    T('7.5a 编辑默认是表单：引导提示一行一条（文字输入框、启用开关）', await until(() => p.evaluate(() => !!document.querySelector('[data-scf="0.text"]') && document.querySelector('[data-scf="0.active"]')?.type === 'checkbox')));
+    await p.fill('[data-scf="0.text"]', '表单改的提示'); await p.click('[data-sc="rowadd"]');
+    T('7.5b 加一行后，刚才输入的内容还在（改的是副本、不丢）', await p.evaluate(() => document.querySelector('[data-scf="0.text"]').value === '表单改的提示'));
+    await p.click('[data-sc="rowdel"]:last-of-type >> nth=-1'); await p.click('[data-sc="savef"][data-k="hints"]');
+    T('7.5c 表单保存 → 草稿里提示第一条是新文字', await until(async () => (await one(`select config->'hints'->0->>'text' t from sb_config_draft`))?.t === '表单改的提示'));
+    await until(() => p.evaluate(() => !!document.querySelector('[data-sc="edit"][data-k="starters"]'))); await p.click('[data-sc="edit"][data-k="starters"]');
+    T('7.5d 开头句（对象里是列表）：每个键一个多行框', await until(() => p.evaluate(() => !!document.querySelector('[data-scf="court"][data-sclines]'))));
+    await p.click('[data-sc="json"]'); await p.fill('#scJson', '{坏的'); await p.click('[data-sc="save"]'); T('7.5 高级 JSON 写坏：页面先拦下', /不是合法的 JSON/.test(await txt(p, '#scErr')));
+    await p.click('[data-sc="unedit"]'); await p.evaluate(() => { document.querySelector('[data-sc="discard"]') && (window.confirm = () => true) }); await p.click('[data-sc="discard"]');
+    T('7.5e 丢弃草稿 → 草稿表空', await until(async () => (await one(`select count(*)::int n from sb_config_draft`)).n === 0));
     await p.evaluate(() => { document.querySelector('[data-sc="rollback"]')?.closest('details')?.setAttribute('open', '') });
     await p.click(`[data-sc="rollback"][data-v="${v0}"]`); await p.fill('#admRin', '撤回下线'); await p.click('[data-admrok]');
     T('7.6 退回旧版 → 又一个新版本，记着从哪版退回', await until(async () => (await one(`select from_version from sb_config_versions order by version desc limit 1`)).from_version === v0));
