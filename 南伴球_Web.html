@@ -3983,7 +3983,7 @@ saveCard=function(uid){SC.uid=uid;SC.blob=null;SC.busy=true;SHARE_OPEN(shareCard
 const _scRender=scRender;scRender=function(){_scRender();scBtn()};
 scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'?'小红书':'微信',blob=SC.blob;
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
+  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')};
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).catch(err=>{if(!err||err.name!=='AbortError')fallback()})}catch(err){fallback()}return}
   fallback()};
@@ -4438,12 +4438,12 @@ wrap('scRender',o=>function(){const r=o.apply(this,arguments);if(SC.uid&&SC._to!
   scBlobT(uid).then(b=>{if(SC.uid!==uid||SC.to!==to)return;SC.blob=b;SC.busy=false;scBtn()})}return r});
 scGo=function(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==='xhs'?'小红书':'微信',blob=SC.blob,ev=ok=>track('card_share',{channel:to,action:'go',ok});
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
-  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享');ev(!!blob)};
+  const fallback=()=>{if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享');ev(!!blob)};
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{navigator.share({files:[file],text}).then(()=>ev(true),err=>{if(!err||err.name!=='AbortError'){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}else ev(false)})}catch(err){track('card_share_error',{reason:'share_'+(err&&err.name||'error')});fallback()}return}
   fallback()};
 addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-sc]');if(!b)return;const a=b.dataset.sc;
-  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid);toast('图片已保存')}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
+  if(a==='save'){e.stopPropagation();const uid=SC.uid,to=SC.to;(SC.blob?Promise.resolve(SC.blob):scBlobT(uid)).then(bl=>{if(bl){scDownload(bl,uid)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存');track('card_share',{channel:to,action:'save',ok:!!bl})});return}
   if(a==='link')track('card_share',{channel:SC.to,action:'link',ok:true})},true);
 
 /* ---------- 打完之后：多遇到 · 感受 · 印象 · 完成 · TA 没来 · 申诉 ---------- */
@@ -5111,11 +5111,11 @@ async function scGo(){const uid=SC.uid,to=SC.to,text=scCopyText(uid,to),app=to==
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}const blob=SC.blob||await scBlob(uid);
   const file=blob&&new File([blob],`nanbanqiu-${fmtNo(U(uid).no)}.png`,{type:'image/png'});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],text}).catch(()=>{});return}
-  if(blob){scDownload(blob,uid);toast(`图片已保存，文案已复制 · 打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')}
+  if(blob){scDownload(blob,uid);toast(`文案已复制 · 保存图片后打开${app}发布即可`)}else toast(typeof ENV!=='undefined'&&ENV==='wechat'?'长按上面的图片保存，文案已复制':'文案已复制，截图即可分享')}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(!b)return;e.stopPropagation();const a=b.dataset.sc;
   if(a==='to'){SC.to=b.dataset.v;scRender()}
   else if(a==='go')scGo();
-  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid);toast('图片已保存')}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')})}
+  else if(a==='save'){(SC.blob?Promise.resolve(SC.blob):scBlob(SC.uid)).then(bl=>{if(bl){scDownload(bl,SC.uid)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')})}
   else if(a==='link')copy(profileUrl(U(SC.uid),'link'),'球员卡链接已复制，可以发给朋友')},true);
 /* ===================== Supabase 登录（5g）=====================
  * 只管手机号验证码登录；球局等业务数据仍走演示 api（接真后端时再换）。
