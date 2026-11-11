@@ -15,9 +15,6 @@ SUDO=""; [ "$(id -u)" != 0 ] && command -v sudo >/dev/null && SUDO="sudo"
 
 # 1. 提交前检查 + 署名
 git config core.hooksPath .githooks
-# 合并规则（.gitattributes）：生成文件合并时先留当前分支的，合并后 .githooks/post-merge 重新生成（11-10）
-git config merge.nbq-generated.name '生成文件：合并时留当前分支的，合并后重新生成'
-git config merge.nbq-generated.driver true
 [ -n "$(git config user.name)" ] || git config user.name Claude
 [ -n "$(git config user.email)" ] || git config user.email noreply@anthropic.com
 say "✓" "提交前检查已启用（core.hooksPath = .githooks）"

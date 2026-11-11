@@ -25,5 +25,17 @@
       "Bash(git push --force:*)",
       "Bash(git push -f:*)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'me=$(gh api user --jq .login 2>/dev/null || echo ?); [ \"$me\" = SMG562 ] && r=所有者 || r=协作者; echo \"身份：gh 账号 $me = 对话里的人（$r），不要再问；步骤只写 $r 能做的\"'"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -31,7 +31,7 @@
 | 进度记录.md、业务规则.md | 仅所有者改；协作者把要记的写在 PR 描述里 |
 
 ## 容易冲突的东西
-- 三个生成的 HTML（南伴球_PWA / Web / 后台）：冲突时**只解决 `src/`**，然后重新 `node tools/build.mjs`，不要手动合并 HTML。
+- 三个页面 HTML（南伴球_PWA / Web / 后台）和 `_bundle.sql` 不入库（ADR 0011）：PR 里只会有 `src/`，冲突只解决 `src/`；本地要看 HTML 先 `node tools/build.mjs`。
 - `tests/spec/*.json`（actions、inputs、persist_allow）：PR 保持小，开 PR 前先 `git merge origin/main`。
 - 分支落后时 `git merge origin/main`，不 rebase 已推送的分支，不强推。
 
