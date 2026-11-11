@@ -14,6 +14,7 @@ on:
     branches: [main, staging-env]   # 11-03：加上测试分支，合并前就能看到浏览器测试结果
     paths:
       - '**.html'
+      - 'src/**'               # 11-11（ADR 0011）：页面 HTML 不再入库，改样式 / 拼接清单只动 src/ 下的 .css / .list，也要跑测试
       - '**.js'
       - '**.mjs'
       - '**.cjs'
@@ -34,6 +35,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '**.html'
+      - 'src/**'               # 11-11（ADR 0011）：页面 HTML 不再入库，改样式 / 拼接清单只动 src/ 下的 .css / .list，也要跑测试
       - '**.js'
       - '**.mjs'
       - '**.cjs'
