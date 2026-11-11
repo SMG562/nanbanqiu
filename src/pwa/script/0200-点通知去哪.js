@@ -4,6 +4,7 @@ const commHTML=()=>'';
 
 /* ---------- 发现 ---------- */
 function renderDisc(){
+  nbqIntroSync($('#introHost'),UI.tab==='disc');
   const lvT=F.levels.size?'UTR '+[...F.levels].sort().map(i=>UB[i][2]).join(' / '):'全部水平';
   $('#chips').innerHTML=`<button class="chip" data-a="loc"><svg><use href="#i-pin"/></svg>${esc(LOC.label)} · ${F.radius} km</button>
     <button class="chip${F.levels.size?' on':''}" data-a="filter">${lvT}</button>
@@ -57,7 +58,7 @@ function renderMap(items){
     const c=l[0];return `<div class="pin ${pk(l)}${sel?' sel':''}" data-pin="${c.id}"><i></i>${hm(c.start)}<span>${lvl(c)}</span></div>`};
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lng],12);
-      L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);
+      (()=>{const tl=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'});tileRetry(tl);tl.addTo(MAP.lf)})();
       L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap © CARTO').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();MAP.mk={};
     L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);

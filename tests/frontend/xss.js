@@ -5,6 +5,7 @@ const { chromium } = require('playwright'); const path = require('path');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 const ONLY = process.env.XSS_ONLY;   // 调试用：只跑一端
 (async () => {
+  if (ONLY && !['PWA', 'Web'].includes(ONLY)) { console.log('FAIL xss：XSS_ONLY 只能是 PWA 或 Web，收到 ' + ONLY + '（取错值会一端都不跑、却判通过）'); process.exit(1) }
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); let bad = 0, checks = 0; const leaks = new Map();
   for (const [p, vp] of [['PWA', { width: 390, height: 844 }], ['Web', { width: 1360, height: 860 }]]) {
     if (ONLY && ONLY !== p) continue;
