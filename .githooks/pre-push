@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 # 推送前护栏（11-03 事故后加）：往 main 推的提交一次删掉 10 个以上文件 = 几乎一定是出错了（比如测试临时仓库的提交泄漏），直接拦下。
 # 确实要这么做：git push --no-verify，并在提交信息里写原因。
+# 11-12：不改写远端历史（强推）、不删远端分支——按「结果」拦而不是按参数名拦：远端现有提交不是推送内容的祖先 = 改写历史，不管写成 -f / --force-with-lease / +分支。
+# 来历：我手写推送命令时带了强制参数（被工具权限拦下，没执行）。多层防线之一；确实需要：NBQ_REWRITE="原因" git push …（原因会打印，请同时写进提交信息 / PR）。
+# 本地缺远端那个提交（浅克隆没抓到）时验证不了，同样拦下：先 git fetch 再推。
+Z=0000000000000000000000000000000000000000
 while read -r lref lsha rref rsha; do
+  case "$rref" in refs/heads/*)
+    why=""
+    if [ "$lsha" = "$Z" ]; then why="删除远端分支 ${rref#refs/heads/}"
+    elif [ "$rsha" != "$Z" ] && [ "$rsha" != "$lsha" ]; then
+      git merge-base --is-ancestor "$rsha" "$lsha" 2>/dev/null || why="改写远端历史（远端 ${rsha:0:7} 不是要推的提交的祖先，或本地没有它：先 git fetch）：${rref#refs/heads/}"
+    fi
+    if [ -n "$why" ]; then
+      if [ -n "$NBQ_REWRITE" ]; then echo "改写 / 删除远端历史，原因：$NBQ_REWRITE（$why）"
+      else echo "推送被拦下：这次会$why。普通推送不会这样；确实需要请 NBQ_REWRITE=\"原因\" git push …"; exit 1; fi
+    fi ;;
+  esac
   [ "$rref" = "refs/heads/main" ] || continue
   [ "$lsha" = "0000000000000000000000000000000000000000" ] && continue
   base="$rsha"; [ "$base" = "0000000000000000000000000000000000000000" ] && continue
