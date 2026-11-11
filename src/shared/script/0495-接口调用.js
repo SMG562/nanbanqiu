@@ -139,7 +139,10 @@ const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
 // 清掉内存里的演示数据（真实模式启动时、退出登录时）。固定球局会在每次 housekeep 里自动补下一场，所以 SERIES 也要清；对话、邀约、点赞同理
-function nbqClear(){if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
+// 会话代数（11-09）：每次清空（退出登录 / 换人）加一。异步读取开始时记下，回来时不一样 = 期间退出过 → 丢掉结果，不套用
+//   （原来读到一半退出，回来后 nbqApply 又把 ME 设回去，等于自动登录回上一个人；读通知时 ME 已空，ME.id 报错）
+let NBQ_EPOCH=0;
+function nbqClear(){NBQ_EPOCH++;if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
   Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
   SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
@@ -225,7 +228,7 @@ async function nbqNpDone(n){
 
 /* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */
 // 重新读入（保持登录；读不到就保留现有数据）
-async function nbqRefresh(){const r=await nbqLoadAll(NBQ_NET);if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
+async function nbqRefresh(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);if(ep!==NBQ_EPOCH)return false;if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
 const NBQ_BUSY=new Set();   // 同一个操作进行中不重复提交（连点）
 // call: net => Promise<{ok,data,code,...}>；返回成功时的 data，失败返回 null（已提示）
 async function nbqWrite(key,call){
@@ -362,13 +365,14 @@ if(NBQ_NET){notify=function(){};notifyInv=function(){}}
 let NBQ_PULL_P=null;   // 正在读的那一次；别处同时要读时等它读完，不要直接返回「没有新的」（点推送打开通知页时曾因此看到空列表）
 async function nbqPullNotifs(){if(!NBQ_NET||!ME)return false;
   if(NBQ_PULL_P){try{await NBQ_PULL_P}catch(e){}return false}
-  NBQ_PULL_P=(async()=>{await nbqFlushReads();
-    const r=await NBQ_NET.get('/api/notifications');if(!r.ok)return false;
-    let rows=r.data.notifications||[];const invIds=()=>new Set(INVITES.map(i=>i.id));if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id)),invIds()))await nbqRefresh();
+  const ep=NBQ_EPOCH,gone=()=>ep!==NBQ_EPOCH||!ME;   // 期间退出过 / 换了人：不再往下做
+  NBQ_PULL_P=(async()=>{await nbqFlushReads();if(gone())return false;
+    const r=await NBQ_NET.get('/api/notifications');if(!r.ok||gone())return false;
+    let rows=r.data.notifications||[];const invIds=()=>new Set(INVITES.map(i=>i.id));if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id)),invIds())){await nbqRefresh();if(gone())return false}
     const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)),invIds());
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
-    if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
+    if(fresh){await nbqRefresh();if(gone())return false}   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
     nbqSnapSoon();if(typeof nrBadge==='function')nrBadge();return fresh})();
   try{return await NBQ_PULL_P}finally{NBQ_PULL_P=null}}
 // 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
