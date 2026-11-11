@@ -19,6 +19,8 @@
 - **评审**：一个工作日内给第一轮意见；改动让代码更健康就批准，风格问题用 `nit:` 不阻塞。
 - **大功能**：拆成「扩展库 → 界面（开关关）→ 打开开关」三个小 PR，每步合并后线上都安全。
 - **合并**：CI（tests-fast、tests）全绿 + 所有者审过后，由所有者用 `bash tools/pr_merge.sh <PR号>` 合并。
+- **分支归开它的那个会话或人**；别人只在 PR 上留言，或从它开叠加分支，不往别人的分支推（包括合 main）。功能 PR 不改 `进度记录.md`，进度写进提交信息或 Issue。（#179 E1 E4）
+- **平时不追 main**：合并前先 `bash tools/pr_merge.sh <号> --check`；只有它说「不能快进」才 `bash tools/sync_main.sh`，等一次 CI 后马上合并。main 多的只是文档、或文件和你不重叠时它会直接放行。（#179 E2）
 
 ## 分工边界（默认）
 | 区域 | 默认负责 |
@@ -31,7 +33,7 @@
 | 进度记录.md、业务规则.md | 仅所有者改；协作者把要记的写在 PR 描述里 |
 
 ## 容易冲突的东西
-- 三个生成的 HTML（南伴球_PWA / Web / 后台）：冲突时**只解决 `src/`**，然后重新 `node tools/build.mjs`，不要手动合并 HTML。
+- 三个页面 HTML（南伴球_PWA / Web / 后台）和 `_bundle.sql` 不入库（ADR 0011）：PR 里只会有 `src/`，冲突只解决 `src/`；本地要看 HTML 先 `node tools/build.mjs`。
 - `tests/spec/*.json`（actions、inputs、persist_allow）：PR 保持小，开 PR 前先 `git merge origin/main`。
 - 分支落后时 `git merge origin/main`，不 rebase 已推送的分支，不强推。
 

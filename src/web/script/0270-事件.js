@@ -45,6 +45,7 @@ document.addEventListener('click',e=>{
     case'commClose':UI.comm=false;renderComm();break;
     case'commOpen':openCommunity();break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':$('#umenu').classList.remove('show');need(()=>openCard(ME.id),'登录后查看你的球员卡');break;

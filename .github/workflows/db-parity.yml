@@ -1,7 +1,7 @@
 name: db-parity
 # 手动触发：核对 测试库 和 正式库 的结构是否一致（只读 select，不改库）。结果写在运行页的 Summary 里。
 # 需要在 GitHub → Settings → Secrets and variables → Actions 里由你自己填两个 Secret（连接串不经过 Claude）：
-#   NBQ_DB_URL_STAGING  仓库级 Secret：测试库 Session pooler 连接串
+#   NBQ_DB_URL_STAGING  测试库 Session pooler 连接串：staging 环境和 production 环境各放一份（11-11 核对：没有仓库级 Secret，避免分支里的工作流直接读到）
 #   NBQ_DB_URL_PROD     production 环境 Secret：正式库 Session pooler 连接串（免费版没有审批，靠上面的确认词拦截）
 on:
   workflow_dispatch:
@@ -18,8 +18,9 @@ jobs:
     environment: production   # 正式库连接串放在 production 环境的 Secret 里，只有 main 分支的工作流读得到
     steps:
       - name: 确认词
-        run: '[ "${{ inputs.confirm }}" = "production" ] || { echo "::error::确认词不对（要输入 production），已停止"; exit 1; }'
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        env: { CONFIRM: "${{ inputs.confirm }}" }   # 输入走环境变量，不直接拼进脚本（zizmor template-injection）
+        run: '[ "$CONFIRM" = "production" ] || { echo "::error::确认词不对（要输入 production），已停止"; exit 1; }'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: 缺 Secret 就明说
         env: { A: "${{ secrets.NBQ_DB_URL_STAGING }}", B: "${{ secrets.NBQ_DB_URL_PROD }}" }
         run: |

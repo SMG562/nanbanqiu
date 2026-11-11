@@ -49,7 +49,7 @@ let BASE = Date.now();
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
-    const until = async fn => { for (let n = 0; n < 20; n++) { if (await fn()) return; await pg.settle(300) } };
+    const until = fn => pg.until(fn, 20 * 300);   // 按真实时间等（pg.until，tests/lib/preload 第 9 条）
     const msgsText = () => pg.evaluate(() => (document.getElementById('cxMsgs') || {}).innerText || '');
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);

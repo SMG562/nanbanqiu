@@ -9,6 +9,7 @@ const U = c => `${c.repeat(8)}-${c.repeat(4)}-4${c.repeat(3)}-8${c.repeat(3)}-${
 const V1 = U('1'), ME = U('a'), HOST = U('b'), I1 = U('2'), I2 = U('3'), I3 = U('4'), I4 = U('5'), G3 = U('f');
 const card = (id, n, no) => ({ id, member_no: no, nickname: n, last_initial: 'W', utr: 5.5, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', seal_roll: 3, card_theme: 'court', played: 4, hosted: 1, kudos: 2, level: 'fresh', gone: false });
 const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }];
+process.env.TZ = process.env.NBQ_TZ || 'Australia/Melbourne';   // 11-09：下面 at() 在 Node 里按本机时区造时间，要和页面（preload 固定墨尔本）一致，否则在 UTC 机器上 09:00 变 20:00
 let BASE = Date.now();   // 页面的时钟（测试里页面时间是固定的），服务器的时间都以它为准
 const at = (k, h, m = 0) => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + k); d.setHours(h, m); return d.toISOString() };
 (async () => {
@@ -48,7 +49,7 @@ const at = (k, h, m = 0) => { const d = new Date(BASE); d.setHours(0, 0, 0, 0); 
     const toasts = () => pg.evaluate(() => document.querySelector('#toast') && document.querySelector('#toast').textContent);
     const inv1 = id => pg.evaluate(i => { const x = INVITES.find(v => v.id === i); return x && { status: x.status, o: x.o, t: x.t, e: x.e, no: x.no, noNote: x.noNote, counter: x.counter, game_id: x.game_id, venue_id: x.venue_id } }, id);
     const tap = async sel => { await pg.click(sel); await pg.settle(700) };
-    const until = async fn => { for (let n = 0; n < 20; n++) { if (await fn()) return; await pg.settle(300) } };   // 读入是异步的，等到页面反映出来再断言
+    const until = fn => pg.until(fn, 20 * 300);   // 按真实时间等（pg.until，tests/lib/preload 第 9 条）   // 读入是异步的，等到页面反映出来再断言
     const st = (id, v) => until(async () => { const x = await inv1(id); return x && x.status === v });
 
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(600);

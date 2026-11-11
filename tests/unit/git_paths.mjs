@@ -28,7 +28,8 @@ T('放：git status --porcelain 只判空', !risky('[ -z "$(git status --porcela
 
 // ② 真实脚本里没有漏网的
 const files = [];
-for (const d of ['tools', '.githooks']) for (const f of fs.readdirSync(path.join(ROOT, d))) { if (/\.(sh|mjs)$/.test(f) || d === '.githooks') files.push(path.join(d, f)) }
+for (const d of ['tools', '.githooks', 'tests/lib']) for (const f of fs.readdirSync(path.join(ROOT, d))) { if (/\.(sh|mjs)$/.test(f) || d === '.githooks') files.push(path.join(d, f)) }
+files.push('.claude/settings.json');   // 钩子命令写在这里（11-12 起也查）
 for (const f of fs.readdirSync(path.join(ROOT, '.github/workflows'))) if (/\.ya?ml$/.test(f)) files.push(path.join('.github/workflows', f));
 const bad = [];
 for (const f of files) { let s; try { s = fs.readFileSync(path.join(ROOT, f), 'utf8') } catch { continue } if (!s) continue;

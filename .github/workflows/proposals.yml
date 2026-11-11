@@ -1,0 +1,35 @@
+# 提案「24 小时无异议自动生效」（11-11，#167 第四节）：带「提案」标签的 Issue 写了「默认方案」后倒计时，无异议自动生效。
+#   规则和安全说明见 tools/proposal_tick.mjs。约 15 秒、只读 Issue 文字；只在默认分支版本上跑、只检出一个文件，不执行任何 Issue 里的内容。
+name: proposals
+
+on:
+  schedule:
+    - cron: '41 * * * *'            # 每小时对账（倒计时到点、漏掉的事件）
+  workflow_dispatch:
+  issues:
+    types: [opened, labeled, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: proposals
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    if: github.event_name != 'issue_comment' || !github.event.issue.pull_request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            tools/proposal_tick.mjs
+          sparse-checkout-cone-mode: false
+      - name: 对账提案
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: node tools/proposal_tick.mjs
