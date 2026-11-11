@@ -16,4 +16,6 @@ const src = fs.readFileSync(path.join(ROOT, 'tools/staging_sync.mjs'), 'utf8'), 
 T('脚本只用 force=false 更新引用（从不强推）', /'-F', 'force=false'/.test(src) && !/force=true|--force/.test(src));
 T('工作流只在推 main 时触发、权限最小（contents: write）、同一时间只跑一个', /branches: \[main\]/.test(wf) && /contents: write/.test(wf) && !/issues: write|pull-requests: write/.test(wf) && /concurrency:/.test(wf));
 T('工作流不检出代码以外的东西：只检出本脚本、不执行 PR 内容', /sparse-checkout:/.test(wf) && /tools\/staging_sync\.mjs/.test(wf) && !/pull_request/.test(wf));
+T('分叉 / 落后时任务变红（不能静默跳过）', /act === 'skip'[^\n]*process\.exit\(1\)/.test(src));
+T('CODEOWNERS 保护工作流和它运行的脚本', /^\/tools\/staging_sync\.mjs\s+@SMG562/m.test(fs.readFileSync(path.join(ROOT, '.github/CODEOWNERS'), 'utf8')));
 console.log(`staging_sync: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
