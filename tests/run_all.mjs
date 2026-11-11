@@ -55,7 +55,7 @@ const TIMES = QUICK ? ['2026-10-14T15:10:00+11:00'] : TIMES_FULL;
 const NOISE = /agent-proxy|connect_rejected|For details: curl|^\s*-\s+[a-z0-9.-]+:443|oldest \d+ not shown|^\s*$/;
 const COMMON_FORBID = [/^FAIL\b/m, /\b(TypeError|ReferenceError|SyntaxError|RangeError)\b/, /Cannot read propert/, /^\[ ['"`]/m, /errors \[ ['"]/, /Error: page\.|Timeout \d+ms exceeded/];
 const T = [];
-const add = (suite, id, cmd, o = {}) => T.push({ suite, id, cmd, timeout: o.timeout || 300, pass: o.pass || [], forbid: o.forbid ?? COMMON_FORBID, snapshot: !!o.snapshot, env: o.env || {}, needsExit0: o.needsExit0 ?? true, cwd: o.cwd, solo: !!o.solo, slow: !!o.slow });
+const add = (suite, id, cmd, o = {}) => { if (T.some(t => t.id === id)) throw new Error(`测试名重复：${id}（合并 main 后同一项被注册了两次？删掉多的那行）`); return T.push({ suite, id, cmd, timeout: o.timeout || 300, pass: o.pass || [], forbid: o.forbid ?? COMMON_FORBID, snapshot: !!o.snapshot, env: o.env || {}, needsExit0: o.needsExit0 ?? true, cwd: o.cwd, solo: !!o.solo, slow: !!o.slow }) };
 
 add('static', 'static/check', ['node', path.join(HERE, 'static/check.mjs'), DIR], { pass: [/\d+ passed, 0 failed/], timeout: 120 });
 // 前台两端的错误提示 = 接口规格的错误码表（4f-3）
@@ -177,6 +177,12 @@ add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HE
 add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
 for (const t of TIMES) for (const P of ['PWA', 'Web']) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', '') + '@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t, SMOKE_ONLY: P }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });   // 11-11：两端各一项并行（原来一项串行约 100s）
+// 11-11（#172 第 5 项）：tests/frontend/*.js 上面没登记的自动加入——新测试不用改这个文件。默认：输出有「<名>: N passed/通过, 0 failed/失败」或「PASS <名>」、超时 300 秒。
+//   要别的判定 / 超时 / 环境变量 / 拆成几项的，照旧在上面写 add()（写了就不再自动加）。tests/unit/shard ⑥ 守着：每个文件都有一项在跑。
+{ const used = new Set(T.flatMap(t => t.cmd).filter(c => typeof c === 'string' && path.dirname(c) === path.join(HERE, 'frontend')));
+  for (const f of fs.readdirSync(path.join(HERE, 'frontend')).filter(f => f.endsWith('.js')).sort()) if (!used.has(path.join(HERE, 'frontend', f))) {
+    const n = f.slice(0, -3), e = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    add('frontend', 'frontend/' + n, ['node', '-r', PRELOAD, path.join(HERE, 'frontend', f)], { pass: [new RegExp(`(^|\\n)(${e}: \\d+ (passed, 0 failed|通过, 0 失败)|PASS ${e})(?!\\w)`)], timeout: 300 }) } }
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
 add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑

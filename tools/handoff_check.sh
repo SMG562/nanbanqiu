@@ -17,5 +17,6 @@ nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft
 node tools/branch_prune.mjs --summary 2>/dev/null || echo "── 分支：读不到（gh 未登录或 git < 2.38）"
 echo "── 之后合并的 PR："; $R api "repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=10" --jq ".[]|select(.merged_at!=null and .merged_at>\"$when\")|\"  #\(.number) \(.title)（\(.merged_at)）\"" 2>/dev/null | grep . || echo "  无"
 echo "── 还在跑 / 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status!="completed" or (.conclusion!="success" and .conclusion!="skipped"))|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.status) \(.conclusion // "")"' 2>/dev/null | grep . || echo "  无"
+echo "── 开着的 PR 之间同改的文件（要串行：先合一个，另一个再 sync_main；开工前 node tools/overlap_check.mjs 查自己的）："; node tools/overlap_check.mjs --prs 2>/dev/null || echo "  读不到"
 echo "── 近 7 天协作规则 / 合并闸门的变化（仅供知悉，不代表记录过时；规则以仓库文件为准）："; git log origin/main --since='7 days ago' --format='  %h %cs %s' -- CLAUDE.md CONTRIBUTING.md 协作实践.md tools/pr_merge.sh tools/merge_drift.sh tools/sync_main.sh 2>/dev/null | head -5 | grep . || echo "  无"
 echo "（任何一节不是「无」：记录可能过时——先把这些写进进度记录，再告诉用户「记录比实际落后，以下是我根据 git / PR / CI 补上的」。）"

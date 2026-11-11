@@ -44,6 +44,13 @@ export function classify(p, now = Date.now()) {
   return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核'), `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
 }
 
+// 11-12（#185 事故）：PR 草稿 / Ready 在 FLAP_MIN 分钟内被改 ≥ 2 次 = 有两个会话在抢状态。events = [{ event, actor, at }]，返回 null 或 { n, actors, key }
+export const FLAP_MIN = 10;
+export function flapOf(events, now = Date.now()) {
+  const ch = events.filter(e => /^(ready_for_review|convert_to_draft)$/.test(e.event) && now - Date.parse(e.at) <= FLAP_MIN * 6e4).sort((a, b) => a.at < b.at ? -1 : 1);
+  return ch.length < 2 ? null : { n: ch.length, actors: [...new Set(ch.map(e => e.actor))], key: `nbq-flap:${ch[ch.length - 1].at}` };
+}
+export const flapText = (p, f) => `<!-- ${f.key} -->\n⚠️ 这个 PR 的草稿 / Ready 状态在 ${FLAP_MIN} 分钟内被改了 ${f.n} 次（账号：${f.actors.join('、')}）。多半是两个会话在抢状态。\n规矩（docs/协作分工.md §1b）：**状态只由这个 PR 分支（\`${p.branch}\`）上的会话改**，用 \`bash tools/pr_state.sh ${p.number} ready|draft\`；别的会话只在这里留言【请转草稿】/【请转 Ready】+ 理由。排队顺序不靠改草稿表达，由集成者按看板安排合并。现在状态是「${p.draft ? '草稿' : 'Ready'}」，请所属会话确认后再动，其他会话先别改。`;
 const h6 = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 6);
 export const pingKey = (p, c) => `nbq-ball:${c.ball}:${h6(c.reason)}:${p.sha.slice(0, 7)}`;
 export const isoWeek = t => { const d = new Date(t); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const y = d.getUTCFullYear(); return `${y}-W${Math.ceil(((d - Date.UTC(y, 0, 1)) / D + 1) / 7)}` };
@@ -67,10 +74,9 @@ export function render(rows, now = Date.now()) {
   return `${GUIDE}\n\n**在制品**：${wip} / ${WIP_LIMIT}${wip > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
 }
 
-function main() {
-  const dry = process.argv.includes('--dry'), R = process.env.GITHUB_REPOSITORY || OWNER + '/nanbanqiu', now = Date.now();
-  const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();
-  const post = (n, body) => dry ? console.log(`[评论 #${n}] ${body.split('\n').slice(1, 3).join(' ')}`) : gh('-X', 'POST', `repos/${R}/issues/${n}/comments`, '-f', `body=${body}`);
+const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();
+// 取开着的每个 PR 的状态（CI、复核、级别、落后 main 几个提交）并分类 → [{ p, c }]；看板和 tools/review_queue.mjs 共用（11-11：自动复核巡检）
+export function gather(R, now = Date.now()) {
   const CO = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CODEOWNERS'), 'utf8');
   const rows = [];
   for (const x of list(`repos/${R}/pulls?state=open&per_page=100`)) {
@@ -80,13 +86,24 @@ function main() {
     const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? 'pending' : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
     p.review = reviewState(comments, p.sha); rows.push({ p, c: classify(p, now) });
   }
+  return rows;
+}
+function main() {
+  const dry = process.argv.includes('--dry'), R = process.env.GITHUB_REPOSITORY || OWNER + '/nanbanqiu', now = Date.now();
+  const post = (n, body) => dry ? console.log(`[评论 #${n}] ${body.split('\n').slice(1, 3).join(' ')}`) : gh('-X', 'POST', `repos/${R}/issues/${n}/comments`, '-f', `body=${body}`);
+  const rows = gather(R, now);
   const board = render(rows, now); console.log(board);
   for (const { p, c } of rows) {
     const want = labelsFor(p.labels, c.ball);
     if (want.slice().sort().join() !== p.labels.slice().sort().join()) { console.log(`[标签 #${p.number}] ${BALL[c.ball]}`); if (!dry) for (const b of Object.keys(BALL)) { try { gh('-X', 'POST', `repos/${R}/labels`, '-f', `name=${BALL[b]}`, '-f', `color=${COLOR[b]}`) } catch { } } if (!dry) gh('-X', 'PUT', `repos/${R}/issues/${p.number}/labels`, ...want.flatMap(l => ['-f', `labels[]=${l}`])) }
+    // 状态抖动告警（只查最近 1 小时动过的 PR，省 API）：同一次抖动只提醒一次（按最后一次改状态的时间去重）
+    if (now - Date.parse(p.updated) < 36e5) {
+      const tl = list(`repos/${R}/issues/${p.number}/timeline?per_page=100`).map(e => ({ event: e.event, actor: e.actor?.login || '', at: e.created_at })), f = flapOf(tl, now);
+      if (f && !already(p.comments, f.key)) post(p.number, flapText(p, f));
+    }
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));

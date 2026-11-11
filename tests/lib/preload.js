@@ -12,6 +12,7 @@
  *      requestAnimationFrame、在那之前会结束的动画（含 Shadow DOM 里的）都结束了，连续两次检查（50 毫秒一次）都这样就继续。
  *      用来代替「点完等固定 N 毫秒」：页面早就安静了就不用干等；一直不安静（比如 rAF 循环）就和原来一样等满。
  *      等待时间之后才到期的定时器、才结束的动画（场边 5 秒一条的新动态、横幅 4 秒后收起……）不算——原来的固定等待本来也等不到它们。
+ *   9. 等条件成立：page.until(条件, 最多毫秒)——按真实时间等。轮询等待只用它，不要拿 settle 当间隔（页面空闲时 settle 立刻返回）。
  */
 const path = require('path');
 const fs = require('fs');
@@ -84,6 +85,9 @@ Module._load = function (request, parent, isMain) {
       catch (e) { if (process.env.NBQ_SETTLE_DEBUG) console.log('[settle 等满]', JSON.stringify(await page.evaluate(() => window.__nbqWhy && window.__nbqWhy(window.__nbqDL + 1e9)).catch(() => 'nav'))); const left = cap - (Date.now() - t0); if (left > 0 && !page.isClosed()) await page.waitForTimeout(left) }   // 超时 = 等满；页面跳转等其他情况：把剩下的时间等完
       SETTLE.n++; SETTLE.cap += cap; SETTLE.used += Date.now() - t0;
     };
+    // 9. 等条件成立（11-10）：page.until(条件, 最多毫秒) 按真实时间等，每 100 毫秒查一次，成立返回 true、到时返回 false。
+    //    不要用 settle 当轮询间隔：页面空闲时 settle 会立刻返回，「最多 20 轮」可能 1 秒不到就判「没到」（#141 根因；7 个测试都有过这个写法，tests/unit/until_guard 拦）
+    page.until = async (fn, ms = 6000) => { const t0 = Date.now(); for (;;) { try { if (await fn()) return true } catch (_) { } if (Date.now() - t0 >= ms) return false; await new Promise(r => setTimeout(r, 100)) } };
     return page;
   };
   const wrapCtx = ctx => {
