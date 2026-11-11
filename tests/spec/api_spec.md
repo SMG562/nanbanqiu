@@ -128,6 +128,10 @@
 | invite_self | 422 | 不能约自己 | 数据库 |
 | invite_closed | 403 | TA 暂时不接受邀约 | 数据库 |
 | invite_played_only | 403 | TA 只接受一起打过球的球友邀约 | 数据库 |
+| buddy_self | 422 | 这是你自己的码 | 数据库（#110） |
+| buddy_limit | 429 | 暂时无法发送，过段时间再试吧（30 天内被同一人忽略 2 次，或 24 小时内已发 10 个；同一个码，不泄露被忽略过） | 数据库（#110） |
+| buddy_request_ended | 409 | 这条申请已经处理过或失效了 | 数据库（#110） |
+| card_lookup_limit | 429 | 查得太频繁了，过一会儿再试 | 数据库 rate_rules card_no（#110） |
 | invite_daily_limit | 429 | 今天已经发出 3 个邀约了，明天再约吧 | 数据库 |
 | invite_new_limit | 429 | 今天已经约了 2 位新球友，明天再约吧 | 数据库 |
 | invite_declined_twice | 403 | 对方最近不太方便，过段时间再约吧 | 数据库 |
@@ -206,8 +210,8 @@
 ## 3. 我的资料
 
 ### PATCH /api/me · 直接 update users（行级权限只允许改资料类的列）
-- 可改：nickname（1–20 字）、last_initial、utr（1.00–16.50）、utr_estimated、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
-- 不可改：status、level、member_no、手机号等 → 403 `forbidden`
+- 可改：nickname（1–20 字）、last_initial、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
+- 不可改：status、level、member_no、手机号、utr / utr_estimated（11-07 起只走 PUT /api/me/utr）等 → 403 `forbidden`
 - 频率：改昵称 30 天 2 次 → 429 `nickname_limit`（注册 24 小时内不计）
 - 昵称规则（前台 NICK_BAD 与数据库 nbq_nickname_problem 同一套）：不能有链接、联系方式（8 位以上数字、微信 / vx / WhatsApp 等说法）、「官方 / 南伴球 / 客服 / 管理员 / 系统 / admin」等字样、不可见字符、同一个字连续 5 次 → 422 `nickname_not_allowed`（detail = link / contact / impersonate / invisible / repeat）
 - 事件：card_customize / invite_setting / email_settings_save / analytics_off / analytics_on（前端，按改的内容）
@@ -232,6 +236,14 @@
 - 写：`[{brand, series}, …]` 整组替换，数组顺序 = slot（1 = 主力），最多 3 把；brand 为空 / 省略 = 「其他」；返回 `[{slot, brand, series}]`
 - 清洗：去控制字符、连续空白并成一个、去首尾空白（含全角空格）；同一把（品牌 + 系列，不分大小写）重复 → 失败
 - 校验（将来球员卡公开，一次到位）：各 ≤ 30 字、系列必填、拒绝 http / www、@ / ＠、连续 6 位以上数字 → 422 invalid，detail = `rackets`（不是数组 / 超过 3 把 / 元素不是对象）· `brand` · `series` · `duplicate`；失败时原来的不丢
+- 产品库（#60 A4，ADR 0009）：`GET /api/rackets/catalog` 不用登录，`{catalog:[{id, brand, series}]}` 只给 active，缓存 1 小时。PUT 的元素可以是 `{catalog_id}`（只转 id；隐藏的只有本来就有的人能留、合并掉的跟到新条目，不合法 → 422 detail `catalog_id`）或 `{brand, series}`（按品牌 + 系列 / 整串 / 别名不分大小写自动归到产品库，名字换成产品库的写法）。返回和 GET 都带 `catalog_id`（自由文字归不上为 null）
+
+### GET /api/me/utr · PUT /api/me/utr `{utr, estimated, profile?}` · `api_set_utr(p jsonb)` / `api_my_utr()`（#101）
+- 返回 `{utr:{utr, estimated, profile, updated_at}}`（GET 和 PUT 一样）；updated_at 没确认过 = 注册时间；接口层只转发这三个字段，类型不对 → 422 invalid
+- 两种：正式（estimated = false）/ 自评（estimated = true，前台显示 ≈）；utr 1–16.5、最多两位小数，否则 422 invalid detail=`utr`；estimated 不是布尔 → detail=`estimated`
+- profile：不传 = 不动；null / 空串 = 清掉；纯数字（4–12 位）或 UTR 主页链接（utrsports.net / universaltennis.com 的 `/profiles/<数字>`）→ 只存数字；其他 → 422 invalid detail=`profile`
+- 数值或类型变了：记一行 `utr_changes`（只许本人读）+ 频率 24 小时 5 次 → 429 `rate_limited`；只改链接、原样再确认只刷新 updated_at，不计次数
+- 隐私：profile 只在 users（本人可读），public_profiles 不加；注销匿名化时清掉 profile 和历史（触发器 `trg_users_utr_wipe`）
 
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks
@@ -372,6 +384,22 @@
 
 ### 定时任务：邀约失效（4g）
 - 每 15 分钟：pending / counter 且 48 小时到期或已过开打时间 → expired，通知等待回复的一方 invite_expired
+
+### 球友（#110 PR-A，迁移 20261108_buddies）：当面扫码加球友
+- 关系只有两种来源：一起打过（`nbq_played_together` 实时算，不落表）· 当面扫码 + 对方确认（`buddies`，`user_a < user_b` 一对一行）。没有远程申请入口（前台只在扫码落地页提供）
+- `GET /api/buddies` · `api_buddies()` → `{buddies:[{user_id, since}], incoming:[{id, from_user, created_at, expires_at}], outgoing:[{id, to_user, created_at, expires_at}], profiles:{id: 球员卡}}`（profiles 由接口层按这三组里的人取，和 /api/invites 一样）；去掉封禁 / 注销的人和有屏蔽关系的人；outgoing 含被忽略但未失效的（不给状态）
+- `POST /api/buddies/requests {to_user}` · `api_buddy_request(p_to)` → `{status:'pending', id}` 或 `{status:'buddies'}`。检查（顺序）：账号不是正常状态 403 `account_*`（暂停到期按正常）→ 扫自己 422 `buddy_self` → 对方不存在 / 封禁 / 注销 404 → 屏蔽 403 `blocked` → 已是球友 → buddies → 对方已在等我确认 → 直接成为球友（通知对方 buddy_accepted）→ 24 小时内已有一条（含被忽略的）→ 返回那条、不重复提醒 → 30 天内被同一人忽略 2 次或 24 小时内已发 10 个 429 `buddy_limit` → 新建，通知对方 buddy_request
+- `POST /api/buddies/requests/:id/accept | ignore` · `api_buddy_respond(p_id, 'accept'|'ignore')` → `{status:'buddies'|'ignored'}`；只有被扫的人能处理（别人 404）；已处理 / 超过 24 小时 409 `buddy_request_ended`；确认通知发起人 buddy_accepted，忽略不通知任何人
+- `DELETE /api/buddies/:uid` · `api_buddy_remove(p_user)`：删除，不通知；一起打过的关系不受影响
+- 表权限：`buddy_requests` 前台不能读写（防止看到 ignored）；`buddies` 只能读自己相关的行，写只走函数
+- 推送：buddy_request「X 想加你为球友 / 点开确认」、buddy_accepted「你和 X 成为球友了」，都属于 ANYTIME（当面扫码，立刻推）
+- 来源 `source`：`POST /api/buddies/requests {to_user, source?}`，qr（球员卡背面，默认）/ link（分享图、链接）/ other，别的值 422 invalid detail=`source`；确认方式 `accepted_via`：confirm / mutual（只在后台统计里用）
+- 风控：忽略时写 `risk_events(kind='buddy_ignored', user_id=发起人, ref=忽略的人)`；规则 buddy_ignored = 7 天内被 ≥3 个不同的人忽略，权重 10
+- 后台 `GET /admin/api/buddies/stats?from&to`（默认最近 30 天，跨度 ≤ 366 天，不合法 422）· `buddy_stats(p_from, p_to, p_cities)`：权限 page.view（只读角色只有汇总数字）；限城市的管理员只算自己城市；返回 requests / senders / receivers / accepted_confirm / accepted_mutual / ignored / expired（pending 且过了 24 小时）/ pending / from_link / accept_rate（成了 ÷ 已有结果，没有 = null）/ median_accept_min（只算对方确认的）/ new_pairs / total_pairs
+- 埋点（前台两端发，PR-B 起）：buddy_scan_view / buddy_request_send / buddy_request_open / buddy_respond / buddy_remove / buddy_list_open（见 events_spec.md）
+- 注销满 30 天匿名化时删除这个人的球友关系和申请（job_anonymize_deleted）
+- `GET /api/players/no/:no` · `api_card_by_no(p_no)`：扫码 / 链接落地按球员编号取卡片（原来只能在已读进内存的人里找，扫陌生人的码打不开）；必须登录；限频每小时 60、每天 300 次 → 429 `card_lookup_limit`；封禁 / 注销 / 有屏蔽关系看不到 → 404；返回 `{player}`，和 `GET /api/players/:id` 同一份卡片
+- 本期不做（PR-A2 起）：球友 = 一起打过的权限（约 / 私信）、api_export_me 带上球友（并入 #71）
 
 ---
 

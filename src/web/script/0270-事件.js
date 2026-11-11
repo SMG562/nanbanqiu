@@ -45,6 +45,7 @@ document.addEventListener('click',e=>{
     case'commClose':UI.comm=false;renderComm();break;
     case'commOpen':openCommunity();break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':$('#umenu').classList.remove('show');need(()=>openCard(ME.id),'登录后查看你的球员卡');break;
@@ -85,6 +86,7 @@ document.addEventListener('click',e=>{
     case'enablePush':enablePush();break;
     case'editClubs':openClubs();break;
     case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）
+    case'utOpen':case'utMode':case'utEst':case'utSave':utAct(a);break;   // 我的 UTR（0499）
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeModal();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'logout':sbaLogout();ME=null;UI.sel=null;$('#umenu').classList.remove('show');toast('已退出登录');render();break;

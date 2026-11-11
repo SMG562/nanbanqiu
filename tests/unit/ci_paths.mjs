@@ -42,7 +42,8 @@ T('通配对照：一次推送里图标 + 业务代码，只要有一个触发�
 
 // ② 分类：每个已跟踪文件，要么触发，要么在不测名单里
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));   // 开发规矩：git 的测试去掉 GIT_* 变量
-const ls = spawnSync('git', ['ls-files', '-z'], { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 64 << 20 });
+// 已跟踪 + 还没 add 的新文件（-c -o --exclude-standard，不含 .gitignore 忽略的）：11-10 新加的 .gitattributes 没 add 就跑检查，只看已跟踪文件 → 漏掉，CI 才红
+const ls = spawnSync('git', ['ls-files', '-z', '-c', '-o', '--exclude-standard'], { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 64 << 20 });
 const FILES = (ls.stdout || '').split('\0').filter(Boolean);
 T('能列出已跟踪文件', ls.status === 0 && FILES.length > 100, { status: ls.status, n: FILES.length });
 const NO_TEST = [
@@ -77,7 +78,7 @@ for (const dir of EXC) {
 
 // ④ 关键文件一定触发（存在才查）：依赖、部署配置、海报清单、数据库结构、流程脚本、提交前检查
 const MUST = ['package.json', 'package-lock.json', 'wrangler.jsonc', 'notify-worker/wrangler.jsonc', 'marketing/posters.json', 'marketing/lib.py', 'marketing/build.py',
-  'schema.sql', 'manifest.webmanifest', 'sw.js', 'tests/run_all.mjs', 'tools/gate.sh', 'tools/build.mjs', '.githooks/pre-commit', '.githooks/pre-push'];
+  'schema.sql', 'manifest.webmanifest', 'sw.js', 'tests/run_all.mjs', 'tools/gate.sh', 'tools/build.mjs', '.githooks/pre-commit', '.githooks/pre-push', '.gitattributes'];
 const missing = MUST.filter(f => FILES.includes(f) && !(triggers(FAST, f) && triggers(FULL, f)));
 T('关键文件改动一定触发 tests-fast 和 tests', missing.length === 0, missing);
 
@@ -91,7 +92,7 @@ T('pr_merge.sh：判断「没有运行记录」用 null* 前缀匹配，不用 =
 { const { execSync } = await import('child_process');
   const cond = L => execSync(`L='${L}'; W=tests-fast; if [ "$W" = tests-fast ] && case "$L" in null*|"") true;; *) false;; esac; then echo yes; else echo no; fi`, { shell: '/bin/bash' }).toString().trim();
   T('pr_merge.sh 的判断：「null  null」「null」「」都算没有记录；「completed success 123」不算', cond('null  null') === 'yes' && cond('null') === 'yes' && cond('') === 'yes' && cond('completed success 123') === 'no' && cond('in_progress  123') === 'no') }
-T('复用只按完全相同的提交号查（head_sha），只认通过的运行，不认重拍截图基准的运行', reuse.includes('head_sha=$SHA') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
+T('复用按提交号（head_sha）或「内容 tree 完全相同」查，只认通过的运行，不认重拍截图基准的运行（ADR 0010）', reuse.includes('head_sha=$1') && reuse.includes('find_id "$SHA"') && reuse.includes('.commit.tree.sha') && reuse.includes('conclusion==\\"success\\"') && reuse.includes('visual-baseline'));
 const testIf = /needs: reuse\n\s+if: \$\{\{ !cancelled\(\) && needs.reuse.outputs.hit != '1'( && !\(github.event_name == 'pull_request' && github.event.pull_request.draft\))? \}\}/;
 T('两个工作流都只在「推到 main」时开复用检查；没检查 / 检查出错照常测试，只有命中才跳过', /reuse:[^\n]*\n\s+if: github.event_name == 'push'\n/.test(tests) && /reuse:[^\n]*\n\s+if: github.ref == 'refs\/heads\/main' && github.event_name == 'push'\n/.test(fastY)
   && testIf.test(tests) && testIf.test(fastY));

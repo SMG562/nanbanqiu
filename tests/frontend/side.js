@@ -20,12 +20,12 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const bells = [];
   for (const t of ['disc', 'mine', 'me']) {
     await pg.click(`#tabbar [data-tab="${t}"]`); await W(200);
-    const r = await pg.evaluate(t => { const x = document.querySelector(`#scr-${t} .tbell`), r = x && x.getBoundingClientRect(), main = document.querySelector('#nBadge'), bd = x && x.querySelector('.badge');
+    const r = await pg.evaluate(t => { const x = document.querySelector(`#scr-${t} .tbell[data-tab="notif"]`), r = x && x.getBoundingClientRect(), main = document.querySelector('#nBadge'), bd = x && x.querySelector('.badge');
       return { vis: !!r && r.width > 0 && r.right > 300 && r.top < 140, same: !!bd && bd.hidden === main.hidden && bd.textContent === main.textContent, n: main.textContent } }, t);
     T(`${t}：右上角有消息，红点数字一致`, r.vis && r.same && +r.n > 0, r);
-    bells.push(await pg.evaluate(t => { const d = document.querySelector('#dev').getBoundingClientRect(), x = document.querySelector(`#scr-${t} .tbell`), r = x.getBoundingClientRect(), s = x.querySelector('svg').getBoundingClientRect(); return [r.left - d.left, r.top - d.top, r.width, r.height, s.left - d.left, s.top - d.top, s.width].map(Math.round).join(',') }, t));
+    bells.push(await pg.evaluate(t => { const d = document.querySelector('#dev').getBoundingClientRect(), x = document.querySelector(`#scr-${t} .tbell[data-tab="notif"]`), r = x.getBoundingClientRect(), s = x.querySelector('svg').getBoundingClientRect(); return [r.left - d.left, r.top - d.top, r.width, r.height, s.left - d.left, s.top - d.top, s.width].map(Math.round).join(',') }, t));
   }
-  await pg.click('#tabbar [data-tab="mine"]'); await W(150); await pg.click('#scr-mine .tbell'); await W(250);
+  await pg.click('#tabbar [data-tab="mine"]'); await W(150); await pg.click('#scr-mine .tbell[data-tab="notif"]'); await W(250);
   T('点右上角消息 → 消息页', await E(() => UI.tab === 'notif' && !document.querySelector('#scr-notif').hidden));
   await pg.click('#scr-notif [data-a="nBack"]'); await W(250);
   T('消息页返回 → 回到刚才的页面（球局）', await E(() => UI.tab === 'mine'));

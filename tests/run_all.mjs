@@ -11,6 +11,8 @@
  *   --fast                跳过最慢的几项（pg/perf@一年 约 9 分钟）；收尾时不加
  *   --jobs=N              同时跑 N 项（默认 = CPU 数，最多 4）；性能测试总是单独跑，不和别的抢 CPU
  *   --changed[=<ref>]     按改动的文件挑相关测试（规则在 tests/lib/select.mjs）：不带 ref = 没提交的改动 + 新文件；带 ref = 和它的差别（如 origin/main）。隐含 --quick（不含回归和全部时间点）；没有对应规则的文件会列出来
+ *   --shard=i/n           把这一档平均分成 n 份、只跑第 i 份（CI 用：n 台机器并行；11-11）。按 tests/spec/test_weights.json 的用时做确定性的均衡分配（没登记的按默认用时），
+ *                         同样的参数、同样的测试清单 → 每台机器算出同样的分法；所有份合起来 = 不分片的全部，互不重复（tests/unit/shard 守着）
  *   --failed              只重跑「失败过、之后还没通过」的项（名单 tests/reports/failed.json，每次跑完自动更新）；和 --changed 一起用 = 两者的并集
  * 环境变量：
  *   NBQ_FAILED_FILE  失败名单的位置（默认 tests/reports/failed.json；单元测试用）
@@ -38,6 +40,11 @@ const STAMP = new Date().toLocaleString('sv-SE', { timeZone: 'Australia/Melbourn
 const OUT = path.join(HERE, 'reports', STAMP), LOGS = path.join(OUT, 'logs'), WORK = path.join(os.tmpdir(), 'nbq-work-' + STAMP);
 const PRELOAD = path.join(HERE, 'lib', 'preload.js');
 const SPEC = path.join(HERE, 'spec', 'events_spec.md');
+// ---------- 生成文件（ADR 0011）：三个页面 HTML 和 _bundle.sql 不入库，入口先按 src / 迁移现生成（本地、CI 一致；单个测试直接 node 跑之前也要先生成一次）----------
+if (!args.list) for (const s of ['build.mjs', 'migrate_bundle.mjs']) {
+  try { execFileSync(process.execPath, [path.join(DIR, 'tools', s)], { stdio: 'pipe', encoding: 'utf8' }) }
+  catch (e) { console.error(`生成文件失败：node tools/${s}\n${e.stdout || ''}${e.stderr || ''}`); process.exit(1) }
+}
 
 // ---------- 时间点：覆盖早上、白天、深夜（夜间免打扰）、凌晨、周三晚上（每周重复的局刚过） ----------
 const TIMES_FULL = ['2026-10-14T07:50:00+11:00', '2026-10-14T15:10:00+11:00', '2026-10-14T22:55:00+11:00', '2026-10-17T23:40:00+11:00', '2026-10-18T05:30:00+11:00'];
@@ -94,6 +101,10 @@ add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { p
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/buddies', ['node', path.join(HERE, 'pg/buddies.mjs')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-A
+add('pg', 'pg/admin_buddies', ['node', path.join(HERE, 'pg/admin_buddies.mjs')], { pass: [/admin_buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友统计 #110 PR-A3
+add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
+add('pg', 'pg/admin_utr', ['node', path.join(HERE, 'pg/admin_utr.mjs')], { pass: [/admin_utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR 后台 #101
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/e2e_admin_login', ['node', path.join(HERE, 'e2e/admin_login.mjs')], { pass: [/admin_login: \d+ 通过, 0 失败/], timeout: 600 });   // #27 B1 后台真登录 + 真模式外壳（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）；放 frontend 档：CI 的浏览器档才有 Chromium + PostgreSQL
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
@@ -116,10 +127,14 @@ add('pg', 'pg/perf@对照', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { N
 if (!QUICK) add('pg', 'pg/perf@一年', ['node', path.join(HERE, 'pg/perf.mjs')], { env: { NBQ_PERF_SCALE: '1' }, pass: [/\d+ passed, 0 failed/], timeout: 2400, solo: true, slow: true });
 add('frontend', 'frontend/verify', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify.js')], { pass: [/\d+ passed, 0 failed/], timeout: 1200 });
 add('frontend', 'frontend/verify2', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/verify2.js')], { pass: [/\d+ passed, 0 failed/], timeout: 900 });
+add('frontend', 'frontend/web_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_me.js')], { pass: [/PASS web_me/], timeout: 300 });   // 网页端「我的」标签 #134 P1
+add('frontend', 'frontend/pwa_me', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pwa_me.js')], { pass: [/PASS pwa_me/], timeout: 300 });   // 手机端设置子页 #134 P2
 add('frontend', 'frontend/pages', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/pages.js')], { pass: [/PASS pages/], timeout: 300 });
 add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 场边接入
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
+add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
+add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
@@ -140,8 +155,9 @@ add('frontend', 'frontend/account', ['node', '-r', PRELOAD, path.join(HERE, 'fro
 add('frontend', 'frontend/report', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/report.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('frontend', 'frontend/notif_open', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/notif_open.js')], { pass: [/\d+ passed, 0 failed/], timeout: 400 });
 add('frontend', 'frontend/dst', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dst.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
-add('frontend', 'frontend/xss', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { pass: [/PASS xss/], timeout: 900 });
+for (const P of ['PWA', 'Web']) add('frontend', 'frontend/xss@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/xss.js')], { env: { XSS_ONLY: P }, pass: [/PASS xss/], timeout: 900 });   // 11-11：两端互不依赖，拆成两项并行（原来一项串行约 140s）
 add('frontend', 'frontend/csp', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/csp.js')], { pass: [/PASS csp/], timeout: 600 });
+add('frontend', 'frontend/vendor_load', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/vendor_load.js')], { pass: [/PASS vendor_load/], timeout: 300 });
 add('frontend', 'frontend/cities', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/cities.js')], { pass: [/cities: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/sb_login', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sb_login.js')], { pass: [/sb_login: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/real_data', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_data.js')], { pass: [/real_data: \d+ 通过, 0 失败/], timeout: 600 });
@@ -156,8 +172,8 @@ add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
-for (const t of TIMES) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', ''), ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
-  { env: { NBQ_TS: t }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });
+for (const t of TIMES) for (const P of ['PWA', 'Web']) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', '') + '@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
+  { env: { NBQ_TS: t, SMOKE_ONLY: P }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });   // 11-11：两端各一项并行（原来一项串行约 100s）
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
 add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
@@ -203,7 +219,27 @@ if (args.changed) {
 if (args.failed) FAILED = readFailed();
 const SEL = !!(CHG || FAILED);
 const picked = t => (CHG && (t.suite === 'regression' ? CHG.reg.includes(t.id) : (CHG.all || matches(t.id, CHG.tokens)))) || (FAILED && FAILED.includes(t.id));
-const LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+// ---------- 分片（11-11）：n 台机器各跑一份，等待时间从「全部之和」降到「最大的一份」 ----------
+//   做法：按预估用时从大到小，每次放进当前总用时最小的那一份（LPT，最坏不超过最优的 4/3）；用时相同按名字排，保证每台机器算出同一结果。
+//   预估用时：tests/spec/test_weights.json（秒；只登记慢的，没登记的按 DEFAULT_W）；刷新办法见 开发规矩.md「11-11 · 测试分片」。
+const SHARD = args.shard === undefined ? null : (m => m && +m[1] >= 1 && +m[1] <= +m[2] ? { i: +m[1], n: +m[2] } : null)(String(args.shard).match(/^(\d+)\/(\d+)$/));
+if (args.shard !== undefined && !SHARD) { console.error('--shard=i/n 不合法（要 1 ≤ i ≤ n，如 --shard=2/3）：' + args.shard); process.exit(2) }
+const DEFAULT_W = 15;
+let WEIGHTS = {}; try { WEIGHTS = JSON.parse(fs.readFileSync(path.join(HERE, 'spec', 'test_weights.json'), 'utf8')).seconds || {} } catch { }
+const weightOf = t => WEIGHTS[t.id] ?? DEFAULT_W;
+function planShards(list, n) {
+  const bins = Array.from({ length: n }, () => ({ w: 0, ids: new Set() }));
+  for (const t of [...list].sort((a, b) => weightOf(b) - weightOf(a) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    const b = bins.reduce((m, x) => (x.w < m.w ? x : m)); b.w += weightOf(t); b.ids.add(t.id);
+  }
+  return bins;
+}
+let LIST = T.filter(t => (!SEL || picked(t)) && (!ONLY || ONLY.includes(t.suite)) && !(SKIP && SKIP.includes(t.suite)) && (!GREP || GREP.some(g => t.id.includes(g))) && !(FAST && t.slow));
+if (SHARD) {
+  const bins = planShards(LIST, SHARD.n), mine = bins[SHARD.i - 1];
+  LIST = LIST.filter(t => mine.ids.has(t.id)).sort((a, b) => weightOf(b) - weightOf(a));   // 大的先开跑，最后留小的补缝，机器内部也不拖尾
+  console.log(`--shard=${SHARD.i}/${SHARD.n}：这一份 ${LIST.length} 项，预估 ${mine.w}s（各份预估：${bins.map(b => b.w + 's/' + b.ids.size + '项').join('、')}）`);
+}
 if (CHG) {
   console.log(`--changed${args.changed === true ? '' : '=' + args.changed}：${CHG.n} 个文件有改动` + (CHG.all ? '，改了测试入口 / 公共库 → 跑整个快速档' : `，选了：${CHG.tokens.join(' ')}`) + (CHG.reg.length ? `；回归（改到的函数 / id 被它们用到）：${CHG.reg.join(' ')}` : ''));
   if (CHG.unmatched.length) console.log(`  没有对应规则（只跑基础的 static + unit；该有规则就补进 tests/lib/select.mjs）：${CHG.unmatched.join(' ')}`);
@@ -247,10 +283,15 @@ if (LIST.some(t => t.suite === 'pg')) {
   const base = '/usr/lib/postgresql', hasPg = !!process.env.NBQ_PGBIN || (fs.existsSync(base) && fs.readdirSync(base).some(v => fs.existsSync(path.join(base, v, 'bin', 'initdb'))));
   const hasGis = !!process.env.NBQ_PGBIN || (fs.existsSync('/usr/share/postgresql') && fs.readdirSync('/usr/share/postgresql').some(v => fs.existsSync(path.join('/usr/share/postgresql', v, 'extension', 'postgis.control'))));
   need(hasPg && hasGis, '真实数据库测试需要 PostgreSQL 15/16 和 PostGIS（' + (hasPg ? '缺 PostGIS' : '缺 PostgreSQL') + '）。一条命令装好：bash tools/setup_env.sh（或 apt install postgresql postgresql-16-postgis-3，或设置 NBQ_PGBIN）；暂时跳过：--only=static,schema,frontend,admin,regression');
-  const pd = path.join(CACHE, 'pg');
-  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg'))) {
-    fs.mkdirSync(pd, { recursive: true }); fs.copyFileSync(path.join(HERE, 'pg', 'package.json'), path.join(pd, 'package.json'));
-    console.log('首次运行：安装 pg 到 ' + pd + ' …');
+}
+// pg 这个 npm 包：数据库测试要用，tests/e2e/*.mjs（浏览器测试组里的端到端）也要用。只选浏览器测试时以前不装，
+// 靠缓存碰巧有；tests/pg/package.json 一变（依赖升级）缓存失效，e2e 就报「Cannot find module 'pg'」（11-11 dependabot #93 暴露）。
+if (LIST.some(t => t.suite === 'pg' || t.cmd.some(x => /tests\/e2e\//.test(String(x))))) {
+  const pd = path.join(CACHE, 'pg'), want = fs.readFileSync(path.join(HERE, 'pg', 'package.json'), 'utf8');
+  const cur = fs.existsSync(path.join(pd, 'package.json')) ? fs.readFileSync(path.join(pd, 'package.json'), 'utf8') : '';
+  if (!fs.existsSync(path.join(pd, 'node_modules', 'pg')) || cur !== want) {
+    fs.mkdirSync(pd, { recursive: true }); fs.writeFileSync(path.join(pd, 'package.json'), want);
+    console.log('首次运行 / 依赖变了：安装 pg 到 ' + pd + ' …');
     try { execSync('npm install --no-audit --no-fund', { cwd: pd, stdio: 'inherit' }) } catch (_) { need(false, 'pg 安装失败（需要能访问 npm）') }
   }
 }
