@@ -42,6 +42,10 @@ const all0 = ids(list()); T('完整档没有重名的项（已登记的页面测
     T('新加 tests/frontend/zz_probe.js、不改 run_all → 自动出现在快速档', got.includes('frontend/zz_probe') && got.length === base.length + 1, { status: r.status, 多: got.filter(id => !base.includes(id)), err: r.stderr.slice(0, 300) });
   } finally { fs.rmSync(tmp, { recursive: true, force: true }) } }
 
+// ⑦ --list 输出稳定（11-12）：原来打印完立刻 process.exit，输出走管道时偶尔被截断（约 4%/次只列出前 171 / 183 项，退出码 0 无报错）。概率性守卫：连续 25 次必须逐字一致。
+{ const first = list().stdout, bad = Array.from({ length: 25 }, () => list().stdout).filter(o => o !== first).length;
+  T('连续 25 次 --list 输出逐字一致（没被截断）', bad === 0 && first.trim().split('\n').length > 100, { 不一致次数: bad, 行数: first.trim().split('\n').length }) }
+
 const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'tests.yml'), 'utf8');
 const lists = [...wf.matchAll(/'(\[(?:"\d+\/\d+"(?:,\s*)?)+\])'/g)].map(m => JSON.parse(m[1]));
 T('tests.yml 里有 matrix 分片列表', lists.length >= 1, lists.length);
