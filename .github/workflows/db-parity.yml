@@ -1,7 +1,7 @@
 name: db-parity
 # 手动触发：核对 测试库 和 正式库 的结构是否一致（只读 select，不改库）。结果写在运行页的 Summary 里。
 # 需要在 GitHub → Settings → Secrets and variables → Actions 里由你自己填两个 Secret（连接串不经过 Claude）：
-#   NBQ_DB_URL_STAGING  仓库级 Secret：测试库 Session pooler 连接串
+#   NBQ_DB_URL_STAGING  测试库 Session pooler 连接串：staging 环境和 production 环境各放一份（11-11 核对：没有仓库级 Secret，避免分支里的工作流直接读到）
 #   NBQ_DB_URL_PROD     production 环境 Secret：正式库 Session pooler 连接串（免费版没有审批，靠上面的确认词拦截）
 on:
   workflow_dispatch:
