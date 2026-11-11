@@ -147,7 +147,7 @@ try {
     const { ctx, pg, pe } = await open(); await loginAs(pg, 'a2@x.com');
     // 已接真数据的页面：每接一页在这里加一个（11-12 起由 #27 第 4 步各块追加）；和页面里的 REAL_PAGES 必须一致
     const REAL = ['account', 'review', 'venues', 'users', 'games', 'safety', 'admin', 'cities',
-      'overview', 'cards', 'regions', 'traffic', 'growth', 'platform', 'env', 'life', 'after', 'grow', 'sb'];
+      'overview', 'cards', 'regions', 'traffic', 'growth', 'platform', 'env', 'life', 'after', 'grow', 'sb', 'stopic', 'ssched', 'sguide'];
     T('7.0 页面登记的真数据页（REAL_PAGES）和这里的清单一致', JSON.stringify(Object.keys(await pg.evaluate(() => Object.fromEntries(Object.keys(REAL_PAGES).map(k => [k, 1])))).sort()) === JSON.stringify([...REAL].sort()), await pg.evaluate(() => Object.keys(REAL_PAGES)));
     const keys = await pg.evaluate(() => [...new Set([...PAGES.filter(p => p[0] !== 'h').map(p => p[0]), 'life', 'after', 'grow', 'sb', 'stopic', 'ssched', 'sguide', 'no_such_page'])]);
     const mock = await pg.evaluate(() => [...USERS.slice(0, 40).map(u => u.name), ...VENUES.slice(0, 30).map(v => v[1])].filter(x => x && x.length > 3));

@@ -160,6 +160,25 @@ try {
     T('6.6 只读：最活跃的球友那张卡说明看不到，其他照常', await until(async () => { const t = await txt(v.p, '#page'); return /你的角色看不到这一项/.test(t) && /新注册/.test(t) }));
     T('6.7 只读没有页面错误', !v.pe.length, v.pe); await v.ctx.close();
   }
+  // ================= 7. 场边配置（草稿 → 发布 → 退回） =================
+  {
+    const { p, pe, ctx } = await session('ops@x.com'); await goPage(p, 'stopic');
+    const v0 = (await one(`select max(version)::int v from sb_config_versions`)).v;
+    T('7.1 话题页：版本号、话题表（上线开关）', await until(async () => { const t = await txt(p, '#page'); return new RegExp('场边配置 v' + v0).test(t) && /上线中/.test(t) && !/还没接真数据/.test(t) }));
+    await p.click('[data-sc="toggle"][data-i="0"]');
+    T('7.2 关掉第一个话题 → 草稿里「话题」已改，前台还没变（库里话题仍上线）', await until(async () => /草稿里改了：话题/.test(await txt(p, '#page'))) && (await one(`select count(*)::int n from sb_config_draft`)).n === 1);
+    await reload(p); await p.evaluate(() => { S.page = 'stopic'; render() });
+    T('7.3 刷新后草稿还在', await until(async () => /草稿里改了：话题/.test(await txt(p, '#page'))));
+    await p.fill('#scNote', '先下线一个话题'); await p.click('[data-sc="publish"]');
+    T('7.4 发布 → 新版本，草稿清空', await until(async () => (await one(`select max(version)::int v from sb_config_versions`)).v === v0 + 1 && /没有未发布的改动/.test(await txt(p, '#page'))));
+    await p.evaluate(() => { S.page = 'sguide'; render() });
+    await until(() => p.evaluate(() => !!document.querySelector('[data-sc="edit"][data-k="hints"]'))); await p.click('[data-sc="edit"][data-k="hints"]');
+    await p.fill('#scJson', '{坏的'); await p.click('[data-sc="save"]'); T('7.5 JSON 写坏：页面先拦下', /不是合法的 JSON/.test(await txt(p, '#scErr')));
+    await p.evaluate(() => { document.querySelector('[data-sc="rollback"]')?.closest('details')?.setAttribute('open', '') });
+    await p.click(`[data-sc="rollback"][data-v="${v0}"]`); await p.fill('#admRin', '撤回下线'); await p.click('[data-admrok]');
+    T('7.6 退回旧版 → 又一个新版本，记着从哪版退回', await until(async () => (await one(`select from_version from sb_config_versions order by version desc limit 1`)).from_version === v0));
+    T('7.7 没有页面错误', !pe.length, pe); await ctx.close();
+  }
   // ================= 4. 管理员与操作日志（放最后：会改管理员角色） =================
   {
     const op = await session('ops@x.com'); await goPage(op.p, 'admin');

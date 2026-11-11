@@ -95,6 +95,12 @@ async function sbCloseReports(db, b, action) {
   for (const r of ids) await db.query('select admin_report_handle($1::uuid, $2)', [r.id, action]);
   return ids.length;
 }
+const SB_PARTS = ['topics', 'alias', 'generic', 'settings', 'hints', 'slots', 'starters', 'week', 'specials'];
+// 场边配置写入：配置内容不合格时库里可能抛约束 / 类型错误（23xxx / 22xxx）——这是「填的内容不对」，按 invalid（422）回，detail 给出是哪一块的问题（不带库原文）
+async function sbCfg(db, sql, params) {
+  try { return (await db.query(sql, params)).rows[0].d }
+  catch (e) { if (/^2[23]/.test(String(e.code || ''))) throw Object.assign(new Error('invalid'), { code: 'invalid', detail: 'config' }); throw e }
+}
 async function userIdByNo(db, no) { const r = (await db.query('select id from users where member_no = $1::bigint', [String(no)])).rows[0]; if (!r) throw notFound(); return r.id }
 
 // 统计白名单：名字 → SQL + 参数 (from, to, city)。名字与原型的 CARDSRC 数据源同名；cityReq = 函数要求城市（不传就用 melb）；max = 最多返回几行
@@ -372,6 +378,34 @@ export const ROUTES = {
          order by l.id desc limit 101`, [before, exact ? act : '', exact || !act ? '' : act.replace(/\.$/, '').replace(/_/g, '\\_') + '.'])).rows;
       return { rows: rows.slice(0, 100), more: rows.length > 100 };
     });
+  } },
+  // ---------- 场边配置（#27 第 4 步）：草稿 → 发布 / 丢弃 / 退回旧版本 ----------
+  // 读：草稿（没有草稿 = 最新版本）+ 最近 20 个版本 + 还没到门槛的「大家发起」话题（可提前放出）。
+  // 写：sideline.config（owner、运营；限城市的管理员不能改全站配置——库函数挡）。每个写操作带页面上看到的版本号 base，别人刚发布过 → 409 admin_config_stale
+  'GET /admin/api/sideline/config': { name: 'sb_config', perm: 'sideline.config', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    draft: (await db.query('select admin_sb_config_draft() as d')).rows[0].d,
+    versions: (await db.query('select * from admin_sb_config_versions(20)')).rows,
+    pending: (await db.query(`select id, title, city, created_at from sb_topics where kind = 'user' and released_at is null and merged_into is null order by created_at desc limit 50`)).rows,
+  })) },
+  'POST /admin/api/sideline/config/set': { name: 'sb_config_set', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!SB_PARTS.includes(b.part) || b.value === undefined || !Number.isInteger(b.base)) return fail(bad(), 'sb_config_set');
+    return authed(req, d, route, async db => ({ draft: await sbCfg(db, 'select admin_sb_config_set($1, $2::jsonb, $3) as d', [b.part, JSON.stringify(b.value), b.base]) }), b);
+  } },
+  'POST /admin/api/sideline/config/discard': { name: 'sb_config_discard', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base)) return fail(bad(), 'sb_config_discard');
+    return authed(req, d, route, async db => { await db.query('select admin_sb_config_discard($1)', [b.base]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/sideline/config/publish': { name: 'sb_config_publish', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base) || !strIn(b.note, 60)) return fail(bad(), 'sb_config_publish');
+    return authed(req, d, route, async db => ({ version: await sbCfg(db, 'select admin_sb_config_publish($1, $2) as d', [b.note, b.base]) }), b);
+  } },
+  'POST /admin/api/sideline/config/rollback': { name: 'sb_config_rollback', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base) || !Number.isInteger(b.version) || (b.note != null && typeof b.note !== 'string')) return fail(bad(), 'sb_config_rollback');
+    return authed(req, d, route, async db => ({ version: (await db.query('select admin_sb_config_rollback($1, $2, $3) as v', [b.version, b.base, b.note ?? null])).rows[0].v }), b);
+  } },
+  'POST /admin/api/sideline/topics/release': { name: 'sb_topic_release', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!strIn(b.topic, 80)) return fail(bad(), 'sb_topic_release');
+    return authed(req, d, route, async db => { await db.query('select admin_sb_topic_release($1)', [b.topic]); return { ok: true } }, b);
   } },
   // ---------- 统计（#27 第 4 步）：一个白名单批量接口，给概览和各统计页 ----------
   // GET /stats?fns=a,b,c&from=&to=&city=  → { from, to, city, data: { a: [行…] | { error } } }

@@ -105,6 +105,7 @@ add('pg', 'pg/admin_sideline', ['node', path.join(HERE, 'pg/admin_sideline.mjs')
 add('pg', 'pg/admin_admins', ['node', path.join(HERE, 'pg/admin_admins.mjs')], { pass: [/admin_admins: \d+ 通过, 0 失败/], timeout: 300 });   // 管理员与操作日志 #27 第 4 步
 add('pg', 'pg/admin_cities_api', ['node', path.join(HERE, 'pg/admin_cities_api.mjs')], { pass: [/admin_cities_api: \d+ 通过, 0 失败/], timeout: 300 });   // 城市接口 #27 第 4 步
 add('pg', 'pg/admin_stats', ['node', path.join(HERE, 'pg/admin_stats.mjs')], { pass: [/admin_stats: \d+ 通过, 0 失败/], timeout: 300 });   // 统计白名单接口 #27 第 4 步
+add('pg', 'pg/admin_sb_config', ['node', path.join(HERE, 'pg/admin_sb_config.mjs')], { pass: [/admin_sb_config: \d+ 通过, 0 失败/], timeout: 300 });   // 场边配置接口 #27 第 4 步
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
