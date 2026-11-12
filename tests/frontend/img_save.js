@@ -23,6 +23,11 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     r = await run('NotAllowedError'); T(`${f} 分享被拒（点太久）：弹出大图，可长按保存`, r.box && r.img && r.dl === 0, r);
     r = await run('none'); T(`${f} 不支持分享：弹出大图，不触发下载`, r.box && r.img && r.dl === 0, r);
     await pg.click('#imgSaveBox button'); T(`${f} 关闭后大图消失`, await pg.$('#imgSaveBox') === null);
+    // 提示文案（#206）：触屏说「长按」，电脑说「右键」，桌面不能出现「长按」
+    const tip = coarse => pg.evaluate(coarse => { document.getElementById('imgSaveBox')?.remove(); const mm = window.matchMedia; window.matchMedia = q => /pointer:\s*coarse/.test(q) ? { matches: coarse, media: q } : mm.call(window, q);
+      Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); imgSave(new Blob(['x'], { type: 'image/png' }), 'a.png'); const t = document.querySelector('#imgSaveBox p').textContent; document.getElementById('imgSaveBox').remove(); window.matchMedia = mm; return t }, coarse);
+    let tp = await tip(false); T(`${f} 电脑（非触屏）：提示「右键…另存为」，不出现「长按」`, /右键/.test(tp) && !/长按/.test(tp), tp);
+    tp = await tip(true); T(`${f} 触屏：提示「长按…存储到相册」`, /长按/.test(tp) && !/右键/.test(tp), tp);
     const x = await pg.evaluate(() => xhsText(api.get(GAMES.find(g => g.share_code).id)));
     T(`${f} 小红书文案：链接带 https://`, /打开 https:\/\/nanbanqiu\.app\/g\/\w+\?s=xhs/.test(x), x);
     if (!W) {   // 手机端小红书一键：点一下 = 复制文案 + 系统分享带图；面板里只有这一个按钮

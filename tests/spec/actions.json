@@ -132,6 +132,10 @@
   "act:bdOpen": "nav：打开加球友确认页（我的球友里的待确认行）",
   "act:bdList": "nav：打开全部球友列表",
   "act:bdAccept": "write:frontend/buddies（POST /api/buddies/requests/:id/accept，确认 → 清空内存 → 重读 → 两边都是球友）",
-  "act:bdIgnore": "write:frontend/buddies（POST /api/buddies/requests/:id/ignore，忽略 → 清空内存 → 重读 → 申请不再出现）"
+  "act:bdIgnore": "write:frontend/buddies（POST /api/buddies/requests/:id/ignore，忽略 → 清空内存 → 重读 → 申请不再出现）",
+  "act:bdAdd": "write:frontend/buddies_scan（POST /api/buddies/requests，加为球友 → 清空内存 → 重读 → 卡片显示「已发送，等 TA 确认」）",
+  "act:bdDel": "nav：删除球友前的确认弹层",
+  "act:bdDelYes": "write:frontend/buddies_scan（DELETE /api/buddies/:uid，删除 → 清空内存 → 重读 → 不再是球友）",
+  "act:bdDelNo": "nav：取消删除，回到球员卡"
  }
 }
