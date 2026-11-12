@@ -139,6 +139,8 @@ add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
 add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
+add('frontend', 'frontend/buddies_scan', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies_scan.js')], { pass: [/buddies_scan: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B2 扫码加球友
+add('frontend', 'frontend/logout_race', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/logout_race.js')], { pass: [/logout_race: \d+ 通过, 0 失败/], timeout: 300 });   // 读到一半退出登录（11-09）
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
@@ -174,12 +176,19 @@ add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 
 add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/shot_fallback', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/shot_fallback.js')], { pass: [/shot_fallback: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
 for (const t of TIMES) for (const P of ['PWA', 'Web']) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', '') + '@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
   { env: { NBQ_TS: t, SMOKE_ONLY: P }, pass: [/runs \d+ with errors 0 non-spec events \[\]/], timeout: 900 });   // 11-11：两端各一项并行（原来一项串行约 100s）
+// 11-11（#172 第 5 项）：tests/frontend/*.js 上面没登记的自动加入——新测试不用改这个文件。默认：输出有「<名>: N passed/通过, 0 failed/失败」或「PASS <名>」、超时 300 秒。
+//   要别的判定 / 超时 / 环境变量 / 拆成几项的，照旧在上面写 add()（写了就不再自动加）。tests/unit/shard ⑥ 守着：每个文件都有一项在跑。
+{ const used = new Set(T.flatMap(t => t.cmd).filter(c => typeof c === 'string' && path.dirname(c) === path.join(HERE, 'frontend')));
+  for (const f of fs.readdirSync(path.join(HERE, 'frontend')).filter(f => f.endsWith('.js')).sort()) if (!used.has(path.join(HERE, 'frontend', f))) {
+    const n = f.slice(0, -3), e = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    add('frontend', 'frontend/' + n, ['node', '-r', PRELOAD, path.join(HERE, 'frontend', f)], { pass: [new RegExp(`(^|\\n)(${e}: \\d+ (passed, 0 failed|通过, 0 失败)|PASS ${e})(?!\\w)`)], timeout: 300 }) } }
 // 截图对比（T4）：三个页面的关键画面逐像素对 tests/visual/baseline/；界面改动是预期的 → 重拍基准（README §截图对比）
 add('visual', 'visual/shots', ['node', '-r', PRELOAD, path.join(HERE, 'visual/shots.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });
 add('admin', 'admin/data', ['node', '-r', PRELOAD, path.join(HERE, 'admin/data.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300, solo: true });   // 里面量生成用时（< 1.5 秒），和别的测试同时跑会被拖慢：单独跑
@@ -257,7 +266,9 @@ if (FAILED) {
   if (gone.length) console.log(`  这一档里没有（完整档才有，或已改名；去掉 --quick / --fast 再试）：${gone.join(' ')}`);
 }
 if (SEL && !LIST.length && !args.list) { console.log('\n没有要跑的测试。'); process.exit(0) }
-if (args.list) { LIST.forEach(t => console.log(t.suite.padEnd(11), t.id)); process.exit(0) }
+// 11-12：先把整段输出写完再退出。原来 console.log 逐行打印后立刻 process.exit(0)，输出走管道时偶尔被截断（约 4% 的调用只列出前 171 / 183 项，
+//   退出码仍是 0、没有任何报错），unit/shard 因此隔三差五红一次。
+if (args.list) { await new Promise(r => process.stdout.write(LIST.map(t => t.suite.padEnd(11) + ' ' + t.id).join('\n') + '\n', r)); process.exit(0) }
 
 // ---------- 环境检查 ----------
 function need(ok, msg) { if (!ok) { console.error('环境不满足：' + msg); process.exit(2) } }

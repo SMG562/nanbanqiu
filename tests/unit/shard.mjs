@@ -4,7 +4,8 @@
 //   ③ 非法的 --shard 一律退出码 2，不会静默当成「跑全部」或「一项都不跑」
 //   ④ test_weights.json 里登记的名字都还存在（改名后登记会悄悄失效，按默认值分）
 //   ⑤ tests.yml 里 matrix 的分片列表自洽：每个列表是 1/n … n/n 完整的一组（漏一份 = 那一份的测试永远没人跑）
-import fs from 'fs'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
+//   ⑥ tests/frontend 下没登记的 .js 自动加入（run_all），已登记的不重复
+import fs from 'fs'; import os from 'os'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = path.join(HERE, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 500))) };
 const list = (...a) => spawnSync('node', [path.join(ROOT, 'tests', 'run_all.mjs'), '--list', ...a], { encoding: 'utf8', env: { ...process.env, NBQ_DIR: ROOT } });
@@ -29,6 +30,21 @@ for (const bad of ['0/3', '4/3', '1/0', 'abc', '1/', '/3', '-1/3', '1.5/3', '2']
 
 const known = new Set(ids(list()));   // 完整档的全部名字
 T('test_weights.json 登记的名字都存在', Object.keys(W).every(id => known.has(id)), Object.keys(W).filter(id => !known.has(id)));
+
+// ⑥ 页面测试自动发现（11-11，#172 第 5 项）：tests/frontend 下新加的 .js 不用登记也会跑；已登记的不会再加一遍
+const all0 = ids(list()); T('完整档没有重名的项（已登记的页面测试没被自动发现再加一遍）', new Set(all0).size === all0.length, all0.filter((id, i) => all0.indexOf(id) !== i));
+{ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-autodisc-')), src = path.join(ROOT, 'tests');
+  try {
+    fs.cpSync(src, path.join(tmp, 'tests'), { recursive: true, filter: s => !/[\\/](reports|node_modules)$/.test(s) });
+    fs.writeFileSync(path.join(tmp, 'tests', 'frontend', 'zz_probe.js'), 'console.log("zz_probe: 1 passed, 0 failed")\n');
+    const r = spawnSync('node', [path.join(tmp, 'tests', 'run_all.mjs'), '--list', '--quick'], { encoding: 'utf8', env: { ...process.env, NBQ_DIR: ROOT } });
+    const got = ids(r), base = ids(list('--quick'));
+    T('新加 tests/frontend/zz_probe.js、不改 run_all → 自动出现在快速档', got.includes('frontend/zz_probe') && got.length === base.length + 1, { status: r.status, 多: got.filter(id => !base.includes(id)), err: r.stderr.slice(0, 300) });
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }) } }
+
+// ⑦ --list 输出稳定（11-12）：原来打印完立刻 process.exit，输出走管道时偶尔被截断（约 4%/次只列出前 171 / 183 项，退出码 0 无报错）。概率性守卫：连续 25 次必须逐字一致。
+{ const first = list().stdout, bad = Array.from({ length: 25 }, () => list().stdout).filter(o => o !== first).length;
+  T('连续 25 次 --list 输出逐字一致（没被截断）', bad === 0 && first.trim().split('\n').length > 100, { 不一致次数: bad, 行数: first.trim().split('\n').length }) }
 
 const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'tests.yml'), 'utf8');
 const lists = [...wf.matchAll(/'(\[(?:"\d+\/\d+"(?:,\s*)?)+\])'/g)].map(m => JSON.parse(m[1]));

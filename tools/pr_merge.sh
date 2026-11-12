@@ -23,7 +23,9 @@ drop_branch() {
   case "$HEAD" in main|staging) return 0;; esac; [ "$HREPO" = "$R" ] || return 0
   [ "$(gh api "repos/$R/pulls?state=open&base=$HEAD" --jq length 2>/dev/null)" = 0 ] || { echo "ℹ️ 分支 $HEAD 是开着的叠加 PR 的目标，先不删"; return 0; }
   [ "$(gh api "repos/$R/git/ref/heads/$HEAD" --jq .object.sha 2>/dev/null)" = "$SHA" ] || { echo "ℹ️ 分支 $HEAD 合并后又有新提交，没删（node tools/branch_prune.mjs 会列出）"; return 0; }
-  gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && echo "🗑️ 已删分支 $HEAD（恢复：git push origin $SHA:refs/heads/$HEAD）" || echo "ℹ️ 分支 $HEAD 没删掉，之后跑 node tools/branch_prune.mjs"
+  # 11-12：仓库开着「合并后自动删分支」（delete_branch_on_merge），GitHub 常常比这里先删（事件记在合并的人名下）：删失败先看分支还在不在，别误报「没删掉」
+  gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && echo "🗑️ 已删分支 $HEAD（恢复：git push origin $SHA:refs/heads/$HEAD）" \
+    || { gh api "repos/$R/git/ref/heads/$HEAD" --silent 2>/dev/null && echo "ℹ️ 分支 $HEAD 没删掉，之后跑 node tools/branch_prune.mjs" || echo "🗑️ 分支 $HEAD 已不在（GitHub 合并后自动删除；恢复：git push origin $SHA:refs/heads/$HEAD）"; }
 }
 [ "$STATE" = open ] && [ "$BASE" = main ] && yes "PR #$N 打开着，目标 main（分支 $HEAD，提交 ${SHA:0:7}）" || no "PR #$N 状态 $STATE / 目标 $BASE / 已合并 $MERGED"
 git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/null || true
@@ -63,9 +65,9 @@ PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口�
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
 case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   owner) [ "$ME" = SMG562 ] && yes "改了红线文件：所有者本人合并" || no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）能合，在 PR 上说明后等所有者点头" ;;
-  review) RV=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '.[]|select(.user.type!="Bot")|.body' 2>/dev/null)
-    if printf '%s' "$RV" | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
-    elif CW=$(for o in $(printf '%s' "$RV" | grep -oE '独立复核：通过 *[0-9a-f]{7,40}' | grep -oE '[0-9a-f]{7,40}$' | sort -u); do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
+  review) PASS=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '[.[]|select(.user.type!="Bot")|.body]' 2>/dev/null | node tools/review_state.mjs pass 2>/dev/null)   # 解析统一在 review_state.mjs（只认留言第一行，#201）
+    if printf '%s\n' "$PASS" | grep -qx "${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+    elif CW=$(for o in $PASS; do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
     else no "需要独立复核：另开一个没看过本次过程的会话只读复核，在 PR 留言「独立复核：通过 ${SHA:0:7}」（写明看了什么、风险、怎么回退）"; fi ;;
   *) yes "自助合并：无红线、无需复核" ;;
 esac
