@@ -107,6 +107,12 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
     T(tag('埋点 buddy_remove'), JSON.stringify(await evs('buddy_remove')) === JSON.stringify([{ target_uid: Y, played_together: false }]), [await evs('buddy_remove'), await pg.evaluate(() => window.__rej)]);
     await pg.evaluate(async () => { BUDDY = { ok: false, list: [], incoming: [], outgoing: [] }; await nbqRefresh() }); await pg.settle(200);
     T(tag('删除：清空内存 → 重读 → 不在球友里'), await pg.evaluate(Y => BUDDY.ok && !BUDDY.list.some(x => x.uid === Y), Y));
+    // —— 不是扫码进来的卡上删除（重开后从球友列表进卡）：删完重读，这个人不在 USERS 里 → 关掉弹层，不报错（独立复核 4e9866e）
+    S.buddies.push(Y); await pg.evaluate(async Y => { BD_LAND = null; BUDDY = { ok: false, list: [], incoming: [], outgoing: [] }; await nbqRefresh(); openCard(Y) }, Y); await pg.settle(300);
+    T(tag('非扫码卡：显示「你们是球友 · 删除球友」'), await until(async () => { const c = await cardBtns() || {}; return c.buddy && c.del }), await cardBtns());
+    const e0 = errs.length; await noFx(); await pg.click(W ? '#modal [data-act="bdDel"]' : '#sheet [data-act="bdDel"]'); await pg.settle(300);
+    await noFx(); await pg.click(W ? '#modal [data-act="bdDelYes"]' : '#sheet [data-act="bdDelYes"]');
+    T(tag('非扫码卡删除：DELETE 发出、弹层关掉、不报错'), await until(async () => S.dels.length === 2) && await until(async () => !(await layerText())) && errs.length === e0, [S.dels, await layerText(), errs.slice(e0)]);
 
     // —— 编号不存在 / 扫自己的码
     await land('9999?s=qr');

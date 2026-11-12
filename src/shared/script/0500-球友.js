@@ -119,7 +119,8 @@ function bdDelAsk(uid){const u=U(uid);if(!u)return;
   bdShow(`<div class="bd-cf"><b class="bd-nm">删除球友 ${esc(u.name)}？</b><p>删除后 TA 不会收到通知。你们一起打过的球还在；以后想再加，需要当面再扫一次码。</p>
     <div class="bd-bt"><button class="${SX_BTN.s}" data-act="bdDelNo" data-u="${uid}">先不删</button><button class="${SX_BTN.p}" data-act="bdDelYes" data-u="${uid}">删除</button></div></div>`)}
 async function bdDel(uid){const d=await nbqWrite('bddel:'+uid,net=>net.del('/api/buddies/'+encodeURIComponent(uid)));if(d===null)return;
-  track('buddy_remove',{target_uid:uid,played_together:!!(ME&&playedTogether(ME.id,uid))});toast('已删除，TA 不会收到通知');openCard(uid)}
+  track('buddy_remove',{target_uid:uid,played_together:!!(ME&&playedTogether(ME.id,uid))});toast('已删除，TA 不会收到通知');
+  if(U(uid))openCard(uid);else typeof closeSheet==='function'?closeSheet():closeModal()}   // 重读会重建 USERS：没一起打过、又不是这次扫码进来的人删完就不在了 → 关掉弹层（独立复核 4e9866e：openCard 在 stats() 报错、确认层关不掉）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act="bdAdd"],[data-act="bdDel"],[data-act="bdDelYes"],[data-act="bdDelNo"]');if(!b||!ME)return;
   e.stopPropagation();e.preventDefault();const k=b.dataset.act,uid=b.dataset.u;
   if(k==='bdAdd')bdAdd(uid);else if(k==='bdDel')bdDelAsk(uid);else if(k==='bdDelYes')bdDel(uid);else openCard(uid)},true);
