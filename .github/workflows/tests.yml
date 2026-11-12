@@ -52,7 +52,7 @@ on:
       - 'vendor/**'             # 11-11：第三方库本站托管（leaflet / qrcodejs / html2canvas），页面直接加载
       - '!marketing/icons/**'   # 11-04：同 tests-fast.yml；海报（marketing/posters 等）仍会触发，因为 tests/frontend/site.js 检查它们
   schedule:
-    - cron: '0 16 * * 6'        # UTC 周六 16:00 = 墨尔本周日 02:00–03:00
+    - cron: '0 16 * * *'        # 11-12（#214 阶段 1f）：每周 → 每晚。UTC 16:00 = 墨尔本次日 02:00–03:00；main 自上次夜间全量通过后没有新提交就跳过（gate 任务）
   workflow_dispatch:
     inputs:
       mode:
@@ -84,9 +84,28 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: bash tools/ci_reuse.sh tests
 
+  gate:                  # 夜间全量：main 还是上次夜间全量通过的那个提交 → 跳过（只有 schedule 触发才查，其余事件这个任务本身被跳过）
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      skip: ${{ steps.g.outputs.skip }}
+    steps:
+      - id: g
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs?event=schedule&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null || true)
+          if [ -n "$last" ] && [ "$last" = "$SHA" ]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"; echo "main 自上次夜间全量通过（${SHA:0:7}）后没有新提交：本次跳过" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"   # 查不到（接口出错 / 第一次）一律照常测，宁可多跑不漏测
+          fi
+
   shard:                 # 11-11：浏览器测试分片并行（n 台机器各跑一份，run_all --shard=i/n；分法见 tests/run_all.mjs，守卫 tests/unit/shard）
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' && !(github.event_name == 'pull_request' && github.event.pull_request.draft) }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过；草稿 PR 不测
+    needs: [reuse, gate]
+    if: ${{ !cancelled() && needs.reuse.outputs.hit != '1' && !(github.event_name == 'pull_request' && github.event.pull_request.draft) && needs.gate.outputs.skip != '1' }}   # reuse 没开机器（PR / 分支）或查询出错 → 照常测试；只有命中才跳过；草稿 PR 不测
     name: test (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 150
