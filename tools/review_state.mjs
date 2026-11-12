@@ -7,7 +7,7 @@
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 const first = b => String(b ?? '').replace(/^(\s*<!--[\s\S]*?-->\s*)+/, '').split('\n')[0].replace(/^\s*【\s*/, '');
 export function parse(body) {
-  const l = first(body), p = l.match(/^独立复核：通过\s*([0-9a-f]{7,40})/), f = l.match(/^独立复核（([0-9a-f]{7,40})[^）]*）[：:]\s*\**要改/);
+  const l = first(body), p = l.match(/^独立复核：通过\s*([0-9a-f]{7,40})(?![0-9a-zA-Z])(?=[\s】]|$)/), f = l.match(/^独立复核（([0-9a-f]{7,40})(?![0-9a-zA-Z])[^）]*）[：:]\s*\**要改/);
   return { pass: p ? p[1].slice(0, 7) : null, fix: f ? f[1].slice(0, 7) : null };
 }
 export function collect(bodies) {
