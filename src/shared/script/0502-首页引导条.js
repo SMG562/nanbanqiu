@@ -3,11 +3,12 @@
  * 规则见 0501 nbqIntroDecide。从分享 / 推送 / 球局链接进来：这次不显示，也不算看过（下次直接打开首页再给他看）。
  * 显示期间手机端不自动弹位置授权（0120 go），避免一打开就两层；下次回到首页照常问。
  * 本机记录 nbq_intro = {v:1,at,by}；存储读写失败只记在内存里（这次打开内不再出现）。
- * 开关：分支预览（staging）和预览站默认开；正式站 localStorage nbq_ff_intro=1 单独打开。
+ * 开关：正式站（11-13 起，#203：iPhone Safari、微信内真机看过）、分支预览（staging）、预览站默认开；本地 / 测试域名关，localStorage nbq_ff_intro=1 单独打开。
+ *   回退：把上面一行的 NBQ_ENV==='prod' 去掉即可。
  * 不单独埋点（加事件要改库里的事件表）：效果用现有的 session_start(entry=direct) + game_view 做上线前后对比。 */
 const NBQ_INTRO_K='nbq_intro';
 const NBQ_INTRO=(()=>{const s={on:false,deep:false,state:null,mem:false};
-  try{s.on=typeof NBQ_ENV!=='undefined'&&(NBQ_ENV==='staging'||NBQ_ENV==='preview')||localStorage.getItem('nbq_ff_intro')==='1'}catch(_){}
+  try{s.on=typeof NBQ_ENV!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging'||NBQ_ENV==='preview')||localStorage.getItem('nbq_ff_intro')==='1'}catch(_){}
   // 落地网址在启动路由改写 hash 之前记下
   try{s.deep=/^#\/./.test(location.hash)||/\/(g|u|p)\//.test(location.pathname)||(typeof AN!=='undefined'&&(AN.entry==='share'||AN.entry==='push'))}catch(_){}
   return s})();
