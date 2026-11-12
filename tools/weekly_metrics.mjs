@@ -36,7 +36,7 @@ export function compute({ runs, pulls, now, days = 7 }) {
   for (const r of runs) if (['tests', 'tests-fast'].includes(wf(r)) && ['success', 'failure'].includes(r.conclusion)) { const k = wf(r) + '@' + String(r.head_sha).slice(0, 7); (seen[k] ??= new Set()).add(r.conclusion) }
   const flaky = Object.entries(seen).filter(([, s]) => s.size === 2).map(([k]) => k);
   // 并行 PR：现在开着、非草稿的
-  const wipPulls = pulls.filter(p => p.state === 'open' && !p.draft), wip = wipPulls.map(p => p.number), wipBy = {};
+  const wipPulls = pulls.filter(p => p.state === 'open' && !p.draft && !/\[bot\]$/.test(p.user?.login ?? '')), wip = wipPulls.map(p => p.number), wipBy = {};
   for (const p of wipPulls) { const a = p.user?.login ?? '?'; wipBy[a] = (wipBy[a] || 0) + 1 }
   return { days, deploys, merged: merged.length, lead, cfr, smokeN: smokePush.length, mttr: median(mttr), total, cancelled, byWf, heavyPr, flaky, wip, wipBy };
 }

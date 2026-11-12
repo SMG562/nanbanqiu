@@ -70,7 +70,7 @@ const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、
 
 export function render(rows, now = Date.now()) {
   const order = ['owner', 'review', 'author', 'merge', 'ci'], wipBy = {};
-  for (const r of rows) if (!r.p.draft) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
+  for (const r of rows) if (!r.p.draft && !/\[bot\]$/.test(r.p.author)) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
   const wipTxt = Object.entries(wipBy).map(([a, n]) => `${a} ${n} / ${WIP_LIMIT}${n > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}`).join(' · ') || '0';
   const line = r => `| #${r.p.number} | ${r.p.author} | ${r.p.draft ? '草稿' : BALL[r.c.ball]} | ${r.c.reason} | ${r.c.next.replace(/\|/g, '/')} | ${r.c.idle} 天 |`;
   const body = order.map(b => [b, rows.filter(r => r.c.ball === b && !r.p.draft)]).filter(([, g]) => g.length).map(([b, g]) => `### ${BALL[b]}（${g.length}）\n| PR | 作者 | 状态 | 原因 | 下一步 | 闲置 |\n|---|---|---|---|---|---|\n${g.map(line).join('\n')}`);
