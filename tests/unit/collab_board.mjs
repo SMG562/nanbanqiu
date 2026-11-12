@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -57,4 +57,10 @@ T('抖动：10 分钟内两次改状态 → 报警，key 按最后一次时间',
 T('抖动：只改了一次 → 不报；两次但隔了很久 → 不报', !flapOf([ev('ready_for_review', '2026-11-11T12:39:20Z')], N2) && !flapOf([ev('ready_for_review', '2026-11-11T09:00:00Z'), ev('convert_to_draft', '2026-11-11T12:39:42Z')], N2));
 T('抖动：别的事件（评论、标签）不算', !flapOf([ev('labeled', '2026-11-11T12:39:20Z'), ev('commented', '2026-11-11T12:39:42Z')], N2));
 T('抖动提醒：点名分支、脚本和账号，且带去重标记', (x => /pr_state\.sh 185/.test(x) && /feature\/x/.test(x) && x.includes('<!-- nbq-flap:') && /MDD1102/.test(x))(flapText({ number: 185, branch: 'feature/x', draft: true }, f1)));
+// ⑥ CI 卡在排队（11-12）：非草稿 → 球在作者并给出「推空提交」；提醒带去重标记、点名作者和提交号、草稿也能发
+const cs = classify(base({ ci: { tests: 'stuck', fast: 'ok' } }), NOW);
+T('CI 卡排队：球在作者、reason 点名 30 分钟、next 是推空提交', cs.ball === 'author' && cs.reason.includes(String(STUCK_MIN)) && cs.next.includes('--allow-empty') && cs.ping, cs);
+T('CI 卡排队优先于「在跑」（一个卡一个在跑 = 先处理卡住的）', classify(base({ ci: { tests: 'stuck', fast: 'pending' } }), NOW).ball === 'author');
+T('CI 红仍优先于卡住（先修红的）', /CI 红/.test(classify(base({ ci: { tests: 'stuck', fast: 'failure' } }), NOW).reason));
+T('卡住提醒：带去重标记 / 作者 / 提交号 / 草稿说明', (m => m.includes(`<!-- ${stuckKey(base())} -->`) && m.includes('@MDD1102') && m.includes('abcdef1') && m.includes('草稿 PR'))(stuckText(base({ draft: true }))));
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

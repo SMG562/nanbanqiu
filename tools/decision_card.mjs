@@ -5,7 +5,7 @@
 import fs from 'fs'; import path from 'path'; import { execFileSync } from 'child_process'; import { fileURLToPath } from 'url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // 需要独立复核的路径（协作实践.md §11：C/D/E）
-export const REVIEW = [/^src\/shared\/script\/(0130|0140|0155|0495)/, /^server\/(api|admin)\//, /^server\/migrations\//, /^schema\.sql$/, /^tools\//, /^\.github\//, /^\.claude\/skills\//, /^functions\//];
+export const REVIEW = [/^src\/shared\/script\/(0130|0140|0155|0495)/, /^server\/(api|admin)\//, /^server\/migrations\//, /^schema\.sql$/, /^tools\//, /^tests\/(run_all\.mjs|lib\/)/, /^\.github\//, /^\.claude\/skills\//, /^functions\//];
 const toRe = p => { const d = p.endsWith('/'); let s = p.replace(/^\//, '').replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'); return new RegExp('^' + s + (d ? '' : '$|^' + s + '/')) };
 // CODEOWNERS 里写了 @SMG562 的行 = 红线
 export const redLines = text => text.split('\n').filter(l => /^\//.test(l) && /@SMG562/.test(l)).map(l => toRe(l.trim().split(/\s+/)[0]));

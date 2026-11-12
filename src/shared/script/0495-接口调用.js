@@ -139,7 +139,10 @@ const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
 // 清掉内存里的演示数据（真实模式启动时、退出登录时）。固定球局会在每次 housekeep 里自动补下一场，所以 SERIES 也要清；对话、邀约、点赞同理
-function nbqClear(){if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
+// 会话代数（11-09）：每次清空（退出登录 / 换人）加一。异步读取开始时记下，回来时不一样 = 期间退出过 → 丢掉结果，不套用
+//   （原来读到一半退出，回来后 nbqApply 又把 ME 设回去，等于自动登录回上一个人；读通知时 ME 已空，ME.id 报错）
+let NBQ_EPOCH=0;
+function nbqClear(){NBQ_EPOCH++;if(typeof BUDDY!=='undefined')BUDDY={ok:false,list:[],incoming:[],outgoing:[]};   // 球友（#110）：退出 / 换人时清掉上一个人的
   Object.keys(USERS).forEach(k=>delete USERS[k]);GAMES.length=0;PARTS.length=0;if(Array.isArray(NOTIFS))NOTIFS.length=0;
   SERIES.length=0;INVITES.length=0;THREADS.length=0;MSGS.length=0;LASTREAD={};CXCUR=null;KUDOS.clear();ME=null}
 // 把读入的结果换进内存数据（只在真实模式、登录后调用）。整体替换 VEN / USERS / GAMES / PARTS，不与演示数据混用
@@ -202,13 +205,15 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
   if(v.ok){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
   if(pub.ok){Object.assign(USERS,pub.users);pub.games.forEach(g=>GAMES.push(g));pub.parts.forEach(p=>PARTS.push(p))}
   render()}
-// 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code}
-async function nbqEnter(){const r=await nbqLoadAll(NBQ_NET);
+// 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code} · {st:'gone'} 读取途中退出了（什么都不做）
+async function nbqEnter(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);
+  if(ep!==NBQ_EPOCH)return{st:'gone'};   // 读取途中退出 / 换了人：不再套用（#202）
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
   NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
+  if(e.st==='gone')return;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
   if(e.st==='new'){openNewProfile();return}
   toast('欢迎回来');const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
@@ -220,12 +225,12 @@ async function nbqNpDone(n){
   if(!reg.ok)return err(apiErrText(reg.code));
   if(NP.clubs&&NP.clubs.length){const c=await NBQ_NET.put('/api/me/clubs',{venue_ids:[...NP.clubs].slice(0,3)});if(!c.ok)toast(apiErrText(c.code))}
   if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok)toast(apiErrText(g.code))}
-  const e=await nbqEnter();if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
+  const e=await nbqEnter();if(e.st==='gone')return err('');if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
   toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
 
 /* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */
 // 重新读入（保持登录；读不到就保留现有数据）
-async function nbqRefresh(){const r=await nbqLoadAll(NBQ_NET);if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
+async function nbqRefresh(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);if(ep!==NBQ_EPOCH)return false;if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
 const NBQ_BUSY=new Set();   // 同一个操作进行中不重复提交（连点）
 // call: net => Promise<{ok,data,code,...}>；返回成功时的 data，失败返回 null（已提示）
 async function nbqWrite(key,call){
@@ -320,12 +325,12 @@ async function nbqReportSend(c,reason,note){const k='rep'+c.type+c.id;if(NBQ_BUS
   finally{NBQ_BUSY.delete(k)}}
 
 /* ---- 聊天（第 6 轮 6b）：会话列表 / 消息读自服务器；发消息先调接口，成功才显示；每 45 秒（和通知一起）读会话列表，开着会话时每 8 秒读新消息 ---- */
-async function nbqMissingUsers(ids){const miss=[...new Set(ids.filter(id=>id&&!USERS[id]))];
-  for(let i=0;i<miss.length;i+=50){const pr=await NBQ_NET.get('/api/profiles',{ids:miss.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(u=>{if(u&&u.id)USERS[u.id]=nbqFromUser(u)})}}
+async function nbqMissingUsers(ids){const ep=NBQ_EPOCH,miss=[...new Set(ids.filter(id=>id&&!USERS[id]))];
+  for(let i=0;i<miss.length;i+=50){const pr=await NBQ_NET.get('/api/profiles',{ids:miss.slice(i,i+50).join(',')});if(ep!==NBQ_EPOCH)return;if(pr.ok)Object.values(pr.data.profiles||{}).forEach(u=>{if(u&&u.id)USERS[u.id]=nbqFromUser(u)})}}
 // 读会话列表。返回有没有变化（最后一句 / 未读 / 会话数）
-async function nbqPullThreads(){if(!NBQ_NET||!ME)return false;
-  const r=await NBQ_NET.get('/api/threads');if(!r.ok)return false;const rows=r.data.threads||[],me=ME.id;
-  await nbqMissingUsers(rows.flatMap(t=>[t.other_id,t.last_sender]));
+async function nbqPullThreads(){if(!NBQ_NET||!ME)return false;const ep=NBQ_EPOCH;
+  const r=await NBQ_NET.get('/api/threads');if(ep!==NBQ_EPOCH||!ME||!r.ok)return false;const rows=r.data.threads||[],me=ME.id;
+  await nbqMissingUsers(rows.flatMap(t=>[t.other_id,t.last_sender]));if(ep!==NBQ_EPOCH||!ME)return false;
   const sig=()=>THREADS.filter(t=>t.srv).map(t=>{const m=lastMsg(t);return t.id+'|'+(m?m.at+m.text:'')+'|'+cxUnread(t)}).join(',');
   const before=sig();
   THREADS.splice(0,THREADS.length,...rows.map(t=>nbqFromThread(t,me)),...THREADS.filter(t=>t.tmp));
@@ -334,8 +339,8 @@ async function nbqPullThreads(){if(!NBQ_NET||!ME)return false;
     if(ph&&!MSGS.some(m=>m.tid===t.id&&!m.ph&&m.at>=ph.at)){MSGS.push(ph);if(CXCUR!==t.id)LASTREAD[me+'|'+t.id]=t.unread?ph.at-1:ph.at}});
   return before!==sig()}
 // 读一个会话的消息（最近 50 条），换掉占位；返回有没有新消息
-async function nbqLoadMsgs(t){const r=await NBQ_NET.get('/api/threads/'+t.id+'/messages');if(!r.ok)return false;
-  const list=r.data.messages||[];await nbqMissingUsers(list.map(m=>m.sender_id));
+async function nbqLoadMsgs(t){const ep=NBQ_EPOCH,r=await NBQ_NET.get('/api/threads/'+t.id+'/messages');if(ep!==NBQ_EPOCH||!r.ok)return false;
+  const list=r.data.messages||[];await nbqMissingUsers(list.map(m=>m.sender_id));if(ep!==NBQ_EPOCH)return false;
   const had=MSGS.filter(m=>m.tid===t.id&&!m.ph).length;
   for(let i=MSGS.length-1;i>=0;i--)if(MSGS[i].tid===t.id)MSGS.splice(i,1);
   list.forEach(m=>MSGS.push(nbqFromMsg(m,t.id)));return list.length!==had}
@@ -362,13 +367,14 @@ if(NBQ_NET){notify=function(){};notifyInv=function(){}}
 let NBQ_PULL_P=null;   // 正在读的那一次；别处同时要读时等它读完，不要直接返回「没有新的」（点推送打开通知页时曾因此看到空列表）
 async function nbqPullNotifs(){if(!NBQ_NET||!ME)return false;
   if(NBQ_PULL_P){try{await NBQ_PULL_P}catch(e){}return false}
-  NBQ_PULL_P=(async()=>{await nbqFlushReads();
-    const r=await NBQ_NET.get('/api/notifications');if(!r.ok)return false;
-    let rows=r.data.notifications||[];const invIds=()=>new Set(INVITES.map(i=>i.id));if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id)),invIds()))await nbqRefresh();
+  const ep=NBQ_EPOCH,gone=()=>ep!==NBQ_EPOCH||!ME;   // 期间退出过 / 换了人：不再往下做
+  NBQ_PULL_P=(async()=>{await nbqFlushReads();if(gone())return false;
+    const r=await NBQ_NET.get('/api/notifications');if(!r.ok||gone())return false;
+    let rows=r.data.notifications||[];const invIds=()=>new Set(INVITES.map(i=>i.id));if(nbqNtfNeedGames(rows,new Set(GAMES.map(g=>g.id)),invIds())){await nbqRefresh();if(gone())return false}
     const before=new Set(NOTIFS.filter(n=>!n.read).map(n=>n.id)),list=nbqNtfList(rows,ME.id,new Set(GAMES.map(g=>g.id)),invIds());
     NOTIFS.splice(0,NOTIFS.length,...list);
     const fresh=list.some(n=>!n.read&&!before.has(n.id));
-    if(fresh)await nbqRefresh();   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
+    if(fresh){await nbqRefresh();if(gone())return false}   // 有新通知就同时重读球局（申请人、同意状态都在那里），不管是谁调用的
     nbqSnapSoon();if(typeof nrBadge==='function')nrBadge();return fresh})();
   try{return await NBQ_PULL_P}finally{NBQ_PULL_P=null}}
 // 已读同步：本地标记已读后，攒着一起告诉服务器（每次最多 200 条）
@@ -420,7 +426,7 @@ function nbqEventsSend(batch){if(!NBQ_NET||!ME)return false;
   try{fetch('/api/events',{method:'POST',keepalive:true,headers:{Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:JSON.stringify({v:2,events:batch})}).catch(()=>{});return true}catch(_){return false}}
 // 手机号已验证、但新号码还没填资料就把资料卡划掉了：再点「登录 / 注册」直接回到填资料，不再要一遍验证码
 if(NBQ_NET){const _oa=openAuth;openAuth=function(next,why){
-  if(!ME&&SBA.session()){AUTH.next=next||null;nbqEnter().then(e=>{if(e.st==='new')openNewProfile();else if(e.st==='ok'){render();if(next)setTimeout(next,380)}else _oa(next,why)});return}
+  if(!ME&&SBA.session()){AUTH.next=next||null;nbqEnter().then(e=>{if(e.st==='new')openNewProfile();else if(e.st==='ok'){render();if(next)setTimeout(next,380)}else if(e.st!=='gone')_oa(next,why)});return}
   return _oa.apply(this,arguments)}}
 
 // 点「申请加入」通知：内存里没有这条申请（还是旧数据）就先重读一次，再打开球局并定位到申请人，避免只看到球局详情却没有同意 / 婉拒

@@ -12,6 +12,11 @@ export const OWNER = 'SMG562', WIP_LIMIT = 2, IDLE_DAYS = 3, D = 864e5;
 export const BALL = { author: '球在作者', owner: '球在所有者', review: '球在复核', ci: '等CI', merge: '可合并' };
 const COLOR = { author: 'fbca04', owner: 'd93f0b', review: '5319e7', ci: 'c5def5', merge: '0e8a16' };
 const NAME = { tests: '浏览器测试', fast: 'tests-fast' };
+// 11-12（GitHub Actions 事件，20:18–21:07 UTC 起 32 个运行卡在排队）：排队超过 STUCK_MIN 分钟 = 卡住。这种运行取消 / 重跑都不行（409 / 403），只能推新提交重新触发
+export const STUCK_MIN = 30;
+export const stuckNext = '这个提交的检查没有机会跑出结果，取消 / 重跑都不行。在**自己的分支**推一个空提交重新触发：`git commit --allow-empty -m "ci: 重新触发" && git push`（别动别人分支的运行；先看 githubstatus.com 有没有在处理的事件）';
+export const stuckKey = p => `nbq-stuck:${p.sha.slice(0, 7)}`;
+export const stuckText = p => `<!-- ${stuckKey(p)} -->\n@${p.author} 这个提交（${p.sha.slice(0, 7)}）的 CI 排队超过 ${STUCK_MIN} 分钟没开始，多半是 GitHub 平台故障（${p.draft ? '草稿 PR，' : ''}不是代码问题）。\n下一步：${stuckNext}\n\n> 自动消息（协作看板），同一个提交只提醒一次。`;
 
 // 独立复核留言 → 针对当前提交的状态：pass 通过 / fix 要改 / rereview 改过了要重审 / none 还没复核（机器人的评论不算）
 export function reviewState(comments, sha) {
@@ -32,6 +37,7 @@ export function classify(p, now = Date.now()) {
   if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `bash tools/sync_main.sh --check` 看冲突文件，`git merge origin/main` 解决后推分支');
   const bad = Object.keys(NAME).filter(k => p.ci[k] === 'failure');
   if (bad.length) return R('author', `CI 红（${bad.map(k => NAME[k]).join('、')}）`, '看注解修；偶发失败先只重跑失败项一次');
+  if (Object.keys(NAME).some(k => p.ci[k] === 'stuck')) return R('author', `CI 卡在排队超过 ${STUCK_MIN} 分钟（多半是 GitHub 平台故障）`, stuckNext);
   if (Object.keys(NAME).some(k => p.ci[k] === 'pending')) return R('ci', 'CI 在跑', '等待，无需操作');
   if ([p.ci.tests, p.ci.fast].filter(v => v === 'none').length === 1) return R('author', 'CI 没有对这个提交跑完（转 Ready 没触发 / 被取消）', '转回草稿再转 Ready，或推一个小提交');
   if (p.level === 'review' && p.review !== 'pass') {
@@ -83,7 +89,7 @@ export function gather(R, now = Date.now()) {
     // 改动文件用 compare（main...提交，和 pr_merge.sh 看到的一致）；PR 的 files 接口在 main 前进后会滞后，把别人已合并的文件也算进来
     const cmp = JSON.parse(gh(`repos/${R}/compare/main...${x.head.sha}`, '--jq', '{files:[.files[].filename],behind:.behind_by}')), files = cmp.files;
     const runs = JSON.parse(gh(`repos/${R}/actions/runs?head_sha=${x.head.sha}&per_page=50`)).workflow_runs;
-    const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? 'pending' : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
+    const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? (r.status === 'queued' && now - Date.parse(r.created_at) > STUCK_MIN * 6e4 ? 'stuck' : 'pending') : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
     const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
@@ -104,6 +110,7 @@ function main() {
       const tl = list(`repos/${R}/issues/${p.number}/timeline?per_page=100`).map(e => ({ event: e.event, actor: e.actor?.login || '', at: e.created_at })), f = flapOf(tl, now);
       if (f && !already(p.comments, f.key)) post(p.number, flapText(p, f));
     }
+    if (Object.values(p.ci).includes('stuck') && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, stuckKey(p))) post(p.number, stuckText(p));
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));
