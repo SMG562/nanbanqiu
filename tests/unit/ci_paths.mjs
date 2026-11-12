@@ -4,7 +4,7 @@
 //   ③ 被 ! 排除的目录：没有测试 / 工具 / 站点引用它，并且有别的轻量检查工作流顶上
 //   ④ 关键文件（依赖、部署配置、海报清单、流程脚本…）一定触发
 // 路径通配按 GitHub 规则近似：** 匹配含 / 的任意字符，* 不含 /；! 只排除它前面的规则（所以排除放最后）。
-// 背景见 开发规矩.md「11-04 · 图稿提交触发全套测试的教训」。
+// 背景见 开发规矩.md §4「CI 路径规则」。
 import fs from 'fs'; import path from 'path'; import { spawnSync } from 'child_process'; import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = process.env.NBQ_CI_ROOT || path.join(HERE, '..', '..');
 const WF = path.join(ROOT, '.github', 'workflows');
@@ -52,7 +52,7 @@ const NO_TEST = [
   [/^marketing\/icons\//, '小毛图标：没有测试或站点引用，由 icons-lint.yml 检查（下面第 ③ 项盯着）'],
   [/^src\/.*\.(css|list)$/, '拼进三个 html，生成的 html 随同一提交入库（提交前检查核对一致），那几个 html 会触发'],
   [/^\.gitignore$/, 'git 配置'],
-  [/^\.github\/(CODEOWNERS|dependabot\.yml|ISSUE_TEMPLATE\/)/, 'GitHub 协作配置（谁必须审 / Issue 表单）：不影响运行代码，生效与否在 GitHub 设置里看'],
+  [/^\.github\/(CODEOWNERS|CO_OWNERS|dependabot\.yml|ISSUE_TEMPLATE\/)/, 'GitHub 协作配置（谁必须审 / Issue 表单）：不影响运行代码，生效与否在 GitHub 设置里看'],
   [/^\.github\/zizmor\.yml$/, 'zizmor 例外清单：只被 workflow-lint 读取，改动由它自己在 PR 上跑出结果'],
   [/^\.claude\/(?!.*\.json$)/, '助手说明文档（.claude 里的 json 配置仍会触发）'],
 ];

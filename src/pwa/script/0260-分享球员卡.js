@@ -1,7 +1,7 @@
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
-  if(window.html2canvas)html2canvas(el,{backgroundColor:null,scale:3}).then(cv=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`nanbanqiu-${fmtNo(U(uid).no)}.png`;a.click();tmp.remove();toast('分享图已保存')}).catch(()=>{tmp.remove();toast('保存失败，请截图保存')});
+  if(window.html2canvas)nbqShot(el,3).then(bl=>{tmp.remove();if(bl){imgSave(bl,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')});
   else{tmp.remove();toast('需要联网加载保存组件，也可以直接截图')}}
 function openBlock(uid){const u=U(uid);openSheet(`<div class="sh-t">屏蔽 ${esc(u.name)}？</div><p class="sh-s" style="margin-bottom:12px">屏蔽后：</p>
   <ul class="tips"><li><i>🙈</i><div>TA 看不到你发起的球局<small>包括通过分享链接打开</small></div></li><li><i>✋</i><div>TA 无法申请加入你的球局<small>TA 当前的待确认申请会自动婉拒</small></div></li><li><i>👀</i><div>你也不会再看到 TA 发起的球局</div></li><li><i>🔕</i><div>对方不会收到任何通知</div></li></ul>
@@ -139,17 +139,17 @@ function openShare(id){const c=api.get(id);
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
 const XHSP={};
 function xhsPre(id){const el=document.querySelector('.xhs-pv .ogW');if(!el||!window.html2canvas||XHSP[id])return;
-  html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl},'image/png')).catch(()=>{})}
+  nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl})}
 function xhsGo(id){const text=xhsText(api.get(id));
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
   const nm='nanbanqiu-'+id+'.png',go=bl=>{
     if(!bl){toast('文案已复制，截图保存海报后发布即可');return}
     const f=new File([bl],nm,{type:'image/png'});
-    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).then(()=>toast('文案已复制 · 图片已交给系统，保存后打开小红书发布'),e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
     else{imgSave(bl,nm);toast('文案已复制 · 保存图片后打开小红书发布')}};
   if(XHSP[id])go(XHSP[id]);
   else{const el=document.querySelector('.xhs-pv .ogW');
-    if(el&&window.html2canvas)html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl;go(bl)},'image/png')).catch(()=>go(null));else go(null)}}
+    if(el&&window.html2canvas)nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl;go(bl)});else go(null)}}
 function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" data-a="share" data-g="${id}" style="height:auto;margin-bottom:8px">‹ 返回</button><div class="sh-t">发到小红书</div><p class="sh-s">图片上带二维码，小红书上的球友扫码就能加入</p><div class="xhs-pv">${ogAHTML(c)}</div>
   <button class="btn btn-p xhs-go" data-sx="xhsCopy" data-g="${id}">分享到小红书</button><p class="xhs-tip">文案会自动复制；在弹出的面板里选「小红书」，图片已带上，粘贴文案发布即可</p>`);setTimeout(()=>xhsPre(id),350)}
 

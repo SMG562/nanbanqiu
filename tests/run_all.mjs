@@ -145,6 +145,8 @@ add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, '
 add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
 add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
+add('frontend', 'frontend/buddies_scan', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies_scan.js')], { pass: [/buddies_scan: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B2 扫码加球友
+add('frontend', 'frontend/logout_race', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/logout_race.js')], { pass: [/logout_race: \d+ 通过, 0 失败/], timeout: 300 });   // 读到一半退出登录（11-09）
 add('frontend', 'frontend/side_bar', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_bar.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边首页输入框：点一下进写页、不弹键盘
 add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/sheet_gestures.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 手机端弹层：顶部留白可点、下拉收起
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
@@ -180,6 +182,7 @@ add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 
 add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/shot_fallback', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/shot_fallback.js')], { pass: [/shot_fallback: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
