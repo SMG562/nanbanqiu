@@ -15,6 +15,7 @@ echo "进度记录最后更新：$(git log -1 --format='%h %ci' "$last")"
 after=$(git log --format='%h %s' "$last"..origin/main -- . ':!marketing' ':!*.md' 2>/dev/null)
 echo "── 之后 main 上的代码提交（不含宣传图和文档）："; [ -n "$after" ] && echo "$after" || echo "  无"
 echo "── 没合并的 PR："; $R api "repos/$REPO/pulls?state=open" --jq '.[]|"  #\(.number)\(if .draft then " [草稿]" else "" end) \(.head.ref)：\(.title)"' 2>/dev/null | grep . || echo "  无"
+bash tools/announce_show.sh 3 2>/dev/null || true
 nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft==false and (.user.login|test("dependabot")|not))]|length' 2>/dev/null); echo "── 在制品：非草稿 PR ${nd:-?} 个（上限 2；超了先清评审，不开新的）"
 node tools/branch_prune.mjs --summary 2>/dev/null || echo "── 分支：读不到（gh 未登录或 git < 2.38）"
 echo "── 之后合并的 PR："; $R api "repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=10" --jq ".[]|select(.merged_at!=null and .merged_at>\"$when\")|\"  #\(.number) \(.title)（\(.merged_at)）\"" 2>/dev/null | grep . || echo "  无"
