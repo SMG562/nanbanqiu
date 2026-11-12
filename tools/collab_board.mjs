@@ -5,6 +5,7 @@
 // 做三件事：① 给 PR 打标签（球在作者 / 球在所有者 / 球在复核 / 等CI / 可合并）；② 球换手时在 PR 上评论一次（按 球+原因+提交号 去重；每周最多一次「久没动」提醒）；
 //   ③ 更新置顶 Issue「协作看板」的正文（内容没变不写）；红线集合变了就在看板里 @所有者 一次。
 // 安全：只读 PR 元数据，不执行 PR 里的任何代码（工作流只用默认分支的版本）；评论正文只做正则匹配，不进 shell；机器人的评论不算「独立复核」（pr_merge.sh 认的字符串在提醒里写成占位符）。
+import { collect } from './review_state.mjs';
 import { execFileSync } from 'node:child_process'; import crypto from 'node:crypto'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import { levelOf } from './decision_card.mjs';
 
@@ -20,13 +21,8 @@ export const stuckText = p => `<!-- ${stuckKey(p)} -->\n@${p.author} 这个提�
 
 // 独立复核留言 → 针对当前提交的状态：pass 通过 / fix 要改 / rereview 改过了要重审 / none 还没复核（机器人的评论不算）
 export function reviewState(comments, sha) {
-  const pass = new Set(), fix = new Set(), cur = sha.slice(0, 7);
-  for (const c of comments) {
-    if (c.bot) continue;
-    for (const m of c.body.matchAll(/独立复核：通过\s*([0-9a-f]{7,40})/g)) pass.add(m[1].slice(0, 7));
-    for (const m of c.body.matchAll(/独立复核（([0-9a-f]{7,40})[^）]*）[：:]\s*\**要改/g)) fix.add(m[1].slice(0, 7));
-  }
-  return pass.has(cur) ? 'pass' : fix.has(cur) ? 'fix' : fix.size ? 'rereview' : 'none';
+  const { pass, fix } = collect(comments.filter(c => !c.bot).map(c => c.body)), cur = sha.slice(0, 7);   // 解析统一在 tools/review_state.mjs（#201）
+  return pass.includes(cur) ? 'pass' : fix.includes(cur) ? 'fix' : fix.length ? 'rereview' : 'none';
 }
 
 // p = { number, title, author, draft, sha, mergeable, behind（落后 main 几个提交）, updated, level: owner|review|self, ci: { tests, fast }: ok|failure|pending|none, review }
