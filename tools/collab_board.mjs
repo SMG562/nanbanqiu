@@ -5,6 +5,7 @@
 // 做三件事：① 给 PR 打标签（球在作者 / 球在所有者 / 球在复核 / 等CI / 可合并）；② 球换手时在 PR 上评论一次（按 球+原因+提交号 去重；每周最多一次「久没动」提醒）；
 //   ③ 更新置顶 Issue「协作看板」的正文（内容没变不写）；红线集合变了就在看板里 @所有者 一次。
 // 安全：只读 PR 元数据，不执行 PR 里的任何代码（工作流只用默认分支的版本）；评论正文只做正则匹配，不进 shell；机器人的评论不算「独立复核」（pr_merge.sh 认的字符串在提醒里写成占位符）。
+import { collect } from './review_state.mjs';
 import { execFileSync } from 'node:child_process'; import crypto from 'node:crypto'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import { levelOf } from './decision_card.mjs';
 
@@ -20,20 +21,15 @@ export const stuckText = p => `<!-- ${stuckKey(p)} -->\n@${p.author} 这个提�
 
 // 独立复核留言 → 针对当前提交的状态：pass 通过 / fix 要改 / rereview 改过了要重审 / none 还没复核（机器人的评论不算）
 export function reviewState(comments, sha) {
-  const pass = new Set(), fix = new Set(), cur = sha.slice(0, 7);
-  for (const c of comments) {
-    if (c.bot) continue;
-    for (const m of c.body.matchAll(/独立复核：通过\s*([0-9a-f]{7,40})/g)) pass.add(m[1].slice(0, 7));
-    for (const m of c.body.matchAll(/独立复核（([0-9a-f]{7,40})[^）]*）[：:]\s*\**要改/g)) fix.add(m[1].slice(0, 7));
-  }
-  return pass.has(cur) ? 'pass' : fix.has(cur) ? 'fix' : fix.size ? 'rereview' : 'none';
+  const { pass, fix } = collect(comments.filter(c => !c.bot).map(c => c.body)), cur = sha.slice(0, 7);   // 解析统一在 tools/review_state.mjs（#201）
+  return pass.includes(cur) ? 'pass' : fix.includes(cur) ? 'fix' : fix.length ? 'rereview' : 'none';
 }
 
 // p = { number, title, author, draft, sha, mergeable, behind（落后 main 几个提交）, updated, level: owner|review|self, ci: { tests, fast }: ok|failure|pending|none, review }
 export function classify(p, now = Date.now()) {
   const idle = Math.floor((now - Date.parse(p.updated)) / D);
   const R = (ball, reason, next) => ({ ball, reason, next, idle, ping: ['author', 'review', 'merge'].includes(ball) && !p.draft });
-  if (p.draft) return R('author', '排队中', '本地测过后转 Ready（在制品 ≤ 2，排队顺序见 #167）');
+  if (p.draft) return R('author', '排队中', '本地测过后转 Ready（你的在制品 ≤ 2，排队顺序见 #167）');
   if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `bash tools/sync_main.sh --check` 看冲突文件，`git merge origin/main` 解决后推分支');
   const bad = Object.keys(NAME).filter(k => p.ci[k] === 'failure');
   if (bad.length) return R('author', `CI 红（${bad.map(k => NAME[k]).join('、')}）`, '看注解修；偶发失败先只重跑失败项一次');
@@ -70,14 +66,16 @@ const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、
 - 标签 \`球在作者 / 球在复核 / 球在所有者 / 等CI / 可合并\` 随状态自动更新，可直接按标签筛选。
 - **所有者只处理三类事**：红线 PR（当场点头）、每日真机、每周一周报；红线集合变化时这里会 @ 一次。
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
-- 在制品（非草稿 PR）上限 ${WIP_LIMIT}。`;
+- 在制品（非草稿 PR）上限：**每个作者 ${WIP_LIMIT} 个**（#229，11-13：两人都能合并后不再全仓共 ${WIP_LIMIT} 个）。`;
 
 export function render(rows, now = Date.now()) {
-  const order = ['owner', 'review', 'author', 'merge', 'ci'], wip = rows.filter(r => !r.p.draft).length;
+  const order = ['owner', 'review', 'author', 'merge', 'ci'], wipBy = {};
+  for (const r of rows) if (!r.p.draft && !/\[bot\]$/.test(r.p.author)) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
+  const wipTxt = Object.entries(wipBy).map(([a, n]) => `${a} ${n} / ${WIP_LIMIT}${n > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}`).join(' · ') || '0';
   const line = r => `| #${r.p.number} | ${r.p.author} | ${r.p.draft ? '草稿' : BALL[r.c.ball]} | ${r.c.reason} | ${r.c.next.replace(/\|/g, '/')} | ${r.c.idle} 天 |`;
   const body = order.map(b => [b, rows.filter(r => r.c.ball === b && !r.p.draft)]).filter(([, g]) => g.length).map(([b, g]) => `### ${BALL[b]}（${g.length}）\n| PR | 作者 | 状态 | 原因 | 下一步 | 闲置 |\n|---|---|---|---|---|---|\n${g.map(line).join('\n')}`);
   const dr = rows.filter(r => r.p.draft); if (dr.length) body.push(`### 草稿（${dr.length}）\n| PR | 作者 | 状态 | 原因 | 下一步 | 闲置 |\n|---|---|---|---|---|---|\n${dr.map(line).join('\n')}`);
-  return `${GUIDE}\n\n**在制品**：${wip} / ${WIP_LIMIT}${wip > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
+  return `${GUIDE}\n\n**在制品**（每人 ≤ ${WIP_LIMIT}）：${wipTxt}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
 }
 
 const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();

@@ -2,33 +2,12 @@
 // 真 PostgreSQL + 真的 nbq_admin_api 连接；夹具用超级用户建（直接写 buddy_requests / buddies，状态和时间都可控）。
 // 覆盖：权限（未登录 / 只读能看汇总 / 运营）· 各项数字的口径（确认 / 互扫 / 忽略 / 过期 / 等待 / 来自链接 / 确认率 / 用时中位数 / 球友对）·
 //       时间窗 · 限城市 · 参数校验 · 只读角色不能直接查原始表。
-import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath, pathToFileURL } from 'url';
-import { startCluster, loadSchema } from './cluster.mjs';
-const require = createRequire(import.meta.url); const pg = require('pg');
-const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
-const AU = await import(pathToFileURL(path.join(DIR, 'server/admin/auth.mjs')));
-const API = await import(pathToFileURL(path.join(DIR, 'server/admin/api.mjs')));
-let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
-const c = startCluster(); let su;
+import { adminKit } from './admin_kit.mjs';
+const K = await adminKit('admin_buddies'), { T, call, q, one, su } = K;   // 夹具：tests/pg/admin_kit.mjs（运营 ops / 只读 view / 限悉尼的运营 syd，和原来内联的同名同角色）
 try {
-  c.createdb('nbq');
-  const errs = loadSchema(c, 'nbq', path.join(DIR, 'schema.sql')); T('schema 执行无错误', !errs.length, errs.slice(0, 3));
-  c.psql('nbq', `-c "alter role nbq_admin_api login"`);
-  su = new pg.Pool({ host: c.host, port: c.port, user: 'postgres', database: 'nbq', max: 4 });
-  const connect = async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_admin_api', database: 'nbq' }); await cl.connect(); return cl };
-  const q = (s, p) => su.query(s, p), one = async (s, p) => (await q(s, p)).rows[0];
-  const PW = 'correct horse battery', SEC = AU.newTotpSecret(), PH = AU.hashPassword(PW);
-  const mk = async (email, role, cities = null) => (await one(`insert into admin_users(email,name,role,password_hash,totp_secret,recovery_hashes,cities) values ($1,$2,$3,$4,$5,'{}',$6) returning id`, [email, email.split('@')[0], role, PH, SEC, cities])).id;
-  const OP = await mk('ops@x.com', 'operator'), VW = await mk('view@x.com', 'viewer'), SYD = await mk('syd@x.com', 'operator', ['syd']);
-  let un = 0; const user = async (nick, city = 'melb') => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at,home_city) values ($1,$2,5,'m',now(),$3) returning id`, ['+6142' + String(++un).padStart(7, '0'), nick, city])).id;
+  const OP = K.ids.operator, VW = K.ids.viewer, SYD = K.ids.syd, op = K.as.operator, vw = K.as.viewer, sy = K.as.syd;
+  const user = async (nick, city = 'melb') => (await K.user(nick, { city })).id;
   const A = await user('小A'), B = await user('小B'), C = await user('小C'), S1 = await user('悉尼1', 'syd'), S2 = await user('悉尼2', 'syd');
-  let clock = 1_800_000_000_000; const deps = { connect, now: () => clock }; const ORIGIN = 'https://nanbanqiu.test';
-  const call = async (method, p, { body, cookie } = {}) => {
-    const h = { 'X-NBQ-Admin': '1', ...(method !== 'GET' ? { Origin: ORIGIN, 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) };
-    const r = await API.handleAdmin(new Request(ORIGIN + p, { method, headers: h, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) }), deps);
-    const text = await r.text(); let j = null; try { j = JSON.parse(text) } catch (_) { } return { s: r.status, j, text } };
-  const login = async email => { clock += 30e3; const r = await API.handleAdmin(new Request(ORIGIN + '/admin/api/login', { method: 'POST', headers: { 'X-NBQ-Admin': '1', Origin: ORIGIN, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: PW, code: AU.totp(SEC, clock) }) }), deps); return 'nbq_admin=' + (r.headers.get('Set-Cookie').match(/nbq_admin=([^;]+)/) || [])[1] };
-  const op = await login('ops@x.com'), vw = await login('view@x.com'), sy = await login('syd@x.com');
 
   // 夹具：最近 30 天内 A 发了 6 条（各种结局），悉尼 S1 发了 1 条；另有一条 40 天前的
   const req = (f, t, o = {}) => one(`insert into buddy_requests(from_user,to_user,status,source,accepted_via,created_at,expires_at,responded_at)
@@ -69,6 +48,5 @@ try {
   T('只读角色不能直接读 buddy_requests', /permission denied/.test(await vq('select * from buddy_requests')));
   T('只读角色不能直接读 buddies', /permission denied/.test(await vq('select * from buddies')));
   T('只读角色能调 buddy_stats', (await vq(`select * from buddy_stats(now() - interval '1 day', now())`)) === 'ok');
-} catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
-finally { try { await su?.end() } catch (_) { } c.stop() }
-console.log(`admin_buddies: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
+  await K.done();
+} catch (e) { await K.done(e) }
