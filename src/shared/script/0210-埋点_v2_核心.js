@@ -103,7 +103,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-anx]');if(
 
 /* ---------- 球员卡翻面：正面是卡，背面是「扫码约我打球」的二维码 ---------- */
 function cardBack(uid){const u=U(uid),f=playerCard(uid),base=f.slice(0,f.indexOf('<div class="pc-top">')).replace(/<svg class="court"[\s\S]*?<\/svg>/,'');
-  return base+`<div class="bk"><i class="q" style="color:${u.color}">${qrSVG(profileUrl(u,'qr'))}</i></div></div>`}
+  return base+`<div class="bk"><i class="q" data-qr="${esc(profileUrl(u,'qr'))}" style="color:${u.color}">${qrSVG(profileUrl(u,'qr'))}</i></div></div>`}
 const flipCard=uid=>`<div class="flip" data-flip title="翻面"><div class="fi"><div class="ff">${playerCard(uid)}</div><div class="fb">${cardBack(uid)}</div></div></div>`;
 document.addEventListener('click',e=>{const f=e.target.closest('[data-flip],[data-flipbtn]');if(!f)return;e.stopPropagation();const el=f.matches('[data-flip]')?f:f.previousElementSibling;el&&el.classList.toggle('on')},true);
 

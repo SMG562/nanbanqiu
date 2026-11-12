@@ -13,7 +13,7 @@ smoke_triggered() {
     | grep -qE '^(src/.*|.*\.html|sw\.js|functions/.*|server/.*|tools/site\.mjs|tools/smoke_prod\.mjs)$'
 }
 for W in tests-fast tests smoke; do
-  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=20" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
+  L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=100" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
   if [ "$L" = "completed success" ]; then echo "✅ $W"
   elif [ -z "$L" ] && [ "$W" = smoke ] && ! smoke_triggered; then echo "⚪ smoke：不适用（这个提交没改会触发 smoke 的文件，见 smoke.yml 的 paths；定时冒烟另跑）"
   else echo "❌ $W：${L:-没有运行记录}"; ok=1; fi

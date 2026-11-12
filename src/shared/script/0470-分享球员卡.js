@@ -43,7 +43,8 @@ function imgSave(blob,name){
   const file=blob&&new File([blob],name,{type:'image/png'});
   const big=()=>{const old=document.getElementById('imgSaveBox');if(old)old.remove();const u=URL.createObjectURL(blob),d=document.createElement('div');d.id='imgSaveBox';
     d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px';
-    d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px">长按图片，选「存储到相册」</p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
+    d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px"></p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
+    d.querySelector('p').textContent=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'长按图片，选「存储到相册」':'右键图片，选「图片另存为」';   // 触屏才说长按；电脑是右键（#206）
     d.querySelector('img').src=u;const close=()=>{d.remove();URL.revokeObjectURL(u)};d.querySelector('button').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});document.body.appendChild(d)};
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).then(()=>{if(typeof toast==='function')toast('图像已保存')},e=>{if(!e||e.name!=='AbortError')big()});return}   // 分享面板走完才提示（之前没有任何提示）；取消不提示
   big()}
@@ -82,7 +83,8 @@ function nbqShotClean(doc){doc.querySelectorAll('[data-qr]').forEach(q=>{const t
     const done=new Promise(ok=>{im.onload=im.onerror=()=>ok();setTimeout(ok,1500)});   // 图片等不到就不等了：最多多等 1.5 秒，不让保存流程挂住
     try{im.src=qrDataUrl(t,getComputedStyle(q).color||'#101828')}catch(e){}q.innerHTML='';q.appendChild(im);(doc.__qrWait=doc.__qrWait||[]).push(done)});
   doc.querySelectorAll('.pc-grain,.pc-light,[class*=grain]').forEach(e=>e.style.backgroundImage='none');
-  (doc.__qrWait=doc.__qrWait||[]).push(nbqSvgsToPng(doc));
+  (doc.__qrWait=doc.__qrWait||[]).push(nbqSvgsToPng(doc,e=>{const av=e.closest('.pc-av');if(av&&!av.querySelector('.pc-ini')){const d=doc.createElement('div');d.className='pc-ini';d.textContent=av.getAttribute('data-ini')||'?';   // 头像画不出来：底色圆 + 首字母（和 scBlob 同口径，球员卡带 data-ini / data-bg）
+      d.style.cssText=`width:100%;height:100%;border-radius:50%;background:${av.getAttribute('data-bg')||'#EFE9DA'};display:flex;align-items:center;justify-content:center;font:800 44px system-ui;color:#1D5B43`;av.appendChild(d)}}));
   return Promise.all(doc.__qrWait)}
 function nbqShot(el,scale){window.SC_ERR='';if(!el||!window.html2canvas){SC_ERR='截图库没加载';return Promise.resolve(null)}
   const plan=nbqShotPlan(scale),go=n=>{const [k,clean]=plan[n];
