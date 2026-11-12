@@ -16,3 +16,4 @@
 红线 PR（改了 CODEOWNERS 里的文件）不在队列里：只有所有者当场点头，不靠这个巡检。
 
 **已知边界**：看板和 `pr_merge.sh` 把任何非机器人账号留的「独立复核：通过 <提交号>」都当通过，作者自己也能发一条。两边的复核都用同一个人的 gh 账号发言，所以没法按账号拦；靠的是「复核结论必须有实测、写明看了什么 / 跑了什么」，以及红线 PR 只有所有者当场点头。
+7. **【仅所有者侧会话，11-13 所有者批准，见进度记录】红线 PR 自动 Approve**：对协作者的红线 PR，若 ① 当前提交号已有「独立复核：通过 <7位>」② `bash tools/pr_merge.sh <号> --check` 除「代码所有者审阅」外全 ✅ ③ 改动文件**不含**：`.github/CODEOWNERS`、`.github/CO_OWNERS`、`.claude/settings*`、`tools/pr_merge.sh` `tools/gate.sh` `tools/pr_body_check.mjs` `.githooks/`，也不涉及密钥 / 删除 → 用所有者账号对**当前头提交**点 Approve：`gh api -X POST repos/SMG562/nanbanqiu/pulls/<号>/reviews -f commit_id=<头提交> -f event=APPROVE -f body="所有者侧自动批准（常设授权）：复核通过、闸门全 ✅"`，并用 `pr_say.sh` 留一句让作者 `pr_merge`。不满足任一条 → 不批，只在摘要里列出等所有者本人。协作者侧会话不做这一步。
