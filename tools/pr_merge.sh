@@ -30,6 +30,10 @@ drop_branch() {
 [ "$STATE" = open ] && [ "$BASE" = main ] && yes "PR #$N 打开着，目标 main（分支 $HEAD，提交 ${SHA:0:7}）" || no "PR #$N 状态 $STATE / 目标 $BASE / 已合并 $MERGED"
 git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/null || true
 git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev/null
+# 11-12：闸门只认 main 上的版本。本脚本和它执行的检查在工作区里跑，分支上改过（哪怕没提交）就可能被放宽；
+#   .claude/settings.json 免确认放行本脚本的前提就是这一条（tests/unit/merge_gate_integrity 守着：执行到的脚本都要在名单里）
+GATE="tools/pr_merge.sh tools/merge_drift.sh tools/pr_body_check.mjs tools/decision_card.mjs tools/review_state.mjs tools/review_carry.mjs .github/CODEOWNERS"
+GD=$(git diff --name-only origin/main -- $GATE 2>&1) && [ -z "$GD" ] || { echo "❌ 合并检查脚本和 origin/main 不一致（${GD:-读不到 origin/main}）：在最新 main 上跑  git checkout --detach origin/main && bash tools/pr_merge.sh $N"; exit 2; }
 # 11-11（#125，所有者定）：main 前进了不一定要重合 main——只多文档、或文件完全不重叠且合并预演干净，就认 PR 上已测结果（tools/merge_drift.sh；库结构 / 闸门 / CI 永远严格）
 RELAXED=0
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
