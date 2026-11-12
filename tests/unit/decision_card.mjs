@@ -17,4 +17,9 @@ for (const f of ['server/migrations/20261201_x.sql', 'schema.sql', 'wrangler.jso
   T(`红线：${f}`, lv([f]) === 'owner', lv([f]));
 T('红线和普通文件混在一起 → 按红线算', lv(['tests/x.js', 'tools/gate.sh']) === 'owner');
 T('.github/workflows/tests.yml 不是红线（要改 paths）', lv(['.github/workflows/tests.yml']) === 'review');
+// 11-12（#214 阶段 1a）：协作实践.md §11 表格和机器判定不许再各说各的（之前表里写 docs/ 要复核，代码里是自助合并）
+{ const doc = fs.readFileSync(new URL('../../协作实践.md', import.meta.url), 'utf8'), row = doc.split('\n').find(l => l.startsWith('| D |')) || '';
+  const dirs = [...row.matchAll(/`([^`]+\/)`/g)].map(m => m[1]);
+  T('§11 D 行：写出的目录都至少要独立复核', dirs.length >= 4 && dirs.every(d => lv([d + 'x.txt']) !== 'self'), dirs);
+  T('§11 D 行不再把 docs/ 列成要复核（纯文档自助合并，红线的 docs/adr 另算）', !dirs.includes('docs/') && lv(['docs/协作分工.md']) === 'self' && lv(['docs/adr/0010-x.md']) === 'owner'); }
 console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
