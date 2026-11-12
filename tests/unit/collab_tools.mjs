@@ -44,13 +44,16 @@ r = carries(R, git(d, 'rev-parse', 'HEAD'), 'main', d); T('旧提交不是头提
 { const src = fs.readFileSync(path.join(ROOT, 'tests/run_all.mjs'), 'utf8'); T('add() 遇到重复的测试名直接报错（union 合出两份时不会悄悄跑两遍）', /const add = .*测试名重复/.test(src)); }
 
 // 4. sync_main：旧分支带着已不入库的生成文件 → 自动跟着 main 删；真冲突照旧中止
-const sm = scenario => { const bare = tmpd('nbq-bare-') + '/o.git'; fs.mkdirSync(bare); git(bare, 'init', '-q', '--bare', '-b', 'main'); const d = tmpd('nbq-sm-'); git(d, 'clone', '-q', bare, d + '/w'); const w = d + '/w';
+const sm = (scenario, o = {}) => { const bare = tmpd('nbq-bare-') + '/o.git'; fs.mkdirSync(bare); git(bare, 'init', '-q', '--bare', '-b', 'main'); const d = tmpd('nbq-sm-'); if (o.nested) { git(d, 'init', '-q', '-b', 'outer'); W(d, 'o.txt', 'o\n'); git(d, 'add', '-A'); git(d, 'commit', '-qm', 'outer') } git(d, 'clone', '-q', bare, d + '/w'); const w = d + '/w';
   git(w, 'checkout', '-q', '-b', 'main'); fs.mkdirSync(path.join(w, 'tools')); fs.copyFileSync(path.join(ROOT, 'tools/sync_main.sh'), path.join(w, 'tools/sync_main.sh'));
   W(w, '南伴球_PWA.html', 'gen\n'); W(w, 'x.js', 'base\n'); git(w, 'add', '-A'); git(w, 'commit', '-qm', 'base'); git(w, 'push', '-q', 'origin', 'main'); git(w, 'checkout', '-qb', 'feat');
   W(w, '南伴球_PWA.html', 'gen+feat\n'); W(w, 'y.js', 'feat\n'); if (scenario === 'real') W(w, 'x.js', 'feat\n'); git(w, 'add', '-A'); git(w, 'commit', '-qm', 'feat'); git(w, 'push', '-q', 'origin', 'feat');
   git(w, 'checkout', '-q', 'main'); git(w, 'rm', '-q', '南伴球_PWA.html'); if (scenario === 'real') W(w, 'x.js', 'main\n'); git(w, 'add', '-A'); git(w, 'commit', '-qm', 'main drops generated'); git(w, 'push', '-q', 'origin', 'main'); git(w, 'checkout', '-q', 'feat');
-  const before = git(w, 'rev-parse', 'HEAD'), p = spawnSync('bash', ['tools/sync_main.sh'], { cwd: w, env: { ...env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' }, encoding: "utf8" }); return { w, p, before, after: git(w, 'rev-parse', 'HEAD'), has: fs.existsSync(path.join(w, '南伴球_PWA.html')), pushed: git(w, 'ls-remote', 'origin', 'feat').split('\t')[0] } };
+  const before = git(w, 'rev-parse', 'HEAD'), p = spawnSync('bash', o.pipe ? [] : ['tools/sync_main.sh'], { cwd: w, input: o.pipe ? fs.readFileSync(path.join(w, 'tools/sync_main.sh')) : undefined, env: { ...env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' }, encoding: "utf8" }); return { w, p, before, after: git(w, 'rev-parse', 'HEAD'), has: fs.existsSync(path.join(w, '南伴球_PWA.html')), pushed: git(w, 'ls-remote', 'origin', 'feat').split('\t')[0] } };
 let s = sm('gen'); T('只有生成文件冲突：自动删除、提交并推送', s.p.status === 0 && !s.has && s.after !== s.before && s.pushed === s.after && /跟着 main 删除/.test(s.p.stdout), { code: s.p.status, out: s.p.stdout + s.p.stderr, has: s.has });
 T('合并后分支仍带着自己的改动（y.js）', fs.existsSync(path.join(s.w, 'y.js')));
 s = sm('real'); T('真冲突（x.js）：照旧中止、分支不变', s.p.status === 3 && s.after === s.before && /x\.js/.test(s.p.stdout), { code: s.p.status, out: s.p.stdout });
+// 11-11：旧分支没有脚本时按文档用管道运行（$0 = bash）。仓库在另一个仓库里面时，旧写法 cd $(dirname $0)/.. 会跑到外层仓库去操作
+s = sm('gen', { pipe: true, nested: true }); T('管道运行 + 仓库嵌在另一个仓库里：仍在本仓库合并并推送，不碰外层', s.p.status === 0 && s.pushed === s.after && s.after !== s.before && fs.existsSync(path.join(s.w, 'y.js')), { code: s.p.status, out: s.p.stdout + s.p.stderr });
+{ const d = tmpd('nbq-norepo-'), p = spawnSync('bash', [], { cwd: d, input: fs.readFileSync(path.join(ROOT, 'tools/sync_main.sh')), env, encoding: 'utf8' }); T('不在仓库里运行：直接报错退出，不往上找别的目录', p.status === 1 && /不在 git 仓库里/.test(p.stdout), { code: p.status, out: p.stdout + p.stderr }); }
 console.log(`collab_tools: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
