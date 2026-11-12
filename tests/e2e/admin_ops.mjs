@@ -194,6 +194,8 @@ try {
     await p.click('[data-sc="json"]'); await p.fill('#scJson', '{坏的'); await p.click('[data-sc="save"]'); T('7.5 高级 JSON 写坏：页面先拦下', /不是合法的 JSON/.test(await txt(p, '#scErr')));
     await p.click('[data-sc="unedit"]'); await p.evaluate(() => { document.querySelector('[data-sc="discard"]') && (window.confirm = () => true) }); await p.click('[data-sc="discard"]');
     T('7.5e 丢弃草稿 → 草稿表空', await until(async () => (await one(`select count(*)::int n from sb_config_draft`)).n === 0));
+    // 丢弃后页面会重读配置（按钮先变成禁用、折叠区重画收起）：等它读完、按钮可用了再展开去点——只等数据库会抢跑（11-13 高负载下 7.6 超时）
+    T('7.5f 丢弃后页面读完：「没有未发布的改动」、退回按钮可用', await until(() => p.evaluate(v => /没有未发布的改动/.test(document.getElementById('page').innerText) && !!document.querySelector(`[data-sc="rollback"][data-v="${v}"]:not([disabled])`), v0), 15000));
     await p.evaluate(() => { document.querySelector('[data-sc="rollback"]')?.closest('details')?.setAttribute('open', '') });
     await p.click(`[data-sc="rollback"][data-v="${v0}"]`); await p.fill('#admRin', '撤回下线'); await p.click('[data-admrok]');
     T('7.6 退回旧版 → 又一个新版本，记着从哪版退回', await until(async () => (await one(`select from_version from sb_config_versions order by version desc limit 1`)).from_version === v0));
