@@ -13,3 +13,6 @@
 .bd-cf .av{width:64px;height:64px}.bd-cf .bd-nm{font-size:18px;margin-top:4px}.bd-cf p{margin:0;font-size:14px;color:var(--mut);line-height:1.5}
 .bd-bt{display:flex;gap:10px;width:100%;margin-top:12px}.bd-bt>button{flex:1}
 .bd-note{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5}
+/* B2：球员卡上的按钮和状态用现成的 .invbtn.soft / .invbtn.wait（两端、深浅底都配好了），这里只补状态行里的「删除球友」 */
+.bd-st{text-align:center;cursor:default}
+.bd-x{border:0;background:none;font:inherit;font-size:12px;color:inherit;opacity:.85;cursor:pointer;padding:2px 0;text-decoration:underline}
