@@ -102,6 +102,14 @@ add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')],
 add('pg', 'pg/admin_venues', ['node', path.join(HERE, 'pg/admin_venues.mjs')], { pass: [/admin_venues: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_users', ['node', path.join(HERE, 'pg/admin_users.mjs')], { pass: [/admin_users: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_games', ['node', path.join(HERE, 'pg/admin_games.mjs')], { pass: [/admin_games: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/admin_user_ops', ['node', path.join(HERE, 'pg/admin_user_ops.mjs')], { pass: [/admin_user_ops: \d+ 通过, 0 失败/], timeout: 300 });   // 球友详情与处理 #27 第 4 步
+add('pg', 'pg/admin_risk', ['node', path.join(HERE, 'pg/admin_risk.mjs')], { pass: [/admin_risk: \d+ 通过, 0 失败/], timeout: 300 });   // 风险提醒与规则 #27 第 4 步
+add('pg', 'pg/admin_appeals', ['node', path.join(HERE, 'pg/admin_appeals.mjs')], { pass: [/admin_appeals: \d+ 通过, 0 失败/], timeout: 300 });   // 爽约申诉 #195
+add('pg', 'pg/admin_sideline', ['node', path.join(HERE, 'pg/admin_sideline.mjs')], { pass: [/admin_sideline: \d+ 通过, 0 失败/], timeout: 300 });   // 场边举报 #27 第 4 步
+add('pg', 'pg/admin_admins', ['node', path.join(HERE, 'pg/admin_admins.mjs')], { pass: [/admin_admins: \d+ 通过, 0 失败/], timeout: 300 });   // 管理员与操作日志 #27 第 4 步
+add('pg', 'pg/admin_cities_api', ['node', path.join(HERE, 'pg/admin_cities_api.mjs')], { pass: [/admin_cities_api: \d+ 通过, 0 失败/], timeout: 300 });   // 城市接口 #27 第 4 步
+add('pg', 'pg/admin_stats', ['node', path.join(HERE, 'pg/admin_stats.mjs')], { pass: [/admin_stats: \d+ 通过, 0 失败/], timeout: 300 });   // 统计白名单接口 #27 第 4 步
+add('pg', 'pg/admin_sb_config', ['node', path.join(HERE, 'pg/admin_sb_config.mjs')], { pass: [/admin_sb_config: \d+ 通过, 0 失败/], timeout: 300 });   // 场边配置接口 #27 第 4 步
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
@@ -111,6 +119,7 @@ add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 
 add('pg', 'pg/admin_utr', ['node', path.join(HERE, 'pg/admin_utr.mjs')], { pass: [/admin_utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR 后台 #101
 add('frontend', 'frontend/e2e_fullstack', ['node', path.join(HERE, 'e2e/fullstack.mjs')], { pass: [/fullstack: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/e2e_admin_login', ['node', path.join(HERE, 'e2e/admin_login.mjs')], { pass: [/admin_login: \d+ 通过, 0 失败/], timeout: 600 });   // #27 B1 后台真登录 + 真模式外壳（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）；放 frontend 档：CI 的浏览器档才有 Chromium + PostgreSQL
+add('frontend', 'frontend/e2e_admin_ops', ['node', path.join(HERE, 'e2e/admin_ops.mjs')], { pass: [/admin_ops: \d+ 通过, 0 失败/], timeout: 600 });   // #27 第 4 步起：后台真数据页的处理操作（真页面 ↔ 真 handleAdmin ↔ 真 PostgreSQL）
 add('pg', 'pg/api_read', ['node', path.join(HERE, 'pg/api_read.mjs')], { pass: [/api_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_events', ['node', path.join(HERE, 'pg/api_events.mjs')], { pass: [/api_events: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/venues_seed', ['node', path.join(HERE, 'pg/venues_seed.mjs')], { pass: [/venues_seed: \d+ 通过, 0 失败/], timeout: 300 });

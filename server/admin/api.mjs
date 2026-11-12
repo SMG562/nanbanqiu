@@ -78,6 +78,76 @@ async function readJson(req) {
   throw Object.assign(new Error('bad_json'), { http: send(400, { error: 'bad_json' }) });
 }
 const strIn = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+const noOk = v => Number.isInteger(v) && v > 0 && v < 1e9;                                   // 会员编号
+const reasonOk = v => typeof v === 'string' && v.length <= 200;                               // 理由：长度上限在这里，「至少 4 个字」由数据库按权限判断（不需要理由的动作可以空）
+const cityOk = v => typeof v === 'string' && /^[a-z]{2,12}$/.test(v);
+const notFound = () => Object.assign(new Error('not_found'), { code: 'not_found' });
+// 会员编号 → id：在后台数据库角色下查（行级安全：限城市的管理员查不到别的城市的人 → 404）
+const sbTarget = b => (b.kind === 'post' && UUID.test(b.id || '')) || (b.kind === 'reply' && /^\d{1,18}$/.test(String(b.id ?? '')));
+// 场边内容所在城市：限城市的管理员只能处理自己城市的（库函数本身不看城市）
+async function sbCityCheck(db, a, b) {
+  const r = (await db.query(b.kind === 'post' ? 'select city from sb_posts where id = $1::uuid' : 'select p.city from sb_replies r join sb_posts p on p.id = r.post_id where r.id = $1::bigint', [String(b.id)])).rows[0];
+  if (!r || (a.cities && !a.cities.includes(r.city))) throw notFound();
+}
+// 逐条走 admin_report_handle（每条都留痕）；返回关掉了几条
+async function sbCloseReports(db, b, action) {
+  const ids = (await db.query(`select id from reports where target_type = $1 and target_id = $2 and status = 'open'`, [b.kind === 'post' ? 'sb_post' : 'sb_reply', String(b.id)])).rows;
+  for (const r of ids) await db.query('select admin_report_handle($1::uuid, $2)', [r.id, action]);
+  return ids.length;
+}
+const SB_PARTS = ['topics', 'alias', 'generic', 'settings', 'hints', 'slots', 'starters', 'week', 'specials'];
+// 场边配置写入：配置内容不合格时库里可能抛约束 / 类型错误（23xxx / 22xxx）——这是「填的内容不对」，按 invalid（422）回，detail 给出是哪一块的问题（不带库原文）
+async function sbCfg(db, sql, params) {
+  try { return (await db.query(sql, params)).rows[0].d }
+  catch (e) { if (/^2[23]/.test(String(e.code || ''))) throw Object.assign(new Error('invalid'), { code: 'invalid', detail: 'config' }); throw e }
+}
+async function userIdByNo(db, no) { const r = (await db.query('select id from users where member_no = $1::bigint', [String(no)])).rows[0]; if (!r) throw notFound(); return r.id }
+
+// 统计白名单：名字 → SQL + 参数 (from, to, city)。名字与原型的 CARDSRC 数据源同名；cityReq = 函数要求城市（不传就用 melb）；max = 最多返回几行
+const R2 = (f, t) => [f, t], R3 = (f, t, c) => [f, t, c], C3 = (f, t, c) => [c, f, t];
+const STATS = {
+  active_users: { sql: 'select * from active_users($1, $2, $3)', args: R3 },
+  today_board: { sql: 'select * from today_board($1)', args: (f, t, c) => [c] },
+  fill_rate: { sql: 'select * from fill_rate($1, $2)', args: R2 },
+  series: { sql: `select day, metric, sum(value)::float as value from daily_metrics where day >= ($1::timestamptz at time zone 'Australia/Melbourne')::date and day <= ($2::timestamptz at time zone 'Australia/Melbourne')::date
+                    and dims = '{}' and metric in ('dau', 'new_users', 'games_created', 'applications', 'messages', 'shares') group by 1, 2 order by 1, 2`, args: R2, max: 3000 },
+  user_activity: { sql: 'select member_no, nickname, host_ok, played, apply, invite, impression, active_day, no_show, score from user_activity($1, $2, $3) order by score desc nulls last limit 20', args: R3, personal: true },
+  venue_activity: { sql: 'select short_name, suburb, games, played, applications, score from venue_activity($1, $2) order by score desc limit 20', args: R2 },
+  suburb_activity: { sql: 'select * from suburb_activity($1, $2) order by score desc nulls last limit 60', args: R2 },
+  start_heatmap: { sql: 'select * from start_heatmap($1, $2, $3)', args: R3 },
+  visit_funnel: { sql: 'select * from visit_funnel($1, $2) order by step', args: R2 },
+  application_outcomes: { sql: 'select outcome, sum(n)::bigint as n from application_outcomes($1, $2) group by 1 order by 2 desc', args: R2 },
+  card_views: { sql: 'select count(*)::bigint as cards, coalesce(sum(views), 0)::bigint as views, coalesce(sum(from_outside), 0)::bigint as from_outside, coalesce(sum(external_landings), 0)::bigint as external_landings from card_views($1, $2, $3)', args: R3 },
+  share_attribution: { sql: 'select * from share_attribution($1, $2, $3) order by shares desc', args: R3 },
+  page_traffic: { sql: 'select * from page_traffic($1, $2) order by views desc', args: R2 },
+  entry_sources: { sql: 'select * from entry_sources($1, $2) order by sessions desc', args: R2 },
+  game_view_via: { sql: 'select * from game_view_via($1, $2) order by views desc', args: R2 },
+  device_compare: { sql: 'select * from device_compare($1, $2)', args: R2 },
+  env_usage: { sql: 'select * from env_usage($1, $2) order by sessions desc', args: R2 },
+  pwa_install_funnel: { sql: 'select * from pwa_install_funnel($1, $2) order by step', args: R2 },
+  inapp_handoff_funnel: { sql: 'select * from inapp_handoff_funnel($1, $2)', args: R2 },
+  less_effect_counts: { sql: 'select * from less_effect_counts($1, $2) order by n desc', args: R2 },
+  badge_rarity: { sql: 'select * from v_badge_rarity', args: () => [], max: 100 },
+  level_stuck: { sql: 'select * from v_level_stuck', args: () => [], max: 100 },
+  invite_outcomes: { sql: `select status, count(*)::bigint as n, count(*) filter (where played_before)::bigint as played_before, round(avg(reply_minutes)::numeric, 1) as reply_minutes from v_invite_outcomes where created_at >= $1 and created_at < $2 group by 1 order by 2 desc`, args: R2 },
+  retention: { sql: 'select * from v_user_retention', args: () => [], max: 60 },
+  event_defs: { sql: 'select event, category, description, props, source, status, replaced_by from event_definitions order by category, event', args: () => [], max: 500 },
+  sb_kpis: { sql: 'select * from sb_stat_kpis($1, $2, $3)', args: C3, cityReq: true },
+  sb_topics: { sql: 'select * from sb_stat_topics($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
+  sb_courts: { sql: 'select name, posts, views, interactions from sb_stat_courts($1, $2, $3) order by posts desc limit 30', args: C3, cityReq: true },
+  sb_heat: { sql: 'select * from sb_stat_heat($1, $2, $3)', args: C3, cityReq: true },
+  sb_choices: { sql: 'select * from sb_stat_choices($1, $2, $3)', args: C3, cityReq: true },
+  sb_negative: { sql: 'select * from sb_stat_negative($1, $2, $3)', args: C3, cityReq: true },
+  sb_top_posts: { sql: 'select body, topic_id, venue, author, has_photo, views, balls, replies, shares, still_public, status from sb_stat_top_posts($1, $2, $3, 20)', args: C3, cityReq: true, personal: true },
+};
+export const STAT_NAMES = Object.keys(STATS);
+
+// 跑一个白名单统计：去掉值是 uuid 的列（按值判断，不按列名：from_user / to_user 这种也算），bigint / numeric 转成数字；noIds = 再去掉能认出人的列（导出不带用户 ID 时）
+const PERSON_COLS = new Set(['member_no', 'nickname', 'author', 'body']);
+async function runStat(db, name, f, t, c, noIds = false) {
+  const s = STATS[name], res = await db.query(s.sql, s.args(f, t, s.cityReq ? (c || 'melb') : c)), num = new Set(res.fields.filter(x => [20, 1700].includes(x.dataTypeID)).map(x => x.name));
+  return res.rows.slice(0, s.max || 200).map(r => Object.fromEntries(Object.entries(r).filter(([k, v]) => !(typeof v === 'string' && UUID.test(v)) && !(noIds && PERSON_COLS.has(k))).map(([k, v]) => [k, num.has(k) && v !== null ? +v : v])));
+}
 
 // 需要登录的路由：校验会话 → 查权限 → 在对应数据库角色的事务里执行 fn(db, admin, body)
 export async function authed(req, d, route, fn, body) {
@@ -139,7 +209,7 @@ export const ROUTES = {
                case when r.target_type = 'user' and r.target_id ~ '^[0-9a-f-]{36}$' then (select nickname from users where id = r.target_id::uuid)
                     when r.target_type = 'game' and r.target_id ~ '^[0-9a-f-]{36}$' then (select hu.nickname from games g join users hu on hu.id = g.host_id where g.id = r.target_id::uuid) end as target_name
           from reports r join users ru on ru.id = r.reporter_id
-         where $1::text[] is null or ru.home_city = any($1::text[])),
+         where ($1::text[] is null or ru.home_city = any($1::text[])) and r.target_type not in ('sb_post', 'sb_reply')),   -- 场边举报在 /sideline/reports（按内容合并）
       pick as (
         (select * from base where status = 'open' order by created_at desc limit 200)
         union all
@@ -209,6 +279,267 @@ export const ROUTES = {
       const cnt = (await db.query(`select u.status, count(*)::int n from users u where ($1::text[] is null or u.home_city = any($1::text[])) group by 1`, [c])).rows;
       return { users: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
+  } },
+  // ---------- 球友详情与处理（#27 第 4 步）----------
+  // 对外只用会员编号 no（不暴露内部 id）。编号 → id 在后台角色的行级安全下查：限城市的管理员查不到别的城市的人 → 404，写操作也就做不了
+  //   （admin_ 函数是 security definer，本身不看城市，所以这一步是城市范围的唯一一道闸，tests/pg/admin_user_ops 有用例）。
+  'GET /admin/api/users/detail': { name: 'users_detail', perm: 'user.status', run: (req, d, b, route) => {
+    const no = new URL(req.url).searchParams.get('no') || '';
+    if (!/^\d{1,9}$/.test(no)) return fail(bad(), 'users_detail');
+    return authed(req, d, route, async db => {
+      const id = await userIdByNo(db, no);
+      const u = (await db.query(`select u.member_no::int as member_no, u.nickname, u.last_initial, u.home_city as city, u.status, u.status_since, u.status_until, u.status_reason,
+               u.gender, u.gender_review, (u.gender_m2f_at is not null) as m2f_used, u.avatar_kind, u.utr::float as utr, u.utr_estimated, u.level, u.created_at, u.last_active_at, u.signup_source, p.phone_tail,
+               (select count(*)::int from games g where g.host_id = u.id) as hosted,
+               (select count(*)::int from game_participants x where x.user_id = u.id and x.role = 'player' and x.status = 'approved') as joined,
+               (select count(*)::int from reports r where r.target_type = 'user' and r.target_id = u.id::text) as reported,
+               (select count(*)::int from reports r where r.target_type = 'user' and r.target_id = u.id::text and r.status = 'open') as reported_open
+          from users u join admin_user_phone p on p.id = u.id where u.id = $1`, [id])).rows[0];
+      const log = (await db.query(`select l.from_status, l.to_status, l.reason, l.note, l.duration_days, l.until, l.created_at, a.name as by_name
+          from user_status_log l left join admin_users a on a.id = l.by_admin where l.user_id = $1 order by l.created_at desc, l.id desc limit 20`, [id])).rows;
+      return { user: u, log };
+    });
+  } },
+  // 改状态：数据库函数决定要 user.status 还是 user.ban（封禁 / 恢复已封禁或已注销 → 只有 owner），并做连带处理、发通知、写状态日志和操作日志
+  'POST /admin/api/users/status': { name: 'users_status', perm: 'user.status', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['active', 'review', 'limited', 'suspended', 'banned'].includes(b.status) || !reasonOk(b.reason)
+      || (b.reason_code != null && !/^[a-z_]{2,20}$/.test(b.reason_code)) || (b.days != null && !Number.isInteger(b.days))) return fail(bad(), 'users_status');
+    return authed(req, d, route, async db => { await db.query('select admin_user_status($1, $2, $3, $4, $5)', [await userIdByNo(db, b.no), b.status, b.reason_code ?? null, b.reason, b.days ?? null]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/users/reset': { name: 'users_reset', perm: 'user.reset', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['nickname', 'avatar'].includes(b.what) || !reasonOk(b.reason)) return fail(bad(), 'users_reset');
+    return authed(req, d, route, async db => { await db.query('select admin_user_reset($1, $2, $3)', [await userIdByNo(db, b.no), b.what, b.reason]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/users/gender': { name: 'users_gender', perm: 'user.gender', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !['clear', 'unlock'].includes(b.action) || !reasonOk(b.reason)) return fail(bad(), 'users_gender');
+    return authed(req, d, route, async db => { await db.query('select admin_user_gender($1, $2, $3)', [await userIdByNo(db, b.no), b.action, b.reason]); return { ok: true } }, b);
+  } },
+  // 完整手机号：只有 owner，必须填理由；每次查看都记操作日志。响应 no-store（BASE_H），前端只显示、不缓存
+  'POST /admin/api/users/phone': { name: 'users_phone', perm: 'phone.reveal', body: true, run: (req, d, b, route) => {
+    if (!noOk(b.no) || !reasonOk(b.reason)) return fail(bad(), 'users_phone');
+    return authed(req, d, route, async db => ({ phone: (await db.query('select admin_reveal_phone($1, $2) as p', [await userIdByNo(db, b.no), b.reason])).rows[0].p }), b);
+  } },
+  // ---------- 场边举报（#27 第 4 步）----------
+  // 按被举报的内容合并：同一条发布 / 回复的多条举报一行显示（举报原因、举报人、时间）；附内容原文、作者、现在是否已隐藏。
+  // 待处理 = 还有未处理举报的内容（最多 100）；另给最近处理的 30 条。限城市的管理员只看自己城市的场边。
+  'GET /admin/api/sideline/reports': { name: 'sideline_reports', perm: 'report.handle', run: (req, d, b, route) => authed(req, d, route, async (db, a) => {
+    const rows = (await db.query(`
+      with r0 as (select r.*, case when r.target_type = 'sb_reply' then r.target_id::bigint end as reply_id from reports r where r.target_type in ('sb_post', 'sb_reply') and r.target_id ~ '^([0-9a-f-]{36}|[0-9]{1,18})$'),
+      r as (select r.*, case when r.target_type = 'sb_post' then r.target_id::uuid else (select post_id from sb_replies where id = r.reply_id) end as post_id
+                   from r0 r where r.target_type in ('sb_post', 'sb_reply') and r.target_id ~ '^([0-9a-f-]{36}|[0-9]{1,18})$'),
+      t as (select r.target_type, r.target_id, min(r.post_id::text)::uuid as post_id, min(r.reply_id) as reply_id, bool_or(r.status = 'open') as open, max(coalesce(r.handled_at, r.created_at)) as last_at,
+                   jsonb_agg(jsonb_build_object('id', r.id, 'reason', r.reason, 'status', r.status, 'reporter', (select nickname from users where id = r.reporter_id), 'created_at', r.created_at) order by r.created_at) as reports
+              from r group by 1, 2),
+      x as (select t.*, p.city, case when t.target_type = 'sb_post' then p.body else rp.body end as body, case when t.target_type = 'sb_post' then p.status else rp.status end as status,
+                   case when t.target_type = 'sb_post' then p.deleted_at else rp.deleted_at end is not null as deleted, p.photo_count, p.topic_id,
+                   (select count(*)::int from sb_photos f where f.post_id = p.id and f.review = 'blurred') as photos_pending,
+                   au.member_no::int as author_no, au.nickname as author
+              from t join sb_posts p on p.id = t.post_id left join sb_replies rp on rp.id = t.reply_id
+              join users au on au.id = case when t.target_type = 'sb_post' then p.user_id else rp.user_id end
+             where $1::text[] is null or p.city = any($1::text[]))
+      (select * from x where open order by last_at desc limit 100) union all (select * from x where not open order by last_at desc limit 30)`, [a.cities ?? null])).rows;
+    return { items: rows.map(({ post_id, reply_id, city, ...o }) => ({ ...o, kind: o.target_type === 'sb_post' ? 'post' : 'reply', id: o.target_id })) };
+  }) },
+  // 隐藏 / 恢复显示（message.hide，必须填理由）。隐藏时这条内容上所有未处理的举报一并标成「已处理」（同一个事务）
+  'POST /admin/api/sideline/hide': { name: 'sideline_hide', perm: 'message.hide', body: true, run: (req, d, b, route) => {
+    if (!sbTarget(b) || typeof b.hide !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'sideline_hide');
+    return authed(req, d, route, async (db, a) => {
+      await sbCityCheck(db, a, b);
+      await db.query(b.kind === 'post' ? 'select admin_sb_post_hide($1::uuid, $2, $3)' : 'select admin_sb_reply_hide($1::bigint, $2, $3)', [b.id, b.hide, b.reason]);
+      if (b.hide) await sbCloseReports(db, b, 'actioned');
+      return { ok: true };
+    }, b);
+  } },
+  // 不用处理：这条内容上所有未处理的举报标成「已忽略」（report.handle）。没有未处理的 → 409（别人刚处理过）
+  'POST /admin/api/sideline/dismiss': { name: 'sideline_dismiss', perm: 'report.handle', body: true, run: (req, d, b, route) => {
+    if (!sbTarget(b)) return fail(bad(), 'sideline_dismiss');
+    return authed(req, d, route, async (db, a) => { await sbCityCheck(db, a, b); if (!(await sbCloseReports(db, b, 'dismissed'))) throw Object.assign(new Error('state_changed'), { code: 'state_changed' }); return { ok: true } }, b);
+  } },
+  // ---------- 管理员与操作日志（#27 第 4 步）----------
+  // 名单：只有 owner（admin.manage）。不返回密码哈希、两步验证密钥、恢复码（列权限本来就读不到），只给恢复码剩几个。
+  // 新增管理员不走网页：用 tools/admin_create.mjs 在本机生成（密码由本人输入、不经过网络）
+  'GET /admin/api/admins': { name: 'admins', perm: 'admin.manage', run: (req, d, b, route) => authed(req, d, route, async (db, a) => ({
+    me: a.id,
+    admins: (await db.query(`select id, email, name, role, cities, disabled, disabled_at, disabled_reason, created_at, last_login_at from admin_users order by disabled, case role when 'owner' then 0 when 'operator' then 1 else 2 end, created_at`)).rows,
+    health: (await db.query('select owners::int, active_admins::int, low_recovery::int, live_sessions::int from admin_health')).rows[0],
+    cities: (await db.query('select key, name_zh from cities order by key')).rows,
+  })) },
+  // 改角色 / 停用 / 恢复：至少保留一位 owner、不能停用自己（库函数挡）；停用时撤销他的全部会话
+  'POST /admin/api/admins/update': { name: 'admins_update', perm: 'admin.manage', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || (b.role != null && !['owner', 'operator', 'viewer'].includes(b.role)) || (b.disable != null && typeof b.disable !== 'boolean') || (b.role == null && b.disable == null) || !reasonOk(b.reason)) return fail(bad(), 'admins_update');
+    return authed(req, d, route, async db => { await db.query('select admin_update($1::uuid, $2, $3, $4)', [b.id, b.role ?? null, b.disable ?? null, b.reason]); return { ok: true } }, b);
+  } },
+  // 负责的城市：null = 全部城市；owner 不能限城市（库函数挡）
+  'POST /admin/api/admins/cities': { name: 'admins_cities', perm: 'admin.manage', body: true, run: (req, d, b, route) => {
+    if (!UUID.test(b.id || '') || !(b.cities === null || (Array.isArray(b.cities) && b.cities.length <= 20 && b.cities.every(c => /^[a-z]{2,12}$/.test(c)))) || !reasonOk(b.reason)) return fail(bad(), 'admins_cities');
+    return authed(req, d, route, async db => { await db.query('select admin_set_cities($1::uuid, $2::text[], $3)', [b.id, b.cities, b.reason]); return { ok: true } }, b);
+  } },
+  // 操作日志（audit.view：owner / 运营）。按时间倒序每页 100；before = 上一页最后一条的 id；action 按前缀筛（user. / report. …）。日志只追加，后台不能改
+  'GET /admin/api/audit': { name: 'audit', perm: 'audit.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, before = sp.get('before') || '', act = sp.get('action') || '';
+    if ((before && !/^\d{1,18}$/.test(before)) || (act && !/^[a-z_]{2,20}\.?[a-z_]{0,20}$/.test(act))) return fail(bad(), 'audit');
+    const exact = /\.[a-z_]+$/.test(act);                                      // user.status = 只看这一种；user / user. = 这一类
+    return authed(req, d, route, async db => {
+      const rows = (await db.query(`select l.id::text as id, l.at, l.action, l.target, l.detail, a.name as admin_name, a.role as admin_role
+          from admin_audit_log l left join admin_users a on a.id = l.admin_id
+         where ($1 = '' or l.id < $1::bigint) and ($2 = '' or l.action = $2) and ($3 = '' or l.action like $3 || '%')
+         order by l.id desc limit 101`, [before, exact ? act : '', exact || !act ? '' : act.replace(/\.$/, '').replace(/_/g, '\\_') + '.'])).rows;
+      return { rows: rows.slice(0, 100), more: rows.length > 100 };
+    });
+  } },
+  // ---------- 场边配置（#27 第 4 步）：草稿 → 发布 / 丢弃 / 退回旧版本 ----------
+  // 读：草稿（没有草稿 = 最新版本）+ 最近 20 个版本 + 还没到门槛的「大家发起」话题（可提前放出）。
+  // 写：sideline.config（owner、运营；限城市的管理员不能改全站配置——库函数挡）。每个写操作带页面上看到的版本号 base，别人刚发布过 → 409 admin_config_stale
+  'GET /admin/api/sideline/config': { name: 'sb_config', perm: 'sideline.config', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    draft: (await db.query('select admin_sb_config_draft() as d')).rows[0].d,
+    versions: (await db.query('select * from admin_sb_config_versions(20)')).rows,
+    pending: (await db.query(`select id, title, city, created_at from sb_topics where kind = 'user' and released_at is null and merged_into is null order by created_at desc limit 50`)).rows,
+  })) },
+  'POST /admin/api/sideline/config/set': { name: 'sb_config_set', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!SB_PARTS.includes(b.part) || b.value === undefined || !Number.isInteger(b.base)) return fail(bad(), 'sb_config_set');
+    return authed(req, d, route, async db => ({ draft: await sbCfg(db, 'select admin_sb_config_set($1, $2::jsonb, $3) as d', [b.part, JSON.stringify(b.value), b.base]) }), b);
+  } },
+  'POST /admin/api/sideline/config/discard': { name: 'sb_config_discard', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base)) return fail(bad(), 'sb_config_discard');
+    return authed(req, d, route, async db => { await db.query('select admin_sb_config_discard($1)', [b.base]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/sideline/config/publish': { name: 'sb_config_publish', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base) || !strIn(b.note, 60)) return fail(bad(), 'sb_config_publish');
+    return authed(req, d, route, async db => ({ version: await sbCfg(db, 'select admin_sb_config_publish($1, $2) as d', [b.note, b.base]) }), b);
+  } },
+  'POST /admin/api/sideline/config/rollback': { name: 'sb_config_rollback', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!Number.isInteger(b.base) || !Number.isInteger(b.version) || (b.note != null && typeof b.note !== 'string')) return fail(bad(), 'sb_config_rollback');
+    return authed(req, d, route, async db => ({ version: (await db.query('select admin_sb_config_rollback($1, $2, $3) as v', [b.version, b.base, b.note ?? null])).rows[0].v }), b);
+  } },
+  'POST /admin/api/sideline/topics/release': { name: 'sb_topic_release', perm: 'sideline.config', body: true, run: (req, d, b, route) => {
+    if (!strIn(b.topic, 80)) return fail(bad(), 'sb_topic_release');
+    return authed(req, d, route, async db => { await db.query('select admin_sb_topic_release($1)', [b.topic]); return { ok: true } }, b);
+  } },
+  // ---------- 统计（#27 第 4 步）：一个白名单批量接口，给概览和各统计页 ----------
+  // GET /stats?fns=a,b,c&from=&to=&city=  → { from, to, city, data: { a: [行…] | { error } } }
+  //   · 只能调 STATS 里登记的查询（库里的统计函数 / 视图，和原型 CARDSRC 同名同口径）；每个在自己的保存点里跑，一个失败（比如只读角色读不到某张表）不影响其他
+  //   · 去掉内部 id（*_id 且是 uuid 的列）；personal = 结果里有昵称 / 内容，只读角色不给
+  //   · 时间：默认最近 30 天，跨度 ≤ 366 天；city：限城市的管理员只能看自己负责的城市（不传 = 负责的第一个）
+  'GET /admin/api/stats': { name: 'stats', perm: 'page.view', run: (req, d, b, route) => {
+    const sp = new URL(req.url).searchParams, now = d.now ? d.now() : Date.now(), fns = (sp.get('fns') || '').split(',').filter(Boolean);
+    const to = sp.get('to') ? Date.parse(sp.get('to')) : now, from = sp.get('from') ? Date.parse(sp.get('from')) : to - 30 * 864e5, city = sp.get('city') || null;
+    if (!fns.length || fns.length > 12 || !fns.every(f => Object.hasOwn(STATS, f)) || !Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5 || (city && !cityOk(city))) return fail(bad(), 'stats');
+    return authed(req, d, route, async (db, a) => {
+      if (city && a.cities && !a.cities.includes(city)) throw Object.assign(new Error('admin_forbidden'), { code: 'admin_forbidden' });
+      const c = city || (a.cities ? a.cities[0] : null), f = new Date(from).toISOString(), t = new Date(to).toISOString(), data = {};
+      for (const fn of fns) {
+        const s = STATS[fn];
+        if (s.personal && a.db_role === 'nbq_viewer') { data[fn] = { error: 'admin_forbidden' }; continue }
+        await db.query('savepoint st');
+        try {
+          data[fn] = await runStat(db, fn, f, t, c);
+          await db.query('release savepoint st');
+        } catch (e) { await db.query('rollback to savepoint st'); data[fn] = { error: String(e.code || '').startsWith('42501') || /permission denied/.test(e.message) ? 'admin_forbidden' : 'failed' }; if (!data[fn].error.startsWith('admin')) console.error('admin_api stats', fn, e.code || e.message?.slice(0, 60)) }
+      }
+      return { from: f, to: t, city: c, data };
+    });
+  } },
+  // ---------- 导出（#27 第 4 步）：任一统计导出成表格 ----------
+  // 先调 admin_export 拿许可并留痕（不带用户 ID：data.export，owner / 运营；带用户 ID：data.export_ids，只有 owner、必须填理由），再在同一事务里取数。
+  // 不带用户 ID 时去掉编号、昵称、作者、内容这几列。时间 / 城市参数同 /stats
+  'POST /admin/api/export': { name: 'export', perm: 'data.export', body: true, run: (req, d, b, route) => {
+    const now = d.now ? d.now() : Date.now(), to = b.to ? Date.parse(b.to) : now, from = b.from ? Date.parse(b.from) : to - 30 * 864e5;
+    if (!Object.hasOwn(STATS, b.dataset || '') || typeof b.with_ids !== 'boolean' || (b.reason != null && !reasonOk(b.reason)) || !Number.isFinite(from) || !Number.isFinite(to) || from >= to || to - from > 366 * 864e5) return fail(bad(), 'export');
+    return authed(req, d, route, async (db, a) => {
+      await db.query('select admin_export($1, $2, $3)', [b.dataset, b.with_ids, b.reason ?? null]);
+      return { dataset: b.dataset, rows: await runStat(db, b.dataset, new Date(from).toISOString(), new Date(to).toISOString(), a.cities ? a.cities[0] : null, !b.with_ids) };
+    }, b);
+  } },
+  // ---------- 城市（#27 第 4 步，地区扩展 R4）----------
+  // 一览：admin_city_overview（库函数按 nbq_admin_sees 只给自己负责的城市）；改状态 / 资料：city.manage（owner，必须填理由，前进要过检查清单）
+  'GET /admin/api/cities': { name: 'cities', perm: 'page.view', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    cities: (await db.query(`select key, name_zh, slug, status, beta_at, launched_at, suburbs::int, venues::int, players::int, games_30d::int, waitlist::int, waitlist_pending::int, checklist, community_url,
+        (select hashtag from cities c where c.key = o.key) as hashtag, (select center_label from cities c where c.key = o.key) as center_label from admin_city_overview() o`)).rows,
+  })) },
+  'POST /admin/api/cities/status': { name: 'cities_status', perm: 'city.manage', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !['off', 'prep', 'beta', 'on'].includes(b.status) || !reasonOk(b.reason)) return fail(bad(), 'cities_status');
+    return authed(req, d, route, async db => { await db.query('select admin_city_status($1, $2, $3)', [b.city, b.status, b.reason]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/cities/set': { name: 'cities_set', perm: 'city.manage', body: true, run: (req, d, b, route) => {
+    const p = b.patch; if (!cityOk(b.city) || !reasonOk(b.reason) || !p || typeof p !== 'object' || Array.isArray(p) || !Object.keys(p).length
+      || !Object.entries(p).every(([k, v]) => ['community_url', 'hashtag', 'center_label'].includes(k) && typeof v === 'string' && v.length <= 300)) return fail(bad(), 'cities_set');
+    return authed(req, d, route, async db => { await db.query('select admin_city_set($1, $2::jsonb, $3)', [b.city, JSON.stringify(p), b.reason]); return { ok: true } }, b);
+  } },
+  // 开放时通知我：导出还没通知的邮箱（个人信息：owner + 理由，留痕；响应不缓存）· 发完标记已通知
+  'POST /admin/api/cities/waitlist': { name: 'cities_waitlist', perm: 'city.waitlist', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !reasonOk(b.reason)) return fail(bad(), 'cities_waitlist');
+    return authed(req, d, route, async db => ({ emails: (await db.query('select email, created_at from admin_city_waitlist($1, $2)', [b.city, b.reason])).rows }), b);
+  } },
+  'POST /admin/api/cities/waitlist/done': { name: 'cities_waitlist_done', perm: 'city.waitlist', body: true, run: (req, d, b, route) => {
+    if (!cityOk(b.city) || !reasonOk(b.reason)) return fail(bad(), 'cities_waitlist_done');
+    return authed(req, d, route, async db => ({ marked: (await db.query('select admin_city_waitlist_done($1, $2) as n', [b.city, b.reason])).rows[0].n }), b);
+  } },
+  // ---------- 风险提醒与规则（#27 第 4 步）----------
+  // 列表：view = open（待处理）/ watching（观察中）/ done（最近处理或忽略的 50 条）。inner join users：限城市的管理员只看得到自己城市的人的提醒
+  'GET /admin/api/risk': { name: 'risk', perm: 'risk.handle', run: (req, d, b, route) => {
+    const view = new URL(req.url).searchParams.get('view') || 'open';
+    if (!['open', 'watching', 'done'].includes(view)) return fail(bad(), 'risk');
+    return authed(req, d, route, async db => {
+      const alerts = (await db.query(`select a.id::text as id, a.rule_code, r.name as rule_name, a.value::float as value, a.score, a.window_from, a.window_to, a.status, a.watch_until, a.suggested, a.note,
+               a.handled_at, a.created_at, jsonb_typeof(a.detail) = 'object' and a.detail <> '{}' as has_detail, ad.name as reviewed_by_name,
+               u.member_no::int as member_no, u.nickname, u.status as user_status
+          from risk_alerts a join users u on u.id = a.user_id join risk_rules r on r.code = a.rule_code left join admin_users ad on ad.id = a.reviewed_by
+         where case $1 when 'done' then a.status in ('handled', 'ignored') else a.status = $1 end
+         order by case when $1 = 'done' then a.handled_at end desc nulls last, a.score desc, a.created_at limit ${view === 'done' ? 50 : 200}`, [view])).rows;
+      const cnt = (await db.query(`select a.status, count(*)::int n from risk_alerts a join users u on u.id = a.user_id where a.status in ('open', 'watching') group by 1`)).rows;
+      return { alerts, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
+    });
+  } },
+  // 处理：watching（观察 N 天）/ handled / ignored / open（重新打开）。先在行级安全下确认看得到这条（别的城市 → 404），再调库函数（留痕）
+  'POST /admin/api/risk/handle': { name: 'risk_handle', perm: 'risk.handle', body: true, run: (req, d, b, route) => {
+    if (!/^\d{1,18}$/.test(String(b.id ?? '')) || !['watching', 'handled', 'ignored', 'open'].includes(b.status) || (b.note != null && !strIn(b.note, 200))
+      || (b.watch_days != null && ![3, 7, 14, 30].includes(b.watch_days))) return fail(bad(), 'risk_handle');
+    return authed(req, d, route, async db => {
+      const a = (await db.query(`select a.status from risk_alerts a join users u on u.id = a.user_id where a.id = $1::bigint`, [String(b.id)])).rows[0];
+      if (!a) throw notFound();
+      if (a.status === b.status && b.status !== 'watching') throw Object.assign(new Error('state_changed'), { code: 'state_changed' });
+      await db.query('select admin_risk_alert($1::bigint, $2, $3, $4)', [String(b.id), b.status, b.note ?? null, b.watch_days ?? 7]); return { ok: true };
+    }, b);
+  } },
+  // ---------- 爽约申诉（#195 ②）----------
+  // 列表：view = pending（待处理）/ done（最近处理的 50 条）。对外用球局分享码 + 会员编号，不给内部 id。
+  // 证据：谁反馈的（昵称、是不是发起人）、发起人是否在出勤里直接标了未到、这位球友近 90 天其他确认爽约次数。inner join users：限城市的管理员只看自己城市的人
+  'GET /admin/api/appeals': { name: 'appeals', perm: 'report.handle', run: (req, d, b, route) => {
+    const view = new URL(req.url).searchParams.get('view') || 'pending';
+    if (!['pending', 'done'].includes(view)) return fail(bad(), 'appeals');
+    return authed(req, d, route, async db => ({ appeals: (await db.query(`
+      select g.share_code, g.starts_at, g.game_type::text as game_type, g.capacity, coalesce(v.name, g.venue_name) as venue, h.nickname as host,
+             u.member_no::int as member_no, u.nickname, a.reason, a.status, a.created_at, a.decided_at, a.admin_note, ad.name as decided_by_name,
+             exists (select 1 from game_participants p where p.game_id = a.game_id and p.user_id = a.user_id and p.attendance = 'no_show') as host_marked,
+             coalesce((select jsonb_agg(jsonb_build_object('name', ru.nickname, 'is_host', n.reporter_id = g.host_id) order by n.created_at) from noshow_reports n join users ru on ru.id = n.reporter_id
+                        where n.game_id = a.game_id and n.target_id = a.user_id), '[]'::jsonb) as reporters,
+             (select count(*)::int from v_confirmed_noshow c where c.user_id = a.user_id and c.game_id <> a.game_id and c.starts_at > now() - interval '90 days') as other_noshows_90d
+        from noshow_appeals a join users u on u.id = a.user_id join games g on g.id = a.game_id
+        left join users h on h.id = g.host_id left join venues v on v.id = g.venue_id left join admin_users ad on ad.id = a.decided_by
+       where case $1 when 'pending' then a.status = 'pending' else a.status <> 'pending' end
+       order by case when $1 = 'pending' then a.created_at end asc, a.decided_at desc nulls last limit ${view === 'pending' ? 200 : 50}`, [view])).rows }));
+  } },
+  // 处理：upheld（申诉成立，这次不计）/ rejected（不成立，重新计入）。先在行级安全下确认看得到这位球友和这条申诉（别的城市 → 404）
+  'POST /admin/api/appeals/handle': { name: 'appeals_handle', perm: 'report.handle', body: true, run: (req, d, b, route) => {
+    if (!strIn(b.game, 20) || !noOk(b.no) || !['upheld', 'rejected'].includes(b.status) || (b.note != null && !reasonOk(b.note))) return fail(bad(), 'appeals_handle');
+    return authed(req, d, route, async db => {
+      const r = (await db.query(`select a.game_id, a.user_id from noshow_appeals a join users u on u.id = a.user_id join games g on g.id = a.game_id where g.share_code = $1 and u.member_no = $2::bigint`, [b.game, String(b.no)])).rows[0];
+      if (!r) throw notFound();
+      await db.query('select admin_noshow_appeal($1, $2, $3, $4)', [r.game_id, r.user_id, b.status, b.note ?? null]); return { ok: true };
+    }, b);
+  } },
+  // 规则：风险规则（权重、阈值、时间窗、开关）+ 频率规则（次数、时间窗、开关）。看：运营以上；改：只有 owner、必须填理由（库函数记改前改后）
+  'GET /admin/api/rules': { name: 'rules', perm: 'risk.handle', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    risk: (await db.query(`select code, name, weight, threshold::float as threshold, window_days, enabled from risk_rules order by weight desc, code`)).rows,
+    rate: (await db.query(`select rule, grp, extract(epoch from win)::int as win_s, max_hits, per_key, enabled, note, day_reset from rate_rules order by grp, rule`)).rows,
+  })) },
+  'POST /admin/api/rules/set': { name: 'rules_set', perm: 'rules.edit', body: true, run: (req, d, b, route) => {
+    const p = b.patch, isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi, ok = b.kind === 'risk'
+      ? p && typeof p === 'object' && Object.keys(p).length && Object.keys(p).every(k => ({ weight: v => isInt(v, 0, 100), threshold: v => typeof v === 'number' && v > 0 && v <= 1000, window_days: v => isInt(v, 1, 365), enabled: v => typeof v === 'boolean' })[k]?.(p[k]))
+      : b.kind === 'rate' && p && typeof p === 'object' && Object.keys(p).length && Object.keys(p).every(k => ({ max_hits: v => isInt(v, 1, 100000), win_s: v => isInt(v, 60, 366 * 86400), enabled: v => typeof v === 'boolean' })[k]?.(p[k]));
+    if (!ok || !/^[a-z_]{2,40}$/.test(b.rule || '') || !reasonOk(b.reason)) return fail(bad(), 'rules_set');
+    const patch = { ...p }; if (patch.win_s != null) { patch.win = patch.win_s + ' seconds'; delete patch.win_s }
+    return authed(req, d, route, async db => { await db.query('select admin_rule_set($1, $2, $3::jsonb, $4)', [b.kind, b.rule, JSON.stringify(patch), b.reason]); return { ok: true } }, b);
   } },
   // ---------- 球友统计（#110，只读）----------
   // 查询参数 from / to（ISO 时间，默认最近 30 天，跨度 ≤ 366 天）。数字来自 buddy_stats（数据库按表算，不是埋点），只读角色也能看（只有汇总数字，没有名单）；限城市的管理员只算自己城市。

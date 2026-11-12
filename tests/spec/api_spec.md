@@ -518,6 +518,16 @@
 - 私信只能在处理举报时看：`admin_report_messages(举报, 理由)` 只返回被举报的那段对话（聊天举报 = 那个对话；球员卡举报 = 两人的私信），举报前 7 天到举报后 1 天。
 
 ### 10.3 接口 → 函数
+- **已实现的写法（11-12 起）**：对象 id 放在 JSON 里，不放路径（路由表是「方法 路径」精确匹配）；球友一律用会员编号 `no`，不暴露内部 id。下面是最初的规划写法，实现以 `server/admin/api.mjs` 的 ROUTES 为准。
+- 已实现 · 球友（#27 第 4 步）：GET /users/detail?no= · POST /users/status `{no,status,reason_code,reason,days?}` · POST /users/reset `{no,what,reason}` · POST /users/gender `{no,action,reason}` · POST /users/phone `{no,reason}`（编号→id 在后台角色的行级安全下查：限城市的管理员查不到别的城市 → 404）
+- 已实现 · 风险（#27 第 4 步）：GET /risk?view=open|watching|done · POST /risk/handle `{id,status,note?,watch_days?}` · GET /rules · POST /rules/set `{kind: risk|rate, rule, patch, reason}`（rate 的时间窗用秒 win_s）
+- 已实现 · 场边举报（#27 第 4 步）：GET /sideline/reports（按内容合并）· POST /sideline/hide `{kind: post|reply, id, hide, reason}`（隐藏时同事务把该内容的未处理举报标成已处理）· POST /sideline/dismiss `{kind,id}`；GET /reports 不再含场边举报。限城市：库函数按举报人城市判断举报、按发布城市判断内容，跨城时整笔 403 回滚
+- 已实现 · 管理员（#27 第 4 步）：GET /admins（owner）· POST /admins/update `{id, role?, disable?, reason}` · POST /admins/cities `{id, cities|null, reason}` · GET /audit?action=&before=（owner、运营；action 不带点 = 按类别）。新增管理员仍用 tools/admin_create.mjs（需迁移 20261114_admin_step4 补列读权限）
+- 已实现 · 城市（#27 第 4 步）：GET /cities（page.view）· POST /cities/status · POST /cities/set `{city, patch:{community_url|hashtag|center_label}, reason}`（city.manage）· POST /cities/waitlist（→ emails）· POST /cities/waitlist/done（city.waitlist）
+- 已实现 · 统计（#27 第 4 步）：GET /stats?fns=a,b&from=&to=&city=（page.view；fns 只能是 server/admin/api.mjs 里 STATS 白名单的名字，每批 ≤ 12；每个查询独立保存点；去掉内部 uuid；personal 的只读角色拿不到）
+- 已实现 · 场边配置（#27 第 4 步，sideline.config）：GET /sideline/config（草稿 + 最近 20 版 + 待放出话题）· POST /sideline/config/set `{part, value, base}` · /config/discard `{base}` · /config/publish `{note, base}` · /config/rollback `{version, base, note?}` · POST /sideline/topics/release `{topic}`；base 不是最新 → 409 admin_config_stale；内容不合格 → 422
+- 已实现 · 爽约申诉（#195）：GET /appeals?view=pending|done · POST /appeals/handle `{game: 分享码, no, status: upheld|rejected, note?}` → `admin_noshow_appeal`（report.handle；迁移 20261114_admin_step4）
+- 已实现 · 导出（#27 第 4 步）：POST /export `{dataset, with_ids, reason?, from?, to?}`（dataset = STATS 白名单名字；先 admin_export 留痕：不带 ID = data.export，带 ID = data.export_ids 只有 owner + 理由；不带 ID 时去掉编号 / 昵称 / 作者 / 内容列；限城市的管理员不能导出）
 - POST /admin/api/users/:id/status `{status, reason_code, reason, days?, note?}` → `admin_user_status`（暂停 1 / 3 / 7 / 30 / 90 / 180 天；连带处理同 §3.11；发 account_status 通知；写 user_status_log）
 - POST /admin/api/users/:id/reset `{what: nickname | avatar, reason}` → `admin_user_reset` · POST /admin/api/users/:id/gender `{action: clear | unlock, reason}` → `admin_user_gender`
 - POST /admin/api/users/:id/phone `{reason}` → `admin_reveal_phone`（owner）
