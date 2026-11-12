@@ -1,5 +1,5 @@
 // tools/weekly_metrics.mjs：每周研发指标的计算与告警（11-07）。
-import { compute, render, WIP_LIMIT } from '../../tools/weekly_metrics.mjs';
+import { compute, render, WIP_LIMIT, isMergeMain } from '../../tools/weekly_metrics.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x ? ' ' + JSON.stringify(x) : '')) };
 const now = '2026-11-08T00:00:00Z', at = (h, m = 0) => new Date(Date.parse(now) - h * 3600e3 + m * 60e3).toISOString();
 const run = (o) => ({ path: '.github/workflows/tests.yml', event: 'push', head_branch: 'main', head_sha: 'a', status: 'completed', conclusion: 'success', created_at: at(10), run_started_at: at(10), updated_at: at(10, 10), ...o });
@@ -32,6 +32,7 @@ T('同一提交既挂又过 → 不稳定信号；smoke 失败后恢复不算', 
 T('浏览器测试 ≥5 次的 PR 被点名；草稿 skipped 不计', m.heavyPr.length === 1 && m.heavyPr[0][0] === '7' && m.heavyPr[0][1] === 5, m.heavyPr);
 T('并行 PR 只数开着的非草稿', m.wip.length === 3 && WIP_LIMIT === 2, m.wip);
 T('并行 PR 按作者分别记，只有某人超限才告警', (() => { const w = { ...m, wipBy: { A: 2, B: 3 } }; const t = render(w); return /B 同时开着 3 个/.test(t) && !/A 同时开着/.test(t) })());
+T('合并 main 识别有词边界：main-fix / maintenance 不算', !isMergeMain("Merge branch 'main-fix' into x") && !isMergeMain("Merge branch 'maintenance'") && isMergeMain("Merge branch 'main' into feat/x") && isMergeMain("Merge remote-tracking branch 'origin/main'"));
 const md = render(m);
 T('周报含 DORA 四项和告警', ['部署频率', '变更前置时间', '变更失败率', '恢复时间', '并行 PR'].every(k => md.includes(k)) && md.includes('上限 2') && md.includes('#7×5') && md.includes('tests@p1'));
 T('没有问题时写「无」', render(compute({ runs: [], pulls: [], now })).includes('- 无'));

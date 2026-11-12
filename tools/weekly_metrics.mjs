@@ -8,9 +8,9 @@ import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url
 const H = 3600e3, mins = r => Math.max(0, (Date.parse(r.updated_at) - Date.parse(r.run_started_at || r.created_at)) / 60e3);
 const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 };
 const wf = r => (r.path || '').replace('.github/workflows/', '').replace(/\.ya?ml$/, '') || r.name;
-export const WIP_LIMIT = 2, MIN_PER_DAY_BUDGET = 100, LEAD_MED_H = 8, LEAD_P90_H = 24, MERGE_MAIN_MAX = 0.1;   // #214 阶段 0 目标：协作者 PR 中位 ≤ 8h、p90 ≤ 24h；「合并 main」提交占比 ≤ 10%
+export const WIP_LIMIT = 2, MIN_PER_DAY_BUDGET = 100, LEAD_MED_H = 8, LEAD_P90_H = 24, MERGE_MAIN_MAX = 0.1;   // 私有仓库每月 3000 分钟 ≈ 每天 100 分钟（MIN_PER_DAY_BUDGET）；#214 阶段 0 目标：协作者 PR 中位 ≤ 8h、p90 ≤ 24h；「合并 main」提交占比 ≤ 10%
 const pct = (a, q) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] };
-export const isMergeMain = msg => /^(合并 origin\/main|Merge (remote-tracking )?branch '?(origin\/)?main|Merge branch 'main')/.test(String(msg).split('\n')[0]);   // 私有仓库每月 3000 分钟 ≈ 每天 100 分钟
+export const isMergeMain = msg => /^(合并 origin\/main|Merge (remote-tracking )?branch '?(origin\/)?main(?=['\s]|$)|Merge branch 'main'(?=\s|$))/.test(String(msg).split('\n')[0]); 
 
 export function compute({ runs, pulls, now, days = 7, commits }) {
   const t1 = Date.parse(now), t0 = t1 - days * 24 * H, inWin = t => { const x = Date.parse(t); return x >= t0 && x <= t1 };
