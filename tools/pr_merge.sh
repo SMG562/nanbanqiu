@@ -65,9 +65,9 @@ PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口�
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
 case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   owner) [ "$ME" = SMG562 ] && yes "改了红线文件：所有者本人合并" || no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）能合，在 PR 上说明后等所有者点头" ;;
-  review) RV=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '.[]|select(.user.type!="Bot")|.body' 2>/dev/null)
-    if printf '%s' "$RV" | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
-    elif CW=$(for o in $(printf '%s' "$RV" | grep -oE '独立复核：通过 *[0-9a-f]{7,40}' | grep -oE '[0-9a-f]{7,40}$' | sort -u); do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
+  review) PASS=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '[.[]|select(.user.type!="Bot")|.body]' 2>/dev/null | node tools/review_state.mjs pass 2>/dev/null)   # 解析统一在 review_state.mjs（只认留言第一行，#201）
+    if printf '%s\n' "$PASS" | grep -qx "${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+    elif CW=$(for o in $PASS; do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
     else no "需要独立复核：另开一个没看过本次过程的会话只读复核，在 PR 留言「独立复核：通过 ${SHA:0:7}」（写明看了什么、风险、怎么回退）"; fi ;;
   *) yes "自助合并：无红线、无需复核" ;;
 esac
