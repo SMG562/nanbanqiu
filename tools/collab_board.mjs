@@ -29,7 +29,7 @@ export function reviewState(comments, sha) {
 export function classify(p, now = Date.now()) {
   const idle = Math.floor((now - Date.parse(p.updated)) / D);
   const R = (ball, reason, next) => ({ ball, reason, next, idle, ping: ['author', 'review', 'merge'].includes(ball) && !p.draft });
-  if (p.draft) return R('author', '排队中', '本地测过后转 Ready（在制品 ≤ 2，排队顺序见 #167）');
+  if (p.draft) return R('author', '排队中', '本地测过后转 Ready（你的在制品 ≤ 2，排队顺序见 #167）');
   if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `bash tools/sync_main.sh --check` 看冲突文件，`git merge origin/main` 解决后推分支');
   const bad = Object.keys(NAME).filter(k => p.ci[k] === 'failure');
   if (bad.length) return R('author', `CI 红（${bad.map(k => NAME[k]).join('、')}）`, '看注解修；偶发失败先只重跑失败项一次');
@@ -66,14 +66,16 @@ const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、
 - 标签 \`球在作者 / 球在复核 / 球在所有者 / 等CI / 可合并\` 随状态自动更新，可直接按标签筛选。
 - **所有者只处理三类事**：红线 PR（当场点头）、每日真机、每周一周报；红线集合变化时这里会 @ 一次。
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
-- 在制品（非草稿 PR）上限 ${WIP_LIMIT}。`;
+- 在制品（非草稿 PR）上限：**每个作者 ${WIP_LIMIT} 个**（#229，11-13：两人都能合并后不再全仓共 ${WIP_LIMIT} 个）。`;
 
 export function render(rows, now = Date.now()) {
-  const order = ['owner', 'review', 'author', 'merge', 'ci'], wip = rows.filter(r => !r.p.draft).length;
+  const order = ['owner', 'review', 'author', 'merge', 'ci'], wipBy = {};
+  for (const r of rows) if (!r.p.draft) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
+  const wipTxt = Object.entries(wipBy).map(([a, n]) => `${a} ${n} / ${WIP_LIMIT}${n > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}`).join(' · ') || '0';
   const line = r => `| #${r.p.number} | ${r.p.author} | ${r.p.draft ? '草稿' : BALL[r.c.ball]} | ${r.c.reason} | ${r.c.next.replace(/\|/g, '/')} | ${r.c.idle} 天 |`;
   const body = order.map(b => [b, rows.filter(r => r.c.ball === b && !r.p.draft)]).filter(([, g]) => g.length).map(([b, g]) => `### ${BALL[b]}（${g.length}）\n| PR | 作者 | 状态 | 原因 | 下一步 | 闲置 |\n|---|---|---|---|---|---|\n${g.map(line).join('\n')}`);
   const dr = rows.filter(r => r.p.draft); if (dr.length) body.push(`### 草稿（${dr.length}）\n| PR | 作者 | 状态 | 原因 | 下一步 | 闲置 |\n|---|---|---|---|---|---|\n${dr.map(line).join('\n')}`);
-  return `${GUIDE}\n\n**在制品**：${wip} / ${WIP_LIMIT}${wip > WIP_LIMIT ? ' ⚠ 超限：先合并 / 转草稿 / 关掉旧的' : ''}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
+  return `${GUIDE}\n\n**在制品**（每人 ≤ ${WIP_LIMIT}）：${wipTxt}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
 }
 
 const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();

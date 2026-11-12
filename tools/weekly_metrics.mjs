@@ -36,8 +36,9 @@ export function compute({ runs, pulls, now, days = 7 }) {
   for (const r of runs) if (['tests', 'tests-fast'].includes(wf(r)) && ['success', 'failure'].includes(r.conclusion)) { const k = wf(r) + '@' + String(r.head_sha).slice(0, 7); (seen[k] ??= new Set()).add(r.conclusion) }
   const flaky = Object.entries(seen).filter(([, s]) => s.size === 2).map(([k]) => k);
   // 并行 PR：现在开着、非草稿的
-  const wip = pulls.filter(p => p.state === 'open' && !p.draft).map(p => p.number);
-  return { days, deploys, merged: merged.length, lead, cfr, smokeN: smokePush.length, mttr: median(mttr), total, cancelled, byWf, heavyPr, flaky, wip };
+  const wipPulls = pulls.filter(p => p.state === 'open' && !p.draft), wip = wipPulls.map(p => p.number), wipBy = {};
+  for (const p of wipPulls) { const a = p.user?.login ?? '?'; wipBy[a] = (wipBy[a] || 0) + 1 }
+  return { days, deploys, merged: merged.length, lead, cfr, smokeN: smokePush.length, mttr: median(mttr), total, cancelled, byWf, heavyPr, flaky, wip, wipBy };
 }
 
 const f1 = x => x == null ? '—' : (Math.round(x * 10) / 10).toString();
@@ -45,7 +46,7 @@ export function render(m) {
   const warn = [];
   if (m.total / m.days > MIN_PER_DAY_BUDGET) warn.push(`CI 平均每天 ${Math.round(m.total / m.days)} 分钟，超过私有仓库额度折算的 ${MIN_PER_DAY_BUDGET} 分钟/天`);
   if (m.cancelled > m.total * 0.1) warn.push(`被取消的运行花了 ${Math.round(m.cancelled)} 分钟（${Math.round(m.cancelled / m.total * 100)}%）：改动攒成一次推送`);
-  if (m.wip.length > WIP_LIMIT) warn.push(`同时开着 ${m.wip.length} 个非草稿 PR（上限 ${WIP_LIMIT}）：先合并或转草稿`);
+  for (const [a, n] of Object.entries(m.wipBy ?? {})) if (n > WIP_LIMIT) warn.push(`${a} 同时开着 ${n} 个非草稿 PR（每人上限 ${WIP_LIMIT}）：先合并或转草稿`);
   if (m.heavyPr.length) warn.push(`浏览器测试跑了 5 次以上的 PR：${m.heavyPr.map(([n, c]) => `${/^\d+$/.test(n) ? '#' : ''}${n}×${c}`).join('、')}（拆小 / 先草稿）`);
   if (m.flaky.length) warn.push(`同一提交时过时不过（不稳定，要修不要跳过）：${m.flaky.slice(0, 8).join('、')}`);
   if (m.cfr != null && m.cfr > 0.15) warn.push(`上线后 smoke 失败率 ${Math.round(m.cfr * 100)}%（目标 ≤ 15%）`);
@@ -59,7 +60,7 @@ export function render(m) {
 | 变更失败率 | ${m.cfr == null ? '—' : Math.round(m.cfr * 100) + '%'} | 推 main 后 smoke 失败的比例（${m.smokeN} 次） |
 | 恢复时间 | ${f1(m.mttr)} 小时 | smoke 从失败到再次通过的中位数 |
 | CI 分钟 | ${Math.round(m.total)}（被取消 ${Math.round(m.cancelled)}） | 每天 ${Math.round(m.total / m.days)} |
-| 并行 PR | ${m.wip.length} 个 | 非草稿，上限 ${WIP_LIMIT} |
+| 并行 PR | ${m.wip.length} 个 | 非草稿，每人上限 ${WIP_LIMIT}（${Object.entries(m.wipBy ?? {}).map(([a, n]) => `${a} ${n}`).join('、') || '—'}） |
 
 ${warn.length ? '### 要处理\n' + warn.map(w => '- ' + w).join('\n') : '### 要处理\n- 无'}
 

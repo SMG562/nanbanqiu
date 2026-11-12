@@ -31,6 +31,7 @@ T('窗口外的运行不算进 CI 分钟', !Object.values(m.byWf).some(v => v.n 
 T('同一提交既挂又过 → 不稳定信号；smoke 失败后恢复不算', m.flaky.join() === 'tests@p1', m.flaky);
 T('浏览器测试 ≥5 次的 PR 被点名；草稿 skipped 不计', m.heavyPr.length === 1 && m.heavyPr[0][0] === '7' && m.heavyPr[0][1] === 5, m.heavyPr);
 T('并行 PR 只数开着的非草稿', m.wip.length === 3 && WIP_LIMIT === 2, m.wip);
+T('并行 PR 按作者分别记，只有某人超限才告警', (() => { const w = { ...m, wipBy: { A: 2, B: 3 } }; const t = render(w); return /B 同时开着 3 个/.test(t) && !/A 同时开着/.test(t) })());
 const md = render(m);
 T('周报含 DORA 四项和告警', ['部署频率', '变更前置时间', '变更失败率', '恢复时间', '并行 PR'].every(k => md.includes(k)) && md.includes('上限 2') && md.includes('#7×5') && md.includes('tests@p1'));
 T('没有问题时写「无」', render(compute({ runs: [], pulls: [], now })).includes('- 无'));
