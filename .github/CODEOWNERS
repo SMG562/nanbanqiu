@@ -27,6 +27,7 @@
 /tools/staging_sync.mjs    @SMG562   # 它在 main 上带 contents: write 运行（11-11 独立复核）
 /.githooks/                @SMG562
 /tools/pr_merge.sh         @SMG562
+/.github/CO_OWNERS         @SMG562   # 共同所有者名单（11-13）：谁和所有者同权，只有 SMG562 能改
 /tools/gate.sh             @SMG562
 /tools/precommit.sh        @SMG562
 /tools/pr_body_check.mjs   @SMG562
