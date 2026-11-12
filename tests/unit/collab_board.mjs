@@ -29,6 +29,13 @@ T('「独立复核（<本提交>，…）：**要改」→ fix', reviewState([c(
 T('要改的是旧提交、之后推过新提交 → rereview', reviewState([c('独立复核（1111111，x）：**要改')], SHA) === 'rereview');
 T('机器人的评论不算复核（即使写了通过）', reviewState([c('独立复核：通过 abcdef1', true)], SHA) === 'none');
 T('没有留言 → none', reviewState([], SHA) === 'none');
+// 11-12（#197）：只多合并了 main → 旧「通过」沿用，看板和 pr_merge.sh 同口径（判据都是 tools/review_carry.mjs）
+const yes = () => true, only = o => x => x === o;
+T('旧提交通过 + 能沿用 → pass（不再喊「需要独立复核」）', reviewState([c('独立复核：通过 1111111')], SHA, only('1111111')) === 'pass');
+T('旧提交通过 + 不能沿用（文件变了）→ none', reviewState([c('独立复核：通过 1111111')], SHA, () => false) === 'none');
+T('当前提交「要改」优先于沿用旧的通过', reviewState([c('独立复核：通过 1111111'), c('独立复核（abcdef1，x）：要改')], SHA, yes) === 'fix');
+T('机器人的「通过」即使能沿用也不算', reviewState([c('独立复核：通过 1111111', true)], SHA, yes) === 'none');
+T('沿用判断只问留言里出现过的提交', (() => { const asked = []; reviewState([c('独立复核：通过 1111111')], SHA, o => (asked.push(o), false)); return asked.join() === '1111111' })());
 
 // ③ 提醒：去重键、不会冒充复核、不会泄漏
 const cl = classify(base(), NOW), P = base();

@@ -7,7 +7,7 @@
 // 安全：只读 PR 元数据，不执行 PR 里的任何代码（工作流只用默认分支的版本）；评论正文只做正则匹配，不进 shell；机器人的评论不算「独立复核」（pr_merge.sh 认的字符串在提醒里写成占位符）。
 import { collect } from './review_state.mjs';
 import { execFileSync } from 'node:child_process'; import crypto from 'node:crypto'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
-import { levelOf } from './decision_card.mjs';
+import { levelOf } from './decision_card.mjs'; import { carries } from './review_carry.mjs';
 
 export const OWNER = 'SMG562', WIP_LIMIT = 2, IDLE_DAYS = 3, D = 864e5;
 export const BALL = { author: '球在作者', owner: '球在所有者', review: '球在复核', ci: '等CI', merge: '可合并' };
@@ -20,10 +20,21 @@ export const stuckKey = p => `nbq-stuck:${p.sha.slice(0, 7)}`;
 export const stuckText = p => `<!-- ${stuckKey(p)} -->\n@${p.author} 这个提交（${p.sha.slice(0, 7)}）的 CI 排队超过 ${STUCK_MIN} 分钟没开始，多半是 GitHub 平台故障（${p.draft ? '草稿 PR，' : ''}不是代码问题）。\n下一步：${stuckNext}\n\n> 自动消息（协作看板），同一个提交只提醒一次。`;
 
 // 独立复核留言 → 针对当前提交的状态：pass 通过 / fix 要改 / rereview 改过了要重审 / none 还没复核（机器人的评论不算）
-export function reviewState(comments, sha) {
+// carry(旧提交) → 真/假：旧提交的「通过」能否沿用到当前提交（只多合并了 main，判据 = tools/review_carry.mjs，和 pr_merge.sh 同一份）。
+//   11-12：以前看板不认沿用，pr_merge 放行的 PR 看板仍喊「需要独立复核」（#197）
+export function reviewState(comments, sha, carry = () => false) {
   const { pass, fix } = collect(comments.filter(c => !c.bot).map(c => c.body)), cur = sha.slice(0, 7);   // 解析统一在 tools/review_state.mjs（#201）
-  return pass.includes(cur) ? 'pass' : fix.includes(cur) ? 'fix' : fix.length ? 'rereview' : 'none';
+  if (pass.includes(cur)) return 'pass';
+  if (fix.includes(cur)) return 'fix';
+  if (pass.some(o => carry(o))) return 'pass';
+  return fix.length ? 'rereview' : 'none';
 }
+// 沿用要用 git 比对提交内容：按需取 main 和 PR 头（工作流是 blob:none 的完整历史，只取提交和目录树）；取不到 = 不沿用（宁可多要一次复核）
+const fetched = new Map();
+export const gitCarry = (n, sha) => old => {
+  if (!fetched.has(n)) { try { execFileSync('git', ['fetch', '-q', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main', `+refs/pull/${n}/head`], { stdio: 'ignore', timeout: 60e3 }); fetched.set(n, true) } catch { fetched.set(n, false) } }
+  return fetched.get(n) && carries(old, sha, 'origin/main').carry;
+};
 
 // p = { number, title, author, draft, sha, mergeable, behind（落后 main 几个提交）, updated, level: owner|review|self, ci: { tests, fast }: ok|failure|pending|none, review }
 export function classify(p, now = Date.now()) {
@@ -91,7 +102,7 @@ export function gather(R, now = Date.now()) {
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
     const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
-    p.review = reviewState(comments, p.sha); rows.push({ p, c: classify(p, now) });
+    p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
 }
