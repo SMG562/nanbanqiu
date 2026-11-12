@@ -82,7 +82,8 @@ function nbqShotClean(doc){doc.querySelectorAll('[data-qr]').forEach(q=>{const t
     const done=new Promise(ok=>{im.onload=im.onerror=()=>ok();setTimeout(ok,1500)});   // 图片等不到就不等了：最多多等 1.5 秒，不让保存流程挂住
     try{im.src=qrDataUrl(t,getComputedStyle(q).color||'#101828')}catch(e){}q.innerHTML='';q.appendChild(im);(doc.__qrWait=doc.__qrWait||[]).push(done)});
   doc.querySelectorAll('.pc-grain,.pc-light,[class*=grain]').forEach(e=>e.style.backgroundImage='none');
-  (doc.__qrWait=doc.__qrWait||[]).push(nbqSvgsToPng(doc));
+  (doc.__qrWait=doc.__qrWait||[]).push(nbqSvgsToPng(doc,e=>{const av=e.closest('.pc-av');if(av&&!av.querySelector('.pc-ini')){const d=doc.createElement('div');d.className='pc-ini';d.textContent=av.getAttribute('data-ini')||'?';   // 头像画不出来：底色圆 + 首字母（和 scBlob 同口径，球员卡带 data-ini / data-bg）
+      d.style.cssText=`width:100%;height:100%;border-radius:50%;background:${av.getAttribute('data-bg')||'#EFE9DA'};display:flex;align-items:center;justify-content:center;font:800 44px system-ui;color:#1D5B43`;av.appendChild(d)}}));
   return Promise.all(doc.__qrWait)}
 function nbqShot(el,scale){window.SC_ERR='';if(!el||!window.html2canvas){SC_ERR='截图库没加载';return Promise.resolve(null)}
   const plan=nbqShotPlan(scale),go=n=>{const [k,clean]=plan[n];
