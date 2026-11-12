@@ -10,7 +10,7 @@
 6. [`.claude/skills/`](.claude/skills) — 协作者先读 `collaborator-pitfalls`；不支持 skill 的工具当文档读
 
 ## 硬规则（摘要，以 CLAUDE.md 为准）
-- 协作者只走「分支 → PR」，不推 `main`；不碰正式库、密钥和部署。
+- 协作者走「分支 → PR」，不推 `main`；共同所有者见 `.github/CO_OWNERS`。
 - 只改 `src/`；HTML 不入库，测试现生成，手动 `node tools/build.mjs`。
 - 用户可改的数据：先 grep 所有修改入口，测试必含「改 → 重读 → 还在」。
 - 往公共层加行为必须 opt-in；改公共接口、库结构、目录结构先开 Issue / ADR 讨论，不要自作主张。

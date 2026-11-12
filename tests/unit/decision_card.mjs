@@ -17,4 +17,5 @@ for (const f of ['server/migrations/20261201_x.sql', 'schema.sql', 'wrangler.jso
   T(`红线：${f}`, lv([f]) === 'owner', lv([f]));
 T('红线和普通文件混在一起 → 按红线算', lv(['tests/x.js', 'tools/gate.sh']) === 'owner');
 T('.github/workflows/tests.yml 不是红线（要改 paths）', lv(['.github/workflows/tests.yml']) === 'review');
+T('共同所有者名单是红线（只有 SMG562 能改谁和所有者同权）', lv(['.github/CO_OWNERS']) === 'owner');
 console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
