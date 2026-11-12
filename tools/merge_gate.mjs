@@ -35,7 +35,9 @@ const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', maxBu
 const sh = (cmd, a, input) => spawnSync(cmd, a, { cwd: ROOT, encoding: 'utf8', input, maxBuffer: 1 << 26 });
 export function gather(N) {
   const pr = JSON.parse(gh(`repos/${R}/pulls/${N}`)), sha = pr.head.sha;
-  sh('git', ['fetch', '-q', 'origin', 'main', pr.head.ref]);
+  // 与 pr_merge.sh 同样的取法：补全历史（浅克隆里 merge-base 会失败）、按提交号补取（fork / 分支已删也能取）；分支名带 refs/heads/ 前缀，防 `-` 开头被当成选项
+  sh('git', ['fetch', '-q', 'origin', 'main', `refs/heads/${pr.head.ref}`]); sh('git', ['fetch', '-q', '--unshallow']);
+  if (sh('git', ['cat-file', '-e', sha + '^{commit}']).status !== 0) sh('git', ['fetch', '-q', 'origin', sha]);
   const git = (...a) => sh('git', ['-c', 'core.quotepath=false', ...a]);
   const isAnc = git('merge-base', '--is-ancestor', 'origin/main', sha).status === 0;
   let ff = 'ff', ffWhy = '';
@@ -49,7 +51,9 @@ export function gather(N) {
     const x = runs.filter(y => y.path === `.github/workflows/${w}.yml` && !/visual-baseline|未测：草稿/.test(y.display_title || '')).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0];
     ci[w] = x ? (x.status === 'completed' ? x.conclusion : x.status) : null;
   }
-  const dbChanged = files.some(x => (x === 'schema.sql' || x.startsWith('server/migrations/')) && x !== 'server/migrations/_bundle.sql');
+  // 数据库判断与 pr_merge.sh 一致：两点 diff（origin/main 对 PR 头），main 自己改了库结构而 PR 没合进来时也要求 db-parity（更严）
+  const dbFiles = git('diff', '--name-only', 'origin/main', sha).stdout.split('\n').filter(Boolean);
+  const dbChanged = dbFiles.some(x => (x === 'schema.sql' || x.startsWith('server/migrations/')) && x !== 'server/migrations/_bundle.sql');
   let dbParity = false;
   if (dbChanged) {
     const t = new Date(git('show', '-s', '--format=%cI', sha).stdout.trim()).toISOString();
