@@ -8,9 +8,11 @@ import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url
 const H = 3600e3, mins = r => Math.max(0, (Date.parse(r.updated_at) - Date.parse(r.run_started_at || r.created_at)) / 60e3);
 const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 };
 const wf = r => (r.path || '').replace('.github/workflows/', '').replace(/\.ya?ml$/, '') || r.name;
-export const WIP_LIMIT = 2, MIN_PER_DAY_BUDGET = 100;   // 私有仓库每月 3000 分钟 ≈ 每天 100 分钟
+export const WIP_LIMIT = 2, MIN_PER_DAY_BUDGET = 100, LEAD_MED_H = 8, LEAD_P90_H = 24, MERGE_MAIN_MAX = 0.1;   // #214 阶段 0 目标：协作者 PR 中位 ≤ 8h、p90 ≤ 24h；「合并 main」提交占比 ≤ 10%
+const pct = (a, q) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] };
+export const isMergeMain = msg => /^(合并 origin\/main|Merge (remote-tracking )?branch '?(origin\/)?main|Merge branch 'main')/.test(String(msg).split('\n')[0]);   // 私有仓库每月 3000 分钟 ≈ 每天 100 分钟
 
-export function compute({ runs, pulls, now, days = 7 }) {
+export function compute({ runs, pulls, now, days = 7, commits }) {
   const t1 = Date.parse(now), t0 = t1 - days * 24 * H, inWin = t => { const x = Date.parse(t); return x >= t0 && x <= t1 };
   runs = runs.filter(r => inWin(r.created_at));
   // 部署频率：推到 main 的不同提交数
@@ -18,6 +20,10 @@ export function compute({ runs, pulls, now, days = 7 }) {
   // 变更前置时间：窗口内合并的 PR，开 PR → 合并（小时）
   const merged = pulls.filter(p => p.merged_at && inWin(p.merged_at));
   const lead = median(merged.map(p => (Date.parse(p.merged_at) - Date.parse(p.created_at)) / H));
+  // 前置时间按作者拆（#214 阶段 0）：协作者和所有者的差距是流程问题，不是代码量；机器人（dependabot）不算
+  const by = {}; for (const p of merged) if (p.user?.login && p.user.type !== 'Bot' && !/\[bot\]$/.test(p.user.login)) (by[p.user.login] ??= []).push((Date.parse(p.merged_at) - Date.parse(p.created_at)) / H);
+  const leadBy = Object.entries(by).map(([u, a]) => ({ u, n: a.length, med: median(a), p90: pct(a, 0.9) })).sort((a, b) => b.n - a.n);
+  const mergeMain = commits ? { n: commits.filter(c => isMergeMain(c.commit?.message ?? c.message)).length, all: commits.length } : null;
   // 变更失败率 / 恢复时间：看 smoke（推 main 后核对线上 + 每 6 小时）
   const smoke = runs.filter(r => wf(r) === 'smoke' && r.status === 'completed' && ['success', 'failure'].includes(r.conclusion)).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
   const smokePush = smoke.filter(r => r.event === 'push');
@@ -37,7 +43,7 @@ export function compute({ runs, pulls, now, days = 7 }) {
   const flaky = Object.entries(seen).filter(([, s]) => s.size === 2).map(([k]) => k);
   // 并行 PR：现在开着、非草稿的
   const wip = pulls.filter(p => p.state === 'open' && !p.draft).map(p => p.number);
-  return { days, deploys, merged: merged.length, lead, cfr, smokeN: smokePush.length, mttr: median(mttr), total, cancelled, byWf, heavyPr, flaky, wip };
+  return { days, deploys, merged: merged.length, lead, leadBy, mergeMain, cfr, smokeN: smokePush.length, mttr: median(mttr), total, cancelled, byWf, heavyPr, flaky, wip };
 }
 
 const f1 = x => x == null ? '—' : (Math.round(x * 10) / 10).toString();
@@ -47,6 +53,8 @@ export function render(m) {
   if (m.cancelled > m.total * 0.1) warn.push(`被取消的运行花了 ${Math.round(m.cancelled)} 分钟（${Math.round(m.cancelled / m.total * 100)}%）：改动攒成一次推送`);
   if (m.wip.length > WIP_LIMIT) warn.push(`同时开着 ${m.wip.length} 个非草稿 PR（上限 ${WIP_LIMIT}）：先合并或转草稿`);
   if (m.heavyPr.length) warn.push(`浏览器测试跑了 5 次以上的 PR：${m.heavyPr.map(([n, c]) => `${/^\d+$/.test(n) ? '#' : ''}${n}×${c}`).join('、')}（拆小 / 先草稿）`);
+  for (const x of m.leadBy) if (x.n >= 3 && (x.med > LEAD_MED_H || x.p90 > LEAD_P90_H)) warn.push(`${x.u} 的 PR 开→合并中位 ${f1(x.med)}h / p90 ${f1(x.p90)}h（${x.n} 个；目标 ≤ ${LEAD_MED_H}h / ${LEAD_P90_H}h）：看复核和传球卡在哪`);
+  if (m.mergeMain && m.mergeMain.all >= 20 && m.mergeMain.n / m.mergeMain.all > MERGE_MAIN_MAX) warn.push(`「合并 main」提交占 ${Math.round(m.mergeMain.n / m.mergeMain.all * 100)}%（${m.mergeMain.n}/${m.mergeMain.all}，目标 ≤ ${Math.round(MERGE_MAIN_MAX * 100)}%）：用 sync_main / 放宽闸门，别手工合`);
   if (m.flaky.length) warn.push(`同一提交时过时不过（不稳定，要修不要跳过）：${m.flaky.slice(0, 8).join('、')}`);
   if (m.cfr != null && m.cfr > 0.15) warn.push(`上线后 smoke 失败率 ${Math.round(m.cfr * 100)}%（目标 ≤ 15%）`);
   const rows = Object.entries(m.byWf).sort((a, b) => b[1].m - a[1].m).map(([k, v]) => `| ${k} | ${v.n} | ${Math.round(v.m)} |`).join('\n');
@@ -58,6 +66,8 @@ export function render(m) {
 | 变更前置时间 | ${f1(m.lead)} 小时 | 开 PR → 合并的中位数（${m.merged} 个 PR） |
 | 变更失败率 | ${m.cfr == null ? '—' : Math.round(m.cfr * 100) + '%'} | 推 main 后 smoke 失败的比例（${m.smokeN} 次） |
 | 恢复时间 | ${f1(m.mttr)} 小时 | smoke 从失败到再次通过的中位数 |
+| 前置时间按作者 | ${m.leadBy.map(x => `${x.u} ${f1(x.med)}h（p90 ${f1(x.p90)}h，${x.n} 个）`).join('；') || '—'} | 阶段 0 目标：中位 ≤ ${LEAD_MED_H}h、p90 ≤ ${LEAD_P90_H}h |
+| 「合并 main」占比 | ${m.mergeMain ? Math.round(m.mergeMain.n / Math.max(1, m.mergeMain.all) * 100) + '%（' + m.mergeMain.n + '/' + m.mergeMain.all + '）' : '—'} | main 上的提交；目标 ≤ ${Math.round(MERGE_MAIN_MAX * 100)}% |
 | CI 分钟 | ${Math.round(m.total)}（被取消 ${Math.round(m.cancelled)}） | 每天 ${Math.round(m.total / m.days)} |
 | 并行 PR | ${m.wip.length} 个 | 非草稿，上限 ${WIP_LIMIT} |
 
@@ -80,7 +90,8 @@ async function fetchAll(repo, token, days, now) {
   const since = new Date(Date.parse(now) - days * 24 * H).toISOString().slice(0, 10), runs = [], pulls = [];
   for (let p = 1; p <= 20; p++) { const j = await gh(`repos/${repo}/actions/runs?created=>=${since}&per_page=100&page=${p}`, token); runs.push(...j.workflow_runs); if (j.workflow_runs.length < 100) break }
   for (let p = 1; p <= 5; p++) { const j = await gh(`repos/${repo}/pulls?state=all&sort=updated&direction=desc&per_page=100&page=${p}`, token); pulls.push(...j); if (j.length < 100 || Date.parse(j.at(-1).updated_at) < Date.parse(since)) break }
-  return { runs, pulls };
+  const commits = []; for (let p = 1; p <= 10; p++) { const j = await gh(`repos/${repo}/commits?sha=main&since=${since}T00:00:00Z&per_page=100&page=${p}`, token); commits.push(...j); if (j.length < 100) break }
+  return { runs, pulls, commits };
 }
 
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) {

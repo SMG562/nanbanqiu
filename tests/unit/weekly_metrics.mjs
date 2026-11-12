@@ -34,4 +34,16 @@ T('并行 PR 只数开着的非草稿', m.wip.length === 3 && WIP_LIMIT === 2, m
 const md = render(m);
 T('周报含 DORA 四项和告警', ['部署频率', '变更前置时间', '变更失败率', '恢复时间', '并行 PR'].every(k => md.includes(k)) && md.includes('上限 2') && md.includes('#7×5') && md.includes('tests@p1'));
 T('没有问题时写「无」', render(compute({ runs: [], pulls: [], now })).includes('- 无'));
+// #214 阶段 0：前置时间按作者拆 + 「合并 main」占比 + 目标告警
+{ const P = (u, h, o = {}) => ({ number: 1, state: 'closed', user: { login: u }, created_at: at(h + 1), merged_at: at(1), updated_at: at(1), ...o });
+  const pulls2 = [P('A', 1), P('A', 2), P('A', 3), P('B', 30), P('B', 40), P('B', 60), P('dependabot[bot]', 5, { user: { login: 'dependabot[bot]', type: 'Bot' } })];
+  const cm = n => Array.from({ length: n }, (_, i) => ({ commit: { message: i < 3 ? '合并 origin/main，为快进合并做准备' : 'x' + i } }));
+  const m2 = compute({ runs: [], pulls: pulls2, now, commits: cm(20) }), txt = render(m2);
+  T('按作者拆：A 中位 2h、B 中位 40h；机器人不算', m2.leadBy.length === 2 && m2.leadBy.find(x => x.u === 'A').med === 2 && m2.leadBy.find(x => x.u === 'B').med === 40, m2.leadBy);
+  T('p90 按最近秩：B 三个 30/40/60 → 60', m2.leadBy.find(x => x.u === 'B').p90 === 60);
+  T('B 超目标（中位 > 8h）→ 告警，A 不告警', /B 的 PR 开→合并中位/.test(txt) && !/A 的 PR 开→合并中位/.test(txt), txt.slice(-500));
+  T('合并 main 占比 3/20 = 15% > 10% → 告警', m2.mergeMain.n === 3 && /「合并 main」提交占 15%/.test(txt));
+  T('样本太少（< 3 个 PR / < 20 个提交）不告警', !/的 PR 开→合并中位/.test(render(compute({ runs: [], pulls: pulls2.slice(3, 5), now }))) && !/提交占/.test(render(compute({ runs: [], pulls: [], now, commits: cm(10) }))));
+  T('没传 commits（离线 / 旧数据）→ 不报错、显示 —', compute({ runs: [], pulls: [], now }).mergeMain === null && /占比 \| — \|/.test(render(compute({ runs: [], pulls: [], now }))));
+}
 console.log(`\nweekly_metrics: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
