@@ -43,6 +43,14 @@ T('读不到账号 → 放行（不因检查卡住会话）', G.decide({ login: 
 T('已经退回过一次（stop_hook_active）→ 放行，防死循环', G.decide({ login: 'MDD1102', text: BAD, stopHookActive: true }) === null);
 T('协作者 + 改好的话 → 放行', G.decide({ login: 'MDD1102', text: GOOD }) === null);
 
+// ---- 共同所有者（11-13 起 .github/CO_OWNERS）：能执行迁移、合并红线 PR、部署；仍不能推 main ----
+T('共同所有者 + 「在两库执行迁移」→ 放行（对共同所有者这是对的）', G.decide({ login: 'MDD1102', text: BAD, coOwners: ['MDD1102'] }) === null);
+T('共同所有者 + 「你来做：pr_merge / 加密钥」→ 放行', G.decide({ login: 'MDD1102', text: BAD_OLD, coOwners: ['MDD1102'] }) === null);
+const PUSH = '**你来做**\n- 直接推 main：git push origin main';
+T('共同所有者 + 「你来做：推 main」→ 仍拦，理由写明共同所有者也不推 main', /共同所有者 MDD1102/.test(G.decide({ login: 'MDD1102', text: PUSH, coOwners: ['MDD1102'] }) || '') && /仍不推 main/.test(G.decide({ login: 'MDD1102', text: PUSH, coOwners: ['MDD1102'] }) || ''));
+T('不在名单里的协作者 → 照旧全部检查', /协作者 someone/.test(G.decide({ login: 'someone', text: BAD, coOwners: ['MDD1102'] }) || ''));
+T('名单读不到（null）→ 按协作者检查（宁可多拦一次，同一次停止不会再拦）', !!G.decide({ login: 'MDD1102', text: BAD, coOwners: null }));
+
 // ---- 对话记录：只取最后一轮助手的文字 ----
 const J = rows => rows.map(r => JSON.stringify(r)).join('\n');
 const tr = J([
@@ -68,14 +76,18 @@ fs.writeFileSync(cf, 'MDD1102'); T('账号：缓存过期（7 小时前）→ �
 const fake = path.join(tmp, 'gh'); fs.writeFileSync(fake, '#!/bin/sh\necho SMG562\n'); fs.chmodSync(fake, 0o755); fs.rmSync(cf);
 T('账号：没缓存 → 问 gh，并写进缓存', G.ghLogin({ env: {}, cacheFile: cf, gh: fake }) === 'SMG562' && fs.readFileSync(cf, 'utf8') === 'SMG562');
 
+const fgit = path.join(tmp, 'git'); fs.writeFileSync(fgit, '#!/bin/sh\nprintf "# 注释\\nMDD1102\\n\\n  abc-1 \\nbad name!\\n"\n'); fs.chmodSync(fgit, 0o755);
+T('名单：读 origin/main 的 .github/CO_OWNERS，去注释 / 空行 / 不像账号名的行', JSON.stringify(G.coOwnerList({ env: {}, git: fgit, cwd: tmp })) === JSON.stringify(['MDD1102', 'abc-1']), G.coOwnerList({ env: {}, git: fgit, cwd: tmp }));
+T('名单：git 不可用 → null', G.coOwnerList({ env: {}, git: path.join(tmp, '没有git'), cwd: tmp }) === null);
 // ---- 命令行：按钩子的方式跑 ----
-const run = (input, login) => spawnSync(process.execPath, [path.join(DIR, 'tools/role_guard.mjs')], { input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', env: { ...process.env, NBQ_GH_LOGIN: login }, timeout: 20000 });
+const run = (input, login, co = '') => spawnSync(process.execPath, [path.join(DIR, 'tools/role_guard.mjs')], { input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', env: { ...process.env, NBQ_GH_LOGIN: login, NBQ_CO_OWNERS: co }, timeout: 20000 });   // 名单固定，和仓库里真实的 CO_OWNERS 隔离
 const tf = path.join(tmp, 't.jsonl'); fs.writeFileSync(tf, J([{ type: 'user', message: { content: '汇报一下' } }, { type: 'assistant', message: { content: [{ type: 'text', text: BAD }] } }]));
 let r = run({ transcript_path: tf, stop_hook_active: false }, 'MDD1102');
 let out = (() => { try { return JSON.parse(r.stdout) } catch (_) { return null } })();
 T('命令行：协作者 + 对话记录里是错话 → stdout 是 {decision:"block", reason}，退出码 0', r.status === 0 && out?.decision === 'block' && /第 2 行/.test(out.reason), [r.status, r.stdout, r.stderr]);
 r = run({ last_assistant_message: BAD }, 'MDD1102'); T('命令行：钩子直接给 last_assistant_message 也认', JSON.parse(r.stdout || '{}').decision === 'block', r.stdout);
 r = run({ transcript_path: tf }, 'SMG562'); T('命令行：所有者 → 不输出、退出码 0', r.status === 0 && r.stdout === '', r.stdout);
+r = run({ transcript_path: tf }, 'MDD1102', 'MDD1102'); T('命令行：共同所有者 + 迁移类待办 → 不输出（名单经环境变量传入）', r.status === 0 && r.stdout === '', r.stdout);
 r = run({ transcript_path: tf, stop_hook_active: true }, 'MDD1102'); T('命令行：stop_hook_active → 不输出', r.status === 0 && r.stdout === '', r.stdout);
 r = run('不是 JSON', 'MDD1102'); T('命令行：输入坏了 → 不拦、退出码 0', r.status === 0 && r.stdout === '', [r.status, r.stdout]);
 r = run({ transcript_path: path.join(tmp, '不存在.jsonl') }, 'MDD1102'); T('命令行：对话记录不存在 → 不拦、退出码 0', r.status === 0 && r.stdout === '', [r.status, r.stdout]);
