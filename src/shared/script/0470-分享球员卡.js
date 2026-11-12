@@ -43,7 +43,8 @@ function imgSave(blob,name){
   const file=blob&&new File([blob],name,{type:'image/png'});
   const big=()=>{const old=document.getElementById('imgSaveBox');if(old)old.remove();const u=URL.createObjectURL(blob),d=document.createElement('div');d.id='imgSaveBox';
     d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px';
-    d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px">长按图片，选「存储到相册」</p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
+    d.innerHTML='<img alt="" style="max-width:100%;max-height:78vh;border-radius:10px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto"><p style="margin:0;color:#fff;font-size:14px"></p><button style="height:40px;padding:0 28px;border:0;border-radius:20px;background:#fff;color:#101828;font-size:15px">关闭</button>';
+    d.querySelector('p').textContent=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'长按图片，选「存储到相册」':'右键图片，选「图片另存为」';   // 触屏才说长按；电脑是右键（#206）
     d.querySelector('img').src=u;const close=()=>{d.remove();URL.revokeObjectURL(u)};d.querySelector('button').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});document.body.appendChild(d)};
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).then(()=>{if(typeof toast==='function')toast('图像已保存')},e=>{if(!e||e.name!=='AbortError')big()});return}   // 分享面板走完才提示（之前没有任何提示）；取消不提示
   big()}
