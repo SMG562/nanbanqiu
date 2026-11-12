@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, blockedOn, escText, escKey, ESC_HOURS, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -63,4 +63,18 @@ T('CI 卡排队：球在作者、reason 点名 30 分钟、next 是推空提交'
 T('CI 卡排队优先于「在跑」（一个卡一个在跑 = 先处理卡住的）', classify(base({ ci: { tests: 'stuck', fast: 'pending' } }), NOW).ball === 'author');
 T('CI 红仍优先于卡住（先修红的）', /CI 红/.test(classify(base({ ci: { tests: 'stuck', fast: 'failure' } }), NOW).reason));
 T('卡住提醒：带去重标记 / 作者 / 提交号 / 草稿说明', (m => m.includes(`<!-- ${stuckKey(base())} -->`) && m.includes('@MDD1102') && m.includes('abcdef1') && m.includes('草稿 PR'))(stuckText(base({ draft: true }))));
+
+// ⑦ 阻塞@所有者（11-12，#193）：协作者的阻塞留言没回复 → 球在所有者（草稿也算）；回复后恢复；机器标记 / 复核留言 / 机器人不算回复
+const k = (user, body, at = '2026-11-12T00:25:09Z', id = 1, bot = false) => ({ id, at, user, body, bot });
+const BL = '<!-- nbq-say:阻塞@SMG562:2a4c68c:cdb357 -->\n【阻塞@SMG562 2a4c68c】 卡在三件事';
+T('阻塞：没人回复 → 命中，带 id / 时间 / 摘要', (b => b && b.id === 5 && /阻塞@SMG562/.test(b.line) && !/<!--/.test(b.line))(blockedOn([k('MDD1102', '进度'), k('MDD1102', BL, '2026-11-12T00:25:09Z', 5)])));
+T('阻塞：所有者随后回复 → 解除', blockedOn([k('MDD1102', BL), k('SMG562', '1 已建 · 2 没加', '2026-11-12T01:00:00Z', 2)]) === null);
+T('阻塞：所有者的机器标记 / 复核留言不算回复', !!blockedOn([k('MDD1102', BL), k('SMG562', '<!-- nbq-ball:x -->\n提醒', 'x', 2), k('SMG562', '独立复核：通过 abcdef1', 'x', 3)]));
+T('阻塞：机器人留言不算回复；机器人 / 所有者自己发的阻塞不算', !!blockedOn([k('MDD1102', BL), k('github-actions[bot]', 'hi', 'x', 2, true), k('SMG562', 'ok', 'x', 3, true)]) && blockedOn([k('SMG562', BL)]) === null && blockedOn([k('MDD1102', BL, 'x', 1, true)]) === null);
+T('阻塞：只认第一行的标签，正文里引用不算', blockedOn([k('MDD1102', '之前写过 【阻塞@SMG562 abc】 已解决')]) === null && blockedOn([k('MDD1102', '【阻塞@别人 abc】 x')]) === null);
+T('阻塞：新一条阻塞以最后一条为准', blockedOn([k('MDD1102', BL, 'a', 1), k('SMG562', '好了', 'b', 2), k('MDD1102', '【阻塞@SMG562 bbbbbbb】 又卡了', 'c', 3)]).id === 3);
+const bp = base({ draft: true, blocked: { id: 5, at: '2026-11-12T00:25:09Z', line: '【阻塞@SMG562 2a4c68c】 卡住' } });
+T('阻塞：球在所有者，草稿也算，且不给作者发提醒', (c => c.ball === 'owner' && !c.ping && /卡住/.test(c.reason))(classify(bp, NOW)) && ball({ blocked: bp.blocked, level: 'review' }) === 'owner');
+T('阻塞：升级提醒 @所有者、带去重键、点名作者；只升级一次', (x => x.includes('@SMG562') && x.includes('MDD1102') && already([c(x)], escKey({ id: 5 })) && ESC_HOURS === 4)(escText(bp, bp.blocked)));
+T('阻塞：所有者集合键包含被阻塞的草稿', ownerKey([{ p: bp, c: classify(bp, NOW) }]) === '7');
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

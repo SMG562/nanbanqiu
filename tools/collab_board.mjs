@@ -19,6 +19,18 @@ export const stuckNext = '这个提交的检查没有机会跑出结果，取消
 export const stuckKey = p => `nbq-stuck:${p.sha.slice(0, 7)}`;
 export const stuckText = p => `<!-- ${stuckKey(p)} -->\n@${p.author} 这个提交（${p.sha.slice(0, 7)}）的 CI 排队超过 ${STUCK_MIN} 分钟没开始，多半是 GitHub 平台故障（${p.draft ? '草稿 PR，' : ''}不是代码问题）。\n下一步：${stuckNext}\n\n> 自动消息（协作看板），同一个提交只提醒一次。`;
 
+// 11-12（#193 事故）：协作者按协议发了「【阻塞@SMG562 …】」，只在 PR 评论里躺了十小时，没人汇报给所有者。看板原来只认红线 PR，不认手写的阻塞。
+// 现在：PR 里最后一条非所有者的阻塞留言，之后所有者（非机器标记、非复核留言）没回复 = 球在所有者（草稿也算）；看板会指派所有者（进 GitHub 的「指派给我」收件箱和手机推送），超过 ESC_HOURS 小时没回再 @ 一次。
+export const BLOCK_RE = /^\s*(?:<!--[^\n]*?-->\s*)?【阻塞@SMG562\b[^\n]*/, ESC_HOURS = 4;
+export function blockedOn(comments, owner = OWNER) {
+  let i = -1; comments.forEach((c, k) => { if (!c.bot && c.user !== owner && BLOCK_RE.test(c.body)) i = k });
+  if (i < 0) return null;
+  const replied = comments.slice(i + 1).some(c => !c.bot && c.user === owner && !/<!-- nbq-/.test(c.body) && !/^\s*独立复核/.test(c.body));
+  const b = comments[i]; return replied ? null : { id: b.id, at: b.at, line: b.body.match(BLOCK_RE)[0].replace(/<!--.*?-->/g, '').trim().slice(0, 120) };
+}
+export const escKey = b => `nbq-esc:${b.id}`;
+export const escText = (p, b) => `<!-- ${escKey(b)} -->\n@${OWNER} ${p.author} 的阻塞已经等了 ${ESC_HOURS} 小时以上没有回复：**${b.line}**\n只有你能做的事才会走到这里；在这个 PR 里回一次就行，回复后球自动回到协作者。\n\n> 自动消息（协作看板），同一条阻塞只升级一次。`;
+
 // 独立复核留言 → 针对当前提交的状态：pass 通过 / fix 要改 / rereview 改过了要重审 / none 还没复核（机器人的评论不算）
 export function reviewState(comments, sha) {
   const { pass, fix } = collect(comments.filter(c => !c.bot).map(c => c.body)), cur = sha.slice(0, 7);   // 解析统一在 tools/review_state.mjs（#201）
@@ -29,6 +41,7 @@ export function reviewState(comments, sha) {
 export function classify(p, now = Date.now()) {
   const idle = Math.floor((now - Date.parse(p.updated)) / D);
   const R = (ball, reason, next) => ({ ball, reason, next, idle, ping: ['author', 'review', 'merge'].includes(ball) && !p.draft });
+  if (p.blocked) return R('owner', `协作者在等你回复：${p.blocked.line}`, '在这个 PR 里回复一次（回复后球回到协作者）；这里只放只有所有者能做的事');
   if (p.draft) return R('author', '排队中', '本地测过后转 Ready（在制品 ≤ 2，排队顺序见 #167）');
   if (p.mergeable === 'dirty') return R('author', '和 main 有冲突', '在分支上 `bash tools/sync_main.sh --check` 看冲突文件，`git merge origin/main` 解决后推分支');
   const bad = Object.keys(NAME).filter(k => p.ci[k] === 'failure');
@@ -64,7 +77,7 @@ export const ownerKey = rows => rows.filter(r => r.c.ball === 'owner').map(r => 
 
 const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、复核留言、红线级别自动推出；球换手时机器人会在 PR 上 @ 对应的人并给出下一步命令，所以**不用另外汇报进度**。
 - 标签 \`球在作者 / 球在复核 / 球在所有者 / 等CI / 可合并\` 随状态自动更新，可直接按标签筛选。
-- **所有者只处理三类事**：红线 PR（当场点头）、每日真机、每周一周报；红线集合变化时这里会 @ 一次。
+- **所有者只处理四类事**：红线 PR（当场点头）、协作者发了【阻塞@SMG562】还没回复的 PR（看板会指派你，超过 4 小时再 @ 一次）、每日真机、每周一周报；集合变化时这里会 @ 一次。
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
 - 在制品（非草稿 PR）上限 ${WIP_LIMIT}。`;
 
@@ -86,9 +99,10 @@ export function gather(R, now = Date.now()) {
     const cmp = JSON.parse(gh(`repos/${R}/compare/main...${x.head.sha}`, '--jq', '{files:[.files[].filename],behind:.behind_by}')), files = cmp.files;
     const runs = JSON.parse(gh(`repos/${R}/actions/runs?head_sha=${x.head.sha}&per_page=50`)).workflow_runs;
     const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? (r.status === 'queued' && now - Date.parse(r.created_at) > STUCK_MIN * 6e4 ? 'stuck' : 'pending') : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
-    const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
+    const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ id: c.id, at: c.created_at, user: c.user?.login, body: c.body || '', bot: c.user?.type === 'Bot' }));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), assignees: x.assignees.map(a => a.login), comments };
+    p.blocked = blockedOn(comments);
     p.review = reviewState(comments, p.sha); rows.push({ p, c: classify(p, now) });
   }
   return rows;
@@ -106,6 +120,8 @@ function main() {
       const tl = list(`repos/${R}/issues/${p.number}/timeline?per_page=100`).map(e => ({ event: e.event, actor: e.actor?.login || '', at: e.created_at })), f = flapOf(tl, now);
       if (f && !already(p.comments, f.key)) post(p.number, flapText(p, f));
     }
+    if (c.ball === 'owner' && !p.assignees.includes(OWNER)) { console.log(`[指派 #${p.number}] ${OWNER}`); if (!dry) gh('-X', 'POST', `repos/${R}/issues/${p.number}/assignees`, '-f', `assignees[]=${OWNER}`) }
+    if (p.blocked && now - Date.parse(p.blocked.at) >= ESC_HOURS * 36e5 && !already(p.comments, escKey(p.blocked))) post(p.number, escText(p, p.blocked));
     if (Object.values(p.ci).includes('stuck') && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, stuckKey(p))) post(p.number, stuckText(p));
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
@@ -120,7 +136,7 @@ function main() {
   if (!issue) issue = JSON.parse(gh('-X', 'POST', `repos/${R}/issues`, '-f', 'title=协作看板（自动更新，别手改）', '-f', 'labels[]=协作看板', '-f', `body=${full}`));
   else if (!(issue.body || '').includes(`nbq-board:${hash}`)) gh('-X', 'PATCH', `repos/${R}/issues/${issue.number}`, '-f', `body=${full}`);
   const prev = list(`repos/${R}/issues/${issue.number}/comments?per_page=100`).filter(c => c.body.includes('nbq-owner-set:')).pop()?.body.match(/nbq-owner-set:([\d,]*)/)?.[1];
-  if (okey && okey !== prev) post(issue.number, `<!-- nbq-owner-set:${okey} -->\n@${OWNER} 现在需要你的 PR（红线，当场点头）：${rows.filter(r => r.c.ball === 'owner').map(r => `#${r.p.number} ${r.p.title}`).join('；')}。其余不用你处理。`);
+  if (okey && okey !== prev) post(issue.number, `<!-- nbq-owner-set:${okey} -->\n@${OWNER} 现在需要你的 PR：${rows.filter(r => r.c.ball === 'owner').map(r => `#${r.p.number} ${r.p.title}（${r.c.reason.slice(0, 60)}）`).join('；')}。其余不用你处理。`);
   else if (!okey && prev) post(issue.number, `<!-- nbq-owner-set: -->\n现在没有需要所有者处理的 PR。`);
 }
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) main();
