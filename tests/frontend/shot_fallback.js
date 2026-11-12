@@ -43,6 +43,16 @@ T('src 里只有共用截图函数（0470）直接调 html2canvas', direct.lengt
       return { before, nw: im && im.naturalWidth, svgAfter: d.querySelectorAll('svg').length, avImg: !!im0 && /^data:image\/png/.test(im.src), ink, iconLeft: d.querySelectorAll('.x svg,.x img').length } }, mode);
     let a = await av('ok'); T(`${f} 头像印章：最后一级把印章画成位图换回（保留图案），页面里 SVG 一个不剩，图标空 SVG 被移除`, a.before >= 1 && a.svgAfter === 0 && a.avImg && a.ink > 200 && a.iconLeft === 0, a);
     a = await av('taint'); T(`${f} 头像印章：画成位图被判不安全时不卡死、不留 SVG（退化为移除 / 首字母）`, a.svgAfter === 0 && !a.avImg, a);
+    // 真实球员卡（#205）：二维码带 data-qr，第 3 级（去 SVG 版）才能换成 PNG；头像画不成位图时退化成「底色圆 + 首字母」而不是空着
+    const card = mode => pg.evaluate(async mode => {
+      const uid = Object.keys(USERS)[0], u = Object.assign({}, USERS[uid], { avatar_kind: 'animal', animal: Object.keys(LA)[0] }); USERS[uid] = u;
+      const d = document.implementation.createHTMLDocument(''); d.body.innerHTML = shareShot(uid);
+      const g = CanvasRenderingContext2D.prototype.getImageData; if (mode === 'taint') CanvasRenderingContext2D.prototype.getImageData = function () { throw new Error('The operation is insecure.') };
+      const qrAttr = d.querySelectorAll('.bk .q[data-qr]').length; await nbqShotClean(d); CanvasRenderingContext2D.prototype.getImageData = g;
+      const ini = d.querySelector('.pc-av .pc-ini');
+      return { qrAttr, qrPng: /^data:image\/png/.test((d.querySelector('.bk .q img') || {}).src || ''), svgAfter: d.querySelectorAll('svg').length, ini: ini && ini.textContent, want: (String(u.name || '?').trim()[0] || '?').toUpperCase() } }, mode);
+    let c = await card('ok'); T(`${f} 真实球员卡：二维码带 data-qr，第 3 级换成 PNG`, c.qrAttr === 1 && c.qrPng && c.svgAfter === 0, c);
+    c = await card('taint'); T(`${f} 真实球员卡：头像画不成位图时退化为首字母（不是空白）`, c.qrAttr === 1 && c.svgAfter === 0 && c.ini === c.want && !!c.want, c);
     T(`${f} 无脚本错误`, errs.length === 0, errs); await ctx.close();
   }
   await b.close(); console.log(`shot_fallback: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
