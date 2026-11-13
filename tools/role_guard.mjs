@@ -18,15 +18,17 @@ export const OWNER_LOGIN = 'SMG562';
 export const HOOK_SNIPPET = '"Stop": [{ "hooks": [{ "type": "command", "command": "node \\"$CLAUDE_PROJECT_DIR/tools/role_guard.mjs\\"", "timeout": 15 }] }]';
 // 只有所有者能做的事（CLAUDE.md「仅所有者」+ CONTRIBUTING：正式库 / 部署 / 密钥 / 合并 / 推 main / 红线文件）
 const OWNER_ACT = [
-  [/(执行|跑|运行|应用)\s*(这个|这次|那个)?\s*迁移|迁移.{0,12}(执行|跑一?下|运行)|(正式库|测试库|生产库|两个库|两库|staging\s*库|Supabase).{0,16}(执行|跑|运行|建|改|删)/, '在数据库执行迁移 / 改库'],
-  [/(合并|合进|merge)\s*(#\d+|PR|pr|main|这个\s*PR|进\s*main)|pr_merge|sync_main/, '合并 PR'],
-  [/推\s*main|push.{0,12}\bmain\b|直推/, '推 main', true],                                      // true = 共同所有者也不能做（只有 SMG562）
-  [/部署|deploy_notify|wrangler\s+deploy/, '部署'],
+  [/(执行|跑|运行|应用)\s*(这个|这次|那个)?\s*迁移|迁移.{0,12}(执行|跑一?下|运行)|(正式库|测试库|生产库|两个库|两库|staging\s*库|Supabase).{0,16}(执行|跑|运行|建|改|删)|migrations?\b.{0,16}(prod|production|正式|生产)/, '在数据库执行迁移 / 改库'],
+  [/(合并|合进|merge)\s*(#\d+|PR|pr|main|这个\s*PR|进\s*main)|(合并|合|merge)\s*(到|进|into)\s*main|点.{0,6}(merge|合并)|(merge|合并)\s*按钮|pr_merge|sync_main/, '合并 PR'],   // 11-13 补漏：「把 PR 合并到 main」「点 merge 按钮」
+  [/推\s*main|push\b.{0,60}?(\bmain\b|:main\b)|直推/, '推 main', true],                     // 11-13：`git push origin HEAD:main` 这种中间隔得远的也算                                      // true = 共同所有者也不能做（只有 SMG562）
+  // 11-13 收窄（复核 ① 误拦）：只认「去做部署」这个动作——请 / 去 / 你 + 部署、部署 + 对象、重新部署；「部署日志 / 计划 / 记录」「合并后自动部署」这类陈述不算
+  [/(请|去|你)\S{0,4}(重新)?部署(?!日志|记录|状态|计划|结果|链接|地址|情况)|(重新|执行|手动)部署|部署(一下|发送程序|到正式|正式站|worker)|发送程序.{0,6}部署|deploy_notify|wrangler\s+deploy/, '部署'],
   [/密钥|Secrets?\b|ADMIN_DB_URL|DB_URL|环境变量.{0,6}(加|设|改)/, '改密钥 / 环境变量'],
   [/分支保护|CODEOWNERS|\.claude\/settings/, '改红线配置'],
 ];
 const READER = /你来做|需要你|你需要|你要做|你可以做|你能做|你做的|请你|你的待办|待办|你的下一步|下一步[（(]你|给你的|交给你/;
-const OWNER_MARK = /所有者|SMG562|owner|转给/i;
+const OWNER_MARK = /所有者|SMG562|owner|转给|请他|让他|由他|他来|他会|他点/i;          // 「请他私下交给你」：句里有「你」，但做事的是「他」
+const DONE = /已经?(合并|合进|部署|执行|跑完|跑过)|(合并|合进|部署|执行)(了|过|完)/;            // 陈述已发生的事，不是派活（11-13 回放真实回复时的误拦）
 const NEG = /不能|不可以|不要|别去|碰不了|做不了|无法|不用|不需要|无需|没法|没有权限|不归你|不是你/;
 const HEADER = [/^#{1,6}\s/, /^\*\*[^*]+\*\*\s*[（(][^）)]*[）)]\s*[:：]?\s*$/, /^\*\*[^*]+\*\*\s*[:：]?\s*$/, /^[^\s|`>].{0,30}[:：]\s*$/];
 const stripQuotes = s => s.replace(/「[^」]*」/g, '「」').replace(/“[^”]*”/g, '“”');
@@ -38,7 +40,7 @@ export function findViolations(text, { soleOnly = false } = {}) {   // soleOnly�
     const line = raw.trim(); if (!line) return;
     const plain = stripQuotes(line);
     if (HEADER.some(r => r.test(line))) { section = OWNER_MARK.test(plain) ? 'owner' : READER.test(plain) ? 'reader' : 'neutral'; if (section !== 'reader') return }
-    if (section === 'owner' || OWNER_MARK.test(plain) || NEG.test(plain)) return;
+    if (section === 'owner' || OWNER_MARK.test(plain) || NEG.test(plain) || DONE.test(plain)) return;
     const toReader = section === 'reader' || /你|^\s*(\d+[.)、]\s*|[-*]\s*)?请/.test(plain);
     if (!toReader) return;
     const hit = OWNER_ACT.find(([r, , sole]) => (!soleOnly || sole) && r.test(plain)); if (hit) out.push({ line: i + 1, act: hit[1], text: line.slice(0, 120) });
