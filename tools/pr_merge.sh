@@ -25,6 +25,8 @@ drop_branch() {
   [ "$(gh api "repos/$R/git/ref/heads/$HEAD" --jq .object.sha 2>/dev/null)" = "$SHA" ] || { echo "ℹ️ 分支 $HEAD 合并后又有新提交，没删（node tools/branch_prune.mjs 会列出）"; return 0; }
   # 11-12：仓库开着「合并后自动删分支」（delete_branch_on_merge），GitHub 常常比这里先删（事件记在合并的人名下）：删失败先看分支还在不在，别误报「没删掉」
   # 11-13（#267）：云端会话的代理禁止 REST 删引用（403）→ 退到 git push --delete；GitHub 自动删是异步的，刚合完可能还查得到 → 隔几秒再看，最多 3 次
+  # 11-13：new_branch.sh 在单分支克隆里给分支加过点名 fetch 规则；分支删了不清掉，之后每次 git fetch 都报错
+  git config --unset-all remote.origin.fetch "^\+refs/heads/$HEAD:" 2>/dev/null || true
   local gone="🗑️ 分支 $HEAD 已删（恢复：git push origin $SHA:refs/heads/$HEAD）"
   gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && { echo "$gone"; return 0; }
   git push -q origin --delete "$HEAD" 2>/dev/null && { echo "$gone"; return 0; }
