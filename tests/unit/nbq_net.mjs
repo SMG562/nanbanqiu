@@ -193,6 +193,10 @@ T('带 idem → 请求头 Idempotency-Key；不带 → 没有这个头（opt-in�
   const k3 = I.key('create', { a: 3 }); I.done('create', { ok: false, status: 422, code: 'invalid' });
   T('4xx（服务器明确拒了）→ 下次换新 key', I.key('create', { a: 3 }) !== k3);
   const m1 = I.key('msg1', { body: 'hi' }), m2 = I.key('msg2', { body: 'hi' }); T('不同的操作槽（不同会话）各用各的 key', m1 !== m2);
+  { let t = 0, m = 0; const J = X.nbqIdemMake(() => 'kk-' + String(++m).padStart(16, '0'), () => t);
+    const a = J.key('msgT', { body: '我到了' }); J.done('msgT', { ok: false, status: 0 }); t = 9 * 60e3;
+    T('断网后 10 分钟内再发同样的话 → 沿用', J.key('msgT', { body: '我到了' }) === a);
+    t = 11 * 60e3; T('超过 10 分钟再发同样的话 → 新 key（是新的一条，不能错拿旧结果；独立复核发现）', J.key('msgT', { body: '我到了' }) !== a) }
   T('默认生成的 key 符合服务端格式（16–64 位字母数字 _ -）', /^[A-Za-z0-9_-]{16,64}$/.test(X.nbqIdemMake().key('x', {})), X.nbqIdemMake().key('x', {})) }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

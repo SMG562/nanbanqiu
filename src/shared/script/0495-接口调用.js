@@ -36,10 +36,10 @@ function nbqNetMake(io){
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 // 重复提交（#276）：同一个操作槽（发局 / 某个会话发消息）+ 同样的内容 → 沿用上次的 key，服务器返回第一次的结果，不会建出两局 / 发两条。
-//   沿用：上次没有明确结果（断网 status 0、5xx：不知道写没写进去）；换新 key：成功了、4xx 被明确拒了、内容改了
-function nbqIdemMake(rand){const M=new Map();
+//   沿用：上次没有明确结果（断网 status 0、5xx：不知道写没写进去），而且在 10 分钟内；换新 key：成功了、4xx 被明确拒了、内容改了、隔太久（服务端认 24 小时，前台只在短时间内当「重发」，免得过很久再说同一句话被当成旧的）
+function nbqIdemMake(rand,now){const M=new Map(),TTL=10*60e3;now=now||(()=>Date.now());
   rand=rand||(()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,8));
-  return{key(slot,body){const sig=JSON.stringify(body??null),o=M.get(slot);if(o&&o.sig===sig)return o.key;const k=rand();M.set(slot,{sig,key:k});return k},
+  return{key(slot,body){const sig=JSON.stringify(body??null),o=M.get(slot),t=now();if(o&&o.sig===sig&&t-o.t<TTL)return o.key;const k=rand();M.set(slot,{sig,key:k,t});return k},
     done(slot,r){if(r&&(r.ok||(r.status>=400&&r.status<500)))M.delete(slot)}}}
 // 有没有新版本（#63 第 3 件）：本页构建号和 /build.json 的都有、且不一样。没有构建号（本地 / 测试）= 不提示
 const nbqUpdNeeded=(mine,remote)=>!!mine&&typeof remote==='string'&&!!remote&&remote!==mine;
@@ -307,8 +307,8 @@ function nbqEditBody(f,ns,apCount){const b={starts_at:ns.toISOString(),duration_
 const nbqEdit=(id,body)=>nbqWrite('edit'+id,n=>n.patch('/api/games/'+id,body));
 const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpone'));
 const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
-async function nbqCreate(f){const b=nbqCreateBody(f),k=NBQ_IDEM.key('create',b);   // 断网后再点「发布」沿用同一个 key：不会建出两局（#276）
-  const d=await nbqWrite('create',async n=>{const r=await n.post('/api/games',b,{idem:k});NBQ_IDEM.done('create',r);return r});return d&&d.id||null}
+async function nbqCreate(f){const b=nbqCreateBody(f);   // 断网后再点「发布」沿用同一个 key：不会建出两局（#276）；key 在 nbqWrite 放行后才取，被「发送中」拦下的点击不动槽位
+  const d=await nbqWrite('create',async n=>{const k=NBQ_IDEM.key('create',b),r=await n.post('/api/games',b,{idem:k});NBQ_IDEM.done('create',r);return r});return d&&d.id||null}
 
 /* ---- 邀约写操作（第 6 轮）：先调接口，成功后重读（以服务器为准）；失败提示错误码，邀约卡 / 表单留在原处 ---- */
 const nbqInvVen=id=>{const v=VEN[id];return v&&v.custom?{venue_name:v.name}:{venue_id:id}};   // 自填场地只传名字

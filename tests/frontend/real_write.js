@@ -102,7 +102,13 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       const c = await pg.evaluate(([v, f]) => nbqCreate(eval('(' + f + ')')(v)), [V1, F.toString()]);
       const k = S.idk['POST /api/games'];
       T(tag('发局带 Idempotency-Key；断网那次失败，再点沿用同一个 key 并成功'), a === null && b === G3 && k.length === 3 && /^[A-Za-z0-9_-]{16,64}$/.test(k[0] || '') && k[1] === k[0], [a, b, k]);
-      T(tag('发局成功后再发同样内容 → 换新 key（是新的一局）'), c === G3 && k[2] && k[2] !== k[1], k); }
+      T(tag('发局成功后再发同样内容 → 换新 key（是新的一局）'), c === G3 && k[2] && k[2] !== k[1], k);
+      // 上一次还在发送时改了表单再点「发布」：这次被拦下、不发请求，也不能把槽位改掉（独立复核发现）
+      S.idk['POST /api/games'] = []; S.drop = 'POST /api/games';   // nbqWrite 同步占住 NBQ_BUSY，第二次一定被拦
+      const [d1, d2] = await pg.evaluate(([v, f]) => { const mk = eval('(' + f + ')'); const g = mk(v); g.t = '12:00'; const h = mk(v); h.t = '12:30'; return Promise.all([nbqCreate(g), nbqCreate(h)]) }, [V1, F.toString()]);
+      const e2 = await pg.evaluate(([v, f]) => { const g = eval('(' + f + ')')(v); g.t = '12:00'; return nbqCreate(g) }, [V1, F.toString()]);
+      const k2 = S.idk['POST /api/games'];
+      T(tag('发送中改了表单再点：被拦下不发请求；断网后再点原来的内容 → 沿用原来的 key'), d1 === null && d2 === null && k2.length === 2 && k2[1] === k2[0] && e2 === G3, [d1, d2, e2, k2]); }
     // 4c：改局 / 放宽 / 顺延 / 确认改动
     const exp = await pg.evaluate(([g]) => { geOpen(g); document.getElementById('ngNote').value = '改个备注'; NG.mn = 3; const e = NG.type === 'doubles' ? Math.max(0, CAP.doubles - api.get(g).appr.length - NG.miss) : null; geSave(); return e }, [G3]); await pg.settle(500);
     const eb = S.bodies[`PATCH /api/games/${G3}`] || {};
