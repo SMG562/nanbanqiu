@@ -19,11 +19,25 @@
       "mcp__claude-code-remote__add_repo",
       "mcp__claude-code-remote__register_repo_root",
       "mcp__remote-devices__device_commit_files",
-      "mcp__remote-devices__device_list_dir"
+      "mcp__remote-devices__device_list_dir",
+      "Bash(gh api -X POST repos/SMG562/nanbanqiu/issues/:*)",
+      "Bash(gh api -X PATCH repos/SMG562/nanbanqiu/issues/:*)",
+      "Bash(gh api -X POST repos/SMG562/nanbanqiu/pulls:*)",
+      "Bash(bash tools/handoff_check.sh:*)",
+      "Bash(bash tools/new_branch.sh:*)",
+      "Bash(bash tools/pr_say.sh:*)",
+      "Bash(bash tools/pr_state.sh:*)",
+      "Bash(bash tools/pr_merge.sh:*)",
+      "Bash(bash tools/ci_wait.sh:*)",
+      "Bash(bash tools/gate.sh:*)",
+      "Bash(bash tools/sync_main.sh:*)",
+      "Bash(node tests/run_all.mjs:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
-      "Bash(git push -f:*)"
+      "Bash(git push -f:*)",
+      "Bash(gh api -X DELETE:*)",
+      "Bash(gh api -X PUT repos/SMG562/nanbanqiu/pulls/:*)"
     ]
   },
   "hooks": {
