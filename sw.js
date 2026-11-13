@@ -4,8 +4,9 @@
  *       → POST /push/subscriptions  { endpoint, keys: { p256dh, auth } }
  * iOS：只有“添加到主屏幕”后从主屏幕打开（iOS 16.4+），并由用户点击触发授权，才能订阅推送。
  */
-const VERSION = 'nbq-v7';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
+const VERSION = 'nbq-v8';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
 const SHELL = ['/melbourne/', '/icons/icon-192.png'];
+const PAGES = ['/pwa.html', '/web.html'];   // 整页：城市壳（选排版页）用 fetch 把其中一个载进来
 
 self.addEventListener('install', e => {
   // 离线壳逐个缓存、失败不影响安装（预览站没有 /melbourne/；一个文件缓存不上，整个 Service Worker 就装不上，推送也就订阅不了）
@@ -24,6 +25,15 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
+  // 整页（11-13）：网络优先，成功就缓存，断网给上次那份（应用能打开、显示上次的数据）。没缓存过 = 网络错误，绝不回退到城市壳：
+  //   以前断网时壳取不到整页 → 退回跳到 /pwa.html → 这次导航又拿到缓存的壳 → 再取不到 → 再跳，无限刷新
+  if (PAGES.includes(url.pathname)) {
+    e.respondWith(fetch(e.request).then(r => {
+      if (r.ok && !r.redirected) { const c = r.clone(); caches.open(VERSION).then(x => x.put(url.pathname, c)).catch(() => { }) }
+      return r;
+    }).catch(async () => (await caches.match(url.pathname)) || Response.error()));
+    return;
+  }
   if (e.request.mode === 'navigate') {
     // 离线壳按城市：/<城市>/… 打开过就缓存这个城市的页面，离线时回退到它（没有就回退墨尔本）
     const city = (url.pathname.match(/^\/([a-z]+)\//) || [])[1], shell = city && !['g', 'p', 'api', 'admin'].includes(city) ? `/${city}/` : null;
