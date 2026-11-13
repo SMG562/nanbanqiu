@@ -24,6 +24,7 @@ T('闲置天数', classify(base({ updated: '2026-11-07T10:00:00Z' }), NOW).idle 
 // 11-13（#233 活锁）：合并 main ≥ 2 次且 CI 绿 → 提示别再同步
 const mc = (m, n = 2) => ({ parents: Array(n).fill({}), message: m });
 T('数「合并 main」提交：只算两个父提交且信息是合并 main 的', syncsOf([mc("Merge branch 'main' into x"), mc("Merge remote-tracking branch 'origin/main' into x"), mc("Merge branch 'feature' into x"), mc("fix: 普通提交", 1), mc("Merge branch 'main'", 1)]) === 2);
+T('数「合并 main」提交：也认 sync_main.sh 的中文信息（#266）', syncsOf([mc('合并 origin/main，为快进合并做准备'), mc('合并 origin/main（进度记录），为快进合并做准备'), mc('合并 origin/main：解决与 #89 的冲突'), mc('合并 origin/main-old'), mc('合并 feature 分支'), mc('合并 origin/main，为快进合并做准备', 1)]) === 3);
 T('同步 ≥ SYNC_LOOP 且红线：原因里写明别再同步', /别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP }), NOW).reason) && !/别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP - 1 }), NOW).reason));
 T('同步 ≥ SYNC_LOOP 且可合并：原因里带【可合 <7位>】', classify(base({ syncs: SYNC_LOOP }), NOW).reason.includes('【可合 abcdef1】'));
 T('同步提醒：每 PR 一个去重键，不含「独立复核：通过」', (s => already([{ body: s }], 'nbq-syncloop:7') && !/独立复核：通过\s*[0-9a-f]{7}/.test(s))(syncText(base(), 2)));
