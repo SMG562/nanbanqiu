@@ -62,7 +62,7 @@ T('每个已跟踪文件要么触发测试、要么在不测名单里（新目�
 // ③ 被排除的目录
 const EXC = FAST.filter(p => p[0] === '!').map(p => p.slice(1).replace(/\/\*\*$/, ''));
 T('至少有一个被排除的目录（没有就说明规则被改掉了，更新这个测试）', EXC.length >= 1, EXC);
-const ALLOW_REF = new Set(['tools/lint_icons.py', 'tests/unit/ci_paths.mjs']);   // 本来就是顶替它的检查，或本守卫自己
+const ALLOW_REF = new Set(['tools/lint_icons.py', 'tests/unit/ci_paths.mjs', 'tools/gate.sh']);   // 本来就是顶替它的检查、本守卫自己，或 gate.sh 照抄排除规则（下面对照）
 const CODE_DIRS = /^(tests|tools|server|functions|worker|notify-worker|src|\.githooks)\//, CODE_EXT = /\.(m?js|cjs|py|sh|html|json|sql|ya?ml)$/;
 for (const dir of EXC) {
   const refs = [];
@@ -110,5 +110,15 @@ T('合并脚本只快进（把测过的提交号推成 main）、不强推，并
 const gateS = rd(path.join(ROOT, 'tools', 'gate.sh'));
 T('查运行记录按工作流文件路径（.path），不按 .name——tests.yml 有 run-name，name 会变成 PR 标题 / 提交说明（11-04 实测）', [reuse, merge, gateS].every(x => x.includes('.path==') && !/select\(\.name==/.test(x)));
 T('闸门 / 合并 / 复用都不把「重拍截图基准」的运行当成测试（它不跑测试）', [reuse, merge, gateS].every(x => x.includes('visual-baseline')));
+
+// 11-13（#266）：gate.sh 对没触发测试的提交（只改文档）显示「不适用」而不是 ❌；它的正则必须和 paths 等价，否则会把该测没测的提交放过去
+{ const re = (gateS.match(/^TESTS_RE='([^']+)'$/m) || [])[1], ex = (gateS.match(/^TESTS_EXCL='([^']+)'$/m) || [])[1];
+  T('gate.sh 写了 TESTS_RE / TESTS_EXCL，且 tests-fast / tests 没记录时只在 ! tests_triggered 才显示不适用', !!re && !!ex && /"\$W" != smoke \] && ! tests_triggered; then echo "⚪ \$W：不适用/.test(gateS));
+  if (re && ex) {
+    const R = new RegExp(re), X = new RegExp(ex), gt = f => !X.test(f) && R.test(f);
+    const SAMPLE = ['进度记录.md', 'docs/adr/0012.md', 'marketing/img/a.webp', 'marketing/icons/gen_a.py', 'marketing/icons/a.svg', 'src/pwa/a.css', 'src/x.list', '南伴球_PWA.html', 'tools/gate.sh', 'a/b.jsonc', 'tests/x.txt', '.github/workflows/x.yml', '.github/CODEOWNERS', '.githooks/pre-push', '.gitattributes', 'vendor/leaflet/x.png', 'manifest.webmanifest', '.claude/settings.json', '.claude/skills/a.md'];
+    const diff = [...new Set([...FILES, ...SAMPLE])].filter(f => gt(f) !== triggers(FAST, f));
+    T('gate.sh 的「会不会触发测试」判断和 tests-fast.yml 的 paths 对每个文件结论一致（改 paths 要同步改 gate.sh）', diff.length === 0, diff.slice(0, 12));
+    T('gate.sh 对照样例：纯文档不触发，页面源码 / 脚本触发', !gt('进度记录.md') && !gt('marketing/icons/a.py') && gt('src/a.css') && gt('tools/gate.sh')) } }
 
 console.log(`\nci_paths: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
