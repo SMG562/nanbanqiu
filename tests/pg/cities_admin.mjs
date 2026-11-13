@@ -36,7 +36,7 @@ try {
 
   // ---------- 权限表、会话 ----------
   T('权限表加了城市两项（只有超级管理员、都要理由）', JSON.stringify((await q(`select action, roles, need_reason from admin_perms where action like 'city.%' order by 1`)).rows) === JSON.stringify([{ action: 'city.manage', roles: ['owner'], need_reason: true }, { action: 'city.waitlist', roles: ['owner'], need_reason: true }]));
-  T('权限表共 20 项（S4 加了场边配置）', +(await one(`select count(*) from admin_perms`)).count === 20);
+  T('权限表共 21 项（#49 加了运行时开关）', +(await one(`select count(*) from admin_perms`)).count === 21);
   { const tok = 'f'.repeat(64); await q(`insert into admin_sessions(admin_id, token_hash, expires_at, last_seen_at) values ($1,$2,now()+interval '1 hour',now())`, [OPS, tok]);
     const r = await as('nbq_service')(`select admin_session_check($1) j`, [tok]); T('会话里带负责的城市', r.ok && JSON.stringify(r.v.cities) === '["syd"]' && r.v.role === 'operator', r) }
 

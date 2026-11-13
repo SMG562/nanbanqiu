@@ -8,7 +8,7 @@ const FE = grab('ADMIN_PERMS'), FERR = grab('ADMIN_ERR');
 const blks = sql.split('insert into admin_perms(').slice(1).map(b => b.slice(0, b.indexOf('on conflict (action) do update')));
 const ALL = blks.flatMap(blk => [...blk.matchAll(/\('([a-z_.]+)',\s*'([^']+)',\s*'\{([a-z,]+)\}',\s*(true|false)\)/g)].map(m => [m[1], m[2], m[3].split(','), m[4] === 'true']));
 const DB = ALL;   // A1：场边后台四页并入后，sideline.config / admin_config_stale 也在页面里，不再有「待并入」
-T(`数据库权限表 ${ALL.length} 条，含 sideline.config`, ALL.length === 20 && ALL.some(d => d[0] === 'sideline.config'), ALL.length);
+T(`数据库权限表 ${ALL.length} 条，含 sideline.config`, ALL.length === 21 && ALL.some(d => d[0] === 'sideline.config'), ALL.length);
 T('后台页面 ADMIN_PERMS 与数据库逐条相同（操作、名称、角色、是否要理由）', JSON.stringify(FE) === JSON.stringify(DB), { 页面: FE && FE.filter(x => !DB.some(d => JSON.stringify(d) === JSON.stringify(x))), 数据库: DB.filter(d => !(FE || []).some(x => JSON.stringify(d) === JSON.stringify(x))) });
 T('只读角色只有「查看统计和名单」', DB.filter(d => d[2].includes('viewer')).map(d => d[0]).join() === 'page.view');
 T('owner 能做全部操作', DB.every(d => d[2].includes('owner')));
