@@ -12,7 +12,13 @@ const ROOT = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
   const files = walk(out).sort(), want = [...Object.keys(S.FILES), ...S.GENERATED].sort();
   T('site/ 只有白名单里的文件', JSON.stringify(files) === JSON.stringify(want), { files, want });
   T('不含进度记录、数据库、测试、服务端代码', !files.some(f => /\.(md|sql|py|mjs|cjs)$|^tests|^server|^src/.test(f)), files);
-  T('页面和仓库里的文件逐字节一致', Object.entries(S.FILES).every(([to, from]) => fs.readFileSync(path.join(out, to)).equals(fs.readFileSync(path.join(ROOT, from)))));
+  T('页面和仓库里的文件逐字节一致（手机版 / 网页版只多了构建号 meta）', Object.entries(S.FILES).every(([to, from]) => S.BUILD_PAGES.includes(to)
+    ? fs.readFileSync(path.join(out, to), 'utf8').replace(/<meta name="nbq-build" content="[^"]*">/, '') === fs.readFileSync(path.join(ROOT, from), 'utf8')
+    : fs.readFileSync(path.join(out, to)).equals(fs.readFileSync(path.join(ROOT, from)))));
+  // 构建号（#63 第 3 件）：提交时间秒数 + 提交号前 7 位；写进两端页面，并和 /build.json 一致（页面回到前台时比较这两个）
+  { const bj = JSON.parse(fs.readFileSync(path.join(out, 'build.json'), 'utf8')).build, metas = S.BUILD_PAGES.map(f => (fs.readFileSync(path.join(out, f), 'utf8').match(/<meta name="nbq-build" content="([^"]*)">/) || [])[1]);
+    T('构建号：/build.json = 两端页面里的 meta，格式「秒数-提交号」', /^\d{10}-0123abc$/.test(bj) && metas.every(m => m === bj), { bj, metas });
+    T('构建号：后台页不带（后台与接口同次部署，不受 ADR 0013 约束）', !/nbq-build/.test(fs.readFileSync(path.join(out, 'admin.html'), 'utf8'))); }
   // 主屏幕图标：manifest 和 apple-touch-icon 引用的文件都在、是真 PNG、尺寸对；预览站 manifest 从 /pwa.html 打开（根是入口页）
   const png = f => { const b = fs.readFileSync(path.join(out, f)); return b.slice(1, 4).toString() === 'PNG' ? [b.readUInt32BE(16), b.readUInt32BE(20)] : null };
   const mf = JSON.parse(fs.readFileSync(path.join(out, 'manifest.webmanifest'), 'utf8'));
