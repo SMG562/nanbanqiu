@@ -63,6 +63,8 @@ try {
   T('发消息：库里只多 1 条', await n('messages') === before + 1);
   r = await call('POST', `/api/threads/${TH}/messages`, tP, { body: '你好' }, K(1)); T('发消息：用别人（发起人）用过的 key → 各算各的，照常发', r.s === 200 && r.j.id !== r2.j.id, r);
   r = await call('POST', `/api/threads/${TH}/messages`, tH, { body: '你好' }, K(1)); T('同一个人把发局的 key 用到发消息 → 409 idempotency_key_reused', r.s === 409 && r.j.error === 'idempotency_key_reused', r);
+  const TH2 = (await call('POST', '/api/threads', tP, { user_id: Q })).j.id;
+  r = await call('POST', `/api/threads/${TH2}/messages`, tP, { body: '另一个会话' }, K(10)); T('发消息：同一个 key 发到另一个会话 → 409 idempotency_key_reused（不会错拿第一个会话的结果，复核发现）', r.s === 409 && r.j.error === 'idempotency_key_reused', r);
   r = await call('POST', `/api/threads/${TH}/messages`, tP, { body: '再见' }); r2 = await call('POST', `/api/threads/${TH}/messages`, tP, { body: '再见' });
   T('发消息：不带 key → 照旧，两条', r.s === 200 && r2.s === 200 && r.j.id !== r2.j.id, [r, r2]);
 

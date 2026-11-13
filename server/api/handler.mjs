@@ -75,9 +75,9 @@ async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon 
   for (const k of ids) if (!UUID.test(params[k] || '')) return send(404, { error: 'not_found' });
   for (const k of nums) if (!/^\d{1,15}$/.test(params[k] || '')) return send(404, { error: 'not_found' });
   let b = {}; if (body) { const r = await readBody(req); if (r.err) return r.err; b = r.body }
-  const key = idem && uid ? req.headers.get('Idempotency-Key') : null;
+  const key = idem && uid ? req.headers.get('Idempotency-Key') : null, route = idem && idem.replace(/:(\w+)/g, (_, k) => params[k]);   // 拼上具体对象：同一个 key 发到另一个会话 / 帖子 → 409，不会错拿第一次的结果
   const run = !key ? q => fn(q, b, params) : async q => {
-    const old = (await one(q, 'select idem_begin($1, $2) as r', [key, idem])).r; if (old) return old;
+    const old = (await one(q, 'select idem_begin($1, $2) as r', [key, route])).r; if (old) return old;
     const out = await fn(q, b, params); await q('select idem_finish($1, $2::jsonb)', [key, JSON.stringify(out ?? {})]); return out };
   for (let i = 0; ; i++) {
     try { return send(200, await d.db.asUser(uid, run)) }
