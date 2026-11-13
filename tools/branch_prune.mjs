@@ -11,7 +11,7 @@ import fs from 'node:fs'; import path from 'node:path'; import { spawnSync } fro
 
 export const PROTECTED = ['main', 'staging'];   // staging = 测试推送固定地址 staging.nanbanqiu-preview.pages.dev（ADR 0007），不能删
 export const GRACE_DAYS = 3;                     // 没 PR 的新分支、刚关的 PR：3 天内不动（分支存活 ≤ 3 天的规矩，也给正在进行的会话留余地）
-export const IDLE_DAYS = 21;                     // 11-13：「需决定」的分支（没进 main 的内容）超过 21 天没有新提交 → 自动打 archive 标签后删（标签随时能恢复），不再问所有者
+export const IDLE_DAYS = 7;                      // 11-13：「需决定」的分支（没进 main 的内容）超过 7 天没有新提交 → 自动打 archive 标签后删（标签随时能恢复），不再问所有者（原 21 天，所有者 11-13 要求缩短）
 export const STALE_DAYS = 7;                     // 开着的 PR 超过 7 天没动：列出来提醒
 const DAY = 864e5;
 
