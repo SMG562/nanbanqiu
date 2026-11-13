@@ -5,7 +5,7 @@
 #   bash tools/pr_merge.sh <PR 号> --check    只核对，不推
 # 核对：① PR 打开着、目标是 main；② main 是 PR 提交的祖先（能快进；不能就先 rebase 到最新 main 再推，等测试重跑）；
 #   ③ 这个提交的 tests-fast、tests 都通过（没跑完 / 失败 / 取消都不行）；
-#   ④ 动到了 schema.sql 或 server/migrations：db-parity 在这个提交之后跑过且通过（迁移先在正式库跑）；
+#   ④ 动到了 schema.sql 或 server/migrations：db-parity 在库结构最后一次改动之后跑过且通过（迁移先在正式库跑；只多合并 main 不作废）；
 #   ⑤ PR 描述有「入口清单」，较大风险的 PR 真机两项（刷新后还在 / 换设备登录还在）已勾（tools/pr_body_check.mjs --merge）；
 #   ⑥ 本地工作区干净（不会把没提交的东西当成测过的）。
 #   ⑦ 级别（ADR 0010，tools/decision_card.mjs 按 CODEOWNERS 判定）：改了红线 → 只有所有者能合；需独立复核的路径 → PR 上要有「独立复核：通过 <提交号前 7 位>」留言；其余自助合并。
@@ -30,6 +30,10 @@ drop_branch() {
 [ "$STATE" = open ] && [ "$BASE" = main ] && yes "PR #$N 打开着，目标 main（分支 $HEAD，提交 ${SHA:0:7}）" || no "PR #$N 状态 $STATE / 目标 $BASE / 已合并 $MERGED"
 git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/null || true
 git cat-file -e "$SHA^{commit}" 2>/dev/null || git fetch -q origin "$SHA" 2>/dev/null
+# 11-12：闸门只认 main 上的版本。本脚本和它执行的检查在工作区里跑，分支上改过（哪怕没提交）就可能被放宽；
+#   .claude/settings.json 免确认放行本脚本的前提就是这一条（tests/unit/merge_gate_integrity 守着：执行到的脚本都要在名单里）
+GATE="tools/pr_merge.sh tools/merge_drift.sh tools/pr_body_check.mjs tools/decision_card.mjs tools/review_state.mjs tools/review_carry.mjs .github/CODEOWNERS"
+GD=$(git diff --name-only origin/main -- $GATE 2>&1) && [ -z "$GD" ] || { echo "❌ 合并检查脚本和 origin/main 不一致（${GD:-读不到 origin/main}）：在最新 main 上跑  git checkout --detach origin/main && bash tools/pr_merge.sh $N"; exit 2; }
 # 11-11（#125，所有者定）：main 前进了不一定要重合 main——只多文档、或文件完全不重叠且合并预演干净，就认 PR 上已测结果（tools/merge_drift.sh；库结构 / 闸门 / CI 永远严格）
 RELAXED=0
 if git merge-base --is-ancestor origin/main "$SHA" 2>/dev/null; then yes "可以快进（main 是这个提交的祖先）"
@@ -56,18 +60,23 @@ for W in tests-fast tests; do
   fi
   case "$L" in "completed success "*) yes "$W 通过（运行 ${L##* }）"; CI_IDS="$CI_IDS $W#${L##* }";; "null"*|"") no "$W：这个提交还没有运行记录";; *) no "$W：$L";; esac
 done
+# 11-13（#252 事故）：workflow-lint 红了仍被放行合并——除 tests / tests-fast 外，这个提交上别的 PR 检查（每个工作流取最新一次）有「失败」也不能合
+OF=$(gh api "repos/$R/actions/runs?head_sha=$SHA&event=pull_request&per_page=100" --jq '[.workflow_runs[]|select(.path|test("/tests(-fast)?\\.yml$")|not)]|group_by(.path)|map(sort_by(.created_at)|last)|map(select(.conclusion=="failure")|.name)|join("、")' 2>/dev/null)
+[ -z "$OF" ] && yes "其他 PR 检查没有红的" || no "其他检查红了：$OF（看注解修，推新提交）"
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
-  T=$(git show -s --format=%cI "$SHA")
-  D=$(gh api "repos/$R/actions/workflows/db-parity.yml/runs?per_page=5" --jq "[.workflow_runs[]|select(.created_at > \"$(date -u -d "$T" +%Y-%m-%dT%H:%M:%SZ)\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
-  case "$D" in "completed success "*) yes "改了数据库：db-parity 在这个提交之后通过（运行 ${D##* }）";; *) no "改了数据库：需要在这个提交之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${D:-没有}";; esac
+  # db-parity 算不算数只有一份实现（11-13，#241）：以库结构最后一次改动为准，只多合并 main 不作废；tools/merge_gate.mjs 也调它
+  read -r DS DID DT <<<"$(bash tools/merge_drift.sh --db-parity "$SHA")"
+  if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"; fi
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
 case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
-  owner) [ "$ME" = SMG562 ] && yes "改了红线文件：所有者本人合并" || no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）能合，在 PR 上说明后等所有者点头" ;;
-  review) RV=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '.[]|select(.user.type!="Bot")|.body' 2>/dev/null)
-    if printf '%s' "$RV" | grep -qF "独立复核：通过 ${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
-    elif CW=$(for o in $(printf '%s' "$RV" | grep -oE '独立复核：通过 *[0-9a-f]{7,40}' | grep -oE '[0-9a-f]{7,40}$' | sort -u); do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
+  owner) if [ "$ME" = SMG562 ]; then yes "改了红线文件：所有者本人合并"
+    elif git show origin/main:.github/CO_OWNERS 2>/dev/null | grep -v '^#' | grep -qxF "$ME"; then yes "改了红线文件：共同所有者 $ME 合并（名单在 main 的 .github/CO_OWNERS）"   # 11-13：所有者批准协作者接近所有者权限；名单只认 main 上的版本
+    else no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）或共同所有者（.github/CO_OWNERS）能合，在 PR 上说明后等点头"; fi ;;
+  review) PASS=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '[.[]|select(.user.type!="Bot")|.body]' 2>/dev/null | node tools/review_state.mjs pass 2>/dev/null)   # 解析统一在 review_state.mjs（只认留言第一行，#201）
+    if printf '%s\n' "$PASS" | grep -qx "${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
+    elif CW=$(for o in $PASS; do r=$(node tools/review_carry.mjs "$o" "$SHA" origin/main 2>/dev/null) && { echo "沿用 $o 的复核——$r"; break; } || false; done) && [ -n "$CW" ]; then yes "独立复核：$CW"
     else no "需要独立复核：另开一个没看过本次过程的会话只读复核，在 PR 留言「独立复核：通过 ${SHA:0:7}」（写明看了什么、风险、怎么回退）"; fi ;;
   *) yes "自助合并：无红线、无需复核" ;;
 esac
