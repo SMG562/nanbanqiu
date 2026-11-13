@@ -16,7 +16,7 @@ let BASE = Date.now();
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const tag = s => `${f} ${s}`;
-    const S = { me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
+    const S = { idk: {}, drop: null, me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
       msgs: { [T1]: [] }, t1read: false, t2: false, fail: null, log: [], bodies: {}, msgGets: 0, nextId: 100 };
     const iso = h => new Date(BASE + h * 36e5).toISOString();
     const game = () => ({ id: G1, share_code: 'Ab3k', host_id: HOST, host_nickname: 'Host', host_utr: 5.5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: iso(30), duration_min: 90, game_type: 'doubles', capacity: 4, utr_min: 4, utr_max: 6.5, note: '', status: 'open', tags: [], visibility: 'public', filled: 0, join_mode: 'approve', city: 'melb', approved_count: 2, pending_count: 0, spots_left: 2 });
@@ -26,7 +26,7 @@ let BASE = Date.now();
         ...(S.t2 ? [{ id: T2, kind: 'game', game_id: G1, other_id: null, last_body: null, last_at: null, last_sender: null, unread: false }] : [])] };
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
-      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [T1]: 'T1', [T2]: 'T2', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body }
+      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [T1]: 'T1', [T2]: 'T2', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; (S.idk[m + ' ' + p] ||= []).push(r.request().headers()['idempotency-key'] || null); if (S.drop === m + ' ' + p) { S.drop = null; return r.abort() } }
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
         if (p === '/api/me') return J(200, { registered: true, user: S.me });
@@ -72,6 +72,16 @@ let BASE = Date.now();
     S.fail = 'message_too_fast'; await pg.fill('#cxIn', '再发一条'); await pg.click('[data-cx="send"]'); await pg.settle(700);
     T(tag('发消息失败（太快）：提示对应文字，消息不显示，输入框里的字还在'), (await toasts()) === (await pg.evaluate(() => apiErrText('message_too_fast'))) && !/再发一条/.test(await msgsText()) && (await pg.inputValue('#cxIn')) === '再发一条', [await toasts(), await msgsText()]);
     S.fail = null;
+    // 重复提交（#276）：断网那次没发出去（字还在），再点「发送」沿用同一个 Idempotency-Key；发下一条换新 key
+    { const K = `POST /api/threads/${T1}/messages`; S.idk[K] = []; S.drop = K;
+      await pg.fill('#cxIn', '断网这条'); await pg.click('[data-cx="send"]'); await until(() => S.idk[K].length === 1 && S.drop === null); await pg.settle(300);
+      const kept = await pg.inputValue('#cxIn'), shown1 = /断网这条/.test(await msgsText());
+      await pg.click('[data-cx="send"]'); await until(() => msgsText().then(t => /断网这条/.test(t)));
+      await pg.fill('#cxIn', '下一条'); await pg.click('[data-cx="send"]'); await until(() => msgsText().then(t => /下一条/.test(t)));
+      const k = S.idk[K];
+      T(tag('发消息断网：没显示、字还在；再点发送沿用同一个 Idempotency-Key 并发出'), kept === '断网这条' && !shown1 && k.length === 3 && /^[A-Za-z0-9_-]{16,64}$/.test(k[0] || '') && k[1] === k[0], [kept, shown1, k]);
+      T(tag('发下一条 → 换新 key'), k[2] && k[2] !== k[1], k);
+      await pg.fill('#cxIn', '再发一条'); }   // 下面「轮询保留输入到一半的字」接着用这段字
     // 新消息轮询：输入一半的字保留
     S.msgs[T1].push({ id: 50, sender_id: HOST, body: '我到了', created_at: iso(0) });
     await pg.evaluate(() => nbqChatLive()); await until(() => msgsText().then(t => /我到了/.test(t)));

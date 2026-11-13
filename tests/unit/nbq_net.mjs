@@ -8,7 +8,7 @@ const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
 // 印色名单（nbqColor 要用）：和页面里同一份，从源码取
 const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
 const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic,nbqUpdNeeded}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqIdemMake,nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic,nbqUpdNeeded}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -180,5 +180,23 @@ T('推送公钥 base64url → 字节', Array.from(X.nbqKeyBytes('AQID')).join() 
   res = await H.handleApi(req('/api/nope'), {});
   T('handleApi：没启用时照旧（未知路径 404）', res.status === 404);
   T('api_spec §1 登记了 client_outdated（426）', /^\| client_outdated \| 426 \|/m.test(fs.readFileSync(path.join(DIR, 'tests/spec/api_spec.md'), 'utf8'))); }
+
+// ---------- 重复提交（#276 PR③）：Idempotency-Key ----------
+e = mk({ 'POST /api/games': { s: 200, d: { id: 'g1' } } }); await e.net.post('/api/games', { a: 1 }, { idem: 'k-0000000000000001' }); await e.net.post('/api/games', { a: 1 });
+T('带 idem → 请求头 Idempotency-Key；不带 → 没有这个头（opt-in）', e.calls[0].o.headers['Idempotency-Key'] === 'k-0000000000000001' && !('Idempotency-Key' in e.calls[1].o.headers), e.calls.map(c => c.o.headers));
+{ let n = 0; const I = X.nbqIdemMake(() => 'key-' + String(++n).padStart(16, '0'));
+  const k1 = I.key('create', { a: 1 });
+  T('同一个操作、同样的内容，上次没有明确结果（断网）→ 沿用同一个 key', (I.done('create', { ok: false, status: 0, code: 'network' }), I.key('create', { a: 1 })) === k1);
+  T('服务器 5xx（不知道写没写进去）→ 也沿用', (I.done('create', { ok: false, status: 503 }), I.key('create', { a: 1 })) === k1);
+  const k2 = I.key('create', { a: 2 }); T('内容改了（换了时间 / 场地）→ 新 key', k2 !== k1);
+  I.done('create', { ok: true, status: 200 }); T('成功后 → 下次换新 key（再发一局是新的一局）', I.key('create', { a: 2 }) !== k2);
+  const k3 = I.key('create', { a: 3 }); I.done('create', { ok: false, status: 422, code: 'invalid' });
+  T('4xx（服务器明确拒了）→ 下次换新 key', I.key('create', { a: 3 }) !== k3);
+  const m1 = I.key('msg1', { body: 'hi' }), m2 = I.key('msg2', { body: 'hi' }); T('不同的操作槽（不同会话）各用各的 key', m1 !== m2);
+  { let t = 0, m = 0; const J = X.nbqIdemMake(() => 'kk-' + String(++m).padStart(16, '0'), () => t);
+    const a = J.key('msgT', { body: '我到了' }); J.done('msgT', { ok: false, status: 0 }); t = 9 * 60e3;
+    T('断网后 10 分钟内再发同样的话 → 沿用', J.key('msgT', { body: '我到了' }) === a);
+    t = 11 * 60e3; T('超过 10 分钟再发同样的话 → 新 key（是新的一条，不能错拿旧结果；独立复核发现）', J.key('msgT', { body: '我到了' }) !== a) }
+  T('默认生成的 key 符合服务端格式（16–64 位字母数字 _ -）', /^[A-Za-z0-9_-]{16,64}$/.test(X.nbqIdemMake().key('x', {})), X.nbqIdemMake().key('x', {})) }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

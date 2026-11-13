@@ -15,7 +15,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const tag = s => `${f} ${s}`;
-    const S = { now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
+    const S = { idk: {}, drop: null, now: Date.now(), me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
       my1: null, ack1: null, reqStatus: 'pending', g2Cancelled: false, created: false, fail: null, log: [], bodies: {}, mineGets: 0, slow: 0 };
     const iso = h => new Date(S.now + h * 3600e3).toISOString();
     const G = (id, code, host, hostName, h, extra = {}) => ({ id, share_code: code, host_id: host, host_nickname: hostName, host_utr: 5.5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: iso(h), duration_min: 90, game_type: 'doubles', capacity: 4, utr_min: 4, utr_max: 6.5,
@@ -29,7 +29,7 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.route('https://nanbanqiu.app/**', async r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
       const m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       // 埋点（/api/events）由定时器批量发，什么时候插进来不确定；它不是写操作，不进写请求日志（11-05：「约定」那条因此偶发红）
-      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
+      if (m !== 'GET' && p !== '/api/events') { S.log.push(m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [G1]: 'G1', [G2]: 'G2', [G3]: 'G3', [REQ]: 'REQ', [ME]: 'ME' })[x] || x)); S.bodies[m + ' ' + p] = body; (S.idk[m + ' ' + p] ||= []).push(r.request().headers()['idempotency-key'] || null); if (S.drop === m + ' ' + p) { S.drop = null; return r.abort() } if (S.slow) await new Promise(x => setTimeout(x, S.slow)) }
       if (m === 'PATCH' && p === '/api/me') { Object.assign(S.me, body); return J(200, { user: S.me }) }   // 资料修改：服务器记下，下次读回就是新值
       if (m === 'GET') {
         if (p === '/api/venues') return J(200, { venues: VENUES });
@@ -94,6 +94,21 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const cb = S.bodies['POST /api/games'] || {};
     T(tag('发局：参数映射（utr 范围、标签、缺几人 → filled、加入方式、说明去空格）'), cb.venue_id === V1 && cb.utr_min === 3.5 && cb.utr_max === 5 && cb.game_type === 'doubles' && cb.duration_min === 90 && cb.filled === 2 && cb.join_mode === 'approve' && cb.note === '周六双打' && cb.tags.join() === 'relax,newbie' && typeof cb.starts_at === 'string', cb);
     T(tag('发局：返回服务器的球局 id，读入后列表里有这局（我是发起人）'), id === G3 && await pg.evaluate(i => { const g = GAMES.find(x => x.id === i); return !!g && api.get(i).isHost }, G3), id);
+    // 重复提交（#276）：断网后再点「发布」沿用同一个 Idempotency-Key（服务器返回第一次的结果，不会建出两局）；成功后再发 = 新 key
+    { const F = v => ({ venue_id: v, o: 3, t: '11:00', dur: 90, type: 'singles', mn: 4, mx: 6, note: '', tags: new Set(), miss: 0, instant: false });
+      S.idk['POST /api/games'] = []; S.drop = 'POST /api/games';
+      const a = await pg.evaluate(([v, f]) => nbqCreate(eval('(' + f + ')')(v)), [V1, F.toString()]);
+      const b = await pg.evaluate(([v, f]) => nbqCreate(eval('(' + f + ')')(v)), [V1, F.toString()]);
+      const c = await pg.evaluate(([v, f]) => nbqCreate(eval('(' + f + ')')(v)), [V1, F.toString()]);
+      const k = S.idk['POST /api/games'];
+      T(tag('发局带 Idempotency-Key；断网那次失败，再点沿用同一个 key 并成功'), a === null && b === G3 && k.length === 3 && /^[A-Za-z0-9_-]{16,64}$/.test(k[0] || '') && k[1] === k[0], [a, b, k]);
+      T(tag('发局成功后再发同样内容 → 换新 key（是新的一局）'), c === G3 && k[2] && k[2] !== k[1], k);
+      // 上一次还在发送时改了表单再点「发布」：这次被拦下、不发请求，也不能把槽位改掉（独立复核发现）
+      S.idk['POST /api/games'] = []; S.drop = 'POST /api/games';   // nbqWrite 同步占住 NBQ_BUSY，第二次一定被拦
+      const [d1, d2] = await pg.evaluate(([v, f]) => { const mk = eval('(' + f + ')'); const g = mk(v); g.t = '12:00'; const h = mk(v); h.t = '12:30'; return Promise.all([nbqCreate(g), nbqCreate(h)]) }, [V1, F.toString()]);
+      const e2 = await pg.evaluate(([v, f]) => { const g = eval('(' + f + ')')(v); g.t = '12:00'; return nbqCreate(g) }, [V1, F.toString()]);
+      const k2 = S.idk['POST /api/games'];
+      T(tag('发送中改了表单再点：被拦下不发请求；断网后再点原来的内容 → 沿用原来的 key'), d1 === null && d2 === null && k2.length === 2 && k2[1] === k2[0] && e2 === G3, [d1, d2, e2, k2]); }
     // 4c：改局 / 放宽 / 顺延 / 确认改动
     const exp = await pg.evaluate(([g]) => { geOpen(g); document.getElementById('ngNote').value = '改个备注'; NG.mn = 3; const e = NG.type === 'doubles' ? Math.max(0, CAP.doubles - api.get(g).appr.length - NG.miss) : null; geSave(); return e }, [G3]); await pg.settle(500);
     const eb = S.bodies[`PATCH /api/games/${G3}`] || {};
