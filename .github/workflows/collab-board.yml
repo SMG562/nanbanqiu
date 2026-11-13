@@ -45,3 +45,26 @@ jobs:
       - name: 更新看板、标签和提醒
         env: { GH_TOKEN: '${{ github.token }}' }
         run: node tools/collab_board.mjs
+
+  # 影子运行（11-13，方案「auto-merge 与合并闸门必需检查」第 1 步）：对每个开着的非草稿 PR 同时跑 merge_gate.mjs 和 `pr_merge.sh --check`，
+  # 只把两边结论写进运行摘要；不一致用 ::warning 标出。**不是必需检查，不合并、不评论、不改任何 PR**；只用默认分支上的脚本，PR 的提交只 fetch 比对，不检出、不执行。
+  # 跑一周、一致率 ≥ 95% 后，才由所有者决定是否设为必需检查（红线）。
+  shadow:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: merge-gate 影子运行
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          set -u
+          git config user.email shadow@invalid && git config user.name shadow
+          echo '| PR | 提交 | merge-gate | pr_merge --check | 一致 | 不过的项 |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|---|---|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          for n in $(gh api 'repos/${{ github.repository }}/pulls?state=open&per_page=30' --jq '.[]|select(.draft==false)|.number'); do
+            out=$(node tools/merge_gate.mjs "$n" --shadow 2>&1 | tail -1) || true
+            if echo "$out" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8"));const m=b=>b?"✅":"❌";console.log(`| #${j.pr} | ${j.sha} | ${m(j.gate)} | ${m(j.pr_merge)} | ${j.agree?"是":"**否**"} | ${(j.gateFails||[]).join(",")} |`);if(!j.agree)console.log(`::warning::merge-gate 与 pr_merge.sh 结论不一致：#${j.pr} ${JSON.stringify(j)}`)' >> "$GITHUB_STEP_SUMMARY" 2>/tmp/err; then :; else echo "| #$n | — | 读不到 | — | — | ${out:0:80} |" >> "$GITHUB_STEP_SUMMARY"; fi
+            echo "shadow #$n: $out"
+          done
