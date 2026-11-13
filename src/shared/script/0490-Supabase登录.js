@@ -18,7 +18,7 @@ const NBQ_ENV=nbqEnvOf(typeof location!=='undefined'?location.hostname:'');
 const SB_CFG=NBQ_ENV==='staging'?SB_STAGING:NBQ_ENV==='none'?{url:'',key:''}:SB_REAL;
 const SB_ERR_MAP={over_sms_send_rate_limit:'otp_too_fast',over_request_rate_limit:'rate_limited',otp_expired:'otp_wrong',otp_disabled:'sms_failed',sms_send_failed:'sms_failed',phone_provider_disabled:'sms_failed',validation_failed:'otp_wrong',invalid_credentials:'otp_wrong',user_banned:'account_banned'};
 // 只有登录这一步用得到的提示（不在后端接口的错误码表里）；其余沿用 apiErrText
-const SB_TXT={otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};
+const SB_TXT={sms_paused:'短信验证码暂时停发，请稍后再试',otp_wrong:'验证码不对或已过期，请重新输入',sms_failed:'短信暂时发不出去，请稍后再试',network:'网络不通，请检查后再试'};
 const SB_PROF_KEYS=['name','last','ntrp','home_club_ids','gender','adult_confirmed_at','terms_version','privacy_version'];
 function sbAuthMake(cfg,io){
   const K='nbq_sb',base=()=>String(cfg.url||'').replace(/\/+$/,'');
@@ -59,6 +59,9 @@ function sbAuthMake(cfg,io){
     setProf(uid,me){if(!uid||!me)return;const p={};SB_PROF_KEYS.forEach(k=>{if(me[k]!==undefined)p[k]=me[k]});wr('nbq_prof_'+uid,p)}
   }}
 
+// 运行时开关（#49）：读 /api/switches，sms_paused 开 = 不向 Supabase 发码。读不到（断网、接口挂了、返回异常）一律当没暂停，不挡正常登录
+async function sbSmsPaused(io){try{const r=await io.fetch('/api/switches',{method:'GET',cache:'no-store'});if(!r||!r.ok)return false;const d=await r.json();return !!(d&&d.switches&&d.switches.sms_paused===true)}catch(_){return false}}
+
 /* ---- 页面接线（用到页面变量：toast、apiErrText、openOtp、openNewProfile、api、ME、render……）---- */
 const SBA=sbAuthMake(SB_CFG,{fetch:(u,o)=>fetch(u,o),now:()=>Date.now(),
   store:{get:k=>localStorage.getItem(k),set:(k,v)=>localStorage.setItem(k,v),del:k=>localStorage.removeItem(k)}});
@@ -67,7 +70,7 @@ const sbaMsg=c=>SB_TXT[c]||apiErrText(c);
 // 点「获取验证码 / 重新发送」：启用时先真发，成功才进验证码页；演示模式直接进
 function sbaSendThen(next){if(!SBA.on()){next();return}
   if(SBA_BUSY)return;SBA_BUSY=true;
-  SBA.send(AUTH.e164).then(r=>{SBA_BUSY=false;if(r.ok)next();else toast(sbaMsg(r.code))})}
+  sbSmsPaused({fetch:(u,o)=>fetch(u,o)}).then(p=>p?{ok:false,code:'sms_paused'}:SBA.send(AUTH.e164)).then(r=>{SBA_BUSY=false;if(r.ok)next();else toast(sbaMsg(r.code))})}
 // 验证码输满 6 位
 function sbaOtpDone(code){
   if(!SBA.on()){clearInterval(AUTH.t);openNewProfile();return}
