@@ -9,9 +9,10 @@ export const HOST = 'nanbanqiu-preview.pages.dev';
 export function aliasOf(branch) {
   return String(branch || '').toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 28).replace(/^-+|-+$/g, '');
 }
-export const previewURL = branch => branch === 'main' ? `https://${HOST}` : `https://${aliasOf(branch)}.${HOST}`;
+// 别名为空（空串、只有符号、纯中文分支名）→ 返回空串，不拼出打不开的「https://.nanbanqiu-preview…」（#190 复核建议）
+export const previewURL = branch => branch === 'main' ? `https://${HOST}` : (aliasOf(branch) ? `https://${aliasOf(branch)}.${HOST}` : '');
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const b = process.argv[2] || execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim();
-  console.log(previewURL(b));
+  console.log(previewURL(b) || `（分支名「${b}」算不出预览别名，以 PR 上「Cloudflare Pages」检查为准）`);
   console.log('（推送后约 1 分钟部署好；以 PR 上「Cloudflare Pages」检查里的 Branch Preview URL 为准）');
 }
