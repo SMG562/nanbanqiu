@@ -1,7 +1,7 @@
 // tools/role_guard.mjs（回复前的身份检查，Stop 钩子）。反例全部来自真实对话：11-12 会话里协作者 MDD1102 第四次被当成所有者（#160）。
 // 覆盖：真实错话必拦 · 改好的话必放 · 讨论措辞（引文）不拦 · 所有者 / 读不到账号 / 已退回过一次 → 放行 · 对话记录只取最后一轮 ·
 //       账号缓存 · 命令行按钩子的方式跑（stdin JSON → stdout {decision:block}）· 出错不拦人。
-import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { spawnSync } from 'node:child_process'; import { pathToFileURL } from 'node:url';
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { spawnSync, execFileSync } from 'node:child_process'; import { pathToFileURL } from 'node:url';
 const DIR = process.argv[2] || path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 const G = await import(pathToFileURL(path.join(DIR, 'tools/role_guard.mjs')));
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? 'PASS ' : 'FAIL ') + n + (!ok && x !== undefined ? ' ' + JSON.stringify(x).slice(0, 500) : '')) };
@@ -43,6 +43,19 @@ T('读不到账号 → 放行（不因检查卡住会话）', G.decide({ login: 
 T('已经退回过一次（stop_hook_active）→ 放行，防死循环', G.decide({ login: 'MDD1102', text: BAD, stopHookActive: true }) === null);
 T('协作者 + 改好的话 → 放行', G.decide({ login: 'MDD1102', text: GOOD }) === null);
 
+// ---- 11-13 复核（#197，SMG562）三条非阻塞建议：原文逐句 ----
+for (const t of ['你可以在 PR 里说明部署计划', '你的 PR 合并后会自动部署预览站', '请看一下部署日志'])
+  T('① 不误拦（陈述 / 看日志，不是派「去部署」）：' + t, !hits(t).length, G.findViolations(t));
+for (const [t, act] of [['请部署发送程序', '部署'], ['你去部署一下', '部署'], ['**你来做**\n- 重新部署 worker', '部署'],
+  ['请把 PR 合并到 main', '合并 PR'], ['你执行 git push origin HEAD:main', '推 main'], ['你运行 git push origin fix/some-long-branch:main', '推 main'], ['请跑 migrations 到 prod', '在数据库执行迁移 / 改库'], ['你点 merge 按钮就行', '合并 PR']])
+  T('② 不漏拦：' + t.replace('\n', ' / '), hits(t)[0] === act, G.findViolations(t));
+
+// ---- 11-13 回放本会话 42 条真实长回复时的两类误拦（原文）：派给「他」的事、陈述已发生的事 ----
+for (const t of ['1. 在测试库给你建一个后台账号（建议「运营」角色），附了建账号的命令；临时密码、验证码密钥、恢复码请他私下交给你。',
+  '#197 已经合并进 main（22:26，你的账号合的）。#193 修好了一个测试问题，正在等 CI，之后要你触发结构核对并同意合并。'])
+  T('回放误拦已修：' + t.slice(0, 24), !hits(t).length, G.findViolations(t));
+T('「已」字不放过派活：「请你把已经测完的 PR 合并到 main」仍拦', hits('请你把测完的 PR 合并到 main').length === 1);
+
 // ---- 共同所有者（11-13 起 .github/CO_OWNERS）：能执行迁移、合并红线 PR、部署；仍不能推 main ----
 T('共同所有者 + 「在两库执行迁移」→ 放行（对共同所有者这是对的）', G.decide({ login: 'MDD1102', text: BAD, coOwners: ['MDD1102'] }) === null);
 T('共同所有者 + 「你来做：pr_merge / 加密钥」→ 放行', G.decide({ login: 'MDD1102', text: BAD_OLD, coOwners: ['MDD1102'] }) === null);
@@ -79,6 +92,14 @@ T('账号：没缓存 → 问 gh，并写进缓存', G.ghLogin({ env: {}, cacheF
 const fgit = path.join(tmp, 'git'); fs.writeFileSync(fgit, '#!/bin/sh\nprintf "# 注释\\nMDD1102\\n\\n  abc-1 \\nbad name!\\n"\n'); fs.chmodSync(fgit, 0o755);
 T('名单：读 origin/main 的 .github/CO_OWNERS，去注释 / 空行 / 不像账号名的行', JSON.stringify(G.coOwnerList({ env: {}, git: fgit, cwd: tmp })) === JSON.stringify(['MDD1102', 'abc-1']), G.coOwnerList({ env: {}, git: fgit, cwd: tmp }));
 T('名单：git 不可用 → null', G.coOwnerList({ env: {}, git: path.join(tmp, '没有git'), cwd: tmp }) === null);
+// ③a 名单只认 origin/main：真临时仓库，main 上名单只有 alice，分支上加了 mallory（分支改了不算）。把 origin/main 换成 HEAD 的变异会让 mallory 进名单 → 这条变红
+const gr = path.join(tmp, 'repo'), bare = path.join(tmp, 'remote.git'), genv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+const g = (...a) => execFileSync('git', a, { cwd: gr, env: { ...genv, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' }, stdio: 'pipe' });
+fs.mkdirSync(path.join(gr, '.github'), { recursive: true }); execFileSync('git', ['init', '-q', '--bare', bare], { env: genv }); g('init', '-q', '-b', 'main'); g('remote', 'add', 'origin', bare);
+fs.writeFileSync(path.join(gr, '.github/CO_OWNERS'), '# 名单\nalice\n'); g('add', '-A'); g('commit', '-qm', 'main'); g('push', '-q', 'origin', 'main');
+g('checkout', '-qb', 'feat'); fs.writeFileSync(path.join(gr, '.github/CO_OWNERS'), '# 名单\nalice\nmallory\n'); g('commit', '-qam', 'branch adds mallory');
+T('③ 名单只认 origin/main：分支上加的人不算', JSON.stringify(G.coOwnerList({ env: {}, cwd: gr })) === JSON.stringify(['alice']), G.coOwnerList({ env: {}, cwd: gr }));
+
 // ---- 命令行：按钩子的方式跑 ----
 const run = (input, login, co = '') => spawnSync(process.execPath, [path.join(DIR, 'tools/role_guard.mjs')], { input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', env: { ...process.env, NBQ_GH_LOGIN: login, NBQ_CO_OWNERS: co }, timeout: 20000 });   // 名单固定，和仓库里真实的 CO_OWNERS 隔离
 const tf = path.join(tmp, 't.jsonl'); fs.writeFileSync(tf, J([{ type: 'user', message: { content: '汇报一下' } }, { type: 'assistant', message: { content: [{ type: 'text', text: BAD }] } }]));
@@ -94,6 +115,12 @@ r = run({ transcript_path: path.join(tmp, '不存在.jsonl') }, 'MDD1102'); T('�
 const big = path.join(tmp, 'big.jsonl'); fs.writeFileSync(big, J(Array.from({ length: 20000 }, (_, i) => ({ type: 'assistant', message: { content: [{ type: 'text', text: 'x'.repeat(300) + i } ] } }))) + '\n' + J([{ type: 'user', message: { content: '问' } }, { type: 'assistant', message: { content: [{ type: 'text', text: BAD }] } }]));
 const t0 = Date.now(); r = run({ transcript_path: big }, 'MDD1102');
 T('命令行：6 MB 的对话记录只读尾部，1.5 秒内出结果且照样拦', JSON.parse(r.stdout || '{}').decision === 'block' && Date.now() - t0 < 1500, [Date.now() - t0, r.stdout.slice(0, 80)]);
+
+// ③b 只读尾部 4 MB：同一轮里错话在最前面、后面跟着超过 4 MB 的正常文字 → 读不到错话、不拦；把上限调大的变异会读到 → 这条变红
+const edge = path.join(tmp, 'edge.jsonl'); fs.writeFileSync(edge, J([{ type: 'user', message: { content: '问' } }, { type: 'assistant', message: { content: [{ type: 'text', text: BAD }] } }]) + '\n'
+  + J(Array.from({ length: 15000 }, (_, i) => ({ type: 'assistant', message: { content: [{ type: 'text', text: '正常的话'.repeat(30) + i }] } }))));
+T('③ 夹具：文件超过 4 MB', fs.statSync(edge).size > 4 << 20, fs.statSync(edge).size);
+r = run({ transcript_path: edge }, 'MDD1102'); T('③ 只读尾部 4 MB：4 MB 之前的错话读不到 → 不拦（已知边界：超长的一轮只看最后 4 MB）', r.status === 0 && r.stdout === '', r.stdout.slice(0, 80));
 
 // ---- 接入片段：所有者照抄进 .claude/settings.json 的 hooks（协作者不改 .claude/）。能解析、指向本脚本、带超时；已接入时核对用的是同一条命令 ----
 const snip = (() => { try { return JSON.parse('{' + G.HOOK_SNIPPET + '}') } catch (_) { return null } })(), cmd = snip?.Stop?.[0]?.hooks?.[0];

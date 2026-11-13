@@ -1,6 +1,6 @@
 # 协作看板（11-11，#167 第四节）：每个 PR「球在谁手里」由机器推出，球换手时自动 @ 对方并写明下一步，所有者只在红线集合变化时被提醒一次。
 #   说明和判定规则见 tools/collab_board.mjs。约 20 秒、只读 PR 元数据，不执行任何 PR 里的代码：
-#   用的触发器（schedule / workflow_run / issue_comment / pull_request_target / 手动）都在默认分支的版本上跑，且只检出默认分支的三个文件。
+#   用的触发器（schedule / workflow_run / issue_comment / pull_request_target / 手动）都在默认分支的版本上跑，且只检出默认分支的几个脚本；PR 的提交只按需 git fetch 来比对目录树（复核沿用），不检出、不执行。
 name: collab-board
 
 on:
@@ -33,10 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0                     # 复核沿用（tools/review_carry.mjs）要比对提交历史；blob:none 只取提交和目录树，不取文件内容
+          filter: blob:none
           sparse-checkout: |
             tools/collab_board.mjs
             tools/decision_card.mjs
             tools/review_state.mjs
+            tools/review_carry.mjs
             .github/CODEOWNERS
           sparse-checkout-cone-mode: false   # 非 cone 模式下多个路径要换行分隔（空格分隔检出的是空目录，首次运行就是这么失败的）
       - name: 更新看板、标签和提醒
