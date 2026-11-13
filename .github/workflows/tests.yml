@@ -251,7 +251,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          gh run download "$RUN_ID" --repo "$REPO" -n visual-baseline -D tests/visual/baseline
+          rm -rf /tmp/vb && gh run download "$RUN_ID" --repo "$REPO" -n visual-baseline -D /tmp/vb && cp -f /tmp/vb/* tests/visual/baseline/   # 11-13：直接下到 tests/visual/baseline 会报「file exists」（检出里已有旧基准），先下到临时目录再覆盖
           git config user.name "github-actions"; git config user.email "actions@github.com"
           git add tests/visual/baseline
           git commit -m "截图基准：用 CI 环境重拍" || { echo "基准没有变化"; exit 0; }
