@@ -15,7 +15,8 @@ export const OWNER = 'SMG562', WIP_LIMIT = 2, IDLE_DAYS = 3, D = 864e5;
 // 11-13（协作者指出，#250）：共同所有者只在「CODEOWNERS 那一行也写了他」的路径上能自己合；只写 @SMG562 的路径（pr_merge.sh、gate.sh、CLAUDE.md、ADR、collab-board.yml …）GitHub 分支规则要所有者审，由所有者会话当场合
 export const coOwns = (ownerFiles, codeownersText, login) => { const lines = codeownersText.split('\n').filter(l => /^\//.test(l) && l.includes('@' + login)), res = redLines(lines.join('\n')); return ownerFiles.length > 0 && ownerFiles.every(f => res.some(r => r.test(f))) };
 export const SYNC_LOOP = 2;
-export const syncsOf = commits => commits.filter(c => (c.parents || []).length > 1 && /^Merge (remote-tracking )?(branch )?'?(origin\/)?main\b/.test(c.message || '')).length;
+// 11-13（#266）：也认 sync_main.sh 写的「合并 origin/main，为快进合并做准备」（以前只认英文，脚本同步全算 0 次，提示从没触发）
+export const syncsOf = commits => commits.filter(c => (c.parents || []).length > 1 && /^(Merge (remote-tracking )?(branch )?'?(origin\/)?main\b|合并 (origin\/)?main(?![\w\/-]))/.test(c.message || '')).length;
 export const syncText = (p, n) => `<!-- nbq-syncloop:${p.number} -->\n@${p.author} 这个 PR 已经合并 main ${n} 次了。CI 绿、能快进时**不要再同步**：在这里留一句「【可合 ${p.sha.slice(0, 7)}】」，所有者会话当场 \`bash tools/pr_merge.sh ${p.number}\`（GitHub 的 Approve 不是闸门，不用对头提交）。只有 \`pr_merge.sh ${p.number} --check\` 明确报「不能快进」才再 \`bash tools/sync_main.sh\` 一次。\n\n> 自动消息（协作看板），每个 PR 只提醒一次。`;
 export const BALL = { author: '球在作者', owner: '球在所有者', review: '球在复核', ci: '等CI', merge: '可合并' };
 const COLOR = { author: 'fbca04', owner: 'd93f0b', review: '5319e7', ci: 'c5def5', merge: '0e8a16' };
