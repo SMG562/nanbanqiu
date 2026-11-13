@@ -24,8 +24,16 @@ drop_branch() {
   [ "$(gh api "repos/$R/pulls?state=open&base=$HEAD" --jq length 2>/dev/null)" = 0 ] || { echo "ℹ️ 分支 $HEAD 是开着的叠加 PR 的目标，先不删"; return 0; }
   [ "$(gh api "repos/$R/git/ref/heads/$HEAD" --jq .object.sha 2>/dev/null)" = "$SHA" ] || { echo "ℹ️ 分支 $HEAD 合并后又有新提交，没删（node tools/branch_prune.mjs 会列出）"; return 0; }
   # 11-12：仓库开着「合并后自动删分支」（delete_branch_on_merge），GitHub 常常比这里先删（事件记在合并的人名下）：删失败先看分支还在不在，别误报「没删掉」
-  gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && echo "🗑️ 已删分支 $HEAD（恢复：git push origin $SHA:refs/heads/$HEAD）" \
-    || { gh api "repos/$R/git/ref/heads/$HEAD" --silent 2>/dev/null && echo "ℹ️ 分支 $HEAD 没删掉，之后跑 node tools/branch_prune.mjs" || echo "🗑️ 分支 $HEAD 已不在（GitHub 合并后自动删除；恢复：git push origin $SHA:refs/heads/$HEAD）"; }
+  # 11-13（#267 #270）：云端会话的代理 REST 删引用和 git push --delete 都 403，只能等 GitHub「合并后自动删分支」（异步，刚合完还查得到）→ 隔 3 秒再看，最多 5 次；
+  #   本地电脑上的会话没有这层代理，git push --delete 能删
+  # 11-13：new_branch.sh 在单分支克隆里给分支加过点名 fetch 规则；分支删了不清掉，之后每次 git fetch 都报错
+  git config --unset-all remote.origin.fetch "^\+refs/heads/$HEAD:" 2>/dev/null || true
+  local gone="🗑️ 分支 $HEAD 已删（恢复：git push origin $SHA:refs/heads/$HEAD）"
+  gh api -X DELETE "repos/$R/git/refs/heads/$HEAD" --silent 2>/dev/null && { echo "$gone"; return 0; }
+  # pre-push 钩子默认拦「删远端分支」：这里是已核对过的已合并分支，带上放行原因
+  NBQ_REWRITE="pr_merge #$N 删已合并分支" git push -q origin --delete "$HEAD" >/dev/null 2>&1 && { echo "$gone"; return 0; }
+  for i in 1 2 3 4 5; do gh api "repos/$R/git/ref/heads/$HEAD" --silent 2>/dev/null || { echo "$gone（GitHub 合并后自动删除）"; return 0; }; sleep 3; done
+  echo "⚠️ 分支 $HEAD 15 秒后还在（云端会话删不了，GitHub 也还没自动删）：过几分钟 node tools/branch_prune.mjs 看；还在就由所有者 --apply"
 }
 [ "$STATE" = open ] && [ "$BASE" = main ] && yes "PR #$N 打开着，目标 main（分支 $HEAD，提交 ${SHA:0:7}）" || no "PR #$N 状态 $STATE / 目标 $BASE / 已合并 $MERGED"
 git fetch -q origin main "$HEAD" 2>/dev/null; git fetch -q --unshallow 2>/dev/null || true
