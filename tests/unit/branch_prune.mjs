@@ -27,7 +27,10 @@ T('没 PR、3 天内的新分支（可能正在做，哪怕还没提交）→ �
 T('PR 合并后又推了没进 main 的提交 → 需决定，不自动删', kind(br('a', { tip: 'new' }), [pr(1, 'a', 's-a', { merged_at: ago(9) })]).kind === 'decide');
 T('PR 关闭后又推了新提交 → 需决定', kind(br('a', { tip: 'new' }), [pr(1, 'a', 's-a')]).kind === 'decide');
 T('PR 刚关闭（3 天内）→ 不动', kind(br('a', { date: ago(1) }), [pr(1, 'a', 's-a', { closed_at: ago(1) })]).kind !== 'delete');
-T('没 PR、有没进 main 的提交、很旧 → 需决定（只列出，不删）', kind(br('a')).kind === 'decide');
+T('没 PR、有没进 main 的提交、超过 21 天没动 → 自动清理，先打标签', (k => k.kind === 'delete' && k.archive === true)(kind(br('a', { date: ago(30) }))));
+T('同上但有开着的 PR → 仍然保留，不因久没动而删', kind(br('a', { date: ago(30) }), [pr(2, 'a', 's-a', { state: 'open', updated_at: ago(1) })]).kind === 'keep');
+T('21 天内的有未合并提交的分支 → 仍是需决定', kind(br('a', { date: ago(20) })).kind === 'decide');
+T('没 PR、有没进 main 的提交、10 天 → 需决定（只列出，不删）', kind(br('a')).kind === 'decide');
 T('fork 里同名分支的已合并 PR 不算本分支的', kind(br('a'), [pr(1, 'a', 's-a', { merged_at: ago(9), head: { ref: 'a', sha: 's-a', repo: { full_name: 'x/r' } } })]).kind === 'decide');
 
 // ④ 合并出口 pr_merge.sh：合并后删分支，安全条件一条都不能少（红线文件，改了这里会红）
