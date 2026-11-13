@@ -1,6 +1,9 @@
 # 谁必须审：只有「红线」需要所有者（SMG562）。红线以外的改动由作者自助合并（见 docs/adr/0010-常设授权与自助合并.md）。
 # 要让它生效：GitHub → Settings → Rules/Branches → main：勾选「Require review from Code Owners」，「必须审批人数」设为 0。
 
+# 11-13 17:00：流程类路径（合并 / 闸门脚本、提交前检查、预算、协作文档）加共同所有者，让 ADR 0012 常设授权在 GitHub 规则集下真能走通（#241 #262 卡 405）。
+#   4 类单向门（迁移、密钥/权限/CODEOWNERS/CO_OWNERS、部署、删除）和带写权限的工作流仍只有所有者。
+
 # ① 正式库：迁移执行、数据、结构
 /schema.sql                @SMG562 @MDD1102
 /server/migrations/        @SMG562 @MDD1102
@@ -25,21 +28,21 @@
 /.github/workflows/proposals.yml @SMG562      # 带写 Issue 标签 / 评论的权限（11-11）
 /.github/workflows/staging-sync.yml @SMG562   # 带写 staging 分支的权限（11-11）
 /tools/staging_sync.mjs    @SMG562   # 它在 main 上带 contents: write 运行（11-11 独立复核）
-/.githooks/                @SMG562
-/tools/pr_merge.sh         @SMG562
+/.githooks/                @SMG562 @MDD1102
+/tools/pr_merge.sh         @SMG562 @MDD1102
 /.github/CO_OWNERS         @SMG562   # 共同所有者名单（11-13）：谁和所有者同权，只有 SMG562 能改
-/tools/gate.sh             @SMG562
-/tools/precommit.sh        @SMG562
-/tools/pr_body_check.mjs   @SMG562
-/tests/spec/doc_budget.json          @SMG562
+/tools/gate.sh             @SMG562 @MDD1102
+/tools/precommit.sh        @SMG562 @MDD1102
+/tools/pr_body_check.mjs   @SMG562 @MDD1102
+/tests/spec/doc_budget.json          @SMG562 @MDD1102
 
 # ⑤ 规则与业务
 /CLAUDE.md                 @SMG562
 /AGENTS.md                 @SMG562
-/CONTRIBUTING.md           @SMG562
-/协作实践.md                @SMG562
+/CONTRIBUTING.md           @SMG562 @MDD1102
+/协作实践.md                @SMG562 @MDD1102
 /docs/adr/                 @SMG562
 /docs/constitution.md      @SMG562
 /业务规则.md                @SMG562
 /出事处理手册.md            @SMG562
-/进度记录.md                @SMG562
+/进度记录.md                @SMG562 @MDD1102

@@ -76,7 +76,7 @@
 - **每个城市一个网址**（R3，schema ㉒，10-22 定）：`nanbanqiu.app/<slug>`（melbourne / sydney / brisbane / perth / adelaide / canberra）；打开的网址决定页面上的城市，**不做城市切换**；不带城市（`nanbanqiu.app`）→ 墨尔本。前台两端的 `CITIES` 与 cities 表逐条相同（tests/static/cities_front.mjs）。
 - **分享链接保持短链接** `/g/码`、`/p/编号`：后端按球局 / 球员所在城市跳到 `/<slug>/g/码`（R3-2 server/routes.mjs）。
 - 打开还没开放的城市（如 `/sydney`）→ 页面盖一层「悉尼即将开放」+ 留邮箱「开放时通知我」+ 已开放城市的入口（R3-2）。
-  - POST /api/city-waitlist `{city, email}` → 后端以 nbq_service 调 `api_city_waitlist(city, email, ip)`：只收未开放 / 筹备中的城市（否则 422 `invalid` detail=city）；邮箱格式不对 → 422 `invalid` detail=email；同一城市同一邮箱只记一次（返回 false，页面照样显示「已登记」）；同一 IP 每小时 5 次 → 429 `rate_limited`。存在 area_demand（kind=city_waitlist）。
+  - POST /api/city-waitlist `{city, email}`（不用登录；`server/api/handler.mjs`，11-13 补路由，之前 404）→ 后端以 nbq_service 调 `api_city_waitlist(city, email, cf-connecting-ip)`，返回 200 `{ok:true, added}`；城市 key 不是 `^[a-z]{2,12}$` / 邮箱不是文字或超 200 字在接口层就 422；只收未开放 / 筹备中的城市（否则 422 `invalid` detail=city）；邮箱格式不对 → 422 `invalid` detail=email；同一城市同一邮箱只记一次（返回 false，页面照样显示「已登记」）；同一 IP 每小时 5 次 → 429 `rate_limited`。存在 area_demand（kind=city_waitlist）。
   - 城市开放后由运营发通知并填 notified_at（R4 后台）；通知后 30 天删除，没通知的最多保留 2 年。
 - **后端路由** `server/routes.mjs`（5g 接到托管平台）：`/` → 302 `/melbourne/`；`/g/码`、`/p/编号` → 302 到球局 / 球员常用城市（`route_city`，找不到按墨尔本）；`/<slug>` → 301 补斜杠、大写转小写；认不出的城市 → 302 `/melbourne/`；`/<slug>/…` 手机返回 PWA、电脑返回网页端，按城市替换 `<title>`、og 标题 / 描述、安装配置地址、canonical；`/<slug>/manifest.webmanifest` 每个城市一份（id / start_url / scope 都是 `/<slug>/`）；`/<slug>/community` → 城市的社群链接。/api、/admin、/icons、/privacy.html、/terms.html、/sw.js 不经过它。
 - **手机号按国家**：登录页的国家代码来自 `COUNTRIES`（= countries 表里已开放的国家，现在只有 +61），发验证码前按格式检查（0412 345 678、+61 412 345 678 都认）。原来的 +86 选项去掉了（后端从 5a-1 起就只收澳洲手机号）。
