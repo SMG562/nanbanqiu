@@ -14,4 +14,5 @@ const shard = blocks.find(b => b.startsWith('shard:')) || '';
 T('shard（跑 PR 代码）里没有 git push', shard && !/git push/.test(shard));
 const bc = blocks.find(b => b.startsWith('baseline-commit:')) || '';
 T('baseline-commit 的 if 带 !cancelled()（否则 gate / reuse 被跳过会连带跳过它，重拍的基准推不回分支，11-13）', /^\s+if: .*!cancelled\(\)/m.test(bc));
+T('baseline-commit 下载基准不直接写进已有目录（gh run download 遇同名文件报错，11-13）', !/gh run download[^\n]*-D tests\/visual\/baseline/.test(bc) && /cp -f[^\n]*\/vb\/\*\.png tests\/visual\/baseline/.test(bc));
 console.log(`tests_yml_perms: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
