@@ -42,6 +42,21 @@ try {
     T('坏内容（不是 JSON / 缺 msg / 太大）：照样 204，不记', await post('not json') === 204 && await post({ build: 'web' }) === 204 && await post({ msg: 'x'.repeat(5000) }) === 204 && (await rows()).length === n0);
     await post({ build: 'hack', device: 'tv', msg: 'E2', src: 's'.repeat(300), line: -5 }); const e2 = (await rows()).find(r => r.msg === 'E2'); T('字段不合规：build / device 回退、src 截断、line 归零', e2 && e2.build === 'web' && e2.device === null && e2.src.length === 80 && e2.line === 0, e2);
     let last = 204; for (let i = 0; i < 40; i++) await post({ msg: 'flood' + i }, '9.9.9.9'); const fl = (await rows()).filter(r => /^flood/.test(r.msg)).length; T('同一个 IP 每分钟最多 30 条：多的静默丢（仍 204）', fl === 30, fl) }
+  { // 还没开放的城市「开放时通知我」：POST /api/city-waitlist（11-13 补路由，之前 404）
+    const post = async (body, ip) => { const x = await handleApi(new Request('https://x.test/api/city-waitlist', { method: 'POST', headers: ip ? { 'cf-connecting-ip': ip } : {}, body: typeof body === 'string' ? body : JSON.stringify(body) }), deps); let j = null; try { j = await x.json() } catch (_) { } return { s: x.status, j, h: x.headers } };
+    const cnt = async () => +(await admin.query(`select count(*) from area_demand where kind='city_waitlist'`)).rows[0].count;
+    r = await post({ city: 'syd', email: ' Amy@Example.com ' }, '2.2.2.1'); T('城市等候：不用登录，200 added=true，记进 area_demand', r.s === 200 && r.j.added === true && await cnt() === 1, r);
+    r = await post({ city: 'syd', email: 'amy@example.com' }, '2.2.2.1'); T('城市等候：同一城市同一邮箱再提交 → 200 added=false，不重复记', r.s === 200 && r.j.added === false && await cnt() === 1, r);
+    r = await post({ city: 'melb', email: 'b@x.com' }, '2.2.2.2'); T('城市等候：已开放的城市 → 422 invalid city（数据库判断）', r.s === 422 && r.j.error === 'invalid' && r.j.detail === 'city', r);
+    r = await post({ city: 'SYD;--', email: 'b@x.com' }, '2.2.2.2'); T('城市等候：城市 key 格式不对 → 422，不进数据库', r.s === 422 && r.j.detail === 'city', r);
+    r = await post({ city: 'syd', email: 'not-an-email' }, '2.2.2.2'); T('城市等候：邮箱格式不对 → 422 invalid email', r.s === 422 && r.j.error === 'invalid' && r.j.detail === 'email', r);
+    r = await post({ city: 'syd', email: 5 }, '2.2.2.2'); T('城市等候：邮箱不是文字 → 422', r.s === 422 && r.j.detail === 'email', r);
+    r = await post('not json', '2.2.2.2'); T('城市等候：不是 JSON → 400 bad_json', r.s === 400 && r.j.error === 'bad_json', r);
+    r = await call('GET', '/api/city-waitlist'); T('城市等候：GET → 405', r.s === 405, r);
+    const st = []; for (let i = 0; i < 7; i++) st.push((await post({ city: 'per', email: `u${i}@x.com` }, '8.8.8.8')).s);
+    r = await post({ city: 'per', email: 'u9@x.com' }, '8.8.8.8');
+    T('城市等候：同一 IP 每小时 5 次，第 6 次起 429 rate_limited', JSON.stringify(st) === JSON.stringify([200, 200, 200, 200, 200, 429, 429]) && r.s === 429 && r.j.error === 'rate_limited', { st, r });
+    r = await post({ city: 'per', email: 'u9@x.com' }, '8.8.4.4'); T('城市等候：别的 IP 不受影响', r.s === 200 && r.j.added === true, r) }
   { const want = fs.readdirSync(path.join(DIR, 'server/migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).map(f => f.replace(/\.sql$/, '')).sort();
     r = await call('GET', '/api/version'); T('version：带数据库迁移版本，和代码里的迁移文件一一对上（新库）', JSON.stringify(r.j.schema && r.j.schema.versions) === JSON.stringify(want) && r.j.schema.latest === want[want.length - 1], [r.j.schema, want]);
     await admin.query(`drop table schema_migrations`); r = await call('GET', '/api/version'); T('旧库（还没有迁移记录表）：version 仍 200，schema 为空', r.s === 200 && r.j.schema === null, r);

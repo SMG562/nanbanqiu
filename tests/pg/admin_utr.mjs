@@ -1,33 +1,12 @@
 // 我的 UTR（#101）后台只读：GET /admin/api/utr（概况 + 需要留意的人）、球友列表的 UTR 列。
 // 真 PostgreSQL + 真的 nbq_admin_api 连接（和线上同一个角色）；夹具用超级用户建、用 api_set_utr 走真实写入。
 // 覆盖：权限（只读角色 403）· 概况口径 · 三种留意（7 天改 3 次以上 / 30 天内一次跳 ≥ 2 / 同一主页多个账号）· 限城市 · 列表不泄露主页编号。
-import { createRequire } from 'module'; import path from 'path'; import { fileURLToPath, pathToFileURL } from 'url';
-import { startCluster, loadSchema } from './cluster.mjs';
-const require = createRequire(import.meta.url); const pg = require('pg');
-const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.env.NBQ_DIR || path.join(HERE, '..', '..');
-const AU = await import(pathToFileURL(path.join(DIR, 'server/admin/auth.mjs')));
-const API = await import(pathToFileURL(path.join(DIR, 'server/admin/api.mjs')));
-let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
-const c = startCluster(); let su;
+import path from 'path'; import { adminKit } from './admin_kit.mjs';
+const K = await adminKit('admin_utr'), { T, call, q, one, su } = K, DIR = K.dir;   // 夹具：tests/pg/admin_kit.mjs（运营 ops / 只读 view / 限悉尼的运营 syd，和原来内联的同名同角色）
 try {
-  c.createdb('nbq');
-  const errs = loadSchema(c, 'nbq', path.join(DIR, 'schema.sql')); T('schema 执行无错误', !errs.length, errs.slice(0, 3));
-  c.psql('nbq', `-c "alter role nbq_admin_api login"`);
-  su = new pg.Pool({ host: c.host, port: c.port, user: 'postgres', database: 'nbq', max: 4 });
-  const connect = async () => { const cl = new pg.Client({ host: c.host, port: c.port, user: 'nbq_admin_api', database: 'nbq' }); await cl.connect(); return cl };
-  const q = (s, p) => su.query(s, p), one = async (s, p) => (await q(s, p)).rows[0];
-  const PW = 'correct horse battery', SEC = AU.newTotpSecret(), PH = AU.hashPassword(PW);
-  const mk = async (email, role, cities = null) => (await one(`insert into admin_users(email,name,role,password_hash,totp_secret,recovery_hashes,cities) values ($1,$2,$3,$4,$5,'{}',$6) returning id`, [email, email.split('@')[0], role, PH, SEC, cities])).id;
-  const OP = await mk('ops@x.com', 'operator'), VW = await mk('view@x.com', 'viewer'), SYD = await mk('syd@x.com', 'operator', ['syd']);
-  let un = 0; const user = async (nick, city = 'melb') => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at,home_city) values ($1,$2,5,'m',now(),$3) returning id`, ['+6142' + String(++un).padStart(7, '0'), nick, city])).id;
+  const OP = K.ids.operator, VW = K.ids.viewer, SYD = K.ids.syd, op = K.as.operator, vw = K.as.viewer, sy = K.as.syd;
+  const user = async (nick, city = 'melb') => (await K.user(nick, { city })).id;
   const A = await user('小A'), B = await user('小B'), C = await user('小C');   // member_no 1..3
-  let clock = 1_800_000_000_000; const deps = { connect, now: () => clock }; const ORIGIN = 'https://nanbanqiu.test';
-  const call = async (method, p, { body, cookie } = {}) => {
-    const h = { 'X-NBQ-Admin': '1', ...(method !== 'GET' ? { Origin: ORIGIN, 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}) };
-    const r = await API.handleAdmin(new Request(ORIGIN + p, { method, headers: h, body: method === 'GET' ? undefined : JSON.stringify(body ?? {}) }), deps);
-    const text = await r.text(); let j = null; try { j = JSON.parse(text) } catch (_) { } return { s: r.status, j, text } };
-  const login = async email => { clock += 30e3; const r = await API.handleAdmin(new Request(ORIGIN + '/admin/api/login', { method: 'POST', headers: { 'X-NBQ-Admin': '1', Origin: ORIGIN, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: PW, code: AU.totp(SEC, clock) }) }), deps); return 'nbq_admin=' + (r.headers.get('Set-Cookie').match(/nbq_admin=([^;]+)/) || [])[1] };
-  const op = await login('ops@x.com'), vw = await login('view@x.com'), sy = await login('syd@x.com');
   let r;
   const setU = async (uid, p) => { const cl = await su.connect(); try { await cl.query('begin'); await cl.query('set local role nbq_user'); await cl.query(`select set_config('nbq.uid', $1, true)`, [uid]);
     await cl.query('select api_set_utr($1::jsonb)', [JSON.stringify(p)]); await cl.query('commit') } catch (e) { await cl.query('rollback'); throw e } finally { cl.release() } };
@@ -61,6 +40,5 @@ try {
   // 迁移可重复
   const mig = (await import('fs')).readFileSync(path.join(DIR, 'server/migrations/20261112_utr_admin.sql'), 'utf8');
   let e1 = null; try { await q(mig); await q(mig) } catch (e) { e1 = e.message } T('迁移连跑两次不报错', e1 === null, e1);
-} catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
-finally { try { await su?.end() } catch (_) { } c.stop() }
-console.log(`admin_utr: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
+  await K.done();
+} catch (e) { await K.done(e) }

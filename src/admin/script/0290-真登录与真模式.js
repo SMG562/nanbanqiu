@@ -1,5 +1,5 @@
 /* =====================================================================
- * 真登录与真模式外壳（#27 PR-B1）。必须是 admin.list 的最后一个脚本：下面三处包住 render / drawNav / logout，要在所有前面的包装之外。
+ * 真登录与真模式外壳（#27 PR-B1）。必须排在所有包装 render / drawNav / logout 的脚本之后（后面的 03xx 真数据页只登记 REAL_PAGES、不包装）：下面三处包住 render / drawNav / logout，要在所有前面的包装之外。
  *   模式只在 page 里的一处判定（data-mode）：默认「真」；本机文件（file:）和预览站根域名才是「演示」。
  *   真模式的铁律：不显示任何模拟数字。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
  *   新加的页面不用记得去标，天然是占位。导航角标（待审核数、风险数）也来自模拟数据，真模式下不画。
@@ -7,8 +7,9 @@
  * ===================================================================== */
 const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
+const REAL_RESET=[];   // 退出 / 过期时各真数据页清自己的状态（后面的文件 push 进来）
 const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage(),games:()=>realGamesPage()};
-const REAL_NOTE={review:'待审核。',safety:'爽约申诉、风险用户在 #27 后面的步骤。'};
+const REAL_NOTE={};   // 个别页面的占位说明（没有就用通用的）
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
 // ---------- 接口 ----------
@@ -62,7 +63,7 @@ function realPaintMe(){const m=RL.me,nm=String(m.name||'').trim()||'管理员',b
 function enterApp(me){RL.me=me;S.role=realRole(me.role);RL.touchAt=Date.now();
   document.documentElement.removeAttribute('data-boot');$('#login').style.display='none';$('#app').style.display='block';
   realPaintMe();S.page='account';render()}
-function toLogin(msg){RP.list=null;RP.err=null;RP.loadedAt=0;RP.busy.clear();RL.me=null;RL.busy=false;RL.recovery=false;
+function toLogin(msg){REAL_RESET.forEach(f=>{try{f()}catch(_){}});RP.list=null;RP.err=null;RP.loadedAt=0;RP.busy.clear();RL.me=null;RL.busy=false;RL.recovery=false;
   document.documentElement.removeAttribute('data-boot');
   $('#app').style.display='none';$('#page').innerHTML='';$('#nav').innerHTML='';$('#drw').innerHTML='';   // 退出后页面上不留上一位管理员的内容
   $('#login').style.display='grid';for(const i of ['#lgEmail','#lgPw','#lgCode'])$(i).value='';
@@ -113,7 +114,7 @@ function rpMsgs(id){admAskReason('查看被举报的对话',async reason=>{
 function realReviewPage(){
   if(RP.list===null&&!RP.err&&!RP.loading)rpLoad();
   else if(!RP.loading&&Date.now()-RP.loadedAt>30000)rpLoad();                 // 隔一会儿再进来：先画旧的，同时后台重读
-  const note='<p class="cap">这一页只有举报；球场审核在「球场」页；场边举报在后面的步骤接入。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的；处理或忽略后举报人可以重新举报。所有操作写入操作日志。</p>';
+  const note='<p class="cap">这里是球友 / 球局的举报，场边举报在下面一张卡片；球场审核在「球场」页。同一个人对同一对象未处理时只记一条；不会告诉对方是谁举报的；处理或忽略后举报人可以重新举报。所有操作写入操作日志。</p>';
   if(RP.err&&RP.list===null)return `<div class="card nodata"><h2>举报队列：读不出来</h2><p>${esc(RP.err)}</p><div class="rowacts"><button class="btn sm p" data-rp="reload">重试</button></div></div>`;
   if(RP.list===null)return '<div class="card nodata"><h2>举报队列</h2><p>读取中…</p></div>';
   const L=RP.list,open=L.filter(x=>x.status==='open').length;
@@ -202,6 +203,7 @@ function utpCard(){if(!UTP.d&&!UTP.loading&&!UTP.err)utpLoad();
   <p class="cap" style="margin:4px 0 8px">正式 ${s.official}（${pc(s.official)}）· 自评 ${s.self}（${pc(s.self)}）· 关联主页 ${s.linked}（${pc(s.linked)}）· 近 30 天确认过 ${s.updated_30d} · 近 7 天改动 ${s.changes_7d} 次 / ${s.changers_7d} 人</p>
   ${UTP.d.flags.length?`<table><thead><tr><th>编号</th><th>昵称</th><th>UTR</th><th>需要留意</th></tr></thead><tbody>${UTP.d.flags.map(f=>`<tr><td class="mono">#${String(f.member_no).padStart(4,'0')}</td><td>${esc(f.nickname)}${f.last_initial?' '+esc(f.last_initial)+'.':''}</td><td>${utpUtr(f)}</td><td>${why(f)}</td></tr>`).join('')}</tbody></table>`:'<p class="cap">没有需要留意的人。</p>'}
   <p class="cap">只读。规则：近 7 天改 3 次以上 · 30 天内正式→正式一次跳 2 以上 · 同一主页关联了多个账号。</p></div>`}
+const realCity=k=>((Array.isArray(CITY_ADM)&&CITY_ADM.find(c=>c.key===k))||{zh:k||'—'}).zh;   // CITY_ADM 是数组（0220）
 const UP_ST={active:'正常',review:'待核实',limited:'受限',suspended:'暂停',banned:'封禁',deleted:'已注销'};
 async function upLoad(more){const g=++UP.gen;UP.loading=true;UP.err=null;
   const r=await admApi('GET','/users?q='+encodeURIComponent(UP.q)+'&status='+UP.st+'&offset='+(more?UP.rows.length:0));
@@ -216,7 +218,7 @@ function realUsersPage(){
   if(!UP.loaded&&!UP.loading&&!UP.err)upLoad(false);
   const total=Object.values(UP.counts).reduce((a,b)=>a+b,0);
   const chips=`<button class="btn sm${UP.st===''?' p':''}" data-up="st" data-v="">全部 ${total}</button>`+Object.keys(UP_ST).map(k=>`<button class="btn sm${UP.st===k?' p':''}" data-up="st" data-v="${k}">${UP_ST[k]} ${UP.counts[k]||0}</button>`).join('');
-  const row=u=>`<tr><td class="mono">#${String(u.member_no).padStart(4,'0')}</td><td><b style="font-weight:600">${esc(u.nickname)}${u.last_initial?' '+esc(u.last_initial)+'.':''}</b></td><td>${esc((CITY_ADM&&CITY_ADM[u.city]&&CITY_ADM[u.city].name)||u.city||'—')}</td>
+  const row=u=>`<tr data-rud="${u.member_no}" style="cursor:pointer" title="点开查看和处理"><td class="mono">#${String(u.member_no).padStart(4,'0')}</td><td><b style="font-weight:600">${esc(u.nickname)}${u.last_initial?' '+esc(u.last_initial)+'.':''}</b></td><td>${esc(realCity(u.city))}</td>
     <td>${esc(UP_ST[u.status]||u.status)}${u.status==='suspended'&&u.status_until?'<br><small style="color:var(--mut)">到 '+upDate(u.status_until)+'</small>':''}</td><td>UTR ${utpUtr(u)} · L${u.level}</td><td class="mono">${esc(u.phone_tail||'')}</td><td>${upDate(u.created_at)}</td><td>${upDate(u.last_active_at)}</td><td>${esc(u.signup_source||'—')}</td></tr>`;
   return utpCard()+`<div class="card"><div class="ch"><b>球友</b><small>${UP.loaded?'共 '+total+' 人':'读取中…'}</small></div>
   <div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${chips}</div>
@@ -224,7 +226,7 @@ function realUsersPage(){
   ${UP.err?`<p class="cap" style="color:var(--crit)">${esc(UP.err)} <button class="btn sm" data-up="reload">重试</button></p>`:''}
   ${UP.loaded?(UP.rows.length?`<table><thead><tr><th>编号</th><th>昵称</th><th>城市</th><th>状态</th><th>UTR · 等级</th><th>手机</th><th>注册</th><th>最近活跃</th><th>来源</th></tr></thead><tbody>${UP.rows.map(row).join('')}</tbody></table>`:'<div class="empty">没有符合条件的球友</div>'):''}
   ${UP.more?`<div class="rowacts" style="margin-top:8px"><button class="btn sm" data-up="more"${UP.loading?' disabled':''}>再加载 50 个</button></div>`:''}
-  <p class="cap">这里只读。手机号只显示后四位；封禁 / 恢复等操作在后面的步骤接入。</p></div>`}
+  <p class="cap">点一行查看详情和处理（改状态、重置昵称头像、性别）。手机号只显示后四位，完整号码只有超级管理员填理由后能看。</p></div>`}
 if(NBQ_MODE==='real'){
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-up]');if(!b||b.disabled)return;const k=b.dataset.up;
     if(k==='st'){UP.st=b.dataset.v;UP.loaded=false;UP.rows=[];render();upLoad(false)}
@@ -283,7 +285,9 @@ render=function(){if(NBQ_MODE!=='real')return _realRender.apply(this,arguments);
   const f=REAL_PAGES[S.page];$('#page').innerHTML=f?f():realPlaceholder(S.page)};
 const _realDrawNav=drawNav;
 drawNav=function(){if(NBQ_MODE!=='real')return _realDrawNav.apply(this,arguments);
-  $('#nav').innerHTML=PAGES.map(p=>p[0]==='h'?`<div class="navh">${esc(p[1])}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${esc(p[0])}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]||''}</svg>${esc(p[1])}${REAL_PAGES[p[0]]?'':'<em class="soon">待接入</em>'}</button>`).join('')};
+  const vis=PAGES.filter(p=>p[0]==='h'||S.role!=='viewer'||p[0]==='account'||VIEWER_PAGES.has(p[0]));   // 只读：只列它能看的统计页（服务端照样拦）
+  const nav=vis.filter((p,i)=>p[0]!=='h'||(vis[i+1]&&vis[i+1][0]!=='h'));                              // 去掉下面一项都没有的分组标题
+  $('#nav').innerHTML=nav.map(p=>p[0]==='h'?`<div class="navh">${esc(p[1])}</div>`:`<button class="${S.page===p[0]?'on':''}" data-pg="${esc(p[0])}"><svg class="ic" viewBox="0 0 24 24">${IC[p[0]]||''}</svg>${esc(p[1])}${REAL_PAGES[p[0]]?'':'<em class="soon">待接入</em>'}</button>`).join('')};
 const _realLogout=logout;
 logout=async function(){if(NBQ_MODE!=='real')return _realLogout.apply(this,arguments);
   const r=await admApi('POST','/logout',{});toLogin(r.ok?'已退出登录':'已在本机退出；网络没通，服务器上的登录会在 12 小时内自动失效')};

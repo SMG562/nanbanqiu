@@ -7,6 +7,15 @@
 cd "$(git rev-parse --show-toplevel)" || exit 1
 fail=0
 
+# 0. 合并状态丢了（11-13 逃逸：解完冲突后 git stash / 切分支，MERGE_HEAD 没了，main 的改动被当成普通提交）：
+#    不在合并中、main 也不是 HEAD 的祖先，暂存区却把 main 新改过的文件改成了 main 的版本 → 拦（看内容不看提交信息）
+if [ ! -f "$(git rev-parse --git-path MERGE_HEAD)" ] && git rev-parse -q --verify origin/main >/dev/null && ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null && mb=$(git merge-base HEAD origin/main 2>/dev/null); then
+  lost=$(git -c core.quotePath=false diff --cached --name-only | while IFS= read -r f; do m=$(git rev-parse -q --verify "origin/main:$f" 2>/dev/null)
+    [ "$(git rev-parse -q --verify ":$f" 2>/dev/null)" = "$m" ] && [ "$(git rev-parse -q --verify "$mb:$f" 2>/dev/null)" != "$m" ] && echo "$f"; done)
+  [ -z "$lost" ] || { echo "提交前检查：这些文件被改成了 main 上的版本，但这次提交不是合并（合并状态丢了，多半是解冲突后用了 git stash / 切了分支）："; echo "$lost" | head -5 | sed 's/^/  /'
+    echo "  重来：git reset --hard HEAD && git merge origin/main，冲突照刚才的解；合并没提交前不要 stash / checkout / switch，看 main 的文件用 git show origin/main:<文件>"; fail=1; }
+fi
+
 # 1. 改了源文件，却有一部分没 add（检查的是工作区，漏 add 会让提交的和检查的不一样）
 un=$(git -c core.quotePath=false diff --name-only -- src tools)
 if [ -n "$un" ]; then

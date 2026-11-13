@@ -5,7 +5,10 @@
 # 为什么：11-11 数据——近 14 天约 55 次「合并 origin/main，为快进合并做准备」，每次手工 fetch / merge / push / 轮询。
 # 冲突：只有 .gitattributes 里登记的（*.list、tests/run_all.mjs 两边各加一行）和「旧分支带着已不入库的生成文件」自动处理；其余列出文件后 merge --abort，由作者判断。
 set -eu
-cd "$(dirname "$0")/.."
+# 用 git 找仓库根目录，不用 $0：旧分支没有本脚本时按文档用管道运行（git show origin/main:tools/sync_main.sh | bash），
+#   那时 $0 是 bash，dirname/.. 会跑到仓库外的上一层（11-11 协作者实测；上一层若也是仓库，就会在错的仓库里合并推送）
+R=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "❌ 当前目录不在 git 仓库里：先 cd 到 nanbanqiu 仓库再运行"; exit 1; }
+cd "$R"
 B=$(git rev-parse --abbrev-ref HEAD)
 case "$B" in main|staging|HEAD) echo "❌ 不在功能分支上（现在是 $B）"; exit 1;; esac
 [ -z "$(git status --porcelain)" ] || { echo "❌ 工作区有没提交的改动，先提交或处理"; exit 1; }

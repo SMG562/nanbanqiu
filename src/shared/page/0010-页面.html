@@ -3,4 +3,14 @@
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/vendor/qrcode.min.js"></script>
 <script src="/vendor/html2canvas.min.js"></script>
+<script data-nbq="old-guard">/* 旧系统兜底（#51）：这段只用最老的写法（var / function，不用箭头函数、可选链等）。主脚本第一行设 window.NBQ_UP=1；
+   旧系统解析不了主脚本的新语法时整块不执行 → 页面加载完还没有这个标记 → 显示升级提示，不白屏。 */
+(function(){function s(){if(window.NBQ_UP||document.getElementById('nbqOld'))return;var d=document.createElement('div');d.id='nbqOld';d.setAttribute('role','alert');
+d.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#F4F6F2;color:#16352A;padding:40px 28px;text-align:center;font:16px/1.7 -apple-system,BlinkMacSystemFont,sans-serif;overflow:auto';
+d.innerHTML='<div style="max-width:420px;margin:12vh auto 0"><div style="font-size:56px;line-height:1">🎾</div><b style="display:block;font-size:22px;margin:16px 0 8px">球拍有点旧了。</b>'
++'这个系统或浏览器版本太旧，南伴球打不开。<br>升级系统，或换最新的 Safari / Chrome 打开就好。'
++'<p style="color:#4E6B5E;font-size:14px;margin-top:16px">在微信里的话：点右上角「…」，选「在浏览器打开」。</p></div>';
+document.body.appendChild(d)}
+if(window.addEventListener)window.addEventListener('load',s,false);else if(window.attachEvent)window.attachEvent('onload',s)})();</script>
 <script>
+window.NBQ_UP=1;   // 主脚本开始执行的标记（#51，见上一段）：放在第一行，后面任何新语法解析失败都到不了这里
