@@ -21,7 +21,12 @@ function nbqNetMake(io){
     if(opt.idem)h['Idempotency-Key']=opt.idem;   // 重复提交（#276）：只有调用方给了才带
     const init={method,headers:h};
     if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
-    let r;try{r=await io.fetch(base+path+qs(opt.query),init)}catch(_){return{ok:false,status:0,code:'network'}}
+    // 超时（11-13）：弱网下请求可能一直挂着，「处理中」的锁就一直不放、按钮点了没反应。io.timeout 毫秒（默认 20 秒）后放弃，和断网一样处理（发局 / 发消息重试带同一个 key，不会重复）
+    const tmo=io.timeout===undefined?20000:io.timeout,tm=io.timer||(typeof setTimeout==='function'?{set:(f,ms)=>setTimeout(f,ms),clear:t=>clearTimeout(t)}:null);
+    const ac=tmo>0&&tm&&typeof AbortController==='function'?new AbortController():null;if(ac)init.signal=ac.signal;
+    let r,t=null;try{const f=io.fetch(base+path+qs(opt.query),init);
+      r=await(tmo>0&&tm?Promise.race([f,new Promise((_,no)=>{t=tm.set(()=>{if(ac)try{ac.abort()}catch(_){}no(new Error('timeout'))},tmo)})]):f)}
+    catch(_){return{ok:false,status:0,code:'network'}}finally{if(t!==null)tm.clear(t)}
     let d=null;try{d=await r.json()}catch(_){}
     if(r.ok)return{ok:true,status:r.status,data:d||{}};
     const code=(d&&typeof d.error==='string'&&d.error)||(r.status===401?'login_required':r.status===429?'rate_limited':r.status>=500?'db_unavailable':'unknown');
