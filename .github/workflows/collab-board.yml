@@ -17,9 +17,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  issues: write
-  pull-requests: write
 
 concurrency:
   group: collab-board
@@ -30,6 +27,11 @@ jobs:
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:                   # 写权限只给看板 job（影子 job 只读）
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,6 +55,10 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
