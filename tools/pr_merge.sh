@@ -60,6 +60,9 @@ for W in tests-fast tests; do
   fi
   case "$L" in "completed success "*) yes "$W 通过（运行 ${L##* }）"; CI_IDS="$CI_IDS $W#${L##* }";; "null"*|"") no "$W：这个提交还没有运行记录";; *) no "$W：$L";; esac
 done
+# 11-13（#252 事故）：workflow-lint 红了仍被放行合并——除 tests / tests-fast 外，这个提交上别的 PR 检查（每个工作流取最新一次）有「失败」也不能合
+OF=$(gh api "repos/$R/actions/runs?head_sha=$SHA&event=pull_request&per_page=100" --jq '[.workflow_runs[]|select(.path|test("/tests(-fast)?\\.yml$")|not)]|group_by(.path)|map(sort_by(.created_at)|last)|map(select(.conclusion=="failure")|.name)|join("、")' 2>/dev/null)
+[ -z "$OF" ] && yes "其他 PR 检查没有红的" || no "其他检查红了：$OF（看注解修，推新提交）"
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
   T=$(git show -s --format=%cI "$SHA")
   D=$(gh api "repos/$R/actions/workflows/db-parity.yml/runs?per_page=5" --jq "[.workflow_runs[]|select(.created_at > \"$(date -u -d "$T" +%Y-%m-%dT%H:%M:%SZ)\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
