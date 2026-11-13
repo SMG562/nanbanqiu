@@ -56,7 +56,7 @@ export function gather(N) {
   const dbChanged = dbFiles.some(x => (x === 'schema.sql' || x.startsWith('server/migrations/')) && x !== 'server/migrations/_bundle.sql');
   let dbParity = false;
   if (dbChanged) {
-    dbParity = sh('bash', ['tools/db_parity_since.sh', sha]).status === 0;   // 和 pr_merge.sh ④ 同一份实现（11-13，#241）：以库结构最后一次改动为准
+    dbParity = sh('bash', ['tools/merge_drift.sh', '--db-parity', sha]).status === 0;   // 和 pr_merge.sh ④ 同一份实现（11-13，#241）：以库结构最后一次改动为准
   }
   const pb = sh('node', ['tools/pr_body_check.mjs', String(N), '--merge']);
   const level = sh('node', ['tools/decision_card.mjs', '--level'], files.join('\n')).stdout.trim() || 'self';

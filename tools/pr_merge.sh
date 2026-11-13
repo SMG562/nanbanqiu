@@ -62,7 +62,7 @@ for W in tests-fast tests; do
 done
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
   # db-parity 算不算数只有一份实现（11-13，#241）：以库结构最后一次改动为准，只多合并 main 不作废；tools/merge_gate.mjs 也调它
-  read -r DS DID DT <<<"$(bash tools/db_parity_since.sh "$SHA")"
+  read -r DS DID DT <<<"$(bash tools/merge_drift.sh --db-parity "$SHA")"
   if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"; fi
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
