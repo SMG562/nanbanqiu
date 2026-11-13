@@ -175,6 +175,8 @@
 | sb_post_hourly_limit | 429 | 发得有点多，过一会儿再发吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | sb_post_daily_limit | 429 | 今天已经发了 20 条，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | client_outdated | 426 | 有新版本 · 点一下刷新 | 后端（环境变量 NBQ_MIN_BUILD 设了且请求头 X-NBQ-Build 低于它 / 没带；默认不启用，ADR 0013）；前台同时显示顶部新版本提示 |
+| register_paused | 403 | 暂时不接受新用户注册，请稍后再来 | 后端（运行时开关 register_paused 开，新号码注册；#49） |
+| maintenance | 503 | 系统维护中，请过几分钟再试 | 后端（运行时开关 maintenance 开，除开关读取与后台外的接口；带 Retry-After；#49） |
 | sb_topic_daily_limit | 429 | 今天已经发起了 3 个话题，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | replies_closed | 409 | 作者关闭了回复 | 数据库 api_sb_reply（场边 §14，F1b 并入） |
 
