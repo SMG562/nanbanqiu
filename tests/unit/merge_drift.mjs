@@ -24,7 +24,10 @@ r = run(['a.js'], ['进度记录.md']); T('main 只多了 *.md（含中文文件
 r = run(['a.js'], ['b.js']); T('代码文件不重叠且能合并 → 放宽', r.code === 0 && /不重叠/.test(r.out), r);
 r = run(['a.js'], ['a.js']); T('同改一个文件 → 严格', r.code === 1 && /同改/.test(r.out), r);
 r = run(['a.js'], ['schema.sql']); T('main 动了 schema.sql → 永远严格', r.code === 1 && /永远严格/.test(r.out), r);
-r = run(['server/migrations/1.sql'], ['进度记录.md']); T('PR 动了迁移 → 永远严格（即使 main 只多文档）', r.code === 1 && /永远严格/.test(r.out), r);
+// 11-12（#229）：只有 PR 动库结构 → 照常放宽（db-parity 改绑库结构内容，见 pr_merge.sh ④）；main 动了库结构仍永远严格
+r = run(['server/migrations/1.sql'], ['进度记录.md']); T('只有 PR 动了迁移、main 只多文档 → 放宽', r.code === 0 && /\.md/.test(r.out), r);
+r = run(['schema.sql', 'server/migrations/1.sql'], ['b.js']); T('只有 PR 动了库结构、main 改了不重叠的代码 → 放宽', r.code === 0 && /不重叠/.test(r.out), r);
+r = run(['server/migrations/1.sql'], ['server/migrations/2.sql']); T('两边都加了迁移 → 永远严格（迁移顺序会变）', r.code === 1 && /main 动了库结构/.test(r.out), r);
 r = run(['a.js'], ['.github/workflows/tests.yml']); T('main 动了 CI 工作流 → 永远严格', r.code === 1, r);
 r = run(['.github/workflows/collab-board.yml'], ['b.js']); T('PR 自己改 CI 工作流、main 只动无关文件 → 放宽（11-13 #253）', r.code === 0 && /不重叠/.test(r.out), r);
 r = run(['tools/pr_merge.sh'], ['b.js']); T('PR 自己改闸门脚本、main 只动无关文件 → 放宽', r.code === 0, r);
