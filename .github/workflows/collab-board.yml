@@ -65,6 +65,7 @@ jobs:
           echo '|---|---|---|---|---|---|' >> "$GITHUB_STEP_SUMMARY"
           for n in $(gh api 'repos/${{ github.repository }}/pulls?state=open&per_page=30' --jq '.[]|select(.draft==false)|.number'); do
             out=$(node tools/merge_gate.mjs "$n" --shadow 2>&1 | tail -1) || true
+            # shellcheck disable=SC2016  # node -e 里的 ${} 是 JS 模板，不是 shell 变量
             if echo "$out" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8"));const m=b=>b?"✅":"❌";console.log(`| #${j.pr} | ${j.sha} | ${m(j.gate)} | ${m(j.pr_merge)} | ${j.agree?"是":"**否**"} | ${(j.gateFails||[]).join(",")} |`);if(!j.agree)console.log(`::warning::merge-gate 与 pr_merge.sh 结论不一致：#${j.pr} ${JSON.stringify(j)}`)' >> "$GITHUB_STEP_SUMMARY" 2>/tmp/err; then :; else echo "| #$n | — | 读不到 | — | — | ${out:0:80} |" >> "$GITHUB_STEP_SUMMARY"; fi
             echo "shadow #$n: $out"
           done
