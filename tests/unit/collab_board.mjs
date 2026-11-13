@@ -58,6 +58,7 @@ T('看板：分组标题、在制品计数、草稿单列', /球在所有者（2
 T('看板：超限时提示', /超限/.test(render([...rows, { p: base({ number: 9 }), c: classify(base({ number: 9 }), NOW) }], NOW)));
 T('看板：在制品按作者分别计数（两人各 2 个都不超限）', (() => { const mk = (n, a) => { const p = base({ number: n, author: a }); return { p, c: classify(p, NOW) } }; const m2 = render([mk(1, 'A'), mk(2, 'A'), mk(3, 'B'), mk(4, 'B')], NOW); return /A 2 \/ 2/.test(m2) && /B 2 \/ 2/.test(m2) && !/超限/.test(m2) })());
 T('看板：只有该作者超限才提示', (() => { const mk = (n, a) => { const p = base({ number: n, author: a }); return { p, c: classify(p, NOW) } }; const m3 = render([mk(1, 'A'), mk(2, 'A'), mk(3, 'A'), mk(4, 'B')], NOW); return /A 3 \/ 2 ⚠ 超限/.test(m3) && !/B 1 \/ 2 ⚠/.test(m3) })());
+T('看板：机器人账号（dependabot[bot]）不占在制品', (() => { const mk = (n, a) => { const p = base({ number: n, author: a }); return { p, c: classify(p, NOW) } }; const m4 = render([mk(1, 'dependabot[bot]'), mk(2, 'dependabot[bot]'), mk(3, 'dependabot[bot]'), mk(4, 'A')], NOW); return !/dependabot/.test(m4.split('\n').find(l => /在制品\*\*/.test(l))) && /A 1 \/ 2/.test(m4) })());
 T('看板：没有 PR 也不崩', /没有开着的 PR/.test(render([], NOW)));
 // ⑥ 状态抖动（#185：22 秒内 Ready → 草稿）
 const ev = (event, at, actor = 'MDD1102') => ({ event, actor, at }), N2 = Date.parse('2026-11-11T12:45:00Z');
