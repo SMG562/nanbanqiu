@@ -87,6 +87,33 @@ const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
 - 在制品（非草稿 PR）上限：**每个作者 ${WIP_LIMIT} 个**（#229，11-13：两人都能合并后不再全仓共 ${WIP_LIMIT} 个）。`;
 
+// main 有新提交时告诉「相关的」开着的 PR（#189，11-13 所有者同意）：同改了文件，或提交信息 / 新增行里 #提到了它。
+//   起因：#197 被 main 上的提交提到、#193 被 main 追着改了同一批文件，主人会话都要等 GitHub 报冲突才知道（提交里写 #号不会推送给订阅 PR 的会话）。
+//   规则：每个提交在 PR 评论里留标记 nbq-main:<提交号前 7 位>，重复运行不重发；一次运行一个 PR 最多一条（汇总这次的所有相关提交）；
+//   机器人的 PR 不发；一律 @ PR 作者（提交作者是会话署名，对不上 PR 作者，不按它判断）；跳过合并提交（「合并 origin/main」的改动文件是另一条线的全部改动，
+//   会把没改的文件说成同改；那些改动的原始提交本身也在时间窗里）。纯函数，网络在 main() 里。
+export const MAIN_WINDOW_H = 6;                                   // 看板每 3 小时兜底跑一次：看最近 6 小时，漏一轮也接得上
+export const mainKey = sha => `nbq-main:${sha.slice(0, 7)}`;
+const mentionRe = n => new RegExp(`(^|[^\\w&/#])#${n}(?!\\d)`);
+export function mainNotices(prs, commits) {
+  const out = [];
+  for (const pr of prs) {
+    if (pr.author.endsWith('[bot]')) continue;
+    const re = mentionRe(pr.number), mine = new Set(pr.files || []), hits = [];
+    for (const c of commits) {
+      if (c.parents > 1 || already(pr.comments || [], mainKey(c.sha))) continue;
+      const same = c.files.map(f => f.filename).filter(f => mine.has(f));
+      const lines = [...String(c.message || '').split('\n'), ...c.files.flatMap(f => String(f.patch || '').split('\n').filter(l => l.startsWith('+') && !l.startsWith('+++')).map(l => l.slice(1)))];
+      const said = lines.find(l => re.test(l));
+      if (same.length || said) hits.push({ c, same, said });
+    }
+    if (!hits.length) continue;
+    const item = h => `- \`${h.c.sha.slice(0, 7)}\` ${String(h.c.message || '').split('\n')[0].slice(0, 60)}：${[h.same.length ? `同改 ${h.same.slice(0, 5).map(f => '`' + f + '`').join('、')}${h.same.length > 5 ? ` 等 ${h.same.length} 个文件` : ''}` : '', h.said ? `提到你：「${h.said.trim().slice(0, 80)}」` : ''].filter(Boolean).join('；')}`;
+    out.push({ number: pr.number, body: hits.map(h => `<!-- ${mainKey(h.c.sha)} -->`).join('') + `\n@${pr.author} main 有 ${hits.length} 个新提交和这个 PR 有关：\n${hits.map(item).join('\n')}\n\n下一步：同改了文件 → 合并前 \`bash tools/sync_main.sh\`（\`pr_merge.sh\` 也会提示）；提到你 → 看看那一行要不要你跟进。\n\n> 自动消息（协作看板，#189）。同一个提交只提醒一次。` });
+  }
+  return out;
+}
+
 export function render(rows, now = Date.now()) {
   const order = ['owner', 'review', 'author', 'merge', 'ci'], wipBy = {};
   for (const r of rows) if (!r.p.draft && !/\[bot\]$/.test(r.p.author)) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
@@ -110,7 +137,7 @@ export function gather(R, now = Date.now()) {
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, coOwner: fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#')).includes(x.user.login), updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#')).includes(x.user.login), updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
@@ -134,6 +161,11 @@ function main() {
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));
   }
+  // main 有新提交 → 告诉相关的开着的 PR（#189）。每个提交一次 API 取改动文件和新增行
+  const since = new Date(now - MAIN_WINDOW_H * 36e5).toISOString();
+  const commits = list(`repos/${R}/commits?sha=main&since=${since}&per_page=100`).map(c => { const d = JSON.parse(gh(`repos/${R}/commits/${c.sha}`));
+    return { sha: c.sha, parents: (c.parents || []).length, message: d.commit?.message || '', files: (d.files || []).map(f => ({ filename: f.filename, patch: f.patch || '' })) } });
+  for (const n of mainNotices(rows.map(r => r.p), commits)) post(n.number, n.body);
   // 看板 Issue（标签「协作看板」，没有就建）：正文只在内容变化时写；红线集合变了 @所有者 一次
   const hash = h6(board), when = new Date(now).toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }), okey = ownerKey(rows);
   if (dry) { console.log(`[看板] hash ${hash}，需要所有者：${okey || '无'}`); return }
