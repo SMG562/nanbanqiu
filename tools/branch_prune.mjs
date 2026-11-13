@@ -11,6 +11,7 @@ import fs from 'node:fs'; import path from 'node:path'; import { spawnSync } fro
 
 export const PROTECTED = ['main', 'staging'];   // staging = 测试推送固定地址 staging.nanbanqiu-preview.pages.dev（ADR 0007），不能删
 export const GRACE_DAYS = 3;                     // 没 PR 的新分支、刚关的 PR：3 天内不动（分支存活 ≤ 3 天的规矩，也给正在进行的会话留余地）
+export const IDLE_DAYS = 21;                     // 11-13：「需决定」的分支（没进 main 的内容）超过 21 天没有新提交 → 自动打 archive 标签后删（标签随时能恢复），不再问所有者
 export const STALE_DAYS = 7;                     // 开着的 PR 超过 7 天没动：列出来提醒
 const DAY = 864e5;
 
@@ -31,6 +32,7 @@ export function classify({ branches, prs, now }) {
     if (b.contained && (last || age(b.date) > GRACE_DAYS)) return r('delete', last ? `PR #${last.number} 已${last.merged_at ? '合并' : '关闭'}，内容都在 main` : '没有 PR，内容都在 main');
     if (last && !last.merged_at && last.head.sha === b.tip && age(last.closed_at) > GRACE_DAYS) return r('delete', `PR #${last.number} 已关闭未合并（先打 archive 标签）`, { archive: true });
     if (age(b.date) <= GRACE_DAYS) return r('keep', last ? `PR #${last.number} 刚${last.merged_at ? '合并' : '关闭'}后又有新提交` : `${GRACE_DAYS} 天内的新分支，可能正在做`);
+    if (age(b.date) > IDLE_DAYS) return r('delete', `${last ? `PR #${last.number} 已${last.merged_at ? '合并' : '关闭'}，` : '没有 PR，'}有没进 main 的提交，但 ${Math.floor(age(b.date))} 天没动（先打 archive 标签）`, { archive: true });
     return r('decide', last ? `PR #${last.number} 已${last.merged_at ? '合并' : '关闭'}，之后又有没进 main 的提交` : '没有 PR，有没进 main 的提交', { archive: true });
   });
 }
@@ -70,7 +72,9 @@ function main() {
   for (const k of Object.keys(L)) { const g = rows.filter(r => r.kind === k); if (!g.length) continue;
     console.log(`\n## ${L[k]}：${g.length}`); for (const r of g) console.log(`- ${r.name} · ${r.date.slice(0, 10)} · ${r.why}`) }
   if (!has('--apply') && !archive.length) { console.log('\n（只列清单，没有改动。所有者确认后：--apply 删「可删」；--archive=分支1,分支2 处理「需决定」里点名的）'); return }
-  const me = sh('gh', ['api', 'user', '--jq', '.login']).stdout.trim();
+  // 定时任务（metrics.yml 每周一）：在 GitHub Actions 里用 GITHUB_TOKEN 跑，没有「用户」可查；所有者 11-13 21:30 在对话里授权自动清理（只删「可删」类，没进 main 的先打标签）
+  const auto = process.env.GITHUB_ACTIONS === 'true' && process.env.GITHUB_EVENT_NAME !== 'pull_request';
+  const me = auto ? R.split('/')[0] : sh('gh', ['api', 'user', '--jq', '.login']).stdout.trim();
   if (me !== R.split('/')[0]) { console.error(`❌ 删除远端分支只由所有者（${R.split('/')[0]}）做；当前账号 ${me}。把上面的清单发给所有者。`); process.exit(1) }
   const bad = archive.filter(n => !rows.some(r => r.name === n && r.kind === 'decide'));
   if (bad.length) { console.error(`❌ 这些不在「需决定」里，不处理：${bad.join(', ')}`); process.exit(1) }

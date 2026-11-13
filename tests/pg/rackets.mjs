@@ -167,7 +167,12 @@ try {
   r = await as(P[0], `select count(*) v from racket_daily`); T('A5 前台读不到快照表', !r.ok && /permission denied/.test(r.err), r);
   r = await stats('nbq_service', `select job_nightly() v`); T('A5 每晚任务照常跑，并记了昨天的快照', r.ok && +(await q(`select count(*) from racket_daily_total where day = $1`, [await jobDay(1)])).rows[0].count === 1, r);
   e1 = null; try { await q(st4); await q(st4) } catch (e) { e1 = e.message } T('A5 迁移连跑两次不报错', e1 === null, e1);
-  T('A5 迁移后 job_nightly 与 schema.sql 一致且含快照', (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc === nightSrc0 && /racket_rollup/.test(nightSrc0));
+  T('A5 迁移后 job_nightly 含快照', /racket_rollup/.test((await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc));
+  // 之后的迁移会再改 job_nightly（#276 加幂等 key 清理）：按顺序跑完再和 schema.sql 比，同第 102 行的做法
+  const laterN = fs.readdirSync(path.join(DIR, 'server/migrations')).filter(f => /^2\d+_.*\.sql$/.test(f) && f.localeCompare('20261108_racket_stats.sql') > 0).sort((a, b) => a.localeCompare(b))
+    .filter(f => /function job_nightly\(/.test(fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8')));
+  e1 = null; try { for (const f of laterN) await q(fs.readFileSync(path.join(DIR, 'server/migrations', f), 'utf8')) } catch (e) { e1 = e.message } T('之后改过 job_nightly 的迁移按顺序跑完不报错', e1 === null, [laterN, e1]);
+  T('A5 全部迁移跑完后 job_nightly 与 schema.sql 一致且含快照', (await q(`select prosrc from pg_proc where proname='job_nightly'`)).rows[0].prosrc === nightSrc0 && /racket_rollup/.test(nightSrc0));
 
   // B2：4 个前台埋点的登记迁移（schema.sql 已含，先删掉再跑两次 = 正式库第一次执行的情形）；结果与字典 events_spec.md 逐字一致
   const EV = ['racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid'];
