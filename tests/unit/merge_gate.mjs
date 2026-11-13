@@ -3,7 +3,7 @@ import fs from 'node:fs'; import path from 'node:path';
 import { evaluate } from '../../tools/merge_gate.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
 const ROOT = path.resolve(import.meta.dirname, '../..');
-const SHA = 'abcdef1234567890';
+const SHA = 'abcdef1234567890', pm0 = fs.readFileSync(path.join(ROOT, 'tools/pr_merge.sh'), 'utf8');
 const base = (o = {}) => ({ state: 'open', base: 'main', sha: SHA, ff: 'ff', docsOnly: false, ci: { 'tests-fast': 'success', tests: 'success' }, dbChanged: false, dbParity: false, bodyOk: true, level: 'self', me: 'MDD1102', coOwners: ['MDD1102'], reviewPass: [], carryWhy: null, clean: true, ...o });
 const v = o => evaluate(base(o)), fails = o => v(o).items.filter(x => !x.ok).map(x => x.id);
 T('全部满足 → 可合并', v().pass === true);
@@ -15,6 +15,8 @@ T('改了数据库：没有 db-parity → 不可；有 → 可', fails({ dbChang
 T('PR 描述核对没过 → 不可，并带原因', (() => { const r = evaluate(base({ bodyOk: false, bodyWhy: '缺入口清单' })); return !r.pass && /缺入口清单/.test(r.items.find(x => x.id === 'body').msg) })());
 T('红线：所有者 / 共同所有者可合，其他人不可', v({ level: 'owner', me: 'SMG562' }).pass && v({ level: 'owner', me: 'MDD1102' }).pass && fails({ level: 'owner', me: 'someone' }).join() === 'level' && fails({ level: 'owner', me: '' }).join() === 'level');
 T('需复核：没有留言 → 不可；有「通过 <当前提交>」→ 可；只有旧提交的留言但沿用成立 → 可', fails({ level: 'review' }).join() === 'level' && v({ level: 'review', reviewPass: ['abcdef1'] }).pass && v({ level: 'review', reviewPass: ['1111111'], carryWhy: '只多合并 main' }).pass && fails({ level: 'review', reviewPass: ['1111111'] }).join() === 'level');
+T('其他 PR 检查（如 workflow-lint）红了 → 不可，并点名（#252 事故）', fails({ otherFail: 'workflow-lint' }).join() === 'others' && /workflow-lint/.test(evaluate(base({ otherFail: 'workflow-lint' })).items.find(x => x.id === 'others').msg) && v().pass);
+T('pr_merge.sh 也核对「其他检查红了」', pm0.includes('其他检查红了') && pm0.includes('workflow-lint'));
 T('工作区不干净 → 不可', fails({ clean: false }).join() === 'clean');
 T('多项同时不满足：全部列出', fails({ state: 'closed', ci: { 'tests-fast': null, tests: null }, clean: false }).length === 4);
 // 与 pr_merge.sh 的对应：每个核对项在两边都存在（以后给 pr_merge.sh 加了新核对项、这里忘了加，测试变红）

@@ -7,4 +7,5 @@ T('斜杠、大写换成 - 和小写', aliasOf('Fix/Owner_Only') === 'fix-owner-
 T('截断后不以 - 结尾', !/-$/.test(aliasOf('feature/abcdefghijklmnopqrst-uvwxyz')), aliasOf('feature/abcdefghijklmnopqrst-uvwxyz'));
 T('别名不超过 28 个字符', aliasOf('x'.repeat(60)).length === 28);
 T('main 是预览站本身', previewURL('main') === 'https://nanbanqiu-preview.pages.dev');
+T('别名为空（空串、只有符号、纯中文）→ 不输出地址', ['', '---', '球友'].every(b => previewURL(b) === ''), ['', '---', '球友'].map(previewURL));
 console.log(`preview_url: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -10,6 +10,7 @@ T('反例：正文中间引用 / 举例', parse('核对数据如下：\n独立�
 T('反例：引用行（> …）、代码块里', parse('> 独立复核：通过 abcdef1').pass === null && parse('```\n独立复核：通过 abcdef1\n```').pass === null);
 T('反例：第一行有别的话在前面（#114 作者侧引用的形状）', parse('复核方留言原文是「独立复核：通过 abcdef1」').pass === null && parse('已改，请重新复核。独立复核：通过 abcdef1').pass === null);
 T('反例：提交号太短 / 不是十六进制 / 空', parse('独立复核：通过 abc').pass === null && parse('独立复核：通过 zzzzzzz').pass === null && parse('').pass === null && parse(null).pass === null);
+T('边界：提交号后紧跟字母数字（超长 / 粘连）不算；后面是空白、】、行尾才算', parse('独立复核：通过 abcdef1g').pass === null && parse('独立复核：通过 abcdef1zz').pass === null && parse('独立复核（abcdef1g）：要改').fix === null && parse('独立复核：通过 abcdef1】').pass === 'abcdef1' && parse('独立复核：通过 abcdef1').pass === 'abcdef1');
 const c = collect(['独立复核：通过 aaaaaaa', '独立复核：通过 aaaaaaa1', '独立复核（bbbbbbb）：要改', '> 独立复核：通过 ccccccc']);
 T('collect：去重（前 7 位相同只算一个）、引用的不算', JSON.stringify(c) === JSON.stringify({ pass: ['aaaaaaa'], fix: ['bbbbbbb'] }), c);
 const SHA = 'abcdef1234567890', cm = (body, bot = false) => ({ body, bot });
@@ -28,4 +29,6 @@ r = say('补充', '独立复核（abcdef1，x）：要改 这种也拦');
 T('pr_say：「独立复核（提交号）：要改」同样拦', r.status === 3, r.status);
 r = say('接手 PR', '正常说明，没有复核句式');
 T('pr_say：正常正文不拦（走到 gh）', r.status !== 3 && /GH_CALLED/.test(r.stdout), r);
+r = say('说明', '独立复核（abcdef1 见上）已沿用；另（说明）：无');
+T('pr_say：括号被隔开的正常句子不误拦（旧守卫的 .* 会跨括号匹配）', r.status !== 3 && /GH_CALLED/.test(r.stdout), r);
 console.log(`review_state: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -134,6 +134,17 @@ const ROUTES = {
     try { await d.db.asService(async q => { await q('select client_error_log($1,$2,$3,$4,$5)', [build, device, b.msg.slice(0, 200), src, line]) }) } catch (_) { }
     return new Response(null, { status: 204 });
   },
+  // 还没开放的城市「开放时通知我」（11-13 补：前台和数据库函数早就有，路由漏了，一直 404）。不用登录；以 nbq_service 调 api_city_waitlist，
+  //   城市是否未开放、邮箱格式、同一 IP 每小时 5 次（429 rate_limited）、同一邮箱只记一次（added=false）都由数据库判断；这里只挡明显不合格式的参数
+  'POST /api/city-waitlist': async (req, d) => {
+    const r = await readBody(req); if (r.err) return r.err;
+    const city = str(r.body.city), email = str(r.body.email)?.trim();
+    if (!city || !/^[a-z]{2,12}$/.test(city)) return send(422, { error: 'invalid', detail: 'city' });
+    if (!email || email.length > 200 || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return send(422, { error: 'invalid', detail: 'email' });
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;
+    const added = await d.db.asService(async q => (await q('select api_city_waitlist($1, $2, $3) as v', [city, email, ip])).rows[0].v);
+    return send(200, { ok: true, added });
+  },
   'GET /api/me': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err;
     if (!w.uid) return send(200, { registered: false });
