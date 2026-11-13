@@ -7,12 +7,15 @@ B="${1:?用法：bash tools/new_branch.sh <分支名>}"; cd "$(dirname "$0")/.."
 [ -z "$(git status --porcelain)" ] || { echo "工作区有没提交的改动，先提交或处理"; exit 1; }
 git fetch -q origin main
 # 11-10（#158）：开新分支 = 开新在制品。非草稿 PR 已到上限、或有可删 / 待决定的分支时提醒（不拦：先收尾再开新的）
-nd=$(gh api "repos/SMG562/nanbanqiu/pulls?state=open&per_page=100" --jq '[.[]|select(.draft==false and (.user.login|test("dependabot")|not))]|length' 2>/dev/null || echo "?")
-[ "$nd" = "?" ] || [ "$nd" -lt 2 ] || echo "⚠️ 已有 $nd 个非草稿 PR（上限 2）：先合并 / 转草稿 / 关掉旧的，再开新的"
+me=$(gh api user --jq .login 2>/dev/null || echo "")
+nd=$(gh api "repos/SMG562/nanbanqiu/pulls?state=open&per_page=100" --jq "[.[]|select(.draft==false and .user.login==\"$me\")]|length" 2>/dev/null || echo "?")
+[ -n "$me" ] || nd="?"
+[ "$nd" = "?" ] || [ "$nd" -lt 2 ] || echo "⚠️ 你已有 $nd 个非草稿 PR（每人上限 2）：先合并 / 转草稿 / 关掉旧的，再开新的"
 git checkout -q -b "$B" origin/main
 git push -q -u origin "$B"
 # 浅克隆 / 单分支克隆只抓 main：给新分支补上 fetch 规则，后面 git fetch 才会更新它的远端引用（11-05，根治「未推送提交」停止钩子误报）
 git config --get-all remote.origin.fetch | grep -qxF "+refs/heads/$B:refs/remotes/origin/$B" || git config --add remote.origin.fetch "+refs/heads/$B:refs/remotes/origin/$B"
 echo "✅ 分支 $B 从 origin/main（$(git rev-parse --short origin/main)）出发，已推到远端并设好跟踪"
+echo "   预览站：$(node tools/preview_url.mjs "$B" | head -1)（约 1 分钟后部署好；以 PR 上 Cloudflare Pages 检查为准）"
 # 这个环境里 git push 不会更新本地的远端引用，会让「有未推送提交」的检查误报：手动补上
 git update-ref "refs/remotes/origin/$B" "$(git rev-parse HEAD)"

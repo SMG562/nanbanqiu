@@ -61,6 +61,8 @@ const FLAG = () => { try { localStorage.setItem('nbq_ff_intro', '1') } catch (_)
     p = await open({ hash: '?s=link' });
     T(f + ' 从分享链接（?s=）进来：不显示', !(await has(p)));
     T(f + ' 从分享链接进来：不算看过', (await seen(p)) === null); await p.context().close();
+    p = await open({ hash: '?t=th1&n=9&k=chat' });   // 推送打开（AN.entry=push）：守住「不显示、不算看过」
+    T(f + ' 从推送（?t=&n=&k=）进来：不显示、不算看过', !(await has(p)) && (await seen(p)) === null); await p.context().close();
     const q = await open({ flag: false }); const code = await q.evaluate(() => (GAMES.find(g => g.share_code) || {}).share_code); await q.context().close();
     p = await open({ hash: '#/g/' + code });
     T(f + ' 从球局链接（#/g/）进来：不显示', !!code && !(await has(p)), code); await p.context().close();

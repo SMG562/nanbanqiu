@@ -13,4 +13,13 @@ let shows = 0; for (let m = 0; m < 32; m++) { const c = {}; Object.keys(base).fo
 T('全部 32 种组合只有 1 种显示', shows === 1, shows);
 T('什么都没传 → 不显示（开关默认关）', D() === 'off' && D({}) === 'off');
 T('只返回 show / off 两种', ['show', 'off'].includes(D({ on: 1 })));
+// 开关按环境（#203，11-13 正式站打开）：把 0502 的 NBQ_INTRO 放进沙盒，按 NBQ_ENV 逐个核对
+{ const src = fs.readFileSync(path.join(DIR, 'src/shared/script/0502-首页引导条.js'), 'utf8');
+  const i = src.indexOf('const NBQ_INTRO='), j = src.indexOf('})();', i) + 5;
+  const on = (env, ff) => { const c = vm.createContext({ NBQ_ENV: env, localStorage: { getItem: k => k === 'nbq_ff_intro' ? ff : null }, location: { hash: '', pathname: '/' } });
+    vm.runInContext(src.slice(i, j) + ';this.r=NBQ_INTRO.on', c); return c.r };
+  T('开关：源码里找得到 NBQ_INTRO', i > 0 && j > i);
+  for (const e of ['prod', 'staging', 'preview']) T('开关：' + e + ' 默认开', on(e, null) === true);
+  T('开关：本地 / 测试域名（none）默认关', on('none', null) === false);
+  T('开关：本地设 nbq_ff_intro=1 打开', on('none', '1') === true); }
 console.log(`intro_rules: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
