@@ -19,7 +19,7 @@ export function evaluate(f) {
     if (f.docsOnly) r.push(ok(w, `${w}：只改了 *.md，不需要运行记录`));
     else r.push(f.ci?.[w] === 'success' ? ok(w, `${w} 通过`) : no(w, `${w}：${f.ci?.[w] ?? '这个提交还没有运行记录'}`));
   }
-  r.push(!f.dbChanged ? ok('db', '没改数据库结构，不需要 db-parity') : f.dbParity ? ok('db', 'db-parity 在这个提交之后通过') : no('db', '改了数据库：需要在这个提交之后跑 db-parity 并通过'));
+  r.push(!f.dbChanged ? ok('db', '没改数据库结构，不需要 db-parity') : f.dbParity ? ok('db', 'db-parity 在库结构最后一次改动之后通过') : no('db', '改了数据库：需要在库结构最后一次改动之后跑 db-parity 并通过'));
   r.push(f.bodyOk ? ok('body', 'PR 描述核对通过') : no('body', `PR 描述核对没过：${f.bodyWhy || ''}`.trim()));
   if (f.level === 'owner') {
     const who = f.me === 'SMG562' ? '所有者' : (f.coOwners || []).includes(f.me) ? '共同所有者' : null;
@@ -56,9 +56,7 @@ export function gather(N) {
   const dbChanged = dbFiles.some(x => (x === 'schema.sql' || x.startsWith('server/migrations/')) && x !== 'server/migrations/_bundle.sql');
   let dbParity = false;
   if (dbChanged) {
-    const t = new Date(git('show', '-s', '--format=%cI', sha).stdout.trim()).toISOString();
-    const d = JSON.parse(gh(`repos/${R}/actions/workflows/db-parity.yml/runs?per_page=5`)).workflow_runs.filter(y => y.created_at > t).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0];
-    dbParity = !!d && d.status === 'completed' && d.conclusion === 'success';
+    dbParity = sh('bash', ['tools/db_parity_since.sh', sha]).status === 0;   // 和 pr_merge.sh ④ 同一份实现（11-13，#241）：以库结构最后一次改动为准
   }
   const pb = sh('node', ['tools/pr_body_check.mjs', String(N), '--merge']);
   const level = sh('node', ['tools/decision_card.mjs', '--level'], files.join('\n')).stdout.trim() || 'self';

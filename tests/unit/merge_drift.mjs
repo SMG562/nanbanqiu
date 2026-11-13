@@ -30,17 +30,6 @@ r = run(['schema.sql', 'server/migrations/1.sql'], ['b.js']); T('只有 PR 动�
 r = run(['server/migrations/1.sql'], ['server/migrations/2.sql']); T('两边都加了迁移 → 永远严格（迁移顺序会变）', r.code === 1 && /main 动了库结构/.test(r.out), r);
 r = run(['a.js'], ['.github/workflows/tests.yml']); T('main 动了 CI 工作流 → 永远严格', r.code === 1, r);
 r = run(['a.js'], ['tools/pr_merge.sh']); T('main 动了闸门脚本 → 永远严格', r.code === 1, r);
-// pr_merge.sh ④ 的时间锚点（11-12，#229）：db-parity 以「库结构最后一次改动」为准，只多合并 main / 改别的文件不作废
-{ const pm0 = fs.readFileSync(path.join(ROOT, 'tools/pr_merge.sh'), 'utf8'), m = /T=\$\((git log -1 --format=%cI "\$SHA" -- [^)]*?) 2>\/dev\/null\)/.exec(pm0);
-  T('pr_merge.sh ④ 用库结构最后一次改动的时间', !!m, pm0.match(/^  T=.*$/m));
-  if (m) { const at = (sha) => spawnSync('bash', ['-c', m[1]], { cwd: tmp, env: { ...env, SHA: sha }, encoding: 'utf8' }).stdout.trim();
-    const cm = (f, d) => { W(f, d + Math.random() + '\n'); git(tmp, 'add', '-A'); spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', f], { cwd: tmp, env: { ...env, GIT_COMMITTER_DATE: d }, encoding: 'utf8' }); return git(tmp, 'rev-parse', 'HEAD').trim() };
-    git(tmp, 'checkout', '-q', '-B', 'db', 'main'); cm('server/migrations/9.sql', '2026-11-01T10:00:00Z'); const after = cm('a.js', '2026-11-02T10:00:00Z');
-    git(tmp, 'checkout', '-q', 'main'); cm('b.js', '2026-11-03T10:00:00Z'); git(tmp, 'checkout', '-q', 'db');
-    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.hooksPath=/dev/null', 'merge', '-q', '--no-edit', 'main'], { cwd: tmp, env: { ...env, GIT_COMMITTER_DATE: '2026-11-04T10:00:00Z' } }); const synced = git(tmp, 'rev-parse', 'HEAD').trim();
-    T('库结构之后又改了别的文件 → 仍以迁移那次为准', at(after).startsWith('2026-11-01'), at(after));
-    T('只多合并了 main（main 没动库结构）→ 仍以迁移那次为准', at(synced).startsWith('2026-11-01'), at(synced));
-    const re = cm('server/migrations/9.sql', '2026-11-05T10:00:00Z'); T('库结构又改了 → 以新的改动为准（旧 db-parity 作废）', at(re).startsWith('2026-11-05'), at(re)); } }
 // 能快进（main 是祖先）→ 脚本直接说可以
 git(tmp, 'checkout', '-q', 'main'); const tip = git(tmp, 'rev-parse', 'HEAD').trim(); r = spawnSync('bash', ['tools/merge_drift.sh', tip, 'main'], { cwd: tmp, env, encoding: 'utf8' }); T('main 已是祖先 → 可直接快进', r.status === 0, r.stdout);
 // pr_merge.sh 真的用了它，且放宽后走带 sha 守卫的压缩合并

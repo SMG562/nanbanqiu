@@ -57,11 +57,9 @@ for W in tests-fast tests; do
   case "$L" in "completed success "*) yes "$W 通过（运行 ${L##* }）"; CI_IDS="$CI_IDS $W#${L##* }";; "null"*|"") no "$W：这个提交还没有运行记录";; *) no "$W：$L";; esac
 done
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
-  # 11-12（#229）：db-parity 证明的是「两库结构一致」，只和库结构内容有关——以库结构文件最后一次变化的提交时间为准，
-  #   不再以头提交时间为准：只多合并 main / 改了别的文件，库结构没变，之前的 db-parity 照样算数，不用为 main 前进再跑一轮
-  T=$(git log -1 --format=%cI "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql' 2>/dev/null); [ -n "$T" ] || T=$(git show -s --format=%cI "$SHA")
-  D=$(gh api "repos/$R/actions/workflows/db-parity.yml/runs?per_page=5" --jq "[.workflow_runs[]|select(.created_at > \"$(date -u -d "$T" +%Y-%m-%dT%H:%M:%SZ)\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\") \(.id)\"" 2>/dev/null)
-  case "$D" in "completed success "*) yes "改了数据库：db-parity 在库结构最后一次改动（$T）之后通过（运行 ${D##* }）";; *) no "改了数据库：需要在库结构最后一次改动（$T）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${D:-没有}";; esac
+  # db-parity 算不算数只有一份实现（11-13，#241）：以库结构最后一次改动为准，只多合并 main 不作废；tools/merge_gate.mjs 也调它
+  read -r DS DID DT <<<"$(bash tools/db_parity_since.sh "$SHA")"
+  if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"; fi
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
