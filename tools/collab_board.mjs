@@ -10,6 +10,11 @@ import { execFileSync } from 'node:child_process'; import crypto from 'node:cryp
 import { levelOf } from './decision_card.mjs'; import { carries } from './review_carry.mjs';
 
 export const OWNER = 'SMG562', WIP_LIMIT = 2, IDLE_DAYS = 3, D = 864e5;
+// 11-13（#233 活锁）：协作者每合一次 main 要等约 5 分钟 CI，而 main 约 20 分钟动一次、所有者约 16 分钟才看一次，同步永远追不上。
+// 同一个 PR 已「合并 main」≥ SYNC_LOOP 次、CI 又是绿的 = 别再同步，留【可合】让所有者当场合（GitHub 的 Approve 不是闸门）。
+export const SYNC_LOOP = 2;
+export const syncsOf = commits => commits.filter(c => (c.parents || []).length > 1 && /^Merge (remote-tracking )?(branch )?'?(origin\/)?main\b/.test(c.message || '')).length;
+export const syncText = (p, n) => `<!-- nbq-syncloop:${p.number} -->\n@${p.author} 这个 PR 已经合并 main ${n} 次了。CI 绿、能快进时**不要再同步**：在这里留一句「【可合 ${p.sha.slice(0, 7)}】」，所有者会话当场 \`bash tools/pr_merge.sh ${p.number}\`（GitHub 的 Approve 不是闸门，不用对头提交）。只有 \`pr_merge.sh ${p.number} --check\` 明确报「不能快进」才再 \`bash tools/sync_main.sh\` 一次。\n\n> 自动消息（协作看板），每个 PR 只提醒一次。`;
 export const BALL = { author: '球在作者', owner: '球在所有者', review: '球在复核', ci: '等CI', merge: '可合并' };
 const COLOR = { author: 'fbca04', owner: 'd93f0b', review: '5319e7', ci: 'c5def5', merge: '0e8a16' };
 const NAME = { tests: '浏览器测试', fast: 'tests-fast' };
@@ -53,8 +58,9 @@ export function classify(p, now = Date.now()) {
   }
   // 11-11：落后 main 不再把球推给作者——pr_merge.sh 自己判断（只多文档 / 文件不重叠自动放行，否则提示 sync_main.sh），省掉不必要的合 main 和重跑
   const bh = p.behind > 0 ? `（main 前进了 ${p.behind} 个提交：只多文档 / 文件不重叠会自动放行，否则它会提示 \`bash tools/sync_main.sh\`）` : '';
-  if (p.level === 'owner') return R('owner', '红线文件：需要所有者当场点头', `所有者看 diff 后 \`bash tools/pr_merge.sh ${p.number}\`${bh}`);
-  return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核'), `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
+  const loop = (p.syncs || 0) >= SYNC_LOOP ? `（已合并 main ${p.syncs} 次，别再同步，留【可合 ${p.sha.slice(0, 7)}】）` : '';
+  if (p.level === 'owner') return R('owner', '红线文件：需要所有者当场点头' + loop, `所有者看 diff 后 \`bash tools/pr_merge.sh ${p.number}\`${bh}`);
+  return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核') + loop, `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
 }
 
 // 11-12（#185 事故）：PR 草稿 / Ready 在 FLAP_MIN 分钟内被改 ≥ 2 次 = 有两个会话在抢状态。events = [{ event, actor, at }]，返回 null 或 { n, actors, key }
@@ -100,8 +106,9 @@ export function gather(R, now = Date.now()) {
     const runs = JSON.parse(gh(`repos/${R}/actions/runs?head_sha=${x.head.sha}&per_page=50`)).workflow_runs;
     const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? (r.status === 'queued' && now - Date.parse(r.created_at) > STUCK_MIN * 6e4 ? 'stuck' : 'pending') : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
+    const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
@@ -120,6 +127,7 @@ function main() {
       if (f && !already(p.comments, f.key)) post(p.number, flapText(p, f));
     }
     if (Object.values(p.ci).includes('stuck') && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, stuckKey(p))) post(p.number, stuckText(p));
+    if ((p.syncs || 0) >= SYNC_LOOP && ['owner', 'merge'].includes(c.ball) && !p.draft && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, `nbq-syncloop:${p.number}`)) post(p.number, syncText(p, p.syncs));
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));

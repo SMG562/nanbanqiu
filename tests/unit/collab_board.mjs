@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -20,6 +20,13 @@ T('红线：球在所有者，且不给作者发提醒', (c => c.ball === 'owner
 T('落后 main 不再推给作者（11-11 放宽）：照常可合并 / 红线归所有者，下一步提到 pr_merge 自动判断', ball({ behind: 3 }) === 'merge' && ball({ behind: 3, level: 'owner' }) === 'owner' && /sync_main/.test(classify(base({ behind: 3 })).next));
 T('什么都满足：可合并，带命令', (c => c.ball === 'merge' && c.ping && c.next.includes('pr_merge.sh 7'))(classify(base(), NOW)));
 T('闲置天数', classify(base({ updated: '2026-11-07T10:00:00Z' }), NOW).idle === 4);
+
+// 11-13（#233 活锁）：合并 main ≥ 2 次且 CI 绿 → 提示别再同步
+const mc = (m, n = 2) => ({ parents: Array(n).fill({}), message: m });
+T('数「合并 main」提交：只算两个父提交且信息是合并 main 的', syncsOf([mc("Merge branch 'main' into x"), mc("Merge remote-tracking branch 'origin/main' into x"), mc("Merge branch 'feature' into x"), mc("fix: 普通提交", 1), mc("Merge branch 'main'", 1)]) === 2);
+T('同步 ≥ SYNC_LOOP 且红线：原因里写明别再同步', /别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP }), NOW).reason) && !/别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP - 1 }), NOW).reason));
+T('同步 ≥ SYNC_LOOP 且可合并：原因里带【可合 <7位>】', classify(base({ syncs: SYNC_LOOP }), NOW).reason.includes('【可合 abcdef1】'));
+T('同步提醒：每 PR 一个去重键，不含「独立复核：通过」', (s => already([{ body: s }], 'nbq-syncloop:7') && !/独立复核：通过\s*[0-9a-f]{7}/.test(s))(syncText(base(), 2)));
 
 // ② 复核留言解析：和 pr_merge.sh 认的字符串一致；机器人的话不算
 const c = (body, bot = false) => ({ body, bot });
