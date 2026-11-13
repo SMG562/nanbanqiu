@@ -52,6 +52,9 @@ try {
   const d2 = copy(); const h = path.join(d2, B.TARGETS.web);
   fs.writeFileSync(h, fs.readFileSync(h, 'utf8').replace('</body>', '<!-- x --></body>')); T('自检：直接改 HTML → 失败', check(d2) === 1);
   const d3 = copy(); fs.writeFileSync(path.join(d3, 'src', 'shared', 'script', '9999-新文件.js'), '//\n'); T('自检：新文件没写进 list → 失败', check(d3) === 1);
+  const d7 = copy(); const lp = path.join(d7, 'src', 'pwa.list'); fs.appendFileSync(lp, lists.pwa[3] + '\n');
+  let m7 = ''; try { execFileSync('node', [path.join(d7, 'tools', 'build.mjs'), '--check'], { stdio: 'pipe' }) } catch (e) { m7 = String(e.stderr || e.message) }
+  T('自检：清单有重复行（union 合并两边都加了同一行）→ build 当场报错、点出是哪一行', /重复的行/.test(m7) && m7.includes(lists.pwa[3]), m7.slice(0, 300));
   // E3：后台同样受保护
   T('后台由 src/admin 拼出（list 里有文件）', (lists.admin || []).length >= 10 && lists.admin.every(r => r.startsWith('admin/')), lists.admin && lists.admin.slice(0, 3));
   const d4 = copy(); const ha = path.join(d4, B.TARGETS.admin);
