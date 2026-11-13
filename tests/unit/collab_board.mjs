@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -31,6 +31,11 @@ T('同步提醒：每 PR 一个去重键，不含「独立复核：通过」', (
 // 11-13（#241 同类第二次）：共同所有者自己的红线 PR → 球不在所有者，自己合
 T('红线 + 作者是共同所有者：可合并，写明不用等 Approve，且给作者发提醒', (c => c.ball === 'merge' && c.ping && /共同所有者/.test(c.reason) && /pr_merge\.sh 7/.test(c.next))(classify(base({ level: 'owner', coOwner: true }), NOW)));
 T('红线 + 作者不是共同所有者：仍是所有者', classify(base({ level: 'owner', coOwner: false }), NOW).ball === 'owner');
+
+const COT = '/schema.sql @SMG562 @MDD1102\n/server/migrations/ @SMG562 @MDD1102\n/tools/pr_merge.sh @SMG562\n/docs/adr/ @SMG562\n';
+T('共同所有者：改的红线路径 CODEOWNERS 那一行都写了他 → 自己合', coOwns(['schema.sql', 'server/migrations/1.sql'], COT, 'MDD1102'));
+T('共同所有者：红线里有只写 @SMG562 的路径（pr_merge.sh / ADR）→ 仍要所有者合（#250 的指正）', !coOwns(['schema.sql', 'tools/pr_merge.sh'], COT, 'MDD1102') && !coOwns(['docs/adr/0012.md'], COT, 'MDD1102'));
+T('没有红线文件 → 不适用', !coOwns([], COT, 'MDD1102'));
 
 // ② 复核留言解析：和 pr_merge.sh 认的字符串一致；机器人的话不算
 const c = (body, bot = false) => ({ body, bot });

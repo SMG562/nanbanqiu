@@ -7,11 +7,13 @@
 // 安全：只读 PR 元数据，不执行 PR 里的任何代码（工作流只用默认分支的版本）；评论正文只做正则匹配，不进 shell；机器人的评论不算「独立复核」（pr_merge.sh 认的字符串在提醒里写成占位符）。
 import { collect } from './review_state.mjs';
 import { execFileSync } from 'node:child_process'; import crypto from 'node:crypto'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
-import { levelOf } from './decision_card.mjs'; import { carries } from './review_carry.mjs';
+import { levelOf, redLines } from './decision_card.mjs'; import { carries } from './review_carry.mjs';
 
 export const OWNER = 'SMG562', WIP_LIMIT = 2, IDLE_DAYS = 3, D = 864e5;
 // 11-13（#233 活锁）：协作者每合一次 main 要等约 5 分钟 CI，而 main 约 20 分钟动一次、所有者约 16 分钟才看一次，同步永远追不上。
 // 同一个 PR 已「合并 main」≥ SYNC_LOOP 次、CI 又是绿的 = 别再同步，留【可合】让所有者当场合（GitHub 的 Approve 不是闸门）。
+// 11-13（协作者指出，#250）：共同所有者只在「CODEOWNERS 那一行也写了他」的路径上能自己合；只写 @SMG562 的路径（pr_merge.sh、gate.sh、CLAUDE.md、ADR、collab-board.yml …）GitHub 分支规则要所有者审，由所有者会话当场合
+export const coOwns = (ownerFiles, codeownersText, login) => { const lines = codeownersText.split('\n').filter(l => /^\//.test(l) && l.includes('@' + login)), res = redLines(lines.join('\n')); return ownerFiles.length > 0 && ownerFiles.every(f => res.some(r => r.test(f))) };
 export const SYNC_LOOP = 2;
 export const syncsOf = commits => commits.filter(c => (c.parents || []).length > 1 && /^Merge (remote-tracking )?(branch )?'?(origin\/)?main\b/.test(c.message || '')).length;
 export const syncText = (p, n) => `<!-- nbq-syncloop:${p.number} -->\n@${p.author} 这个 PR 已经合并 main ${n} 次了。CI 绿、能快进时**不要再同步**：在这里留一句「【可合 ${p.sha.slice(0, 7)}】」，所有者会话当场 \`bash tools/pr_merge.sh ${p.number}\`（GitHub 的 Approve 不是闸门，不用对头提交）。只有 \`pr_merge.sh ${p.number} --check\` 明确报「不能快进」才再 \`bash tools/sync_main.sh\` 一次。\n\n> 自动消息（协作看板），每个 PR 只提醒一次。`;
@@ -137,7 +139,8 @@ export function gather(R, now = Date.now()) {
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#')).includes(x.user.login), updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const lv = levelOf(files, CO), isCo = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).includes(x.user.login);
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: isCo && lv.level === 'owner' && coOwns(lv.owner, CO, x.user.login), updated: x.updated_at, level: lv.level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
