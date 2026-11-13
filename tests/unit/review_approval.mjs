@@ -1,0 +1,21 @@
+// tools/review_state.mjs approval（11-13，所有者 #233 拍板第 3 点）：红线 PR 的代码所有者 Approve 判定，和 GitHub 规则集同口径（非作者、代码所有者、当前头提交）。纯函数，不碰网络。
+import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
+import { approval, ownersOf } from '../../tools/review_state.mjs';
+const ROOT = process.argv[2] || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
+const H = 'a'.repeat(40), OLD = 'b'.repeat(40), O = ['SMG562'], rv = (u, s, c = H) => ({ user: { login: u }, state: s, commit_id: c });
+const A = (rs, author = 'MDD1102') => approval(rs, H, author, O);
+T('所有者对头提交 Approve → 通过', A([rv('SMG562', 'APPROVED')]).ok);
+T('没有任何审阅 → 不通过，写明请 SMG562 对头提交 Approve', (a => !a.ok && /请 SMG562 对头提交 aaaaaaa Approve/.test(a.why))(A([])));
+T('Approve 在旧提交上（新推送作废）→ 不通过，点名旧提交', (a => !a.ok && /旧提交 bbbbbbb/.test(a.why))(A([rv('SMG562', 'APPROVED', OLD)])));
+T('非代码所有者的 Approve 不算', !A([rv('someone', 'APPROVED')]).ok);
+T('作者自己的 Approve 不算（作者不能自批）', !approval([rv('SMG562', 'APPROVED')], H, 'SMG562', O).ok);
+T('先 Approve 后「要改」→ 不通过', !A([rv('SMG562', 'APPROVED'), rv('SMG562', 'CHANGES_REQUESTED')]).ok);
+T('先「要改」后 Approve 头提交 → 通过（以最后一次为准）', A([rv('SMG562', 'CHANGES_REQUESTED', OLD), rv('SMG562', 'APPROVED')]).ok);
+T('Approve 后只留评论（COMMENTED）→ 仍算通过', A([rv('SMG562', 'APPROVED'), rv('SMG562', 'COMMENTED')]).ok);
+T('Approve 被撤销（DISMISSED）→ 不通过', !A([rv('SMG562', 'APPROVED'), rv('SMG562', 'DISMISSED')]).ok);
+T('ownersOf：取 CODEOWNERS 里的账号，忽略注释和邮箱 / 团队写法之外的杂项', JSON.stringify(ownersOf('/a @SMG562   # 注释 @nobody\n/b @SMG562 @MDD1102\n')) === '["SMG562","MDD1102"]');
+const co = fs.readFileSync(path.join(ROOT, '.github/CODEOWNERS'), 'utf8'); T('仓库 CODEOWNERS 解析出 SMG562', ownersOf(co).includes('SMG562'), ownersOf(co));
+const pm = fs.readFileSync(path.join(ROOT, 'tools/pr_merge.sh'), 'utf8');
+T('pr_merge.sh：共同所有者合红线前调 review_state.mjs approval（所有者本人不需要）', /CO_OWNERS[^\n]*node tools\/review_state\.mjs approval "\$N" "\$SHA"/.test(pm));
+console.log(`review_approval: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

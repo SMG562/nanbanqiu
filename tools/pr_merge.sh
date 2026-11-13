@@ -65,7 +65,7 @@ PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口�
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
 case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   owner) if [ "$ME" = SMG562 ]; then yes "改了红线文件：所有者本人合并"
-    elif git show origin/main:.github/CO_OWNERS 2>/dev/null | grep -v '^#' | grep -qxF "$ME"; then yes "改了红线文件：共同所有者 $ME 合并（名单在 main 的 .github/CO_OWNERS）"   # 11-13：所有者批准协作者接近所有者权限；名单只认 main 上的版本
+    elif git show origin/main:.github/CO_OWNERS 2>/dev/null | grep -v '^#' | grep -qxF "$ME"; then AP=$(node tools/review_state.mjs approval "$N" "$SHA" 2>&1) && yes "改了红线文件：共同所有者 $ME 合并（名单在 main 的 .github/CO_OWNERS）；$AP" || no "改了红线文件：共同所有者可以点合并，但 GitHub 要求非作者的代码所有者对头提交 Approve——$AP"   # 11-13（#233 拍板）：提前读 Approve，不再等到最后被 405 拦
     else no "改了红线文件（CODEOWNERS）：只有所有者（SMG562）或共同所有者（.github/CO_OWNERS）能合，在 PR 上说明后等点头"; fi ;;
   review) PASS=$(gh api "repos/$R/issues/$N/comments" --paginate --jq '[.[]|select(.user.type!="Bot")|.body]' 2>/dev/null | node tools/review_state.mjs pass 2>/dev/null)   # 解析统一在 review_state.mjs（只认留言第一行，#201）
     if printf '%s\n' "$PASS" | grep -qx "${SHA:0:7}"; then yes "独立复核：已有「通过 ${SHA:0:7}」留言"
