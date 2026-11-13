@@ -32,7 +32,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'me=$(gh api user --jq .login 2>/dev/null || echo ?); [ \"$me\" = SMG562 ] && r=所有者 || r=协作者; echo \"身份：gh 账号 $me = 对话里的人（$r），不要再问；步骤只写 $r 能做的\"'"
+            "command": "bash -c 'me=$(gh api user --jq .login 2>/dev/null || echo ?); if [ \"$me\" = SMG562 ]; then r=所有者; elif git show origin/main:.github/CO_OWNERS 2>/dev/null | grep -qxF \"$me\"; then r=共同所有者; else r=协作者; fi; echo \"身份：gh 账号 $me = 对话里的人（$r），不要再问；步骤只写 $r 能做的\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/role_guard.mjs\"",
+            "timeout": 15
           }
         ]
       }
