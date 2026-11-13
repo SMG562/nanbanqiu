@@ -110,6 +110,8 @@ add('pg', 'pg/admin_admins', ['node', path.join(HERE, 'pg/admin_admins.mjs')], {
 add('pg', 'pg/admin_cities_api', ['node', path.join(HERE, 'pg/admin_cities_api.mjs')], { pass: [/admin_cities_api: \d+ 通过, 0 失败/], timeout: 300 });   // 城市接口 #27 第 4 步
 add('pg', 'pg/admin_switches', ['node', path.join(HERE, 'pg/admin_switches.mjs')], { pass: [/admin_switches: \d+ 通过, 0 失败/], timeout: 300 });   // 运行时开关后台接口 #49
 add('pg', 'pg/switches', ['node', path.join(HERE, 'pg/switches.mjs')], { pass: [/switches: \d+ 通过, 0 失败/], timeout: 300 });   // 运行时开关：前台接口行为 #49
+add('pg', 'pg/idempotency', ['node', path.join(HERE, 'pg/idempotency.mjs')], { pass: [/idempotency: \d+ 通过, 0 失败/], timeout: 300 });   // 写接口幂等的数据库部分 #276
+add('pg', 'pg/api_idem', ['node', path.join(HERE, 'pg/api_idem.mjs')], { pass: [/api_idem: \d+ 通过, 0 失败/], timeout: 300 });   // 写接口幂等的接口层 #276
 add('pg', 'pg/admin_stats', ['node', path.join(HERE, 'pg/admin_stats.mjs')], { pass: [/admin_stats: \d+ 通过, 0 失败/], timeout: 300 });   // 统计白名单接口 #27 第 4 步
 add('pg', 'pg/admin_sb_config', ['node', path.join(HERE, 'pg/admin_sb_config.mjs')], { pass: [/admin_sb_config: \d+ 通过, 0 失败/], timeout: 300 });   // 场边配置接口 #27 第 4 步
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });

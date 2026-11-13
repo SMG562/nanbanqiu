@@ -18,7 +18,7 @@
 ### 0.2 写操作的三条规矩
 1. **带当前状态条件**：改申请 / 邀约 / 球局时，数据库函数里一律 `where status = <调用时看到的状态>`。影响 0 行 = 别人刚改过，返回 409 `state_changed`，前台重新读取后提示。
 2. **同时操作**：数据库已保证不超员、不死锁（schema ⑧）。收到 40P01（死锁）/ 40001（序列化冲突）时整笔重试一次，仍失败返回 503 `busy_retry`。
-3. **重复提交**：发起球局、申请、约人、发消息、举报带 `Idempotency-Key` 请求头（前台每次点击生成一个），同一个 key 24 小时内重复提交返回第一次的结果。
+3. **重复提交**（#276）：发起球局、发消息、场边发帖、场边回复这 4 个会新插一行的接口认 `Idempotency-Key` 请求头（16–64 位字母、数字、`_`、`-`；前台每次点击生成一个，同一次点击的重发沿用）：同一个人同一个 key 24 小时内再来，返回第一次的结果、不再做一遍；同一个 key 用到别的接口 → 409 `idempotency_key_reused`；不带 key 照旧。其余写接口靠唯一约束或状态条件挡住重复（申请 → `already_applied`、约人 → `invite_pending`、举报 → `report_duplicate`，盘点见 #63），不认这个头。
 
 ### 0.3 前置拦截（多数写接口都先过这三关，顺序固定）
 1. 登录：未登录 → 401 `login_required`
@@ -146,6 +146,7 @@
 | noshow_window_closed | 409 | 结束 48 小时后不能再反馈 | 数据库 |
 | not_in_game | 403 | 已不在这局 | 数据库 |
 | report_duplicate | 409 | 你已经举报过，我们正在处理 | 数据库 reports_one_open |
+| idempotency_key_reused | 409 | 这次操作已经提交过了，刷新看看 | 数据库 idem_begin（同一个 Idempotency-Key 用在了别的接口上；#276） |
 | report_note_required | 422 | 选「其他」时写一句说明 | 数据库 reports_source_chk |
 | message_link | 422 | 暂不支持发送链接 | 数据库 |
 | chat_closed | 409 | 这局的群聊已关闭 | 数据库 |
@@ -174,6 +175,8 @@
 | sb_post_hourly_limit | 429 | 发得有点多，过一会儿再发吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | sb_post_daily_limit | 429 | 今天已经发了 20 条，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | client_outdated | 426 | 有新版本 · 点一下刷新 | 后端（环境变量 NBQ_MIN_BUILD 设了且请求头 X-NBQ-Build 低于它 / 没带；默认不启用，ADR 0013）；前台同时显示顶部新版本提示 |
+| register_paused | 403 | 暂时不接受新用户注册，请稍后再来 | 后端（运行时开关 register_paused 开，新号码注册；#49） |
+| maintenance | 503 | 系统维护中，请过几分钟再试 | 后端（运行时开关 maintenance 开，除开关读取与后台外的接口；带 Retry-After；#49） |
 | sb_topic_daily_limit | 429 | 今天已经发起了 3 个话题，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | replies_closed | 409 | 作者关闭了回复 | 数据库 api_sb_reply（场边 §14，F1b 并入） |
 

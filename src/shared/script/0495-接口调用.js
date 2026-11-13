@@ -4,6 +4,7 @@
  *   nbqNetMake(io)   接口调用：带登录令牌、统一错误（码 = 后端错误码，另有 network / login_required）
  *   nbqFrom*         后端字段 → 前台内存数据的形状（USERS / GAMES / PARTS / VEN）
  *   nbqLoadAll(net)  登录后一次读入：球场、我的资料、公开球局、我的球局、邀约
+ *   nbqIdemMake      重复提交的 Idempotency-Key：断网 / 5xx 后再点沿用同一个 key（#276）
  *   nbqUpdNeeded     新版本提示：本页构建号和 /build.json 的不一样（#63 第 3 件；页面接线里的 nbqUpdCheck / nbqUpdShow 负责取和显示）
  * 页面接线（把结果放进 USERS / GAMES / PARTS / VEN）在 "页面接线" 之后，第 4 轮起逐个操作改成「先调接口再更新缓存」。
  * 球场 id：接口给的是服务器 uuid，演示数据是 v1…；真实模式整个替换 VEN（球场导入正式库后才有数据，见进度记录）。 */
@@ -17,6 +18,7 @@ function nbqNetMake(io){
     const tk=opt.noauth?null:await io.token();
     if(tk)h.Authorization='Bearer '+tk;else if(!opt.anon&&!opt.noauth)return{ok:false,status:401,code:'login_required'};
     if(io.build)h['X-NBQ-Build']=io.build;
+    if(opt.idem)h['Idempotency-Key']=opt.idem;   // 重复提交（#276）：只有调用方给了才带
     const init={method,headers:h};
     if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
     let r;try{r=await io.fetch(base+path+qs(opt.query),init)}catch(_){return{ok:false,status:0,code:'network'}}
@@ -33,6 +35,12 @@ function nbqNetMake(io){
   return{call,get:(p,q,o)=>call('GET',p,{...o,query:q}),post:(p,b,o)=>call('POST',p,{...o,body:b===undefined?{}:b}),
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
+// 重复提交（#276）：同一个操作槽（发局 / 某个会话发消息）+ 同样的内容 → 沿用上次的 key，服务器返回第一次的结果，不会建出两局 / 发两条。
+//   沿用：上次没有明确结果（断网 status 0、5xx：不知道写没写进去），而且在 10 分钟内；换新 key：成功了、4xx 被明确拒了、内容改了、隔太久（服务端认 24 小时，前台只在短时间内当「重发」，免得过很久再说同一句话被当成旧的）
+function nbqIdemMake(rand,now){const M=new Map(),TTL=10*60e3;now=now||(()=>Date.now());
+  rand=rand||(()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,8));
+  return{key(slot,body){const sig=JSON.stringify(body??null),o=M.get(slot),t=now();if(o&&o.sig===sig&&t-o.t<TTL)return o.key;const k=rand();M.set(slot,{sig,key:k,t});return k},
+    done(slot,r){if(r&&(r.ok||(r.status>=400&&r.status<500)))M.delete(slot)}}}
 // 有没有新版本（#63 第 3 件）：本页构建号和 /build.json 的都有、且不一样。没有构建号（本地 / 测试）= 不提示
 const nbqUpdNeeded=(mine,remote)=>!!mine&&typeof remote==='string'&&!!remote&&remote!==mine;
 const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
@@ -144,6 +152,7 @@ const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='stag
 // 本页构建号（部署时 tools/site.mjs 写进 <meta name="nbq-build">；本地 / 测试拼的页面没有 = 空，不检查新版本、不带请求头）
 const NBQ_BUILD=(()=>{try{const m=document.querySelector('meta[name="nbq-build"]');return m&&m.content||''}catch(_){return''}})();
 const nbqBuildHdr=()=>NBQ_BUILD?{'X-NBQ-Build':NBQ_BUILD}:{};
+const NBQ_IDEM=nbqIdemMake();   // 重复提交的 key（#276）：发局、发消息用
 const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',build:NBQ_BUILD,onOutdated:()=>nbqUpdShow(),
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
@@ -298,7 +307,8 @@ function nbqEditBody(f,ns,apCount){const b={starts_at:ns.toISOString(),duration_
 const nbqEdit=(id,body)=>nbqWrite('edit'+id,n=>n.patch('/api/games/'+id,body));
 const nbqPostpone=id=>nbqWrite('postpone'+id,n=>n.post('/api/games/'+id+'/postpone'));
 const nbqAck=(id,choice)=>nbqWrite('ack'+id,n=>n.post('/api/games/'+id+'/change-ack',{choice}));
-async function nbqCreate(f){const d=await nbqWrite('create',n=>n.post('/api/games',nbqCreateBody(f)));return d&&d.id||null}
+async function nbqCreate(f){const b=nbqCreateBody(f);   // 断网后再点「发布」沿用同一个 key：不会建出两局（#276）；key 在 nbqWrite 放行后才取，被「发送中」拦下的点击不动槽位
+  const d=await nbqWrite('create',async n=>{const k=NBQ_IDEM.key('create',b),r=await n.post('/api/games',b,{idem:k});NBQ_IDEM.done('create',r);return r});return d&&d.id||null}
 
 /* ---- 邀约写操作（第 6 轮）：先调接口，成功后重读（以服务器为准）；失败提示错误码，邀约卡 / 表单留在原处 ---- */
 const nbqInvVen=id=>{const v=VEN[id];return v&&v.custom?{venue_name:v.name}:{venue_id:id}};   // 自填场地只传名字
@@ -376,7 +386,8 @@ async function nbqThreadOpen(tid){let t=THREADS.find(x=>x.id===tid);if(!t)return
     const ex=THREADS.find(x=>x.id===r.data.id&&x!==t);if(ex){THREADS.splice(THREADS.indexOf(t),1);t=ex}else{t.id=r.data.id;delete t.tmp;t.srv=true}}
   await nbqLoadMsgs(t);NBQ_NET.post('/api/threads/'+t.id+'/read');cxDraw(t.id)}
 async function nbqSendMsg(t,text){const k='msg'+t.id;if(NBQ_BUSY.has(k))return;NBQ_BUSY.add(k);
-  try{const r=await NBQ_NET.post('/api/threads/'+t.id+'/messages',{body:text});
+  const b={body:text},ik=NBQ_IDEM.key(k,b);   // 断网后再点「发送」沿用同一个 key：不会发出两条（#276）
+  try{const r=await NBQ_NET.post('/api/threads/'+t.id+'/messages',b,{idem:ik});NBQ_IDEM.done(k,r);
     if(!r.ok){if(r.code!=='login_required')toast(apiErrText(r.code));return}   // 没发出去：输入框里的字留着
     MSGS.push({tid:t.id,from:ME.id,text,at:Date.now(),id:r.data.id});LASTREAD[ME.id+'|'+t.id]=Date.now();cxDraw(t.id);track('chat_send',{type:t.type,quick:QUICK.includes(text)})}
   finally{NBQ_BUSY.delete(k)}}

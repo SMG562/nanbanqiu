@@ -52,4 +52,5 @@ admin/script/0330-真数据_管理员与日志.js
 admin/script/0340-真数据_城市.js
 admin/script/0350-真数据_统计页.js
 admin/script/0360-真数据_场边配置.js
+admin/script/0365-真数据_开关.js
 admin/page/0030-结尾.html
