@@ -46,7 +46,7 @@ for (const p of posters()) {
 // 代码里最新的数据库迁移（文件名去掉 .sql）；线上库执行到的版本要等于它（/api/version 的 schema.latest）
 export function migrations() { try { return fs.readdirSync(path.join(ROOT, 'server', 'migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).sort().map(f => f.replace(/\.sql$/, '')) } catch { return [] } }
 export const latestMigration = () => migrations().pop() || null;
-export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json'];
+export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json', 'build.json'];
 // Pages Functions 只在这些路径上运行（其余静态文件直接给，不算函数调用次数）：
 //   /（跳城市网址）· /melbourne/ 等（按宽度载入手机版 / 网页版）· 旧 /pwa.html /web.html（导航请求跳城市网址）· server/site_route.mjs · 正式站 /materials 回首页 · /api · 分享短链接 /g、/p
 export const ROUTES = { version: 1, include: ['/', '/melbourne', '/melbourne/', '/sydney', '/sydney/', '/pwa', '/pwa.html', '/web', '/web.html', '/materials', '/materials.html', '/api/*', '/admin/api/*', '/g/*', '/p/*'], exclude: [] };
@@ -65,6 +65,19 @@ function commit() {
   if (env) return env.slice(0, 7);
   try { return execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' }
 }
+
+// 构建号（#63 第 3 件，ADR 0013）：提交时间（秒）+ 短提交号，如 1763017920-a9356c8；按前面的数字比大小（最低前端版本用）。
+//   写进手机版 / 网页版页面的 <meta name="nbq-build">，并生成 /build.json；页面回到前台时比较两者，不一样 = 有新版本。
+//   拿不到提交时间（不在 git 里）就不生成构建号：页面不检查、不带 X-NBQ-Build。
+export function buildId() {
+  const sha = commit(); if (!sha) return '';
+  for (const ref of [process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA, 'HEAD'].filter(Boolean)) {
+    try { const t = execFileSync('git', ['log', '-1', '--format=%ct', ref], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); if (/^\d+$/.test(t)) return `${t}-${sha}` } catch { /* 下一个 */ }
+  }
+  return '';
+}
+export const BUILD_PAGES = ['pwa.html', 'web.html'];
+export const stampBuild = (html, id) => id ? html.replace(/<head>/i, `<head><meta name="nbq-build" content="${id}">`) : html;
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export function indexHTML(sha, when) {
@@ -169,6 +182,9 @@ export function build(out = path.join(ROOT, 'site')) {
     for (const f of [...Object.keys(FILES), ...GENERATED]) { const p = path.join(out, f); if (fs.existsSync(p)) fs.unlinkSync(p) }
   } else fs.mkdirSync(out);
   for (const [to, from] of Object.entries(FILES)) { fs.mkdirSync(path.dirname(path.join(out, to)), { recursive: true }); fs.copyFileSync(path.join(ROOT, from), path.join(out, to)) }
+  const bid = buildId();
+  for (const f of BUILD_PAGES) fs.writeFileSync(path.join(out, f), stampBuild(fs.readFileSync(path.join(out, f), 'utf8'), bid));
+  fs.writeFileSync(path.join(out, 'build.json'), JSON.stringify({ build: bid }) + '\n');
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), previewManifest(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8')));
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }).slice(0, -3);
   fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));   // 只有预览站根用得到；正式站 / 由中间件给选排版页

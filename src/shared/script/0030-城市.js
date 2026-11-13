@@ -34,7 +34,7 @@ function citySoon(){if(['on','beta'].includes(CITY.status)||document.getElementB
   document.head.appendChild(st);(box||document.body).appendChild(d);
   document.getElementById('csF').onsubmit=e=>{e.preventDefault();const i=document.getElementById('csE'),v=i.value.trim();
     if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v)){i.style.borderColor='var(--red)';i.focus();return}
-    try{if(/^https?:$/.test(location.protocol))fetch('/api/city-waitlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city:CITY.key,email:v})}).catch(()=>{})}catch(_){}
+    try{if(/^https?:$/.test(location.protocol))fetch('/api/city-waitlist',{method:'POST',headers:{'Content-Type':'application/json',...(typeof nbqBuildHdr==='function'?nbqBuildHdr():{})},body:JSON.stringify({city:CITY.key,email:v})}).catch(()=>{})}catch(_){}
     document.getElementById('csF').hidden=true;document.getElementById('csOk').hidden=false};
   return true}
 addEventListener('DOMContentLoaded',()=>setTimeout(citySoon,0));

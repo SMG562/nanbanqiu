@@ -18,10 +18,11 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
   for (const f of ['南伴球_PWA.html', '南伴球_Web.html']) {
     const W = f.includes('Web'), ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = [], api = []; pg.on('pageerror', e => errs.push(e.message));
-    const S = { registered: true, meUser: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: iso(-100), gender: 'f', club_ids: [V2] }, now: Date.now(), regBody: null, clubsBody: null, genderBody: null };
+    const S = { registered: true, meUser: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: iso(-100), gender: 'f', club_ids: [V2] }, now: Date.now(), regBody: null, clubsBody: null, genderBody: null, build: null, remote: null, bj: 0, hdrs: [], force426: false };
     const tag = s => `${f} ${s}`, GM = () => ({ ...GAME, starts_at: new Date(S.now + 30 * 3600e3).toISOString() });   // 页面里的时钟被测试框架固定在 10-14，球局时间跟着页面走
-    const html = r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, f)) });
-    await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return html(r);
+    const html = r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: S.build ? fs.readFileSync(path.join(DIR, f), 'utf8').replace(/<head>/i, `<head><meta name="nbq-build" content="${S.build}">`) : fs.readFileSync(path.join(DIR, f)) });   // S.build：像部署时 tools/site.mjs 那样写进构建号
+    await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()); if (u.pathname === '/build.json') { S.bj++; return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ build: S.remote }) }) } if (!u.pathname.startsWith('/api/')) return html(r);
+      S.hdrs.push(r.request().headers()['x-nbq-build'] || ''); if (S.force426 && u.pathname === '/api/games/mine') return r.fulfill({ status: 426, contentType: 'application/json', body: '{"error":"client_outdated"}' });
       const m = r.request().method(), p = u.pathname, body = r.request().postData(); api.push(m + ' ' + p); if (p === '/api/games') S.gamesAuth = r.request().headers()['authorization'] || null; const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (p === '/api/venues') return J(200, { venues: VENUES });
       if (p === '/api/me' && m === 'GET') return J(200, S.registered ? { registered: true, user: S.meUser } : { registered: false });
@@ -123,6 +124,27 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       T(tag('恢复登录期间：我的球局 / 通知 / 我的 / 首页都不画「登录」'), r.length === 0, r) }
     { const hdr = await pg.evaluate(() => { const m = document.querySelector('#meSlot'); return m ? { web: true, login: !!m.querySelector('[data-a="login"]'), me: !!m.querySelector('.me') } : { web: false } });
       T(tag('刷新后页面也画成已登录（网页端右上角是头像，不再是「登录」按钮）'), !hdr.web || (hdr.me && !hdr.login), hdr); }
+    // ⑤c 新版本提示 + 最低前端版本（#63 第 3 件，ADR 0013）
+    { const bar = () => pg.evaluate(() => { const b = document.getElementById('nbqUpd'); return b ? b.innerText : null });
+      const back = (ago) => pg.evaluate(m => { NBQ_UPD.at -= m; document.dispatchEvent(new Event('visibilitychange')) }, ago);
+      S.build = S.remote = '1763017920-aaaaaaa'; S.hdrs.length = 0; await pg.reload(); await pg.settle(1200);
+      T(tag('部署的页面带构建号：每个 /api 请求都带 X-NBQ-Build'), S.hdrs.length > 0 && S.hdrs.every(h => h === S.build), S.hdrs);
+      S.bj = 0; await back(5 * 60e3); await pg.settle(300);
+      T(tag('回到前台但距上次检查不到 10 分钟：不去取 /build.json'), S.bj === 0, S.bj);
+      await back(11 * 60e3); await pg.settle(400);
+      T(tag('超过 10 分钟回到前台：取 /build.json；线上没变 → 不提示'), S.bj === 1 && await bar() === null, [S.bj, await bar()]);
+      S.remote = '1763099999-bbbbbbb';
+      const typing = await pg.evaluate(async () => { const i = document.createElement('input'); i.id = '__typ'; document.body.appendChild(i); i.focus(); NBQ_UPD.at -= 11 * 60e3; document.dispatchEvent(new Event('visibilitychange')); await new Promise(r => setTimeout(r, 500)); return { bar: !!document.getElementById('nbqUpd'), focus: document.activeElement === i } });
+      T(tag('有新版本但正在输入：先不出提示、不抢焦点'), !typing.bar && typing.focus, typing);
+      await pg.evaluate(() => { const i = document.getElementById('__typ'); i.blur(); i.remove() }); await pg.settle(700);
+      T(tag('离开输入框后出现不打断的提示「有新版本 · 点一下刷新」（不是弹层）'), await bar() === '有新版本 · 点一下刷新' && await pg.evaluate(() => { const b = document.getElementById('nbqUpd'), r = b.getBoundingClientRect(); return getComputedStyle(b).position === 'fixed' && r.height < 60 && r.top >= 0 && r.bottom <= innerHeight }), await bar());
+      S.build = S.remote; S.hdrs.length = 0; await Promise.all([pg.waitForNavigation(), pg.click('#nbqUpd')]); await pg.settle(1500); s = await state();
+      T(tag('点提示 → 重新载入成新版，仍是登录状态（页面也是已登录样子），提示消失'), s.me === 'Sam' && await pg.evaluate(() => NBQ_BUILD) === S.build && await bar() === null && await uiOK(true), [s, await bar()]);
+      S.force426 = true; const r426 = await pg.evaluate(async () => { const r = await NBQ_NET.get('/api/games/mine'); return { code: r.code, me: !!ME, tk: !!localStorage.getItem('nbq_sb') } }); await pg.settle(300);
+      T(tag('接口回 426 client_outdated：显示同一条新版本提示，不退出登录'), r426.code === 'client_outdated' && r426.me && r426.tk && await bar() === '有新版本 · 点一下刷新', [r426, await bar()]);
+      T(tag('client_outdated 有中文提示（不落到「出了点问题」）'), await pg.evaluate(() => apiErrText('client_outdated')) === '有新版本 · 点一下刷新');
+      S.force426 = false; S.build = S.remote = null; await pg.reload(); await pg.settle(1200);
+      T(tag('本地 / 测试拼的页面（没有构建号）：不带 X-NBQ-Build、回到前台也不检查'), await pg.evaluate(() => NBQ_BUILD) === '' && (S.bj = 0, await back(11 * 60e3), await pg.settle(300), S.bj === 0), S.bj); }
     // ⑤b 令牌过期后重新打开（手机桌面应用隔一阵再开）
     const expire = () => pg.evaluate(() => { const k = JSON.parse(localStorage.getItem('nbq_sb')); k.expires_at = Math.floor(Date.now() / 1000) - 7200; localStorage.setItem('nbq_sb', JSON.stringify(k)) });
     await expire(); REF.n = 0; REF.mode = 'ok'; await pg.reload(); await pg.settle(1500); s = await state();

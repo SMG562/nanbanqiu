@@ -4,16 +4,19 @@
  *   nbqNetMake(io)   接口调用：带登录令牌、统一错误（码 = 后端错误码，另有 network / login_required）
  *   nbqFrom*         后端字段 → 前台内存数据的形状（USERS / GAMES / PARTS / VEN）
  *   nbqLoadAll(net)  登录后一次读入：球场、我的资料、公开球局、我的球局、邀约
+ *   nbqUpdNeeded     新版本提示：本页构建号和 /build.json 的不一样（#63 第 3 件；页面接线里的 nbqUpdCheck / nbqUpdShow 负责取和显示）
  * 页面接线（把结果放进 USERS / GAMES / PARTS / VEN）在 "页面接线" 之后，第 4 轮起逐个操作改成「先调接口再更新缓存」。
  * 球场 id：接口给的是服务器 uuid，演示数据是 v1…；真实模式整个替换 VEN（球场导入正式库后才有数据，见进度记录）。 */
 function nbqNetMake(io){
-  // io: {fetch, token:()=>Promise<string|null>, base:string, onAuthLost?:()=>void}
+  // io: {fetch, token:()=>Promise<string|null>, base:string, onAuthLost?:()=>void, build?:string, onOutdated?:()=>void}
+  //   build：本页构建号，每个请求带 X-NBQ-Build（ADR 0013）；服务端回 426 client_outdated → onOutdated（显示「有新版本」提示）
   const base=String(io.base||'').replace(/\/+$/,'');
   const qs=o=>{const p=Object.keys(o||{}).filter(k=>o[k]!==undefined&&o[k]!==null&&o[k]!=='').map(k=>encodeURIComponent(k)+'='+encodeURIComponent(o[k]));return p.length?'?'+p.join('&'):''};
   async function call(method,path,opt){
     opt=opt||{};const h={Accept:'application/json'};
     const tk=opt.noauth?null:await io.token();
     if(tk)h.Authorization='Bearer '+tk;else if(!opt.anon&&!opt.noauth)return{ok:false,status:401,code:'login_required'};
+    if(io.build)h['X-NBQ-Build']=io.build;
     const init={method,headers:h};
     if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
     let r;try{r=await io.fetch(base+path+qs(opt.query),init)}catch(_){return{ok:false,status:0,code:'network'}}
@@ -21,6 +24,7 @@ function nbqNetMake(io){
     if(r.ok)return{ok:true,status:r.status,data:d||{}};
     const code=(d&&typeof d.error==='string'&&d.error)||(r.status===401?'login_required':r.status===429?'rate_limited':r.status>=500?'db_unavailable':'unknown');
     if(r.status===401&&tk&&io.onAuthLost)io.onAuthLost();
+    if(r.status===426&&io.onOutdated)io.onOutdated();
     const out={ok:false,status:r.status,code};
     if(d&&d.detail!==undefined)out.detail=d.detail;
     const ra=typeof r.headers?.get==='function'?+r.headers.get('Retry-After'):0;
@@ -29,6 +33,8 @@ function nbqNetMake(io){
   return{call,get:(p,q,o)=>call('GET',p,{...o,query:q}),post:(p,b,o)=>call('POST',p,{...o,body:b===undefined?{}:b}),
     put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
+// 有没有新版本（#63 第 3 件）：本页构建号和 /build.json 的都有、且不一样。没有构建号（本地 / 测试）= 不提示
+const nbqUpdNeeded=(mine,remote)=>!!mine&&typeof remote==='string'&&!!remote&&remote!==mine;
 const nbqMs=t=>t==null?null:typeof t==='number'?t:Date.parse(t);
 // 枚举字段进前台的统一检查（11-03）：库里的值不在前台认得的名单里 → 用兜底值，同时上报一条「未知枚举值」（进后台报错列表、冒烟测试会变红），不再悄悄当成有效值往下传
 const NBQ_ENUM_SEEN=new Set();
@@ -135,9 +141,28 @@ function nbqKeyBytes(k){const p='='.repeat((4-String(k).length%4)%4),b=atob((Str
 // 真实数据只在正式域名 nanbanqiu.app（含 www）启用，且登录模块已配置；预览站（pages.dev）登录是真的，数据仍是演示（10-30 定）。
 // 演示模式 NBQ_NET 为 null，其余代码照旧。
 const NBQ_REAL=typeof location!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging')&&typeof SBA!=='undefined'&&SBA.on();   // 测试库（staging）与正式一样走真实数据，只是连的是测试库
-const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',
+// 本页构建号（部署时 tools/site.mjs 写进 <meta name="nbq-build">；本地 / 测试拼的页面没有 = 空，不检查新版本、不带请求头）
+const NBQ_BUILD=(()=>{try{const m=document.querySelector('meta[name="nbq-build"]');return m&&m.content||''}catch(_){return''}})();
+const nbqBuildHdr=()=>NBQ_BUILD?{'X-NBQ-Build':NBQ_BUILD}:{};
+const NBQ_NET=NBQ_REAL?nbqNetMake({fetch:(u,o)=>fetch(u,o),base:'',build:NBQ_BUILD,onOutdated:()=>nbqUpdShow(),
   token:async()=>{const s=await SBA.fresh();return s?s.access_token:null},
   onAuthLost:()=>{sbaLogout();render()}}):null;
+/* ---- 新版本提示（#63 第 3 件，ADR 0013）----
+ * 长时间开着的标签页 / PWA 不会自己换新代码。页面回到前台、且距上次检查 ≥ 10 分钟时取 /build.json 比较；不一样（或接口回 426 client_outdated、
+ * 或 Service Worker 发现新版）→ 顶上一条不打断的提示「有新版本 · 点一下刷新」：不弹层、不抢焦点；正在输入时先不出，离开输入框再出。
+ * 点一下 = 重新载入；登录靠本机快照 + 刷新令牌保持（与平时刷新一样）。 */
+const NBQ_UPD={at:Date.now(),shown:false,pend:false,gap:10*60*1000};
+const nbqTyping=()=>{const a=typeof document!=='undefined'&&document.activeElement;return!!a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||!!a.isContentEditable)};
+function nbqUpdShow(){if(NBQ_UPD.shown||typeof document==='undefined'||!document.body)return;
+  if(nbqTyping()){if(!NBQ_UPD.pend){NBQ_UPD.pend=true;document.addEventListener('focusout',function f(){setTimeout(()=>{if(nbqTyping())return;document.removeEventListener('focusout',f);NBQ_UPD.pend=false;nbqUpdShow()},300)})}return}
+  NBQ_UPD.shown=true;const b=document.createElement('button');b.type='button';b.id='nbqUpd';b.setAttribute('role','status');b.textContent='有新版本 · 点一下刷新';
+  b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + '+(document.getElementById('nbqEnvBar')?26:8)+'px);z-index:2147483001;border:0;border-radius:999px;padding:7px 16px;font:600 13px/18px system-ui,sans-serif;color:#fff;background:#176B4D;box-shadow:0 2px 8px rgba(16,24,40,.22);cursor:pointer;white-space:nowrap';
+  b.addEventListener('click',()=>location.reload());
+  document.body.appendChild(b)}
+async function nbqUpdCheck(force){if(!NBQ_BUILD||NBQ_UPD.shown)return;const now=Date.now();if(!force&&now-NBQ_UPD.at<NBQ_UPD.gap)return;NBQ_UPD.at=now;
+  try{const r=await fetch('/build.json',{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(nbqUpdNeeded(NBQ_BUILD,j&&j.build))nbqUpdShow()}catch(_){}}
+if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nbqUpdCheck()});
+if(NBQ_BUILD&&typeof navigator!=='undefined'&&'serviceWorker'in navigator)navigator.serviceWorker.getRegistration().then(reg=>{if(reg)reg.addEventListener('updatefound',()=>{const w=reg.installing;if(w)w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)nbqUpdShow()})})}).catch(()=>{});
 // 清掉内存里的演示数据（真实模式启动时、退出登录时）。固定球局会在每次 housekeep 里自动补下一场，所以 SERIES 也要清；对话、邀约、点赞同理
 // 会话代数（11-09）：每次清空（退出登录 / 换人）加一。异步读取开始时记下，回来时不一样 = 期间退出过 → 丢掉结果，不套用
 //   （原来读到一半退出，回来后 nbqApply 又把 ME 设回去，等于自动登录回上一个人；读通知时 ME 已空，ME.id 报错）
@@ -418,12 +443,12 @@ async function nbqPushDiag(){if(!NBQ_NET||!ME)return null;let ep=null;
 async function nbqPushOff(){if(!NBQ_NET||!('serviceWorker'in navigator))return;
   const s=SBA.session(),tk=s&&s.access_token;
   try{const reg=await navigator.serviceWorker.getRegistration();const sub=reg&&await reg.pushManager.getSubscription();if(!sub)return;
-    if(tk)await fetch('/api/push/subscriptions',{method:'DELETE',headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint}),keepalive:true});
+    if(tk)await fetch('/api/push/subscriptions',{method:'DELETE',headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json',...nbqBuildHdr()},body:JSON.stringify({endpoint:sub.endpoint}),keepalive:true});
     await sub.unsubscribe()}catch(_){}}
 // 埋点：已登录且令牌还新鲜就带令牌发（服务端才认 user_id）；否则交回 sendBeacon（匿名，登录后靠 login_success 关联）。返回 true = 已发
 function nbqEventsSend(batch){if(!NBQ_NET||!ME)return false;
   const s=SBA.session();if(!s||!(s.expires_at-Date.now()/1000>30))return false;
-  try{fetch('/api/events',{method:'POST',keepalive:true,headers:{Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:JSON.stringify({v:2,events:batch})}).catch(()=>{});return true}catch(_){return false}}
+  try{fetch('/api/events',{method:'POST',keepalive:true,headers:{Authorization:'Bearer '+s.access_token,'Content-Type':'application/json',...nbqBuildHdr()},body:JSON.stringify({v:2,events:batch})}).catch(()=>{});return true}catch(_){return false}}
 // 手机号已验证、但新号码还没填资料就把资料卡划掉了：再点「登录 / 注册」直接回到填资料，不再要一遍验证码
 if(NBQ_NET){const _oa=openAuth;openAuth=function(next,why){
   if(!ME&&SBA.session()){AUTH.next=next||null;nbqEnter().then(e=>{if(e.st==='new')openNewProfile();else if(e.st==='ok'){render();if(next)setTimeout(next,380)}else if(e.st!=='gone')_oa(next,why)});return}
