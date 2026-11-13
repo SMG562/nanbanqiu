@@ -38,8 +38,8 @@ T('pr_merge：叠加 PR 的目标分支不删', /pulls\?state=open&base=\$HEAD/.
 T('pr_merge：合并后又有人推过就不删', /git\/ref\/heads\/\$HEAD[^\n]*\.object\.sha[^\n]*= "\$SHA"/.test(fn));
 T('pr_merge：所有者快进、协作者压缩合并两个出口都删', /^drop_branch$/m.test(pm) && /drop_branch; exit 0/.test(pm));
 // 11-13（#267）：云端代理禁 REST 删引用（403）、GitHub 自动删是异步的 → 退到 git push --delete，再隔几秒复查，不误报「没删掉」
-T('pr_merge：REST 删不了就退到 git push --delete', /git push -q origin --delete "\$HEAD"/.test(fn));
-T('pr_merge：查到还在时隔几秒再查（等 GitHub 自动删）', /for i in 1 2 3;[^\n]*git\/ref\/heads\/\$HEAD[^\n]*sleep/.test(fn));
+T('pr_merge：REST 删不了就退到 git push --delete（带 NBQ_REWRITE，否则 pre-push 钩子拦下，#270 合并时实际遇到）', /NBQ_REWRITE="[^"]+" git push -q origin --delete "\$HEAD"/.test(fn));
+T('pr_merge：查到还在时隔几秒再查（等 GitHub 自动删）', /for i in 1 2 3 4 5;[^\n]*git\/ref\/heads\/\$HEAD[^\n]*sleep/.test(fn));
 const nb = fs.readFileSync(new URL('../../tools/new_branch.sh', import.meta.url), 'utf8');
 T('pr_merge：删分支时清掉它的点名 fetch 规则（否则之后 git fetch 报 couldn\'t find remote ref）', /git config --unset-all remote\.origin\.fetch "\^\\\+refs\/heads\/\$HEAD:"/.test(fn));
 T('new_branch：已有通配 fetch 规则就不加点名规则', /grep -qxF "\+refs\/heads\/\*:refs\/remotes\/origin\/\*" \|\|[^\n]*git config --add remote\.origin\.fetch/.test(nb));
