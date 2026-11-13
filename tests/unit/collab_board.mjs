@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -21,6 +21,13 @@ T('落后 main 不再推给作者（11-11 放宽）：照常可合并 / 红线�
 T('什么都满足：可合并，带命令', (c => c.ball === 'merge' && c.ping && c.next.includes('pr_merge.sh 7'))(classify(base(), NOW)));
 T('闲置天数', classify(base({ updated: '2026-11-07T10:00:00Z' }), NOW).idle === 4);
 
+// 11-13（#233 活锁）：合并 main ≥ 2 次且 CI 绿 → 提示别再同步
+const mc = (m, n = 2) => ({ parents: Array(n).fill({}), message: m });
+T('数「合并 main」提交：只算两个父提交且信息是合并 main 的', syncsOf([mc("Merge branch 'main' into x"), mc("Merge remote-tracking branch 'origin/main' into x"), mc("Merge branch 'feature' into x"), mc("fix: 普通提交", 1), mc("Merge branch 'main'", 1)]) === 2);
+T('同步 ≥ SYNC_LOOP 且红线：原因里写明别再同步', /别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP }), NOW).reason) && !/别再同步/.test(classify(base({ level: 'owner', syncs: SYNC_LOOP - 1 }), NOW).reason));
+T('同步 ≥ SYNC_LOOP 且可合并：原因里带【可合 <7位>】', classify(base({ syncs: SYNC_LOOP }), NOW).reason.includes('【可合 abcdef1】'));
+T('同步提醒：每 PR 一个去重键，不含「独立复核：通过」', (s => already([{ body: s }], 'nbq-syncloop:7') && !/独立复核：通过\s*[0-9a-f]{7}/.test(s))(syncText(base(), 2)));
+
 // ② 复核留言解析：和 pr_merge.sh 认的字符串一致；机器人的话不算
 const c = (body, bot = false) => ({ body, bot });
 T('「独立复核：通过 <本提交>」→ pass', reviewState([c('独立复核：通过 abcdef1')], SHA) === 'pass');
@@ -29,6 +36,13 @@ T('「独立复核（<本提交>，…）：**要改」→ fix', reviewState([c(
 T('要改的是旧提交、之后推过新提交 → rereview', reviewState([c('独立复核（1111111，x）：**要改')], SHA) === 'rereview');
 T('机器人的评论不算复核（即使写了通过）', reviewState([c('独立复核：通过 abcdef1', true)], SHA) === 'none');
 T('没有留言 → none', reviewState([], SHA) === 'none');
+// 11-12（#197）：只多合并了 main → 旧「通过」沿用，看板和 pr_merge.sh 同口径（判据都是 tools/review_carry.mjs）
+const yes = () => true, only = o => x => x === o;
+T('旧提交通过 + 能沿用 → pass（不再喊「需要独立复核」）', reviewState([c('独立复核：通过 1111111')], SHA, only('1111111')) === 'pass');
+T('旧提交通过 + 不能沿用（文件变了）→ none', reviewState([c('独立复核：通过 1111111')], SHA, () => false) === 'none');
+T('当前提交「要改」优先于沿用旧的通过', reviewState([c('独立复核：通过 1111111'), c('独立复核（abcdef1，x）：要改')], SHA, yes) === 'fix');
+T('机器人的「通过」即使能沿用也不算', reviewState([c('独立复核：通过 1111111', true)], SHA, yes) === 'none');
+T('沿用判断只问留言里出现过的提交', (() => { const asked = []; reviewState([c('独立复核：通过 1111111')], SHA, o => (asked.push(o), false)); return asked.join() === '1111111' })());
 
 // ③ 提醒：去重键、不会冒充复核、不会泄漏
 const cl = classify(base(), NOW), P = base();

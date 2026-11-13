@@ -1,6 +1,6 @@
 # 协作看板（11-11，#167 第四节）：每个 PR「球在谁手里」由机器推出，球换手时自动 @ 对方并写明下一步，所有者只在红线集合变化时被提醒一次。
 #   说明和判定规则见 tools/collab_board.mjs。约 20 秒、只读 PR 元数据，不执行任何 PR 里的代码：
-#   用的触发器（schedule / workflow_run / issue_comment / pull_request_target / 手动）都在默认分支的版本上跑，且只检出默认分支的三个文件。
+#   用的触发器（schedule / workflow_run / issue_comment / pull_request_target / 手动）都在默认分支的版本上跑，且只检出默认分支的几个脚本；PR 的提交只按需 git fetch 来比对目录树（复核沿用），不检出、不执行。
 name: collab-board
 
 on:
@@ -33,12 +33,38 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0                     # 复核沿用（tools/review_carry.mjs）要比对提交历史；blob:none 只取提交和目录树，不取文件内容
+          filter: blob:none
           sparse-checkout: |
             tools/collab_board.mjs
             tools/decision_card.mjs
             tools/review_state.mjs
+            tools/review_carry.mjs
             .github/CODEOWNERS
           sparse-checkout-cone-mode: false   # 非 cone 模式下多个路径要换行分隔（空格分隔检出的是空目录，首次运行就是这么失败的）
       - name: 更新看板、标签和提醒
         env: { GH_TOKEN: '${{ github.token }}' }
         run: node tools/collab_board.mjs
+
+  # 影子运行（11-13，方案「auto-merge 与合并闸门必需检查」第 1 步）：对每个开着的非草稿 PR 同时跑 merge_gate.mjs 和 `pr_merge.sh --check`，
+  # 只把两边结论写进运行摘要；不一致用 ::warning 标出。**不是必需检查，不合并、不评论、不改任何 PR**；只用默认分支上的脚本，PR 的提交只 fetch 比对，不检出、不执行。
+  # 跑一周、一致率 ≥ 95% 后，才由所有者决定是否设为必需检查（红线）。
+  shadow:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: merge-gate 影子运行
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          set -u
+          git config user.email shadow@invalid && git config user.name shadow
+          echo '| PR | 提交 | merge-gate | pr_merge --check | 一致 | 不过的项 |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|---|---|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          for n in $(gh api 'repos/${{ github.repository }}/pulls?state=open&per_page=30' --jq '.[]|select(.draft==false)|.number'); do
+            out=$(node tools/merge_gate.mjs "$n" --shadow 2>&1 | tail -1) || true
+            if echo "$out" | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8"));const m=b=>b?"✅":"❌";console.log(`| #${j.pr} | ${j.sha} | ${m(j.gate)} | ${m(j.pr_merge)} | ${j.agree?"是":"**否**"} | ${(j.gateFails||[]).join(",")} |`);if(!j.agree)console.log(`::warning::merge-gate 与 pr_merge.sh 结论不一致：#${j.pr} ${JSON.stringify(j)}`)' >> "$GITHUB_STEP_SUMMARY" 2>/tmp/err; then :; else echo "| #$n | — | 读不到 | — | — | ${out:0:80} |" >> "$GITHUB_STEP_SUMMARY"; fi
+            echo "shadow #$n: $out"
+          done
