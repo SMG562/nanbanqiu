@@ -56,7 +56,8 @@ function main() {
   const SUM = has('--summary');
   if (!SUM && git('rev-parse', '--is-shallow-repository') === 'true') sh('git', ['fetch', '-q', '--unshallow', 'origin']);
   sh('git', ['fetch', '-q', '--prune', 'origin', '+refs/heads/*:refs/remotes/origin/*']);
-  const prs = JSON.parse(sh('gh', ['api', '--paginate', '--slurp', `repos/${R}/pulls?state=all&per_page=100`]).stdout).flat();
+  // 11-13：不用 gh --paginate——翻页链接是 repositories/<数字ID>/…，云端会话代理 403；自己按 page= 翻，最多 50 页
+  const prs = []; for (let pg = 1; pg <= 50; pg++) { const a = JSON.parse(sh('gh', ['api', `repos/${R}/pulls?state=all&per_page=100&page=${pg}`]).stdout); prs.push(...a); if (a.length < 100) break }
   const branches = git('for-each-ref', 'refs/remotes/origin', '--format=%(refname:lstrip=3)%09%(objectname)%09%(committerdate:iso-strict)')
     .split('\n').filter(Boolean).map(l => l.split('\t')).filter(([n]) => n !== 'HEAD')
     .map(([name, tip, date]) => ({ name, tip, date, contained: contained(tip) }));

@@ -37,6 +37,12 @@ T('pr_merge：只删本仓库的分支（fork 不删）', /\[ "\$HREPO" = "\$R" 
 T('pr_merge：叠加 PR 的目标分支不删', /pulls\?state=open&base=\$HEAD/.test(fn));
 T('pr_merge：合并后又有人推过就不删', /git\/ref\/heads\/\$HEAD[^\n]*\.object\.sha[^\n]*= "\$SHA"/.test(fn));
 T('pr_merge：所有者快进、协作者压缩合并两个出口都删', /^drop_branch$/m.test(pm) && /drop_branch; exit 0/.test(pm));
+// 11-13（#267）：云端代理禁 REST 删引用（403）、GitHub 自动删是异步的 → 退到 git push --delete，再隔几秒复查，不误报「没删掉」
+T('pr_merge：REST 删不了就退到 git push --delete（带 NBQ_REWRITE，否则 pre-push 钩子拦下，#270 合并时实际遇到）', /NBQ_REWRITE="[^"]+" git push -q origin --delete "\$HEAD"/.test(fn));
+T('pr_merge：查到还在时隔几秒再查（等 GitHub 自动删）', /for i in 1 2 3 4 5;[^\n]*git\/ref\/heads\/\$HEAD[^\n]*sleep/.test(fn));
+const nb = fs.readFileSync(new URL('../../tools/new_branch.sh', import.meta.url), 'utf8');
+T('pr_merge：删分支时清掉它的点名 fetch 规则（否则之后 git fetch 报 couldn\'t find remote ref）', /git config --unset-all remote\.origin\.fetch "\^\\\+refs\/heads\/\$HEAD:"/.test(fn));
+T('new_branch：已有通配 fetch 规则就不加点名规则', /grep -qxF "\+refs\/heads\/\*:refs\/remotes\/origin\/\*" \|\|[^\n]*git config --add remote\.origin\.fetch/.test(nb));
 
 // 11-11 实际踩到：gh api 查不到标签（404）时错误正文打在 stdout，旧写法把它当成「标签已存在」，--archive 全被跳过
 T('okText：成功时取提交号', okText({ status: 0, stdout: 'abc123\n' }) === 'abc123');
@@ -64,4 +70,7 @@ try {
   T('和 main 冲突：不算在 main（宁可漏删）', !contained(cf, 'main', tmp));
 } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
 
+// 11-13：云端会话代理不放行 gh --paginate 的翻页链接（repositories/<数字ID>/…，403），PR 超过 100 个就整个脚本崩
+const bp = fs.readFileSync(new URL('../../tools/branch_prune.mjs', import.meta.url), 'utf8');
+T('branch_prune：不用 gh --paginate，自己按 page= 翻页', !/'--paginate'/.test(bp) && /pulls\?state=all&per_page=100&page=\$\{pg\}/.test(bp));
 console.log(`branch_prune: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
