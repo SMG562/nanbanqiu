@@ -1,4 +1,5 @@
 // 退出登录时正在进行的读取（11-09，#110 PR-B1 测试里抓到）：读到一半退出登录，数据回来后不能再套用上去。
+//   11-13（#245）：「读取途中退出」不再用固定延时造（负载高时退出晚于 1500ms，响应先到 → 断言误红）；改成 hold 扣住响应、退出后 open() 放行，响应按请求当时的账号算好。
 //   ① nbqRefresh（整体重读）途中退出 → 回来后 ME 仍是空、USERS 里没有这个人、个人页不出现他的数据
 //   ② nbqPullNotifs（读通知）途中退出 → 不报脚本错误（原来 ME.id 读空值）、NOTIFS 仍是空
 //   ③ nbqEnter（登录后首次读取）途中退出 → 不套用（#202）
@@ -19,6 +20,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
     const S = { slowMine: 0, slowNtf: 0, slowThr: 0, slowProf: 0, now: 0,
       me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: '2026-01-01T00:00:00Z', gender: null, club_ids: [], pact_accepted_at: '2026-01-01T00:00:00Z' } };
+    // 「读取途中退出」不再靠固定延时（负载高时退出比 1500ms 还晚，响应先到，断言误红，#245）：hold 扣住该接口的响应，退出后 open() 才放行
+    let GATE = null, OPEN = null; const hold = k => { S[k] = 1; GATE = new Promise(r => { OPEN = r }) }, open = () => { OPEN && OPEN() };
     const iso = h => new Date(S.now + h * 3600e3).toISOString();
     const game = () => ({ id: G1, share_code: 'Rc3e', host_id: S.me.id, host_nickname: S.me.nickname, host_utr: 5, venue_id: V1, venue_name: 'Test Tennis Club', short_name: 'Test TC', starts_at: iso(30), duration_min: 90, game_type: 'singles', capacity: 2, utr_min: 3, utr_max: 7,
       note: '只有 ' + S.me.nickname + ' 看得到的局', status: 'open', tags: [], visibility: 'public', filled: 1, join_mode: 'approve', city: 'melb', approved_count: 1, pending_count: 0, spots_left: 1 });
@@ -28,15 +31,15 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
       if (p === '/api/venues') return J(200, { venues: VENUES });
       if (p === '/api/me') return J(200, { registered: true, user: S.me });
       if (p === '/api/games') return J(200, { games: [] });
-      if (p === '/api/games/mine') { if (S.slowMine) await new Promise(x => setTimeout(x, S.slowMine));
-        return J(200, { games: [game()], participants: [{ game_id: G1, user_id: S.me.id, role: 'host', status: 'approved', created_at: iso(-1), message: '' }], profiles: { [S.me.id]: S.me } }) }
-      if (p === '/api/threads') { if (S.slowThr) await new Promise(x => setTimeout(x, S.slowThr));
-        return J(200, { threads: [{ id: TH1, kind: 'dm', game_id: null, other_id: OTHER, last_body: 'hi', last_at: iso(-0.2), last_sender: OTHER, unread: true }] }) }
-      if (p === '/api/profiles') { if (S.slowProf) await new Promise(x => setTimeout(x, S.slowProf));
-        return J(200, { profiles: { [OTHER]: { ...S.me, id: OTHER, nickname: 'Other', member_no: 7 } } }) }
+      if (p === '/api/games/mine') { const body = { games: [game()], participants: [{ game_id: G1, user_id: S.me.id, role: 'host', status: 'approved', created_at: iso(-1), message: '' }], profiles: { [S.me.id]: S.me } };
+        if (S.slowMine) await GATE; return J(200, body) }
+      if (p === '/api/threads') { const body = { threads: [{ id: TH1, kind: 'dm', game_id: null, other_id: OTHER, last_body: 'hi', last_at: iso(-0.2), last_sender: OTHER, unread: true }] };
+        if (S.slowThr) await GATE; return J(200, body) }
+      if (p === '/api/profiles') { const body = { profiles: { [OTHER]: { ...S.me, id: OTHER, nickname: 'Other', member_no: 7 } } };
+        if (S.slowProf) await GATE; return J(200, body) }
       if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
-      if (p === '/api/notifications') { if (S.slowNtf) await new Promise(x => setTimeout(x, S.slowNtf));
-        return J(200, { notifications: [{ id: 5, kind: 'joined', game_id: G1, invite_id: null, actor_id: null, read_at: null, created_at: iso(-0.5) }] }) }
+      if (p === '/api/notifications') { const body = { notifications: [{ id: 5, kind: 'joined', game_id: G1, invite_id: null, actor_id: null, read_at: null, created_at: iso(-0.5) }] };
+        if (S.slowNtf) await GATE; return J(200, body) }
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify');
       r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
@@ -50,23 +53,23 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     T(tag('登录后读到了自己的球局（前提）'), (await state()).game, await state());
 
     // ① 整体重读途中退出
-    S.slowMine = 1500; await pg.evaluate(() => { nbqRefresh() }); await pg.settle(200);
-    await pg.evaluate(() => { sbaLogout(); render() }); await pg.waitForTimeout(2500); await pg.settle(300);
+    hold('slowMine'); await pg.evaluate(() => { nbqRefresh() }); await pg.settle(200);
+    await pg.evaluate(() => { sbaLogout(); render() }); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     let s = await state();
     T(tag('重读途中退出：回来后不再套用（没有登录、没有这个人、没有他的球局、页面上看不到）'), !s.me && !s.user && !s.game && !s.page, s);
     S.slowMine = 0;
 
     // ② 读通知途中退出
-    await login(); S.slowNtf = 1500; await pg.evaluate(() => { nbqPullNotifs() }); await pg.settle(200);
-    await pg.evaluate(() => { sbaLogout(); render() }); await pg.waitForTimeout(2500); await pg.settle(300);
+    await login(); hold('slowNtf'); await pg.evaluate(() => { nbqPullNotifs() }); await pg.settle(200);
+    await pg.evaluate(() => { sbaLogout(); render() }); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     s = await state();
     T(tag('读通知途中退出：没有通知、没有登录'), !s.me && s.notifs === 0, s);
     T(tag('读通知途中退出：不报脚本错误'), errs.length === 0, errs);
     S.slowNtf = 0;
 
     // ③ 登录后首次读取（nbqEnter）途中退出
-    await login(); S.slowMine = 1500; await pg.evaluate(() => { window.__en = nbqEnter() }); await pg.settle(200);
-    await pg.evaluate(() => { sbaLogout(); render() }); await pg.waitForTimeout(2500); await pg.settle(300);
+    await login(); hold('slowMine'); await pg.evaluate(() => { window.__en = nbqEnter() }); await pg.settle(200);
+    await pg.evaluate(() => { sbaLogout(); render() }); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     s = await state(); const en = await pg.evaluate(() => window.__en);
     T(tag('首次读取途中退出：不套用（没有登录、没有这个人、没有他的球局）'), !s.me && !s.user && !s.game && !s.page, s);
     T(tag('首次读取途中退出：nbqEnter 返回「已退出」，不报脚本错误'), en && en.st === 'gone' && errs.length === 0, { en, errs });
@@ -74,20 +77,20 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
 
     // ④ 读会话列表途中退出；补读资料途中退出
     const thr = () => pg.evaluate(o => ({ me: !!ME, threads: THREADS.length, msgs: MSGS.length, other: !!USERS[o] }), OTHER);
-    await login(); S.slowThr = 1500; await pg.evaluate(() => { nbqPullThreads() }); await pg.settle(200);
-    await pg.evaluate(() => { sbaLogout(); render() }); await pg.waitForTimeout(2500); await pg.settle(300);
+    await login(); hold('slowThr'); await pg.evaluate(() => { nbqPullThreads() }); await pg.settle(200);
+    await pg.evaluate(() => { sbaLogout(); render() }); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     s = await thr(); T(tag('读会话列表途中退出：会话、消息、对方资料都没有残留'), !s.me && s.threads === 0 && s.msgs === 0 && !s.other, s);
     S.slowThr = 0;
-    await login(); S.slowProf = 1500; await pg.evaluate(() => { nbqPullThreads() }); await pg.settle(300);
-    await pg.evaluate(() => { sbaLogout(); render() }); await pg.waitForTimeout(2500); await pg.settle(300);
+    await login(); hold('slowProf'); await pg.evaluate(() => { nbqPullThreads() }); await pg.settle(300);
+    await pg.evaluate(() => { sbaLogout(); render() }); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     s = await thr(); T(tag('补读资料途中退出：会话、消息、对方资料都没有残留'), !s.me && s.threads === 0 && s.msgs === 0 && !s.other, s);
     T(tag('读会话途中退出：不报脚本错误'), errs.length === 0, errs);
     S.slowProf = 0;
 
     // ⑤ 重读途中退出，马上换另一个账号登录：不串号
-    await login(); S.slowMine = 1500; await pg.evaluate(() => { nbqRefresh() }); await pg.settle(200);
+    await login(); hold('slowMine'); await pg.evaluate(() => { nbqRefresh() }); await pg.settle(200);
     await pg.evaluate(() => { sbaLogout(); render() }); await pg.settle(200);
-    S.me = { ...S.me, id: TOM, nickname: 'Tom', member_no: 1301 }; S.slowMine = 0; await login('Tom'); await pg.waitForTimeout(2200); await pg.settle(300);
+    S.me = { ...S.me, id: TOM, nickname: 'Tom', member_no: 1301 }; S.slowMine = 0; await login('Tom'); open(); await pg.waitForTimeout(1500); await pg.settle(300);
     s = await pg.evaluate(([a, b]) => ({ me: ME && ME.id, sam: !!USERS[a], samGame: GAMES.some(g => g.note === '只有 Sam 看得到的局'), tomGame: GAMES.some(g => g.note === '只有 Tom 看得到的局'), tom: !!USERS[b] }), [ME, TOM]);
     T(tag('换账号：现在是新账号，旧账号的人和球局不串进来'), s.me === TOM && !s.sam && !s.samGame && s.tomGame && s.tom, s);
     S.me = { ...S.me, id: ME, nickname: 'Sam', member_no: 1288 };
