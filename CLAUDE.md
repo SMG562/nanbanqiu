@@ -16,7 +16,7 @@
 
 ## 做事的规矩
 - **页面只改 `src/`**，改完 `node tools/build.mjs` + `node tools/lint.mjs`；不直接改拼好的 HTML。等 CI 用 `bash tools/ci_wait.sh [提交号|PR号]`（别手写轮询）。测试说明 `tests/README.md`。
-- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**；非红线 PR 的 `--check` 全 ✅（含独立复核）后 AI 直接合，不等所有者说「合」（11-13 所有者定）；红线 PR 仍等所有者点头；不能快进时按它的提示 `bash tools/sync_main.sh`。
+- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**；非红线 PR 的 `--check` 全 ✅（独立复核只对公共层 / 接口 / 迁移 / 测试运行器，ADR 0012）后 AI 直接合，不等所有者说「合」；在制品总数 ≤ 3、流程不加件数（`doc_budget` 守着），先读 `docs/adr/0012`；红线 PR 仍等所有者点头；不能快进时按它的提示 `bash tools/sync_main.sh`。
 - **PR 归分支所属会话管**：草稿 / Ready / 关闭只由该分支的会话改（`tools/pr_state.sh <PR号> ready|draft|mine`）；别的会话只留言【请转草稿/Ready】，被叫醒先 `mine`，不是自己的就取消订阅（`docs/协作分工.md` §1b）。
 - **小批量**：一个 PR 一件事、手写改动 ≤ 200 行；每人非草稿 PR ≤ 2 个（#229）；大功能用开关分几次合进 main。开分支用 `bash tools/new_branch.sh <名>`。PR 先开**草稿**，本地测过再点 Ready（草稿不跑浏览器测试，合并 / 闸门不认）；改动攒成一次推送。
 - **推 main 的顺序由 `pre-push` 管**：本地 `run_all --changed=origin/main` 全绿、工作区干净才放行；跳过要 `NBQ_UNTESTED="原因"`；不用 worktree 分支直推 main；后台测试没出结果不提交。
