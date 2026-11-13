@@ -2,15 +2,15 @@
 # 要让它生效：GitHub → Settings → Rules/Branches → main：勾选「Require review from Code Owners」，「必须审批人数」设为 0。
 
 # ① 正式库：迁移执行、数据、结构
-/schema.sql                @SMG562
-/server/migrations/        @SMG562
-/tests/spec/migration_baseline.json  @SMG562
+/schema.sql                @SMG562 @MDD1102
+/server/migrations/        @SMG562 @MDD1102
+/tests/spec/migration_baseline.json  @SMG562 @MDD1102
 
 # ② 部署、密钥、发送程序
-/.github/workflows/deploy-notify.yml  @SMG562
-/wrangler.jsonc            @SMG562
-/worker/                   @SMG562
-/notify-worker/            @SMG562
+/.github/workflows/deploy-notify.yml  @SMG562 @MDD1102
+/wrangler.jsonc            @SMG562 @MDD1102
+/worker/                   @SMG562 @MDD1102
+/notify-worker/            @SMG562 @MDD1102
 /.claude/settings*.json    @SMG562
 
 # ③ 隐私文案与对外政策
@@ -19,7 +19,7 @@
 
 # ④ 闸门本身（改了它们等于改游戏规则）
 /.github/CODEOWNERS        @SMG562
-/.github/workflows/db-parity.yml     @SMG562
+/.github/workflows/db-parity.yml     @SMG562 @MDD1102
 /.github/workflows/pr-checklist.yml  @SMG562
 /.github/workflows/collab-board.yml @SMG562   # 带写评论 / 标签的权限（11-11）
 /.github/workflows/proposals.yml @SMG562      # 带写 Issue 标签 / 评论的权限（11-11）
