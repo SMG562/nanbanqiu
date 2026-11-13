@@ -6,8 +6,8 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
 const src = fs.readFileSync(path.join(DIR, 'src/shared/script/0490-Supabase登录.js'), 'utf8');
 // 只取纯逻辑部分（"页面接线"之前）放进空沙盒
 const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object }); vm.runInContext(pure + '\n;globalThis.__x={sbAuthMake,SB_PROF_KEYS}', ctx);
-const { sbAuthMake } = ctx.__x;
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object }); vm.runInContext(pure + '\n;globalThis.__x={sbAuthMake,SB_PROF_KEYS,sbSmsPaused,SB_TXT}', ctx);
+const { sbAuthMake, sbSmsPaused, SB_TXT } = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof sbAuthMake === 'function');
 T('两端都拼进了登录模块，且在两端的登录页之前', ['pwa', 'web'].every(e => { const l = fs.readFileSync(path.join(DIR, `src/${e}.list`), 'utf8'); return l.includes('shared/script/0490-Supabase登录.js') && l.indexOf('0490-Supabase登录') < l.indexOf(`${e}/script/0260-`) }));
 T('仓库里没有 service_role', !/service_role/.test(src.replace(/service_role 绝不能出现在这里/, '')));
@@ -75,4 +75,15 @@ for (const st of [429, 500, 502, 503]) {
 for (const st of [400, 401, 403]) { const ex = env(CFG, [OK(), { s: st, d: {} }]); await ex.A.verify('+61412345678', '1'); ex.tick(7200); T(`刷新被拒（${st}，令牌无效）：清掉登录`, (await ex.A.fresh()) === null && ex.A.session() === null) }
 const en = env(CFG, [OK(), 'net', OK({ access_token: 'AT4', refresh_token: 'RT4' })]); await en.A.verify('+61412345678', '1'); en.tick(7200);
 T('已过期时断网：返回空但保留登录，网络回来再试能续上', (await en.A.fresh()) === null && en.A.session() !== null && (await en.A.fresh()).access_token === 'AT4');
+// 运行时开关 sms_paused（#49 PR②）：发码前读 /api/switches，开了就不发；读不到一律放行（不挡正常登录）
+{ const mk = (rep) => { const calls = []; return { calls, io: { fetch: async (u, o) => { calls.push({ u, o }); if (rep === 'net') throw new Error('offline'); return { ok: rep.s < 300, status: rep.s, json: async () => { if (rep.bad) throw new Error('bad json'); return rep.d } } } } } };
+  let m = mk({ s: 200, d: { switches: { register_paused: false, maintenance: false, sms_paused: true } } });
+  T('开关：sms_paused 开 = 暂停（GET /api/switches，不缓存）', await sbSmsPaused(m.io) === true && m.calls[0].u === '/api/switches' && m.calls[0].o.method === 'GET' && m.calls[0].o.cache === 'no-store', m.calls);
+  m = mk({ s: 200, d: { switches: { sms_paused: false } } }); T('开关：sms_paused 关 = 不暂停', await sbSmsPaused(m.io) === false);
+  m = mk({ s: 200, d: { switches: { register_paused: true, maintenance: true } } }); T('开关：只开了别的开关，短信不受影响', await sbSmsPaused(m.io) === false);
+  for (const [n, rep] of [['断网', 'net'], ['接口 500', { s: 500, d: {} }], ['返回不是 JSON', { s: 200, bad: true }], ['返回缺 switches', { s: 200, d: {} }], ['sms_paused 是字符串 "true"（不认）', { s: 200, d: { switches: { sms_paused: 'true' } } }]])
+    T('开关：' + n + ' → 放行（不挡登录）', await sbSmsPaused(mk(rep).io) === false);
+  T('开关：页面接线里发码前先读开关，再发（sbaSendThen）', /sbSmsPaused\([^)]*\)[^;]*\.then\(p=>p\?\{ok:false,code:'sms_paused'\}:SBA\.send\(/.test(src), src.slice(src.indexOf('function sbaSendThen'), src.indexOf('function sbaSendThen') + 300));
+  T('开关：暂停时的提示文案有，且不是「验证码错」', typeof SB_TXT.sms_paused === 'string' && SB_TXT.sms_paused.includes('暂时停发')); }
+
 console.log(`\nsb_auth: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

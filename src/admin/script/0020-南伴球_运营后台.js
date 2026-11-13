@@ -414,10 +414,11 @@ const IC={
  traffic:'<path d="M3 12h4l3-7 4 14 3-7h4"/>',
  safety:'<path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M12 8v5M12 16.5v.5"/>',
  regions:'<path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/>',
+ switches:'<path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/>',
  cities:'<path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/><path d="M13 10h3M13 14h3M7 12h1M7 16h1"/>',
  admin:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 4l1.5 1.5L23 3"/>',
 };
-const PAGES=[['h','总览'],['overview','概览'],['h','球友'],['users','球友'],['cards','球员卡'],['h','约球'],['games','球局'],['venues','球场'],['regions','区域'],['h','来源与使用'],['traffic','访问与页面'],['growth','分享与拉新'],['platform','手机与电脑'],['env','打开方式'],['h','管理'],['review','待审核'],['safety','风险用户'],['cities','城市'],['admin','管理员'],['events','数据口径']];
+const PAGES=[['h','总览'],['overview','概览'],['h','球友'],['users','球友'],['cards','球员卡'],['h','约球'],['games','球局'],['venues','球场'],['regions','区域'],['h','来源与使用'],['traffic','访问与页面'],['growth','分享与拉新'],['platform','手机与电脑'],['env','打开方式'],['h','管理'],['review','待审核'],['safety','风险用户'],['cities','城市'],['switches','开关'],['admin','管理员'],['events','数据口径']];
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pg],[data-rg],[data-pl],[data-mt],[data-act],[data-tab2]');if(!b)return;const d=b.dataset;
   if(d.pg){S.page=d.pg;scrollTo(0,0)}if(d.rg)S.range=+d.rg;if(d.pl)S.plat=d.pl;if(d.mt)S.metric=d.mt;if(d.tab2)S.tab2=d.tab2;if(d.act)return act(d);render()});
 
