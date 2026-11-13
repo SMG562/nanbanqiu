@@ -59,6 +59,8 @@ export function classify(p, now = Date.now()) {
   // 11-11：落后 main 不再把球推给作者——pr_merge.sh 自己判断（只多文档 / 文件不重叠自动放行，否则提示 sync_main.sh），省掉不必要的合 main 和重跑
   const bh = p.behind > 0 ? `（main 前进了 ${p.behind} 个提交：只多文档 / 文件不重叠会自动放行，否则它会提示 \`bash tools/sync_main.sh\`）` : '';
   const loop = (p.syncs || 0) >= SYNC_LOOP ? `（已合并 main ${p.syncs} 次，别再同步，留【可合 ${p.sha.slice(0, 7)}】）` : '';
+  // 11-13（#241 同类第二次）：作者本人在 .github/CO_OWNERS 里 = 共同所有者，红线 PR 自己就能合，不用等所有者、不用 Approve
+  if (p.level === 'owner' && p.coOwner) return R('merge', '红线文件：你是共同所有者，可自行合并（不用等 Approve）' + loop, `CI 全绿后 \`bash tools/pr_merge.sh ${p.number}\`${bh}；只有正式库迁移 / 登录密钥权限 / 部署 / 删除才找所有者`);
   if (p.level === 'owner') return R('owner', '红线文件：需要所有者当场点头' + loop, `所有者看 diff 后 \`bash tools/pr_merge.sh ${p.number}\`${bh}`);
   return R('merge', 'CI 全绿' + (p.level === 'review' ? ' + 复核已通过' : '，无需复核') + loop, `自助合并：\`bash tools/pr_merge.sh ${p.number}\`${bh}`);
 }
@@ -108,7 +110,7 @@ export function gather(R, now = Date.now()) {
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, coOwner: fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(x => x.trim()).filter(x => x && !x.startsWith('#')).includes(x.user.login), updated: x.updated_at, level: levelOf(files, CO).level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
