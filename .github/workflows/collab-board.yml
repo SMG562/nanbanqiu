@@ -43,6 +43,7 @@ jobs:
             tools/review_state.mjs
             tools/review_carry.mjs
             .github/CODEOWNERS
+            .github/CO_OWNERS
           sparse-checkout-cone-mode: false   # 非 cone 模式下多个路径要换行分隔（空格分隔检出的是空目录，首次运行就是这么失败的）
       - name: 更新看板、标签和提醒
         env: { GH_TOKEN: '${{ github.token }}' }

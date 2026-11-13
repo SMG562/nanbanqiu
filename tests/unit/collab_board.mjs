@@ -28,6 +28,10 @@ T('同步 ≥ SYNC_LOOP 且红线：原因里写明别再同步', /别再同步/
 T('同步 ≥ SYNC_LOOP 且可合并：原因里带【可合 <7位>】', classify(base({ syncs: SYNC_LOOP }), NOW).reason.includes('【可合 abcdef1】'));
 T('同步提醒：每 PR 一个去重键，不含「独立复核：通过」', (s => already([{ body: s }], 'nbq-syncloop:7') && !/独立复核：通过\s*[0-9a-f]{7}/.test(s))(syncText(base(), 2)));
 
+// 11-13（#241 同类第二次）：共同所有者自己的红线 PR → 球不在所有者，自己合
+T('红线 + 作者是共同所有者：可合并，写明不用等 Approve，且给作者发提醒', (c => c.ball === 'merge' && c.ping && /共同所有者/.test(c.reason) && /pr_merge\.sh 7/.test(c.next))(classify(base({ level: 'owner', coOwner: true }), NOW)));
+T('红线 + 作者不是共同所有者：仍是所有者', classify(base({ level: 'owner', coOwner: false }), NOW).ball === 'owner');
+
 // ② 复核留言解析：和 pr_merge.sh 认的字符串一致；机器人的话不算
 const c = (body, bot = false) => ({ body, bot });
 T('「独立复核：通过 <本提交>」→ pass', reviewState([c('独立复核：通过 abcdef1')], SHA) === 'pass');
