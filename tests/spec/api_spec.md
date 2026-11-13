@@ -146,6 +146,7 @@
 | noshow_window_closed | 409 | 结束 48 小时后不能再反馈 | 数据库 |
 | not_in_game | 403 | 已不在这局 | 数据库 |
 | report_duplicate | 409 | 你已经举报过，我们正在处理 | 数据库 reports_one_open |
+| idempotency_key_reused | 409 | 这次操作已经提交过了，刷新看看 | 数据库 idem_begin（同一个 Idempotency-Key 用在了别的接口上；#276） |
 | report_note_required | 422 | 选「其他」时写一句说明 | 数据库 reports_source_chk |
 | message_link | 422 | 暂不支持发送链接 | 数据库 |
 | chat_closed | 409 | 这局的群聊已关闭 | 数据库 |
