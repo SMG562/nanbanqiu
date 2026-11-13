@@ -12,4 +12,6 @@ const checkouts = [...wf.matchAll(/uses: actions\/checkout@[^\n]*\n((?:\s+[^\n]*
 T('每个 checkout 都 persist-credentials: false', checkouts.length >= 3 && checkouts.every(m => /persist-credentials: false/.test(m[0])));
 const shard = blocks.find(b => b.startsWith('shard:')) || '';
 T('shard（跑 PR 代码）里没有 git push', shard && !/git push/.test(shard));
+const bc = blocks.find(b => b.startsWith('baseline-commit:')) || '';
+T('baseline-commit 的 if 带 !cancelled()（否则 reuse / gate 被跳过时它被连带跳过，重拍基准不提交；11-13 #278）', /\n    if: \$\{\{ !cancelled\(\)/.test(bc));
 console.log(`tests_yml_perms: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

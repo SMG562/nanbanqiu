@@ -233,9 +233,9 @@ jobs:
           echo "分片结果：$R"
           [ "$R" = success ] || { echo "::error title=浏览器测试::有分片没通过（$R），看上面各个 test (i/n) 任务的注解"; exit 1; }
 
-  baseline-commit:       # 11-11（#178）：重拍的基准提交回触发分支。只有它带 contents: write，且不运行任何测试 / PR 代码，只搬运截图
+  baseline-commit:       # 11-13：if 加 !cancelled()——夜间全量加了 reuse / gate 后，上游被跳过会连带跳过本任务，重拍基准从不提交（#278 踩到）。11-11（#178）：重拍的基准提交回触发分支。只有它带 contents: write，且不运行任何测试 / PR 代码，只搬运截图
     needs: shard
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline' && needs.shard.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline' && needs.shard.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
