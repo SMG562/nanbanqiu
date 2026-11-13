@@ -291,6 +291,24 @@ try {
   await run(Zc + 2 * M);
   const cg = callsTo('chatG');
   T('新消息：球局群聊（球局已开打也照推）标题「球局群聊有新消息」，不带发送人和内容，点开去群聊', cg.length === 1 && cg[0].p.title === '球局群聊有新消息' && cg[0].p.body === '' && !JSON.stringify(cg[0].p).includes('谁带水') && !JSON.stringify(cg[0].p).includes('Cora') && cg[0].p.data.url === `/melbourne/?t=${tG}`, cg[0] && cg[0].p);
+  // ---- 一条坏通知不能卡住整批（11-13 上线前审查）----
+  //   为什么：dispatch 整批在一个事务里，推送是事务外的副作用。以前任何一条出错 → 整批回滚 → 下一分钟从头再来：
+  //           排在它前面的每分钟被重推一次（用户收到重复推送），排在它后面的永远发不出去，直到有人手工处理。
+  //   造一条必然出错的：给这条通知的投递记录装一个只对它报错的触发器（真实的数据库错误）；前后各放一条正常的。
+  const Zp = 24 * H, pA = await user('Pia'), pB = await user('Pol'), pC = await user('Pam'), gP = await game(48 * H);
+  for (const [u, ep] of [[pA, 'poisA'], [pB, 'poisB'], [pC, 'poisC']]) await dev(u, 'mobile', { ep });
+  const nP = [];
+  for (const [i, u] of [pA, pB, pC].entries()) nP.push((await one(`insert into notifications(user_id, kind, game_id, created_at) values ($1,'approved',$2,$3) returning id`, [u, gP, new Date(T0 + Zp - 3 * M + i * 1000).toISOString()])).id);
+  await q(`create function test_poison() returns trigger language plpgsql as $$ begin raise exception 'poison'; end $$`);
+  await q(`create trigger test_poison before insert on notification_deliveries for each row when (new.notification_id = ${Number(nP[1])} and new.reason <> 'error') execute function test_poison()`);
+  let threw = null, sP = null; try { sP = await run(Zp) } catch (e) { threw = e.message }
+  T('坏通知：dispatch 不整批失败', threw === null, threw);
+  const pushedAt = async id => (await one(`select pushed_at from notifications where id=$1`, [id])).pushed_at;
+  T('坏通知：前一条、后一条照常推出并记为已处理', callsTo('poisA').length === 1 && callsTo('poisC').length === 1 && !!(await pushedAt(nP[0])) && !!(await pushedAt(nP[2])), [callsTo('poisA').length, callsTo('poisC').length]);
+  T('坏通知：这一条记为已处理（none / error），不再重试', !!(await pushedAt(nP[1])) && (await one(`select count(*)::int n from notification_deliveries where notification_id=$1 and channel='none' and reason='error'`, [nP[1]])).n === 1 && sP && sP.errors === 1, sP);
+  await run(Zp + M);
+  T('坏通知：下一轮谁也不会被重推', callsTo('poisA').length === 1 && callsTo('poisB').length <= 1 && callsTo('poisC').length === 1, [callsTo('poisA').length, callsTo('poisB').length, callsTo('poisC').length]);
+  await q(`drop trigger test_poison on notification_deliveries`);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`notify: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
