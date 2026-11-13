@@ -4,6 +4,7 @@
  *   nbqNetMake(io)   接口调用：带登录令牌、统一错误（码 = 后端错误码，另有 network / login_required）
  *   nbqFrom*         后端字段 → 前台内存数据的形状（USERS / GAMES / PARTS / VEN）
  *   nbqLoadAll(net)  登录后一次读入：球场、我的资料、公开球局、我的球局、邀约
+ *   nbqUpdNeeded     新版本提示：本页构建号和 /build.json 的不一样（#63 第 3 件；页面接线里的 nbqUpdCheck / nbqUpdShow 负责取和显示）
  * 页面接线（把结果放进 USERS / GAMES / PARTS / VEN）在 "页面接线" 之后，第 4 轮起逐个操作改成「先调接口再更新缓存」。
  * 球场 id：接口给的是服务器 uuid，演示数据是 v1…；真实模式整个替换 VEN（球场导入正式库后才有数据，见进度记录）。 */
 function nbqNetMake(io){
