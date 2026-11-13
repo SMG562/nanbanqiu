@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       days: { description: '统计最近几天', type: number, default: 7 }
+      archive: { description: '【所有者授权】手动清分支：逗号分隔的分支名，只处理 branch_prune 归为「需决定」的（先打 archive 标签再删）；平时留空', type: string, default: '' }
 
 permissions:
   contents: read
@@ -24,7 +25,7 @@ jobs:
       - env: { GH_TOKEN: "${{ github.token }}" }
         run: node tools/weekly_metrics.mjs --days=${{ inputs.days || 7 }}
 
-  # 11-13：每周自动清远端分支（所有者在对话里授权，此类不再问）。只删 branch_prune 归为「可删」的：内容已在 main / PR 已关闭 / 没进 main 但 21 天没动；
+  # 11-13：每周自动清远端分支（所有者在对话里授权，此类不再问）。只删 branch_prune 归为「可删」的：内容已在 main / PR 已关闭 / 没进 main 但 7 天没动；
   #   没进 main 的先打 archive/<分支> 标签再删，恢复：git push origin archive/<分支>:refs/heads/<分支>。保护分支、开着 PR 的分支、3 天内的新分支一律不动。
   prune:
     runs-on: ubuntu-24.04
@@ -33,5 +34,5 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
-      - env: { GH_TOKEN: "${{ github.token }}" }
-        run: node tools/branch_prune.mjs --apply
+      - env: { GH_TOKEN: "${{ github.token }}", ARCH: "${{ inputs.archive }}" }
+        run: node tools/branch_prune.mjs --apply ${ARCH:+--archive="$ARCH"}
