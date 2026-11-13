@@ -61,7 +61,9 @@ async function readBody(req) {
   try { const b = JSON.parse(t); return b && typeof b === 'object' && !Array.isArray(b) ? { body: b } : { err: send(400, { error: 'bad_json' }) } } catch (_) { return { err: send(400, { error: 'bad_json' }) } }
 }
 // 写接口的固定流程：验令牌 → 球友 → 取 JSON → 在 nbq_user 事务里执行（死锁 / 序列化冲突整笔重试一次）→ 失败按错误码返回
-async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon = false } = {}) {
+//   idem（#276）：会新插一行的接口填自己的路由名，opt-in 幂等。请求带 Idempotency-Key 时，和写操作在同一个事务里先 idem_begin：
+//   同一个 key 来过就直接返回第一次的结果，否则照常做、再 idem_finish 存结果。不带 key 的请求（旧前台）和以前完全一样
+async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon = false, idem = null } = {}) {
   let uid = null;
   if (anon && !req.headers.get('Authorization')) uid = null;          // 没登录也能调的接口（浏览 / 分享 / 配置）：以匿名身份执行，由数据库函数判断
   else {
@@ -73,8 +75,12 @@ async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon 
   for (const k of ids) if (!UUID.test(params[k] || '')) return send(404, { error: 'not_found' });
   for (const k of nums) if (!/^\d{1,15}$/.test(params[k] || '')) return send(404, { error: 'not_found' });
   let b = {}; if (body) { const r = await readBody(req); if (r.err) return r.err; b = r.body }
+  const key = idem && uid ? req.headers.get('Idempotency-Key') : null;
+  const run = !key ? q => fn(q, b, params) : async q => {
+    const old = (await one(q, 'select idem_begin($1, $2) as r', [key, idem])).r; if (old) return old;
+    const out = await fn(q, b, params); await q('select idem_finish($1, $2::jsonb)', [key, JSON.stringify(out ?? {})]); return out };
   for (let i = 0; ; i++) {
-    try { return send(200, await d.db.asUser(uid, q => fn(q, b, params))) }
+    try { return send(200, await d.db.asUser(uid, run)) }
     catch (e) { if ((e.code === '40P01' || e.code === '40001') && i === 0) continue; if (e.code === '40P01' || e.code === '40001') return send(503, { error: 'busy_retry' }); throw e }
   }
 }
@@ -185,7 +191,7 @@ const ROUTES = {
   'POST /api/me/pact': (req, d, p) => act(req, d, p, async q => { await q('select api_pact_accept()'); return { ok: true } }, { body: false }),
   'POST /api/games': (req, d, p) => act(req, d, p, async (q, b) => {
     const id = (await one(q, 'select api_game_create($1::jsonb) as id', [JSON.stringify(b)])).id;
-    return { id, share_code: (await one(q, 'select share_code from games where id = $1', [id])).share_code } }),
+    return { id, share_code: (await one(q, 'select share_code from games where id = $1', [id])).share_code } }, { idem: 'POST /api/games' }),
   'PATCH /api/games/:id': (req, d, p) => act(req, d, p, async (q, b, x) => ({ changes: (await one(q, 'select api_game_edit($1, $2::jsonb) as r', [x.id, JSON.stringify(b)])).r }), { ids: ['id'] }),
   'POST /api/games/:id/postpone': (req, d, p) => act(req, d, p, async (q, b, x) => ({ starts_at: (await one(q, 'select api_game_postpone($1) as t', [x.id])).t }), { ids: ['id'], body: false }),
   'POST /api/games/:id/cancel': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_game_cancel($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
@@ -222,7 +228,7 @@ const ROUTES = {
   'POST /api/threads': (req, d, p) => act(req, d, p, async (q, b) => {
     const u = str(b.user_id), g = str(b.game_id); if ((u ? 1 : 0) + (g ? 1 : 0) !== 1 || !UUID.test(u || g)) throw bad();
     return { id: u ? (await one(q, 'select api_thread_dm($1) as t', [u])).t : (await one(q, 'select api_thread_game($1) as t', [g])).t } }),
-  'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'] }),
+  'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'], idem: 'POST /api/threads/:id/messages' }),
   'POST /api/reports': (req, d, p) => act(req, d, p, async (q, b) => {
     const tt = str(b.target_type), tid = str(b.target_id), why = str(b.reason), via = str(b.via), note = str(b.note);
     const sb = tt === 'sb_post' || tt === 'sb_reply';
@@ -376,13 +382,13 @@ const ROUTES = {
     await q('select api_chat_notif_read($1)', [x.id]);   // 这个会话的新消息通知一起标已读（推送前发现已读就不推）
     return { ok: true } }, { ids: ['id'], body: false }),
   // ---- 第 3 步（续 3）：场边、账号注销 / 恢复、推送订阅（对应 api_spec §14、§2、§3）----
-  'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r),
+  'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r, { idem: 'POST /api/sideline/posts' }),
   'DELETE /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_delete($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   'PATCH /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     if (typeof b.replies_open !== 'boolean') throw bad(); await q('select api_sb_replies_open($1, $2)', [x.id, b.replies_open]); return { replies_open: b.replies_open } }, { ids: ['id'] }),
   'POST /api/sideline/posts/:id/replies': (req, d, p) => act(req, d, p, async (q, b, x) => {
     if (b.to != null && !UUID.test(str(b.to) || '')) throw bad();
-    return { id: Number((await one(q, 'select api_sb_reply($1, $2, $3) as r', [x.id, str(b.body), b.to ?? null])).r) } }, { ids: ['id'] }),
+    return { id: Number((await one(q, 'select api_sb_reply($1, $2, $3) as r', [x.id, str(b.body), b.to ?? null])).r) } }, { ids: ['id'], idem: 'POST /api/sideline/posts/:id/replies' }),
   'DELETE /api/sideline/replies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_reply_delete($1)', [x.id]); return { ok: true } }, { nums: ['id'], body: false }),
   'PUT /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_ball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
   'DELETE /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_unball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
