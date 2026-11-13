@@ -75,6 +75,14 @@ export function flapOf(events, now = Date.now()) {
   return ch.length < 2 ? null : { n: ch.length, actors: [...new Set(ch.map(e => e.actor))], key: `nbq-flap:${ch[ch.length - 1].at}` };
 }
 export const flapText = (p, f) => `<!-- ${f.key} -->\n⚠️ 这个 PR 的草稿 / Ready 状态在 ${FLAP_MIN} 分钟内被改了 ${f.n} 次（账号：${f.actors.join('、')}）。多半是两个会话在抢状态。\n规矩（docs/协作分工.md §1b）：**状态只由这个 PR 分支（\`${p.branch}\`）上的会话改**，用 \`bash tools/pr_state.sh ${p.number} ready|draft\`；别的会话只在这里留言【请转草稿】/【请转 Ready】+ 理由。排队顺序不靠改草稿表达，由集成者按看板安排合并。现在状态是「${p.draft ? '草稿' : 'Ready'}」，请所属会话确认后再动，其他会话先别改。`;
+// 一个工作流在这个提交上的状态：ok / pending / stuck / failure / none（11-13，#248）
+//   转 Ready 时同一秒会有两个 tests 运行：草稿那次 skipped + 正常那次 in_progress；按时间取最新可能落到 skipped → 误报「没跑完」。
+//   所以先排除 skipped，有别的运行就看最新的那个；全是 skipped 才算 none。
+export const runState = (runs, w, now) => {
+  const all = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1);
+  const r = all.find(v => v.conclusion !== 'skipped');
+  return !r ? 'none' : r.status !== 'completed' ? (r.status === 'queued' && now - Date.parse(r.created_at) > STUCK_MIN * 6e4 ? 'stuck' : 'pending') : r.conclusion === 'success' ? 'ok' : 'failure';
+};
 const h6 = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 6);
 export const pingKey = (p, c) => `nbq-ball:${c.ball}:${h6(c.reason)}:${p.sha.slice(0, 7)}`;
 export const isoWeek = t => { const d = new Date(t); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const y = d.getUTCFullYear(); return `${y}-W${Math.ceil(((d - Date.UTC(y, 0, 1)) / D + 1) / 7)}` };
@@ -136,7 +144,7 @@ export function gather(R, now = Date.now()) {
     // 改动文件用 compare（main...提交，和 pr_merge.sh 看到的一致）；PR 的 files 接口在 main 前进后会滞后，把别人已合并的文件也算进来
     const cmp = JSON.parse(gh(`repos/${R}/compare/main...${x.head.sha}`, '--jq', '{files:[.files[].filename],behind:.behind_by}')), files = cmp.files;
     const runs = JSON.parse(gh(`repos/${R}/actions/runs?head_sha=${x.head.sha}&per_page=50`)).workflow_runs;
-    const st = w => { const r = runs.filter(v => v.path === `.github/workflows/${w}.yml`).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0]; return !r ? 'none' : r.status !== 'completed' ? (r.status === 'queued' && now - Date.parse(r.created_at) > STUCK_MIN * 6e4 ? 'stuck' : 'pending') : r.conclusion === 'success' ? 'ok' : r.conclusion === 'skipped' ? 'none' : 'failure' };
+    const st = w => runState(runs, w, now);
     const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
