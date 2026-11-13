@@ -235,7 +235,7 @@ jobs:
 
   baseline-commit:       # 11-11（#178）：重拍的基准提交回触发分支。只有它带 contents: write，且不运行任何测试 / PR 代码，只搬运截图
     needs: shard
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline' && needs.shard.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline' && needs.shard.result == 'success' }}   # 11-13：不写状态函数时隐含 success()，gate / reuse 被跳过（#222 起）就连带跳过本任务，重拍的基准推不回分支；!cancelled() 只看 shard
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
