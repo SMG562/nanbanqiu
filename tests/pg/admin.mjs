@@ -72,7 +72,7 @@ try {
   await AU.adminLogout(pool, s3); r = await req(s3, `select 1`); T('退出后令牌失效', r.err === 'admin_session_expired', r);
   const tokView2 = (await login('view@x.com', { code: AU.totp(SEC, now + 120e3), now: now + 120e3 })).token;
   r = await req(tokView2, `select count(*) from users`); T('只读管理员以 nbq_viewer 连接（读不到球友表）', !r.ok && /permission denied/.test(r.err), r);
-  r = await req(tokView2, `select count(*)::int from admin_perms`); T('只读能看权限表（R4 加了城市两项，S4 加了场边配置）', r.ok && r.v === 20, r);
+  r = await req(tokView2, `select count(*)::int from admin_perms`); T('只读能看权限表（R4 加了城市两项，S4 加了场边配置，#49 加了运行时开关）', r.ok && r.v === 21, r);
 
   // ---------- 准备业务数据 ----------
   let un = 0; const user = async nick => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at) values ($1,$2,5,'m',now()) returning id`, ['+6142' + String(++un).padStart(7, '0'), nick])).id;

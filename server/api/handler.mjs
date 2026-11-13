@@ -38,7 +38,7 @@ const why = e => { const c = String(e && e.code || ''), m = String(e && e.messag
 // ---- 写操作（5g-3 第 3 步）：规则全在数据库的 api_ 函数里，这里只管登录、参数格式、错误码 → HTTP 状态 ----
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 数据库错误（P0001，message = 错误码，见 tests/spec/api_spec.md §1）→ HTTP 状态；表里没有的按 409
-const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game']);
+const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game', 'register_paused']);
 const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed', 'buddy_self']);
 export const statusOf = code => code === 'login_required' ? 401 : code === 'not_found' ? 404 : code === 'pact_required' ? 428 : code === 'restore_expired' ? 410
   : /^account_/.test(code) || ST403.has(code) ? 403 : ST422.has(code) ? 422
@@ -118,6 +118,8 @@ const ROUTES = {
     let schema = null; try { schema = await d.db.asService(async q => { const r = (await q(`select max(version) as latest, coalesce(array_agg(version order by version), '{}') as versions from schema_migrations`)).rows[0]; return { latest: r.latest, versions: r.versions } }) } catch (_) { }
     return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null }, schema }, { 'Cache-Control': 'no-store' });
   },
+  // 运行时开关（#49）：暂停注册 / 维护页 / 停发短信；没登录也能读，不缓存；前台读不到时按「全关」处理
+  'GET /api/switches': async (req, d) => send(200, { switches: await switchesOf(d, true) }, { 'Cache-Control': 'no-store' }),
   // 页面报错上报（11-03 补：前台和数据库早就有，唯独这个路由漏了，报的错一直被丢）。sendBeacon 发来，不带令牌；
   // 只收 build / device / msg / src / line 五个字段，逐个截断；同一个 IP 每分钟最多 30 条（超了静默丢，不报错）；任何情况都返回 204，不让页面因为上报失败再出错。
   'POST /api/client-errors': async (req, d) => {
@@ -426,6 +428,7 @@ const ROUTES = {
     const phone = w.phone && '+' + w.phone.replace(/^\+/, ''); if (!/^\+614\d{8}$/.test(phone || '')) return send(422, { error: 'invalid', detail: 'phone' });
     const utr = Number(b.utr), nick = str(b.nickname), li = str(b.last_initial);
     if (w.uid) return send(200, { registered: true, user: await d.db.asUser(w.uid, async q => (await q(`select ${ME_SEL} from users where id = nbq_uid()`)).rows[0]) });
+    if ((await switchesOf(d, true)).register_paused) return send(403, { error: 'register_paused' });   // 暂停注册（#49）：老号码重复提交上面已返回；只拦新建
     if (!nick || nick.length < 1 || nick.length > 20) return send(422, { error: 'invalid', detail: 'nickname' });
     if (!(utr >= 1 && utr <= 16.5)) return send(422, { error: 'invalid', detail: 'utr' });
     if (li !== null && !/^[A-Za-z]$/.test(li)) return send(422, { error: 'invalid', detail: 'last_initial' });
@@ -448,12 +451,23 @@ const PATTERNS = Object.keys(ROUTES).filter(k => k.includes(':')).map(k => { con
 const matchPattern = (method, path) => { for (const t of PATTERNS) if (t.m === method) { const r = t.re.exec(path); if (r) return { h: ROUTES[t.key], params: Object.fromEntries(t.names.map((n, i) => [n, decodeURIComponent(r[i + 1])])), key: t.key } } return null };
 const pathExists = path => Object.keys(ROUTES).some(k => k.endsWith(' ' + path)) || PATTERNS.some(t => t.re.test(path));
 
+// 运行时开关（#49）：5 秒内存缓存，每个请求都读库太贵；读不到按全关处理（开关坏了不能把全站拦住）。fresh = true 跳过缓存（注册、前台读开关要看最新）
+const SW = { at: 0, v: {} };
+async function switchesOf(d, fresh) {
+  const now = Date.now(); if (!fresh && now - SW.at < (d.switchesTtlMs ?? 5000)) return SW.v;
+  try { SW.v = await d.db.asService(async q => (await q('select app_switches_get() as s')).rows[0].s) || {}; SW.at = now } catch (_) { SW.v = {}; SW.at = now }
+  return SW.v;
+}
+// 维护页开着时放行：读开关本身、版本、页面报错上报（前台要靠它们知道在维护、排查要靠它们）
+const MAINT_OK = new Set(['GET /api/switches', 'GET /api/version', 'POST /api/client-errors']);
+
 export async function handleApi(request, deps) {
   const path = new URL(request.url).pathname.replace(/\/+$/, '');
   const key = request.method + ' ' + path;
   let h = ROUTES[key] || (request.method === 'HEAD' && ROUTES['GET ' + path]), params = {}, name = key;
   if (!h) { const m = matchPattern(request.method, path); if (m) { h = m.h; params = m.params; name = m.key } }
   if (!h) return pathExists(path) ? send(405, { error: 'method_not_allowed' }) : send(404, { error: 'not_found' });
+  if (!MAINT_OK.has(key) && (await switchesOf(deps)).maintenance) return send(503, { error: 'maintenance' }, { 'Retry-After': '300', 'Cache-Control': 'no-store' });
   try { return await h(request, deps, params) }
   catch (e) { const r = dbError(e); if (r) return r; console.error('api_error', name, e && (e.code || e.name)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看日志
 }

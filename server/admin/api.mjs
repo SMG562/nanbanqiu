@@ -465,6 +465,14 @@ export const ROUTES = {
       || !Object.entries(p).every(([k, v]) => ['community_url', 'hashtag', 'center_label'].includes(k) && typeof v === 'string' && v.length <= 300)) return fail(bad(), 'cities_set');
     return authed(req, d, route, async db => { await db.query('select admin_city_set($1, $2::jsonb, $3)', [b.city, JSON.stringify(p), b.reason]); return { ok: true } }, b);
   } },
+  // 运行时开关（#49）：只有 owner（switch.set，必须填理由，留痕）；读也要 switch.set，不对运营开放
+  'GET /admin/api/switches': { name: 'switches', perm: 'switch.set', run: (req, d, b, route) => authed(req, d, route, async db => ({
+    switches: (await db.query('select key, is_on, updated_at from app_switches order by key')).rows,
+  })) },
+  'POST /admin/api/switches/set': { name: 'switches_set', perm: 'switch.set', body: true, run: (req, d, b, route) => {
+    if (!['register_paused', 'maintenance', 'sms_paused'].includes(b.key) || typeof b.on !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'switches_set');
+    return authed(req, d, route, async db => { await db.query('select admin_set_switch($1, $2, $3)', [b.key, b.on, b.reason]); return { ok: true } }, b);
+  } },
   // 开放时通知我：导出还没通知的邮箱（个人信息：owner + 理由，留痕；响应不缓存）· 发完标记已通知
   'POST /admin/api/cities/waitlist': { name: 'cities_waitlist', perm: 'city.waitlist', body: true, run: (req, d, b, route) => {
     if (!cityOk(b.city) || !reasonOk(b.reason)) return fail(bad(), 'cities_waitlist');
