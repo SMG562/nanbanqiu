@@ -13,5 +13,17 @@
   "docs/constitution.md": 3072,
   "docs/README.md": 2048,
   "docs/adr/README.md": 3072
+ },
+ "counts": {
+  "tools 脚本数": {
+   "dir": "tools",
+   "ext": "\\.(mjs|sh|py)$",
+   "max": 58
+  },
+  "工作流数": {
+   "dir": ".github/workflows",
+   "ext": "\\.ya?ml$",
+   "max": 13
+  }
  }
 }
