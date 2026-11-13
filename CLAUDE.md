@@ -16,7 +16,7 @@
 
 ## 做事的规矩
 - **页面只改 `src/`**，改完 `node tools/build.mjs` + `node tools/lint.mjs`；不直接改拼好的 HTML。等 CI 用 `bash tools/ci_wait.sh [提交号|PR号]`（别手写轮询）。测试说明 `tests/README.md`。
-- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**；非红线 PR 的 `--check` 全 ✅（独立复核只对公共层 / 接口 / 迁移 / 测试运行器，ADR 0012）后 AI 直接合，不等所有者说「合」；在制品总数 ≤ 3、流程不加件数（`doc_budget` 守着），先读 `docs/adr/0012`；红线 PR 仍等所有者点头；不能快进时按它的提示 `bash tools/sync_main.sh`。
+- **发布流程 B**：登录账号、推送、数据读写与迁移、启动流程、Service Worker 走「分支 → 预览站（staging 库）→ 真机 → PR」；小修直接推 main。**合并只用 `bash tools/pr_merge.sh <PR号>`**；非红线 PR 的 `--check` 全 ✅（独立复核只对公共层 / 接口 / 迁移 / 测试运行器，ADR 0012）后 AI 直接合，不等所有者说「合」；在制品总数 ≤ 3、流程不加件数（`doc_budget` 守着），先读 `docs/adr/0012`；红线里的流程类 PR 自检全绿直接合，只有 4 类单向门问所有者（ADR 0012 补充）；不能快进时按它的提示 `bash tools/sync_main.sh`。
 - **PR 归分支所属会话管**：草稿 / Ready / 关闭只由该分支的会话改（`tools/pr_state.sh <PR号> ready|draft|mine`）；别的会话只留言【请转草稿/Ready】，被叫醒先 `mine`，不是自己的就取消订阅（`docs/协作分工.md` §1b）。
 - **小批量**：一个 PR 一件事、手写改动 ≤ 200 行；每人非草稿 PR ≤ 2 个（#229）；大功能用开关分几次合进 main。开分支用 `bash tools/new_branch.sh <名>`。PR 先开**草稿**，本地测过再点 Ready（草稿不跑浏览器测试，合并 / 闸门不认）；改动攒成一次推送。
 - **推 main 的顺序由 `pre-push` 管**：本地 `run_all --changed=origin/main` 全绿、工作区干净才放行；跳过要 `NBQ_UNTESTED="原因"`；不用 worktree 分支直推 main；后台测试没出结果不提交。
@@ -29,3 +29,10 @@
 - **进度靠脚本**：现在在哪 `bash tools/handoff_check.sh`；拍板写进对应 Issue；`进度记录.md` 只改长期事实；下一步写进 Issue 后才建议开新对话。
 - **不确定原因先拿数据**（一条只读 SQL、一张截图、日志一行），不把推测当结论；**汇报 PR / 分支 / CI 现状先实查**（`bash tools/pr_state.sh <PR号> status`、`ci_wait.sh`），不转述脚本提示和评论里的提交号；规矩按字面范围读。
 - **规则预算**：本文件受 `tests/spec/doc_budget.json` 上限约束且只降不升；加一条就合并或删一条；能被脚本拦的规则这里只留一行。
+
+## 补充 11-13 14:43：常设授权（所有者原话「我都同意……最好减少问我，需要我审批同意 approval 的情况」）
+1. **只有第 3 条的 4 类单向门问所有者**：正式库迁移 / 结构、登录 / 密钥 / 权限 / CODEOWNERS、部署与对外发布、删除数据 / 文件。其余一律不问。
+2. **红线文件里的流程类改动**（`tools/` 合并 / 闸门脚本、`.github/` 工作流、看板、文档）由 AI 会话自行合并，条件：`pr_merge.sh --check` 全 ✅（含「其他 PR 检查没有红的」）+ 单测 + 有事故或变异证据 + 不落在 4 类单向门；合并后 `gate.sh` 复核，红了立刻 revert 并在 #216 留一行。
+3. **GitHub Approve 不是闸门**，不等、不对头提交（#233 活锁教训）。共同所有者（`.github/CO_OWNERS`）的红线 PR 自己合。
+4. **auto-merge 转正自动化**：影子运行（collab-board 的 shadow job，11-13 起）满一周、与 `pr_merge.sh` 一致率 ≥ 95%，由定时任务把 `merge-gate` 等设为必需检查并对非红线 PR 开 auto-merge；一致率不够就只报数、不转正。回退：删必需检查、关 auto-merge。
+5. 仓库是 User 账号，没有原生合并队列；用 auto-merge + 必需检查近似。仓库改回私有则整套失效，先定可见性。

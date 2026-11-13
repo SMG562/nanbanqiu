@@ -29,6 +29,9 @@ r = run(['server/migrations/1.sql'], ['进度记录.md']); T('只有 PR 动了�
 r = run(['schema.sql', 'server/migrations/1.sql'], ['b.js']); T('只有 PR 动了库结构、main 改了不重叠的代码 → 放宽', r.code === 0 && /不重叠/.test(r.out), r);
 r = run(['server/migrations/1.sql'], ['server/migrations/2.sql']); T('两边都加了迁移 → 永远严格（迁移顺序会变）', r.code === 1 && /main 动了库结构/.test(r.out), r);
 r = run(['a.js'], ['.github/workflows/tests.yml']); T('main 动了 CI 工作流 → 永远严格', r.code === 1, r);
+r = run(['.github/workflows/collab-board.yml'], ['b.js']); T('PR 自己改 CI 工作流、main 只动无关文件 → 放宽（11-13 #253）', r.code === 0 && /不重叠/.test(r.out), r);
+r = run(['tools/pr_merge.sh'], ['b.js']); T('PR 自己改闸门脚本、main 只动无关文件 → 放宽', r.code === 0, r);
+r = run(['.github/workflows/collab-board.yml'], ['.github/workflows/tests.yml']); T('PR 改 CI 且 main 也动了 CI → 仍严格', r.code === 1 && /永远严格/.test(r.out), r);
 r = run(['a.js'], ['tools/pr_merge.sh']); T('main 动了闸门脚本 → 永远严格', r.code === 1, r);
 // 能快进（main 是祖先）→ 脚本直接说可以
 git(tmp, 'checkout', '-q', 'main'); const tip = git(tmp, 'rev-parse', 'HEAD').trim(); r = spawnSync('bash', ['tools/merge_drift.sh', tip, 'main'], { cwd: tmp, env, encoding: 'utf8' }); T('main 已是祖先 → 可直接快进', r.status === 0, r.stdout);

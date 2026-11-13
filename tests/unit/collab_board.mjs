@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -84,4 +84,36 @@ T('CI 卡排队：球在作者、reason 点名 30 分钟、next 是推空提交'
 T('CI 卡排队优先于「在跑」（一个卡一个在跑 = 先处理卡住的）', classify(base({ ci: { tests: 'stuck', fast: 'pending' } }), NOW).ball === 'author');
 T('CI 红仍优先于卡住（先修红的）', /CI 红/.test(classify(base({ ci: { tests: 'stuck', fast: 'failure' } }), NOW).reason));
 T('卡住提醒：带去重标记 / 作者 / 提交号 / 草稿说明', (m => m.includes(`<!-- ${stuckKey(base())} -->`) && m.includes('@MDD1102') && m.includes('abcdef1') && m.includes('草稿 PR'))(stuckText(base({ draft: true }))));
+// ⑨ main 有新提交 → 告诉相关的开着的 PR（#189；所有者 11-13 同意时要求的三个用例在最前面）
+{
+  const pr = (n, files, o = {}) => ({ number: n, author: 'MDD1102', files, comments: [], ...o });
+  const cm = (sha, files, o = {}) => ({ sha, parents: 1, message: o.message || '某次修改', files: files.map(f => typeof f === 'string' ? { filename: f, patch: '' } : f) });
+  let r = mainNotices([pr(201, ['tools/a.mjs', 'src/x.js'])], [cm('aaaaaaa1', ['tools/a.mjs'])]);
+  T('#189 同改文件 → 发一条，@作者，写明同改了哪个文件、下一步 sync_main', r.length === 1 && r[0].number === 201 && /@MDD1102/.test(r[0].body) && /同改 `tools\/a\.mjs`/.test(r[0].body) && /sync_main/.test(r[0].body), r);
+  r = mainNotices([pr(201, ['tools/a.mjs'])], [cm('aaaaaaa1', ['docs/b.md'])]);
+  T('#189 不同改、也没提到 → 不发', r.length === 0, r);
+  const done = pr(201, ['tools/a.mjs'], { comments: [{ body: `<!-- ${mainKey('aaaaaaa1')} -->\n已提醒过` }] });
+  r = mainNotices([done], [cm('aaaaaaa1', ['tools/a.mjs'])]);
+  T('#189 同一个提交重复运行 → 不重复发（按评论里的提交号标记）', r.length === 0, r);
+  r = mainNotices([pr(197, ['tools/role_guard.mjs'])], [cm('bbbbbbb2', [{ filename: '逃逸缺陷.md', patch: '@@\n+| 11-12 | 身份钩子在 #197 |\n-旧的一行 #197' }])]);
+  T('提到：改动里新增行写了 #197 → 发「提到你」并摘那一行；删掉的行不算', r.length === 1 && /提到你：「\| 11-12 \| 身份钩子在 #197 \|」/.test(r[0].body), r);
+  r = mainNotices([pr(97, [])], [cm('ccccccc3', ['x'], { message: '修 #197 和 #1970 的问题；见 a.md#97 和 issue&#97' })]);
+  T('提到：#97 不误认 #197 / #1970、锚点 a.md#97、HTML 实体 &#97', r.length === 0, r);
+  r = mainNotices([pr(97, [])], [cm('ccccccc3', ['x'], { message: '接着 #97 做' })]);
+  T('提到：提交信息里 #97 → 发', r.length === 1 && /提到你：「接着 #97 做」/.test(r[0].body), r);
+  r = mainNotices([pr(201, ['a', 'b'])], [cm('d1', ['a']), cm('d2', ['b']), cm('d3', ['z'])]);
+  T('一次运行同一个 PR 只发一条，汇总相关提交（无关的不列），每个提交都留标记', r.length === 1 && /main 有 2 个新提交/.test(r[0].body) && r[0].body.includes(`<!-- ${mainKey('d1')} -->`) && r[0].body.includes(`<!-- ${mainKey('d2')} -->`) && !r[0].body.includes(mainKey('d3')), r);
+  r = mainNotices([pr(201, ['a'], { author: 'dependabot[bot]' })], [cm('e1', ['a'])]);
+  T('机器人的 PR 不发', r.length === 0, r);
+  r = mainNotices([pr(201, ['schema.sql'])], [{ ...cm('m1', ['schema.sql'], { message: '合并 origin/main，为快进合并做准备' }), parents: 2 }]);
+  T('跳过合并提交（「合并 origin/main」的改动文件是另一条线的全部改动，会误报同改；11-13 用真实仓库 --dry 试跑发现）', r.length === 0, r);
+  r = mainNotices([pr(197, [])], [cm('n1', [{ filename: 'x.md', patch: '@@\n-旧的一行写着 #197\n+新的一行' }])]);
+  T('提到：只有被删掉的行写了 #197 → 不算提到', r.length === 0, r);
+  r = mainNotices([pr(201, ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7'])], [cm('g1', ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7'])]);
+  T('同改很多文件：最多列 5 个，写「等 7 个文件」', r.length === 1 && /等 7 个文件/.test(r[0].body) && !/f6/.test(r[0].body), r);
+  r = mainNotices([pr(201, ['a']), pr(202, ['b'])], [cm('h1', ['a', 'b'])]);
+  T('一个提交同时和两个 PR 有关：各发一条', r.length === 2 && r.map(x => x.number).join() === '201,202', r);
+  T('时间窗 ≥ 看板兜底周期（3 小时）的两倍，漏一轮也接得上', MAIN_WINDOW_H >= 6);
+}
+
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
