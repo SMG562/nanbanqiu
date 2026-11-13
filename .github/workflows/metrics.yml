@@ -1,4 +1,4 @@
-# 南伴球 · 研发周报（11-07）：DORA 四项 + CI 分钟 + 不稳定测试 + 并行 PR，结果在本次运行的摘要页。
+# 南伴球 · 研发周报（11-07）+ 每周清分支（11-13）：DORA 四项 + CI 分钟 + 不稳定测试 + 并行 PR，结果在本次运行的摘要页。
 #   每周一早上（墨尔本 08:23）自动跑一次；也可手动。只读 API，约 1 分钟。说明见 tools/weekly_metrics.mjs。
 name: metrics
 
@@ -23,3 +23,15 @@ jobs:
         with: { sparse-checkout: tools/weekly_metrics.mjs, sparse-checkout-cone-mode: false }
       - env: { GH_TOKEN: "${{ github.token }}" }
         run: node tools/weekly_metrics.mjs --days=${{ inputs.days || 7 }}
+
+  # 11-13：每周自动清远端分支（所有者在对话里授权，此类不再问）。只删 branch_prune 归为「可删」的：内容已在 main / PR 已关闭 / 没进 main 但 21 天没动；
+  #   没进 main 的先打 archive/<分支> 标签再删，恢复：git push origin archive/<分支>:refs/heads/<分支>。保护分支、开着 PR 的分支、3 天内的新分支一律不动。
+  prune:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: node tools/branch_prune.mjs --apply

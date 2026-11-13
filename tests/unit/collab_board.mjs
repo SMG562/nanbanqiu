@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -122,4 +122,9 @@ T('卡住提醒：带去重标记 / 作者 / 提交号 / 草稿说明', (m => m.
   T('时间窗 ≥ 看板兜底周期（3 小时）的两倍，漏一轮也接得上', MAIN_WINDOW_H >= 6);
 }
 
+// #248：同一秒一个草稿 skipped + 一个正常在跑 → 在跑，不是「没跑完」
+{ const at = '2026-11-13T02:02:16Z', run = (o) => ({ path: '.github/workflows/tests.yml', created_at: at, status: 'completed', conclusion: 'success', ...o }), now = Date.parse(at) + 6e4;
+  T('runState：同一秒 skipped + in_progress（两种顺序）都算 pending', runState([run({ conclusion: 'skipped' }), run({ status: 'in_progress', conclusion: null })], 'tests', now) === 'pending' && runState([run({ status: 'in_progress', conclusion: null }), run({ conclusion: 'skipped' })], 'tests', now) === 'pending');
+  T('runState：较新的 skipped 不盖过较早的 success；全是 skipped / 没有运行才算 none', runState([run({}), run({ conclusion: 'skipped', created_at: '2026-11-13T02:05:00Z' })], 'tests', now) === 'ok' && runState([run({ conclusion: 'skipped' })], 'tests', now) === 'none' && runState([], 'tests', now) === 'none');
+  T('runState：失败 / 只看对应工作流文件', runState([run({ conclusion: 'failure' }), run({ path: '.github/workflows/tests-fast.yml' })], 'tests', now) === 'failure' && runState([run({ path: '.github/workflows/tests-fast.yml' })], 'tests', now) === 'none'); }
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
