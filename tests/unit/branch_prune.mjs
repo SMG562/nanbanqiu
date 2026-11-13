@@ -70,4 +70,7 @@ try {
   T('和 main 冲突：不算在 main（宁可漏删）', !contained(cf, 'main', tmp));
 } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
 
+// 11-13：云端会话代理不放行 gh --paginate 的翻页链接（repositories/<数字ID>/…，403），PR 超过 100 个就整个脚本崩
+const bp = fs.readFileSync(new URL('../../tools/branch_prune.mjs', import.meta.url), 'utf8');
+T('branch_prune：不用 gh --paginate，自己按 page= 翻页', !/'--paginate'/.test(bp) && /pulls\?state=all&per_page=100&page=\$\{pg\}/.test(bp));
 console.log(`branch_prune: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
