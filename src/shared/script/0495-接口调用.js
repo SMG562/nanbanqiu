@@ -185,7 +185,7 @@ function nbqApply(r){if(!r||!r.ok||!r.registered)return false;
   Object.keys(VEN).forEach(k=>delete VEN[k]);r.venues.forEach(v=>{VEN[v.id]=v});
   Object.keys(USERS).forEach(k=>delete USERS[k]);Object.assign(USERS,r.users);
   GAMES.length=0;r.games.forEach(g=>GAMES.push(g));PARTS.length=0;r.parts.forEach(p=>PARTS.push(p));
-  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);if(typeof nbqBuddiesIn==='function')nbqBuddiesIn(r.buddies);nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
+  ME=USERS[r.me];if(ME)ME.blocked=new Set(r.blocked||[]);if(ME&&r.after)nbqApplyAfter(r.after,ME.id);if(ME&&r.reports)nbqApplyReports(r.reports,ME.id);INVITES.length=0;(r.invites||[]).forEach(i=>INVITES.push(i));nbqInvVenues(VEN,INVITES,(ME&&ME.home_club_ids||[])[0]);nbqBadgesIn(r.badges);if(typeof nbqRacketsIn==='function')nbqRacketsIn(ME,r.rackets,rk0);if(typeof nbqBuddiesIn==='function')nbqBuddiesIn(r.buddies);nbqLinkKeep();nbqRenderSoon();if(!NBQ_STALE)nbqSnapSoon();return true}
 
 // 我的举报（11-05）：处理中的举报以服务器为准（刷新 / 换设备后还认得出「已举报」）；读不到（null）时保持原样，不清空
 function nbqApplyReports(list,me){
@@ -238,13 +238,27 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
   if(ME)return;   // 读的时候已经登录进来了，以登录后读入的为准
   if(v.ok){Object.keys(VEN).forEach(k=>delete VEN[k]);(v.data.venues||[]).forEach(x=>{VEN[x.id]=nbqFromVenue(x)})}
   if(pub.ok){Object.assign(USERS,pub.users);pub.games.forEach(g=>GAMES.push(g));pub.parts.forEach(p=>PARTS.push(p))}
-  render()}
+  render();nbqLinkOpen()}
+// 分享链接 /g/码（真实模式，11-13）：球局是异步读进来的，启动时按码找不到，所以读完（未登录读公开球局、或登录后读入）再打开这一局。
+//   公开列表里没有的（超过 100 场 / 开打超过 30 分钟）按分享码单独取；单独取来的那一局记在 NBQ_LINK.g，之后重读球局（nbqApply 整个替换）时补回去。
+//   未登录时取不到（女生局、私人局要登录才看得到）：先不算完，登录读入后再试一次
+const NBQ_LINK={done:false,g:null};
+function nbqLinkKeep(){const g=NBQ_LINK.g;if(g&&!GAMES.some(x=>x.id===g.id)){GAMES.push(g);nbqCompose([g],PARTS,USERS)}}
+async function nbqLinkOpen(){if(!NBQ_NET||NBQ_LINK.done||typeof location==='undefined')return;
+  const m=location.hash.match(/#\/g\/(\w+)/)||location.pathname.match(/\/g\/(\w+)/);if(!m){NBQ_LINK.done=true;return}
+  const code=m[1],anon=!ME;let g=GAMES.find(x=>x.share_code===code);
+  if(!g){const r=await NBQ_NET.get('/api/game',{code},anon?{noauth:true}:undefined);
+    if(NBQ_LINK.done||(!r.ok&&r.status!==404))return;   // 断网 / 服务器忙：留到下次读完再试
+    if(r.ok&&r.data.game){NBQ_LINK.g=nbqFromGame(r.data.game);nbqLinkKeep();g=GAMES.find(x=>x.id===NBQ_LINK.g.id)}}
+  if(!g){if(!anon)NBQ_LINK.done=true;toast(anon?'这场球局不公开或已结束，登录后再看看':'这场球局已结束或不公开');return}
+  NBQ_LINK.done=true;
+  if(AN_BUILD==='pwa'){if(!UI.detail)openDetail(g.id,true)}else{UI.landing=code;render()}}
 // 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code} · {st:'gone'} 读取途中退出了（什么都不做）
 async function nbqEnter(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);
   if(ep!==NBQ_EPOCH)return{st:'gone'};   // 读取途中退出 / 换了人：不再套用（#202）
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  NBQ_STALE=false;nbqApply(r);nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
+  NBQ_STALE=false;nbqApply(r);nbqLinkOpen();nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='gone')return;
