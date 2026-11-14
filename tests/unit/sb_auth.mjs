@@ -86,4 +86,22 @@ T('已过期时断网：返回空但保留登录，网络回来再试能续上',
   T('开关：页面接线里发码前先读开关，再发（sbaSendThen）', /sbSmsPaused\([^)]*\)[^;]*\.then\(p=>p\?\{ok:false,code:'sms_paused'\}:SBA\.send\(/.test(src), src.slice(src.indexOf('function sbaSendThen'), src.indexOf('function sbaSendThen') + 300));
   T('开关：暂停时的提示文案有，且不是「验证码错」', typeof SB_TXT.sms_paused === 'string' && SB_TXT.sms_paused.includes('暂时停发')); }
 
+// 登录交接（11-14）：用码换登录、之后由自家接口续期 / 退出（不再找 Supabase）
+{ const tok = { access_token: 'OWN1', refresh_token: 'R'.repeat(43), expires_in: 3600, user: { id: 'u-9', phone: '61412345678' } };
+  let e = env({ url: 'https://p.supabase.co', key: 'k' }, [{ s: 200, d: tok }]); let r = await e.A.redeem('C'.repeat(43));
+  T('redeem：发到自家接口（相对路径、不带 Supabase 的 key），存成 own 登录', r.ok && r.uid === 'u-9' && e.calls[0].u === '/api/session/redeem' && e.calls[0].body.code === 'C'.repeat(43) && !e.calls[0].o.headers.apikey && e.A.session().own === true && e.A.session().access_token === 'OWN1', [r, e.calls[0]]);
+  T('已经有登录：不再换（不发请求）', (await e.A.redeem('D'.repeat(43))).code === 'has_session' && e.calls.length === 1);
+  // 续期走自家接口
+  const ee = env({ url: 'https://p.supabase.co', key: 'k' }, [{ s: 200, d: tok }, { s: 200, d: { ...tok, access_token: 'OWN2' } }, { s: 401, d: { error: 'session_revoked' } }, { s: 200, d: {} }]);
+  await ee.A.redeem('C'.repeat(43)); ee.tick(3590); let s = await ee.A.fresh();
+  T('own 登录快过期：向 /api/session/refresh 续期，仍是 own', s && s.access_token === 'OWN2' && s.own === true && ee.calls[1].u === '/api/session/refresh' && ee.calls[1].body.refresh_token === tok.refresh_token, [s, ee.calls[1] && ee.calls[1].u]);
+  ee.tick(3590); s = await ee.A.fresh();
+  T('续期被拒（凭证撤销 / 账号封禁）：清掉登录', s === null && ee.A.session() === null);
+  const e3 = env({ url: 'https://p.supabase.co', key: 'k' }, [{ s: 200, d: tok }, { s: 200, d: { ok: true } }]); await e3.A.redeem('C'.repeat(43)); await e3.A.logout();
+  T('own 登录退出：告诉自家接口作废凭证，本机清掉', e3.calls[1].u === '/api/session/logout' && e3.calls[1].body.refresh_token === tok.refresh_token && e3.A.session() === null);
+  const e4 = env({ url: 'https://p.supabase.co', key: 'k' }, ['net']); r = await e4.A.redeem('C'.repeat(43));
+  T('换码时没连上：报 network（码没用掉，可以再试），不存登录', r.ok === false && r.code === 'network' && e4.A.session() === null);
+  const e5 = env({ url: 'https://p.supabase.co', key: 'k' }, [{ s: 401, d: { error: 'handoff_invalid' } }]); r = await e5.A.redeem('C'.repeat(43));
+  T('码不对 / 用过 / 过期：报 handoff_invalid，不存登录', r.code === 'handoff_invalid' && e5.A.session() === null) }
+
 console.log(`\nsb_auth: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

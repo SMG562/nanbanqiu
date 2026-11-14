@@ -5,7 +5,7 @@ import data from '../server/og/demo_data.json';
 import { sharePage } from '../server/og/page.mjs';
 import { siteRoute } from '../server/site_route.mjs';
 import { handleApi } from '../server/api/handler.mjs';
-import { makeVerifier } from '../server/api/jwt.mjs';
+import { makeVerifier, makeSession } from '../server/api/jwt.mjs';
 import { makeDb } from '../server/api/db.mjs';
 import { connectFromEnv } from '../server/api/connect.mjs';
 import { SUPABASE } from '../server/headers.mjs';
@@ -14,7 +14,7 @@ import { connectAdminFromEnv } from '../server/admin/connect.mjs';
 
 // /api/*：令牌验证 + 连数据库（Hyperdrive 或密钥 DB_URL；都没配时 /api/health 正常、要数据库的接口返回 503 db_unavailable）
 let deps;
-const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null, minBuild: env.NBQ_MIN_BUILD || null });   // 最低前端版本（ADR 0013），默认不设
+const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null, minBuild: env.NBQ_MIN_BUILD || null, session: makeSession(env.NBQ_SESSION_KEY) });   // 最低前端版本（ADR 0013），默认不设
 
 let adminDeps;
 export default {

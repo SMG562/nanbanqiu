@@ -729,3 +729,11 @@
 - 每次成功的操作记 admin_audit_log（action = sideline.config，target = draft:<块> / discard / publish / rollback:<版本> / 话题 id；发布记说明和改了哪几块）。
 - 「雨停了」暂不做（10-27）：话题和特别安排都在，不上线。
 
+## 登录交接（11-14）：Safari 登录 → 添加到主屏幕 → 桌面图标不用再登录
+iPhone 的 Safari 和桌面图标不共用存储。登录后的页面要一个一次性交接码，写进安装配置的启动网址；桌面图标第一次打开时拿码换登录。接口层自己签发令牌（ES256，密钥 `NBQ_SESSION_KEY`，iss = `https://nanbanqiu.app/session`，sub 仍是 Supabase 的 auth id），和 Supabase 的令牌并行，接口两种都认。没配密钥 = 整套不启用（404 `handoff_unavailable`）。
+- `POST /api/session/handoff`（要登录）→ `{code, expires_at}`。码 43 位随机、24 小时有效、只能用一次、库里只存 sha256；每人每天 5 个（429 `rate_limited`）；封禁 / 注销中 403。
+- `POST /api/session/redeem {code}`（不用登录）→ `{access_token, refresh_token, expires_in, user:{id, phone}}`；码不对 / 用过 / 过期 / 账号被封一律 401 `handoff_invalid`，不说明原因。
+- `POST /api/session/refresh {refresh_token}` → 新令牌（凭证不变）；凭证不在 / 账号被封 401 `session_revoked`（同时删掉这份登录）。
+- `POST /api/session/logout {refresh_token}` → 作废凭证，总是 200。
+- `GET /api/manifest?h=<码>` → 站点的 manifest，只是 `start_url` 多一个 `h`；不查库，码格式不对 404。
+- 测试：`pg/api_handoff`（安全性质）· `unit/sb_auth`（前台登录模块）· `frontend/handoff`（什么时候要码 / 换码）。真机才能确认的：iPhone 是否把带码的启动网址记进桌面图标。

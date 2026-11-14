@@ -37,7 +37,7 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
   { const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }), pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.route('https://demo.test/**', html); await pg.route(u => !/^https:\/\/demo\.test\//.test(u.toString()), r => r.abort());
     await pg.goto('https://demo.test/'); await pg.waitForFunction(() => typeof setWho === 'function' && typeof pushNudgeHTML === 'function'); await pg.settle(600);
-    await pg.evaluate(() => { setWho('jason', true); setEnv('safari'); PUSH.enabled = false }); await pg.settle(300);
+    await pg.evaluate(() => { LOC.asked = true; setWho('jason', true); setEnv('safari'); PUSH.enabled = false; closeSheet() }); await pg.settle(300);   // LOC.asked：演示模式会自己弹位置授权，时间不定，会盖住要看的面板（并发跑时偶发）
     T('③ 浏览器标签里、没看过步骤：有「放到主屏幕」小卡片', await pg.evaluate(() => /data-a="a2hs"/.test(pushNudgeHTML('game'))));
     await pg.evaluate(() => openA2HS()); await pg.settle(400);
     T('③ 步骤页有「我已添加」和「稍后」', await pg.evaluate(() => !!document.querySelector('#sheet [data-a="a2hsDone"]') && !!document.querySelector('#sheet [data-a="close"]')));
@@ -51,14 +51,14 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
     await shut();
     // ④
     await pg.evaluate(() => { try { localStorage.removeItem('nbq_push_asked') } catch (_) { } pnAfterLogin() }); await pg.settle(300);
-    T('④ 浏览器标签里登录完：不问通知', await pg.evaluate(() => !document.querySelector('#sheet.show')));
+    T('④ 浏览器标签里登录完：不问通知', await pg.evaluate(() => !document.querySelector('#sheet.show [data-a="enablePush"]')));
     await pg.evaluate(() => { Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' }); setEnv('pwa'); PUSH.enabled = false }); await pg.settle(300);   // CI 的无头浏览器默认是 denied，不能依赖默认值
     const canAsk = await pg.evaluate(() => pushState());
     if (canAsk === 'ask') {
       await pg.evaluate(() => pnAfterLogin()); await pg.settle(400);
       T('④ 主屏幕 App 里登录完：出现一步开通知', await pg.evaluate(() => !!document.querySelector('#sheet.show [data-a="enablePush"]')));
       await shut(); await pg.evaluate(() => pnAfterLogin()); await pg.settle(300);
-      T('④ 只问一次', await pg.evaluate(() => !document.querySelector('#sheet.show')));
+      T('④ 只问一次', await pg.evaluate(() => !document.querySelector('#sheet.show [data-a="enablePush"]')));
     } else T('④ 前置：主屏幕 App 里通知状态应为 ask', false, canAsk);
     T('③④ 没有页面报错', !errs.length, errs); await ctx.close(); }
   await b.close();

@@ -19,7 +19,8 @@ export const RULES = [
   // 前台
   [/^vendor\//, ['frontend/vendor_load', 'frontend/csp', 'frontend/site', 'unit/vendor_local']],   // 第三方库本站托管（L5）
   [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
-  [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write']],
+  [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write', 'frontend/handoff']],
+  [/^server\/api\/jwt\.mjs$/, ['pg/api_handoff']],
   [/^src\/shared\/script\/0495/, ['frontend/e2e_fullstack', 'unit/nbq_net', 'frontend/real_data', 'frontend/real_write', 'frontend/real_invite', 'frontend/real_chat', 'frontend/real_safety', 'frontend/real_after']],
   [/^src\/shared\/script\/0290/, ['frontend/real_after']],
   [/^src\/shared\/script\/0150/, ['frontend/real_invite']],

@@ -52,6 +52,23 @@ async function nbqPushHeal(){
  * iPhone 上，浏览器（Safari）和「添加到主屏幕」的 App 不共用登录和设置：在 Safari 里登录再添加到主屏幕，要重新登录一次。
  * 所以「要登录」的那一刻，先建议添加到主屏幕、从桌面图标打开后再登录——只登一次，也才能收到提醒。
  * 不强迫：可以选「先在浏览器里用」，同一次打开里不再问。只对真实环境的 iPhone Safari 生效（演示、安卓、已是主屏幕 App 的都不变）。 */
+/* ===================== 登录交接：Safari 登录 → 添加到主屏幕 → 桌面图标不用再登录（11-14） =====================
+ * iPhone 把安装配置（manifest）里的启动网址记进桌面图标。所以在 iPhone 的浏览器标签里登录后，向服务器要一个一次性交接码，
+ * 把页面的安装配置换成带码的那份（/api/manifest?h=码）；桌面图标第一次打开时带着码，登录模块拿去换登录（0490 sbaHandoff）。
+ * 码缓存在本机（nbq_ho），快过期才重新要（每人每天 5 个）；退出登录时清掉并把安装配置换回原样。服务器没启用（404）就什么都不做。 */
+let HO_BUSY=false,HO_READY=false;
+function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
+  l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
+function hoClear(){try{localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null)}
+async function hoPrep(){
+  if(typeof NBQ_NET==='undefined'||!NBQ_NET||!ME||typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||typeof ENV==='undefined'||ENV!=='safari')return false;
+  if(typeof a2hsKind!=='function'||!/^ios_/.test(a2hsKind()))return false;   // 安卓的浏览器和桌面图标本来就共用登录
+  const me=ME.id;let c=null;try{c=JSON.parse(localStorage.getItem('nbq_ho')||'null')}catch(_){}
+  if(!(c&&c.uid===me&&typeof c.code==='string'&&c.exp-Date.now()>3600e3)){
+    if(HO_BUSY)return false;HO_BUSY=true;let r;try{r=await NBQ_NET.post('/api/session/handoff')}finally{HO_BUSY=false}
+    if(!r.ok||!r.data.code||!ME||ME.id!==me)return false;
+    c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
+  hoLink(c.code);return true}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
   openAuth=function(next,why){
