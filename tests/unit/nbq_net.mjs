@@ -199,4 +199,14 @@ T('带 idem → 请求头 Idempotency-Key；不带 → 没有这个头（opt-in�
     t = 11 * 60e3; T('超过 10 分钟再发同样的话 → 新 key（是新的一条，不能错拿旧结果；独立复核发现）', J.key('msgT', { body: '我到了' }) !== a) }
   T('默认生成的 key 符合服务端格式（16–64 位字母数字 _ -）', /^[A-Za-z0-9_-]{16,64}$/.test(X.nbqIdemMake().key('x', {})), X.nbqIdemMake().key('x', {})) }
 
+// 超时（11-13 上线前审查）：弱网下请求一直不回 → 到点放弃、按断网报（不然「处理中」的锁一直不放，按钮点了没反应）；正常返回的不受影响、定时器要清掉
+{ const tm = { n: 0, set: (f, ms) => { tm.n++; return setTimeout(f, ms) }, clear: t => { tm.n--; clearTimeout(t) } };
+  const hang = X.nbqNetMake({ fetch: () => new Promise(() => { }), base: '', token: async () => 'AT', timeout: 30, timer: tm });
+  const t0 = Date.now(), rr = await hang.post('/api/games', {});
+  T('请求一直不回：到点放弃，按断网报（status 0 / network）', rr.ok === false && rr.status === 0 && rr.code === 'network' && Date.now() - t0 < 2000, rr);
+  const okNet = mk({ 'GET /api/me': { s: 200, d: { registered: false } } }, 'AT', { timeout: 30, timer: tm }), r2 = await okNet.net.get('/api/me');
+  T('正常返回：不受超时影响，定时器已清掉', r2.ok === true && tm.n === 0, [r2, tm.n]);
+  const off = X.nbqNetMake({ fetch: async () => ({ ok: true, status: 200, json: async () => ({}), headers: { get: () => null } }), base: '', token: async () => 'AT', timeout: 0, timer: tm });
+  T('timeout = 0：不设超时', (await off.get('/api/me')).ok === true && tm.n === 0) }
+
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -66,6 +66,10 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     s = await state(); T(tag('正式域名未登录：演示数据已清空，换成服务器的球场和公开球局（发起人用卡片昵称）'), s.net === true && s.g === 1 && s.u === 1 && s.v === 2 && s.me === null, s);
     T(tag('未登录只读公开球场和公开球局：不带令牌，不读我的资料'), [...api].sort().join() === 'GET /api/games,GET /api/venues' && S.gamesAuth === null, [api, S.gamesAuth]);
     const anon = await pg.evaluate(() => { const l = api.list(); return { n: l.length, host: l[0] && l[0].host && l[0].host.name, spots: l[0] && l[0].spots } });
+    // 11-13（上线前审查）：正式站的登录框不能再写「演示：任意手机号和 6 位验证码」（真短信登录下这句是错的，新用户会以为是测试站）
+    await pg.evaluate(() => { openAuth(null) }); await pg.settle(400);
+    T(tag('正式域名登录框：没有「演示」字样，写明只支持澳洲手机号，协议链接还在'), await pg.evaluate(() => { const p = document.querySelector('#ph'), box = p && p.closest('.sheet, .modal, #sheet, #modal') || document.body, t = box.innerText; return !!p && !t.includes('演示') && t.includes('澳洲手机号') && t.includes('隐私政策') }));
+    await pg.evaluate(() => { typeof closeSheet === 'function' ? closeSheet() : closeModal() }); await pg.settle(400);
     T(tag('未登录也能在发现列表里看到公开球局：发起人、余位对得上（4 人局已确认 1 人 → 余 3）'), anon.n === 1 && anon.host === 'Host' && anon.spots === 3, anon);
     // ③ 老用户登录
     api.length = 0; await login(); s = await state();

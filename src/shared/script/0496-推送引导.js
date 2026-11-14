@@ -8,7 +8,7 @@
 function pushState(){
   if(typeof ENV!=='undefined'&&ENV==='wechat')return'wechat';
   if(PUSH&&PUSH.enabled)return'on';
-  if(typeof ENV!=='undefined'&&ENV==='safari')return'need_install';   // 在浏览器标签里：iPhone 上只有「添加到主屏幕」后的 App 能收推送
+  if(typeof ENV!=='undefined'&&ENV==='safari')return typeof a2hsAdded==='function'&&a2hsAdded()?'installed':'need_install';   // installed：用户说已经添加到主屏幕（这里是浏览器标签，开不了推送，也不再提醒）   // 在浏览器标签里：iPhone 上只有「添加到主屏幕」后的 App 能收推送
   if(!('Notification'in window)||!('PushManager'in window))return'unsupported';
   if(Notification.permission==='denied')return'denied';
   return'ask'}
@@ -16,7 +16,7 @@ const PN_TXT={game:['有人申请，第一时间知道','不开着南伴球，�
 const PN_BTN={ask:['开启提醒','enablePush','i-bell'],need_install:['放到主屏幕','a2hs','i-plus'],denied:['怎么开','pushDenied','i-bell'],wechat:['怎么换','wxguide','i-share']};
 function pushNudgeHTML(why){
   if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME)return'';   // 电脑端不推送（11-03 你定的），只有手机端引导
-  const st=pushState();if(st==='on'||st==='unsupported')return'';
+  const st=pushState();if(st==='on'||st==='unsupported'||st==='installed'||(st==='need_install'&&typeof a2hsRecent==='function'&&a2hsRecent()))return'';
   const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st];
   const sub=st==='need_install'?'放到主屏幕后，才能像 App 一样收提醒':st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
   return `<div class="pushcard pnudge" data-pn="${why}"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${sub}</p></div><button class="pc-go" data-a="${b[1]}" data-pf="${why}"><svg><use href="#${b[2]}"/></svg>${b[0]}</button></div>`}
@@ -56,9 +56,16 @@ let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
   openAuth=function(next,why){
     let seen=false;try{seen=sessionStorage.getItem('nbq_a2hs_first')==='1'}catch(_){}
-    if(!seen&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
+    if(!seen&&!(typeof a2hsAdded==='function'&&a2hsAdded())&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
       PN_AUTH={next,why};
       openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
       <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
     return _oa.call(this,next,why)}}}
+// 主屏幕 App 里登录完（没有接着要做的事）：一步开通知。只问一次；系统弹窗只在用户点了「开启通知」之后出现
+function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME||typeof ENV==='undefined'||ENV!=='pwa'||pushState()!=='ask')return;
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI.detail))return;   // 正在看别的：不打断
+  try{if(localStorage.getItem('nbq_push_asked')==='1')return;localStorage.setItem('nbq_push_asked','1')}catch(_){return}
+  window.PUSH_FROM='login';
+  openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-bell"/></svg></div><div class="sh-t">开启通知</div><p class="sh-s">有人申请、同意或回复你时，第一时间告诉你。</p></div>
+  <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`)}
 function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}

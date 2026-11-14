@@ -145,7 +145,8 @@ function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,s
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
 function ngPublish(){if(NG.edit){geSave();return}ngKeep();const f=NG;if(!f.venue_id){toast('选一个场地吧');return}if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return}
-  if(NBQ_NET){nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o)});return}   // 真实模式：先调接口，读入后再显示结果页
+  if(NBQ_NET){const b=document.querySelector('[data-ng="publish"]');if(b){if(b.disabled)return;b.disabled=true;b.textContent='发布中…'}   // 11-14：发布要等服务器回来，这期间按钮要有反应（以前点了像没点）
+    nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o);else if(b&&b.isConnected){b.disabled=false;b.textContent='发布'}});return}   // 真实模式：先调接口，读入后再显示结果页
   const id=api.create({venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,ntrp_min:f.mn,ntrp_max:f.mx,note:f.note.trim().slice(0,60)});
   const g=GAMES.find(x=>x.id===id);g.tags=[...f.tags];g.hide_done=!!f.hide;g.created_at=Date.now();g.join_mode=ugMode(f);if(f.type==='doubles')g.filled=3-f.miss;if(f.rep)makeSeries(id);CREATE_DONE(id,f.o)}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(!el||!NG||NG.o==null)return;e.stopPropagation();const a=el.dataset.ng,v=el.dataset.v,f=NG;ngKeep();

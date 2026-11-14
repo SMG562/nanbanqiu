@@ -44,7 +44,7 @@ export const RULES = [
   [/^tools\/(lib\/qr|admin_create)\.mjs$/, ['static/qr_encode']],                                         // #27：二维码
   [/^server\/og\/|^functions\/(g|p)\//, ['unit/og', 'unit/site_route', 'frontend/wx_share', 'frontend/site']],
   [/^server\/site_route\.mjs$|^functions\/_middleware\.js$/, ['unit/site_route', 'frontend/site']],
-  [/^sw\.js$|^manifest\.webmanifest$/, ['frontend/a2hs', 'frontend/site', 'unit/site_route']],
+  [/^sw\.js$|^manifest\.webmanifest$/, ['frontend/a2hs', 'frontend/site', 'unit/site_route', 'unit/sw_offline']],
   [/^tools\/(site|build|lint)\./, ['static/build', 'static/lint', 'frontend/site', 'unit/site_route']],
   [/^tools\/weekly_metrics\.mjs$/, ['unit/weekly_metrics']],                                              // 11-07：研发周报
   [/^tests\/spec\//, ['static/check', 'schema/', 'admin/consist']],

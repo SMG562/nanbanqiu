@@ -5,7 +5,7 @@
 .nb-row{height:50px;display:flex;align-items:center;justify-content:space-between}
 .navbtn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--ink)}
 .navbtn svg{width:18px;height:18px}
-.nb-brand{display:flex;align-items:center;gap:6px;font-weight:800;color:var(--g);font-size:16px}
+.nb-brand{border:0;background:none;padding:0;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:800;color:var(--g);font-size:16px}
 .nb-brand svg{width:22px;height:22px}
 .pscroll{position:absolute;inset:0;overflow-y:auto;padding:calc(var(--sb) + var(--wx) + 58px) 16px calc(150px + var(--hb))}
 .pass{background:#fff;border-radius:26px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -16px rgba(16,24,40,.18);overflow:hidden}

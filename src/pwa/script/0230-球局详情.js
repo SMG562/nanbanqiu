@@ -15,12 +15,12 @@ function passHTML0(c){const st=stateOf(c);
     <div class="pass-people"><div class="pp-h"><b>球友</b><span>${c.spots>0&&!['cancelled','past'].includes(st)?`还缺 ${c.spots} 位`:`${c.appr.length} 人`}</span></div><div class="people">${people}</div></div></div>`}
 function renderDetail(){
   const c=api.get(UI.detail),st=stateOf(c),blocked=ME&&blockedPair(ME.id,c.host_id);
-  $('#dNav').innerHTML=UI.landing?`<div class="nb-brand"><svg><use href="#logo"/></svg>南伴球</div><button class="navbtn" data-a="share"><svg><use href="#i-share"/></svg></button>`
+  $('#dNav').innerHTML=UI.landing?`<button class="nb-brand" data-a="explore" aria-label="回到首页"><svg><use href="#logo"/></svg>南伴球</button><button class="navbtn" data-a="share"><svg><use href="#i-share"/></svg></button>`
     :`<button class="navbtn" data-a="back"><svg><use href="#i-back"/></svg></button><button class="navbtn" data-a="share"><svg><use href="#i-share"/></svg></button>`;
   if(blocked){$('#dBody').innerHTML=`<div class="empty" style="padding-top:80px"><b>这个球局暂时无法查看</b></div>`;$('#dAct').innerHTML=`<button class="btn btn-p" data-a="explore">看看其他球局</button>`;$('#dAct').hidden=false;return}
   let b=womenLock(c)||passHTML(c);
   if(!womenLock(c))b+=requestsHTML(c);
-  if(UI.landing)b+=`<div class="cap" style="margin-top:22px">南伴球 · ${esc(CITY.zh)}网球约局 · <b style="color:var(--g)" data-a="explore">附近更多球局 ›</b></div>`;
+  if(UI.landing)b+=`<div class="cap" style="margin-top:22px">南伴球 · ${esc(CITY.zh)}网球约局 · 附近还有更多球局</div><button class="btn btn-s" data-a="explore" style="margin-top:10px">看看更多球局</button>`;
   $('#dBody').innerHTML=b;
   const nav=`https://maps.google.com/?daddr=${encodeURIComponent(c.v.name+' VIC')}`,safe=`<div class="safe"><svg width="14" height="14" style="color:var(--g)"><use href="#i-shield"/></svg>见面前，看看<b data-pact="1">球友约定</b>和<b data-a="safety">安全须知</b></div>`;
   $('#dAct').innerHTML={
