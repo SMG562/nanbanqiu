@@ -2,6 +2,7 @@
 //   handleApi(request, { verify, db }) → Response。纯函数风格，Node / Workers 都能用；同域调用，不开 CORS。
 //   错误一律 { error: '<码>' }，码和前台 API_ERR 对照；没登录 401 unauthorized；数据库没配 / 连不上 503 db_unavailable。
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
+import { OWN_ISS, issOf } from './jwt.mjs';
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
@@ -16,10 +17,11 @@ const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avat
 const ME_SEL = `${ME_COLS}, seal_roll, wechat_id, invite_from, (email is not null) as mail_set, email_prefs as mail_prefs, gender, pact_accepted_at, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
-async function whoIs(request, { verify, db }) {
+async function whoIs(request, { verify, db, session }) {
   const m = (request.headers.get('Authorization') || '').match(/^Bearer\s+(\S+)$/i);
   if (!m) return { err: send(401, { error: 'unauthorized' }) };
-  const v = await verify(m[1]);
+  const own = session && issOf(m[1]) === OWN_ISS;   // 登录交接签发的令牌（11-14）：由接口层自己的公钥验；其余仍是 Supabase 的
+  const v = own ? await session.verify(m[1]) : await verify(m[1]);
   if (!v.ok) return { err: send(401, { error: 'unauthorized' }, { 'X-Auth-Reason': v.code }) };
   const uid = await db.asService(async q => (await q('select id from users where auth_id = $1', [v.sub])).rows[0]?.id || null);
   return { sub: v.sub, uid, phone: typeof v.claims?.phone === 'string' ? v.claims.phone : null };
@@ -108,7 +110,41 @@ const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as sta
 // 匿名浏览：没有「我」，所以不走行级权限，改成在这里写死两条——只给公开的（visibility = public）、不是女生局的（女生局只给已注册的女生看）
 const anonGames = (d, where, params, tail) => d.db.asService(async q => (await q(`select ${GAME_COLS} from game_cards g join games gg on gg.id = g.id where g.visibility = 'public' and not coalesce('women' = any(g.tags), false) and ${where} ${tail}`, params)).rows);
 
+// ---- 登录交接（11-14）：Safari 登录 → 添加到主屏幕 → 从桌面图标打开不用再登录（设计见 schema.sql「登录交接」）----
+const sha256 = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join('');
+const rnd = n => { let s = ''; for (const b of crypto.getRandomValues(new Uint8Array(n))) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') };   // n 字节随机数，网址安全写法
+const HO_CODE = /^[A-Za-z0-9_-]{40,64}$/, HO_TTL = 3600;
+const hoTokens = async (d, who, refresh) => ({ access_token: await d.session.sign({ sub: who.auth_id, phone: who.phone }, HO_TTL), refresh_token: refresh, expires_in: HO_TTL, user: { id: who.auth_id, phone: who.phone } });
+const hoOff = () => send(404, { error: 'handoff_unavailable' });   // 没配签名密钥 = 不启用，前台安静跳过
+
 const ROUTES = {
+  // 已登录的页面要一个一次性交接码（明文只在这次响应里出现一次，库里只存 sha256；24 小时内有效，每人每天 5 个）
+  'POST /api/session/handoff': (req, d, p) => !d.session ? hoOff() : act(req, d, p, async q => {
+    const code = rnd(32); return { code, expires_at: (await one(q, 'select api_handoff_new($1) as e', [await sha256(code)])).e } }, { body: false }),
+  // 退出前作废自己还没用掉的码（不然退出后 24 小时内，之前写进桌面图标的码还能换出登录）。没启用时也返回 200：前台不用区分
+  'POST /api/session/handoff/revoke': (req, d, p) => !d.session ? send(200, { ok: true, revoked: 0 }) : act(req, d, p, async q => ({ ok: true, revoked: (await one(q, 'select api_handoff_revoke() as n')).n }), { body: false }),
+  // 用码换登录（不用登录）：码对、没用过、没过期 → 作废这个码，签一份新的登录；其余一律 401，不说明是哪种不对
+  'POST /api/session/redeem': async (req, d) => { if (!d.session) return hoOff();
+    const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);
+    if (!code || !HO_CODE.test(code)) return send(401, { error: 'handoff_invalid' });
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;   // 同一 IP 每小时 30 次（数据库里判，超了 429 rate_limited）
+    const refresh = rnd(32), who = await d.db.asService(async q => (await q('select session_handoff_redeem($1, $2, $3) as r', [await sha256(code), await sha256(refresh), ip])).rows[0].r);
+    return who ? send(200, await hoTokens(d, who, refresh)) : send(401, { error: 'handoff_invalid' }) },
+  // 续期：凭证还在、账号没被封 → 新令牌（凭证不变）；否则 401，前台清掉这份登录
+  'POST /api/session/refresh': async (req, d) => { if (!d.session) return hoOff();
+    const r = await readBody(req); if (r.err) return r.err; const rt = str(r.body.refresh_token);
+    if (!rt || !HO_CODE.test(rt)) return send(401, { error: 'session_revoked' });
+    const who = await d.db.asService(async q => (await q('select session_refresh($1) as r', [await sha256(rt)])).rows[0].r);
+    return who ? send(200, await hoTokens(d, who, rt)) : send(401, { error: 'session_revoked' }) },
+  'POST /api/session/logout': async (req, d) => { const r = await readBody(req); if (r.err) return r.err; const rt = str(r.body.refresh_token);
+    if (rt && HO_CODE.test(rt)) await d.db.asService(async q => { await q('select session_logout($1)', [await sha256(rt)]) });
+    return send(200, { ok: true }) },
+  // 带交接码的安装配置：和站点的 manifest.webmanifest 一样，只是启动网址多一个 h=码（iPhone 添加到主屏幕时把启动网址记进桌面图标）。不查库，只看码的格式
+  'GET /api/manifest': async (req, d) => { const h = new URL(req.url).searchParams.get('h') || '';
+    if (!d.asset || !HO_CODE.test(h)) return send(404, { error: 'not_found' });
+    let m; try { const r = await d.asset('/manifest.webmanifest'); if (!r.ok) throw 0; m = await r.json() } catch (_) { return send(404, { error: 'not_found' }) }
+    const u = new URL(m.start_url || '/', 'https://x.invalid'); u.searchParams.set('h', h); m.start_url = u.pathname + u.search + u.hash;
+    return new Response(JSON.stringify(m), { status: 200, headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } }) },
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
     if (new URL(req.url).searchParams.get('db') === '1') {
@@ -471,7 +507,7 @@ const pathExists = path => Object.keys(ROUTES).some(k => k.endsWith(' ' + path))
 // 最低前端版本（ADR 0013，#63 第 3 件）：deps.minBuild = 环境变量 NBQ_MIN_BUILD（构建号或其前面的秒数），不设 = 不启用。
 //   启用后，请求头 X-NBQ-Build 的秒数低于它、或没带 → 426 client_outdated，前台显示「有新版本 · 点一下刷新」。
 //   不拦：健康检查 / 版本 / 页面报错上报（旧页面的报错也要收）/ 埋点（sendBeacon 带不了请求头）、Service Worker 自己续订推送（它不知道页面的构建号）。
-const BUILD_FREE = new Set(['GET /api/health', 'HEAD /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions']);
+const BUILD_FREE = new Set(['GET /api/manifest', 'POST /api/session/redeem', 'POST /api/session/refresh', 'POST /api/session/logout', 'GET /api/health', 'HEAD /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions']);
 const buildSec = v => { const m = String(v || '').match(/^(\d{9,12})(?:-|$)/); return m ? +m[1] : 0 };
 export function outdated(key, header, minBuild) {
   const min = buildSec(minBuild); if (!min || BUILD_FREE.has(key)) return false;
@@ -485,7 +521,7 @@ async function switchesOf(d, fresh) {
   return SW.v;
 }
 // 维护页开着时放行：读开关本身、版本、页面报错上报（前台要靠它们知道在维护、排查要靠它们）
-const MAINT_OK = new Set(['GET /api/switches', 'GET /api/version', 'POST /api/client-errors']);
+const MAINT_OK = new Set(['GET /api/manifest', 'GET /api/switches', 'GET /api/version', 'POST /api/client-errors']);
 
 export async function handleApi(request, deps) {
   const path = new URL(request.url).pathname.replace(/\/+$/, '');

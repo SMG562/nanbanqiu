@@ -185,14 +185,14 @@ function a2hsSteps(k){
   return a2s(1,'点屏幕底部的「分享」','看不到？点地址栏的 <span class="a2i">'+A2G.menu+'</span> 或 <span class="a2i">'+A2G.dots+'</span>，再选「分享」','share')
     +a2s(2,'向上滑，点「添加到主屏幕」','在分享菜单里往上滑一点就能看到','plus')
     +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
-function openA2HS(){a2hsPut('nbq_a2hs_at',String(Date.now()));const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+function openA2HS(){a2hsPut('nbq_a2hs_at',String(Date.now()));if(typeof hoPrep==='function')hoPrep();const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
   let top='',main='';
   if(k==='inapp'||k==='ios_other'){
     top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;
     main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
   else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
-  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，登录一次、允许通知，之后都不用再登录（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="a2hsDone" style="margin-top:6px">我已添加</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':(typeof HO_READY!=='undefined'&&HO_READY?'添加后从桌面图标打开，会自动登录，再允许通知即可（需要 iOS 16.4 或更新）':'添加后从桌面图标打开，登录一次、允许通知，之后都不用再登录（需要 iOS 16.4 或更新）')}</p><button class="btn btn-s" data-a="a2hsDone" style="margin-top:6px">我已添加</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}

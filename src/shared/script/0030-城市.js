@@ -1,3 +1,6 @@
+// 登录交接（11-14）：桌面图标的启动网址带 h=一次性交接码（Safari 登录后添加到主屏幕时写进去的）。在埋点和路由之前取出来、马上从地址栏去掉——
+//   之后的埋点、分享链接、刷新都看不到它；码由登录模块拿去换登录态（0490）。格式不对的直接丢掉
+window.NBQ_HO_CODE=(()=>{try{const u=new URL(location.href),h=u.searchParams.get('h');if(h===null)return null;u.searchParams.delete('h');history.replaceState(history.state,'',u.pathname+u.search+u.hash);if(!/^[A-Za-z0-9_-]{40,64}$/.test(h))return null;try{if(localStorage.getItem('nbq_ho_done')===h)return null}catch(_){}return h}catch(_){return null}})();   // nbq_ho_done：这个码已经试过（桌面图标每次打开都带着同一个码）
 /* ============================== 城市（地区扩展 R3） ==============================
  * 每个城市一个网址：nanbanqiu.app/melbourne、/sydney……打开的网址决定城市；不带城市或认不出 → 墨尔本（现在只有墨尔本开放，不做切换）。
  * 分享链接保持短链接 /g/码、/p/编号（后端按球局 / 球员所在城市跳到对应城市的网址）。
