@@ -65,7 +65,7 @@ let AUTH={next:null,phone:'',cc:'+61',t:0},NP={ntrp:3.0,clubs:[]};
 function openAuth(next,why){AUTH.next=next;
   openSheet(`<div class="sh-t">用手机号继续</div><p class="sh-s">${why||'30 秒创建账号，以后打开链接自动登录'}</p>
   <div class="phone"><select class="inp" id="cc">${COUNTRIES.map(k=>`<option>${k.dial}</option>`).join('')}</select><input class="inp" id="ph" inputmode="tel" autocomplete="tel" placeholder="0412 345 678"></div>
-  <div style="height:12px"></div><button class="btn btn-p" data-a="sendCode">获取验证码</button><p class="fine">${typeof SBA!=='undefined'&&SBA.on()?'':'演示：任意手机号和 6 位验证码<br>'}继续即表示同意${legalLinks()}</p>`);setTimeout(()=>$('#ph')&&$('#ph').focus(),350)}
+  <div style="height:12px"></div><button class="btn btn-p" data-a="sendCode">获取验证码</button><p class="fine">${typeof SBA!=='undefined'&&SBA.on()?'目前仅支持澳洲手机号（04 开头）<br>':'演示：任意手机号和 6 位验证码<br>'}继续即表示同意${legalLinks()}</p>`);setTimeout(()=>$('#ph')&&$('#ph').focus(),350)}
 function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="height:auto;margin-bottom:6px">‹ 修改手机号</button><div class="sh-t">输入验证码</div><p class="sh-s">已发送至 ${esc(AUTH.cc)} ${esc(AUTH.phone)}</p>
   <input class="inp otp num" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······"><div class="fine" id="resend">60 秒后可重新发送</div>`);
   let n=60;clearInterval(AUTH.t);AUTH.t=setInterval(()=>{n--;const r=$('#resend');if(!r){clearInterval(AUTH.t);return}r.innerHTML=n>0?n+' 秒后可重新发送':'<b style="color:var(--g)" data-a="sendCode">重新发送</b>';if(n<=0)clearInterval(AUTH.t)},1000);
