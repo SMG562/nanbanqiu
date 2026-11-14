@@ -52,7 +52,7 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
     // ④
     await pg.evaluate(() => { try { localStorage.removeItem('nbq_push_asked') } catch (_) { } pnAfterLogin() }); await pg.settle(300);
     T('④ 浏览器标签里登录完：不问通知', await pg.evaluate(() => !document.querySelector('#sheet.show')));
-    await pg.evaluate(() => { setEnv('pwa'); PUSH.enabled = false }); await pg.settle(300);
+    await pg.evaluate(() => { Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' }); setEnv('pwa'); PUSH.enabled = false }); await pg.settle(300);   // CI 的无头浏览器默认是 denied，不能依赖默认值
     const canAsk = await pg.evaluate(() => pushState());
     if (canAsk === 'ask') {
       await pg.evaluate(() => pnAfterLogin()); await pg.settle(400);
