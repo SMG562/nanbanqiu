@@ -56,7 +56,8 @@ async function nbqPushHeal(){
  * iPhone 把安装配置（manifest）里的启动网址记进桌面图标。所以在 iPhone 的浏览器标签里登录后，向服务器要一个一次性交接码，
  * 把页面的安装配置换成带码的那份（/api/manifest?h=码）；桌面图标第一次打开时带着码，登录模块拿去换登录（0490 sbaHandoff）。
  * 码缓存在本机（nbq_ho），快过期才重新要（每人每天 5 个）；退出登录时清掉并把安装配置换回原样。服务器没启用（404）就什么都不做。 */
-let HO_BUSY=false,HO_READY=false,HO_OFF=false;   // HO_OFF：服务器没启用（要码回 404），这次打开不再试
+const hoHref=()=>{const l=document.querySelector('link[rel="manifest"]');return l&&l.getAttribute('href')||''};
+let HO_BUSY=false,HO_READY=/^\/api\/manifest\?h=/.test(hoHref()),HO_OFF=false;   // HO_READY：页面头部可能已经同步换好了（#299，本机缓存着没过期的码）   // HO_OFF：服务器没启用（要码回 404），这次打开不再试
 function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
   l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
 // 退出登录：本机的码清掉、安装配置换回原样，并让服务器把这个人还没用掉的码作废（之前写进桌面图标的也跟着失效）。要在清掉登录之前调（请求带的是当前登录）
@@ -72,7 +73,7 @@ async function hoPrep(){
     if(!r.ok||!r.data.code||!ME||ME.id!==me)return false;
     c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
   // 先确认带码的安装配置真的取得到、启动网址里确实带着码，再换；取不到（接口 404 / 抖动）就保持原样——换成坏的会把「添加到主屏幕」弄坏
-  if(HO_READY)return true;
+  if(hoHref()==='/api/manifest?h='+encodeURIComponent(c.code)){HO_READY=true;return true}   // 页面一打开就同步写好了（或上次已换好）：不用再探测
   try{const r=await fetch('/api/manifest?h='+encodeURIComponent(c.code),{cache:'no-store'});if(!r.ok)return false;const m=await r.json();if(!m||typeof m.start_url!=='string'||m.start_url.indexOf('h='+c.code)<0)return false}catch(_){return false}
   if(!ME||ME.id!==me)return false;
   hoLink(c.code);return true}

@@ -91,6 +91,26 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   T('⑤ 服务器没启用：这次打开只问一次，不反复要码', s.S.n === 1, s.S.n);
   T('⑤ 服务器没启用（404）：照常登录，安装配置原样，没有报错', await s.pg.evaluate(() => !!ME) && await s.man() === '/manifest.webmanifest' && !s.errs.length, [await s.man(), s.errs]); await s.ctx.close();
 
+  // ⑦ #299：iOS 在页面加载时就读安装配置。本机已缓存没过期的码 → 页面一打开就同步写好，不等任何网络请求
+  { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: IOS }), pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message)); let apiDone = 0, mode = 'ok';
+    await ctx.addInitScript(([code, m]) => { try { if (m !== 'nosession') localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' }));
+      localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + (m === 'expired' ? 60e3 : 20 * 3600e3), uid: 'x' })) } catch (_) { } }, [CODE, 'ok']);
+    await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, F)) }); /* 接口一律挂住：证明不靠网络 */ });
+    await pg.route(u => !/^https:\/\/nanbanqiu\.app\//.test(u.toString()), r => r.abort());
+    await pg.goto('https://nanbanqiu.app/', { waitUntil: 'domcontentloaded' });
+    const href = await pg.evaluate(() => document.querySelector('link[rel="manifest"]').getAttribute('href'));
+    T('⑦ 本机有没过期的码 + 有登录：页面一打开安装配置就带码（所有接口都还挂着）', href === '/api/manifest?h=' + CODE, href);
+    T('⑦ 页面脚本也认得已经换好（HO_READY），步骤页会写「会自动登录」', await pg.evaluate(() => typeof HO_READY !== 'undefined' && HO_READY === true));
+    T('⑦ 没有页面报错', !errs.length, errs); await ctx.close(); }
+  for (const [m, why] of [['expired', '码快过期（不到 1 小时）'], ['nosession', '本机没有登录']]) {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: IOS }), pg = await ctx.newPage();
+    await ctx.addInitScript(([code, m]) => { try { if (m !== 'nosession') localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' }));
+      localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + (m === 'expired' ? 60e3 : 20 * 3600e3), uid: 'x' })) } catch (_) { } }, [CODE, m]);
+    await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()); if (!u.pathname.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, F)) }) });
+    await pg.route(u => !/^https:\/\/nanbanqiu\.app\//.test(u.toString()), r => r.abort());
+    await pg.goto('https://nanbanqiu.app/', { waitUntil: 'domcontentloaded' });
+    T(`⑦ ${why}：不提前换，安装配置原样`, await pg.evaluate(() => document.querySelector('link[rel="manifest"]').getAttribute('href')) === '/manifest.webmanifest'); await ctx.close(); }
+
   // ⑥ 带码的安装配置取不到（接口 404 / 抖动）：保持原样，不把「添加到主屏幕」弄坏
   s = await open(IOS, 'https://nanbanqiu.app/', { manifest: 404 }); await s.login(); await s.pg.settle(800);
   T('⑥ 探测不到带码的安装配置：不换', s.S.n === 1 && await s.man() === '/manifest.webmanifest' && !s.errs.length, [s.S.n, await s.man(), s.errs]); await s.ctx.close();
