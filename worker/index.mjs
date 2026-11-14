@@ -14,7 +14,7 @@ import { connectAdminFromEnv } from '../server/admin/connect.mjs';
 
 // /api/*：令牌验证 + 连数据库（Hyperdrive 或密钥 DB_URL；都没配时 /api/health 正常、要数据库的接口返回 503 db_unavailable）
 let deps;
-const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null, minBuild: env.NBQ_MIN_BUILD || null, session: makeSession(env.NBQ_SESSION_KEY) });   // 最低前端版本（ADR 0013），默认不设
+const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null, minBuild: env.NBQ_MIN_BUILD || null, session: makeSession(env.NBQ_SESSION_KEY), asset: env.ASSETS ? p => env.ASSETS.fetch(new Request('https://assets.invalid' + p)) : null });   // 最低前端版本（ADR 0013），默认不设
 
 let adminDeps;
 export default {

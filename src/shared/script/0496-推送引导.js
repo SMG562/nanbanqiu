@@ -59,7 +59,9 @@ async function nbqPushHeal(){
 let HO_BUSY=false,HO_READY=false;
 function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
   l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
-function hoClear(){try{localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null)}
+// 退出登录：本机的码清掉、安装配置换回原样，并让服务器把这个人还没用掉的码作废（之前写进桌面图标的也跟着失效）。要在清掉登录之前调（请求带的是当前登录）
+function hoClear(){let had=false;try{had=localStorage.getItem('nbq_ho')!==null;localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);
+  if(had&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&ME)NBQ_NET.post('/api/session/handoff/revoke').catch(()=>{})}
 async function hoPrep(){
   if(typeof NBQ_NET==='undefined'||!NBQ_NET||!ME||typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||typeof ENV==='undefined'||ENV!=='safari')return false;
   if(typeof a2hsKind!=='function'||!/^ios_/.test(a2hsKind()))return false;   // 安卓的浏览器和桌面图标本来就共用登录
@@ -68,6 +70,10 @@ async function hoPrep(){
     if(HO_BUSY)return false;HO_BUSY=true;let r;try{r=await NBQ_NET.post('/api/session/handoff')}finally{HO_BUSY=false}
     if(!r.ok||!r.data.code||!ME||ME.id!==me)return false;
     c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
+  // 先确认带码的安装配置真的取得到、启动网址里确实带着码，再换；取不到（接口 404 / 抖动）就保持原样——换成坏的会把「添加到主屏幕」弄坏
+  if(HO_READY)return true;
+  try{const r=await fetch('/api/manifest?h='+encodeURIComponent(c.code),{cache:'no-store'});if(!r.ok)return false;const m=await r.json();if(!m||typeof m.start_url!=='string'||m.start_url.indexOf('h='+c.code)<0)return false}catch(_){return false}
+  if(!ME||ME.id!==me)return false;
   hoLink(c.code);return true}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;

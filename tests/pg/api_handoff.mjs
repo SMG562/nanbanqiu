@@ -25,7 +25,7 @@ try {
   let clock = Date.now();
   const MAN = { name: '南伴球', id: '/', start_url: '/melbourne/?source=pwa', scope: '/', display: 'standalone' };
   const on = { verify, db, session: makeSession(JSON.stringify(own.priv), { now: () => clock }), asset: async () => new Response(JSON.stringify(MAN), { status: 200 }) }, off = { verify, db };
-  const call = async (d, method, p, tok, body) => { const r = await handleApi(new Request('https://nanbanqiu.app' + p, { method, headers: { ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }), d);
+  const call = async (d, method, p, tok, body, ip) => { const r = await handleApi(new Request('https://nanbanqiu.app' + p, { method, headers: { ...(ip ? { 'cf-connecting-ip': ip } : {}), ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }), d);
     let j = null; try { j = await r.json() } catch (_) { } return { s: r.status, j, h: r.headers } };
   const A1 = '11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa', A2 = '22222222-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   await admin.query(`insert into users(auth_id, phone_e164, nickname, utr, pact_accepted_at) values ($1,'+61412345678','Sam',5,now()), ($2,'+61400000002','Pat',5,now())`, [A1, A2]);
@@ -75,6 +75,30 @@ try {
   await admin.query(`update users set status = 'banned' where auth_id = $1`, [A2]);
   T('封禁后：没用过的码换不了、已有的登录续不了（并删掉）、也要不了新码', (await call(on, 'POST', '/api/session/redeem', null, { code: c3 })).s === 401 && (await call(on, 'POST', '/api/session/refresh', null, { refresh_token: s2.refresh_token })).s === 401
     && (await admin.query('select count(*)::int n from device_sessions where user_id = $1', [await uid(A2)])).rows[0].n === 0 && (await call(on, 'POST', '/api/session/handoff', T2)).s === 403);
+  // ---- 所有者评审（11-14）----
+  // 退出登录要把没用掉的码一并作废：不然退出后 24 小时内，之前写进桌面图标的码还能换出登录
+  await admin.query('delete from login_handoffs');
+  const A3 = '33333333-cccc-4ccc-8ccc-cccccccccccc'; await admin.query(`insert into users(auth_id, phone_e164, nickname, utr, pact_accepted_at) values ($1,'+61400000003','Kim',5,now())`, [A3]); const T3 = await sbToken(A3), U3 = await uid(A3);
+  let k1 = (await call(on, 'POST', '/api/session/handoff', T3)).j.code, k2 = (await call(on, 'POST', '/api/session/handoff', T3)).j.code;
+  r = await call(on, 'POST', '/api/session/handoff/revoke', T3);
+  T('Supabase 登录的页面退出前作废：没用掉的码都换不了了', r.s === 200 && r.j.revoked === 2 && (await call(on, 'POST', '/api/session/redeem', null, { code: k1 })).s === 401 && (await call(on, 'POST', '/api/session/redeem', null, { code: k2 })).s === 401, r);
+  T('作废要登录；没启用时也回 200（前台不用区分）', (await call(on, 'POST', '/api/session/handoff/revoke')).s === 401 && (await call(off, 'POST', '/api/session/handoff/revoke', T3)).s === 200);
+  k1 = (await call(on, 'POST', '/api/session/handoff', T3)).j.code; const s3 = (await call(on, 'POST', '/api/session/redeem', null, { code: k1 })).j;
+  k2 = (await call(on, 'POST', '/api/session/handoff', s3.access_token)).j.code;
+  await call(on, 'POST', '/api/session/logout', null, { refresh_token: s3.refresh_token });
+  T('交接出来的登录退出：这个人没用掉的码也一并作废', (await call(on, 'POST', '/api/session/redeem', null, { code: k2 })).s === 401);
+  T('别人的码不受影响（只作废自己的）', await (async () => { const mine = (await call(on, 'POST', '/api/session/handoff', T1)).s; await admin.query(`delete from login_handoffs where user_id = $1 and created_at > now() - interval '1 minute'`, [U1]); return mine === 200 || mine === 429 })());
+  // 续期凭证的绝对期限：从交接那一刻起最多 90 天
+  await admin.query('delete from login_handoffs where user_id = $1', [U3]);
+  k1 = (await call(on, 'POST', '/api/session/handoff', T3)).j.code; const s4 = (await call(on, 'POST', '/api/session/redeem', null, { code: k1 })).j;
+  const exp = (await admin.query(`select extract(epoch from expires_at - created_at)::int s from device_sessions where user_id = $1`, [U3])).rows[0].s;
+  T('交接出来的登录带 90 天的绝对期限', exp === 90 * 86400, exp);
+  await admin.query(`update device_sessions set expires_at = now() - interval '1 second', last_used_at = now() where user_id = $1`, [U3]);
+  T('过了绝对期限：刚用过也续不了，并删掉这份登录', (await call(on, 'POST', '/api/session/refresh', null, { refresh_token: s4.refresh_token })).s === 401 && (await admin.query('select count(*)::int n from device_sessions where user_id = $1', [U3])).rows[0].n === 0);
+  // 换码按 IP 限次：每小时 30 次
+  let last = null; for (let i = 0; i < 31; i++) last = await call(on, 'POST', '/api/session/redeem', null, { code: 'Z'.repeat(43) }, '203.0.113.9');
+  T('同一 IP 一小时第 31 次换码：429 rate_limited', last.s === 429 && last.j.error === 'rate_limited', last);
+  T('别的 IP 不受影响', (await call(on, 'POST', '/api/session/redeem', null, { code: 'Z'.repeat(43) }, '203.0.113.10')).s === 401);
   // 安装配置
   r = await call(on, 'GET', '/api/manifest?h=' + code);
   T('带码的安装配置：只有启动网址多了 h，其余不变，不缓存', r.s === 200 && r.j.start_url === '/melbourne/?source=pwa&h=' + code && r.j.id === '/' && r.j.scope === '/' && r.j.display === 'standalone' && /manifest\+json/.test(r.h.get('content-type')) && r.h.get('cache-control') === 'no-store', r);

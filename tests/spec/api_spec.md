@@ -734,6 +734,8 @@ iPhone 的 Safari 和桌面图标不共用存储。登录后的页面要一个�
 - `POST /api/session/handoff`（要登录）→ `{code, expires_at}`。码 43 位随机、24 小时有效、只能用一次、库里只存 sha256；每人每天 5 个（429 `rate_limited`）；封禁 / 注销中 403。
 - `POST /api/session/redeem {code}`（不用登录）→ `{access_token, refresh_token, expires_in, user:{id, phone}}`；码不对 / 用过 / 过期 / 账号被封一律 401 `handoff_invalid`，不说明原因。
 - `POST /api/session/refresh {refresh_token}` → 新令牌（凭证不变）；凭证不在 / 账号被封 401 `session_revoked`（同时删掉这份登录）。
-- `POST /api/session/logout {refresh_token}` → 作废凭证，总是 200。
+- `POST /api/session/logout {refresh_token}` → 作废凭证，并把这个人还没用掉的码一并作废；总是 200。
+- `POST /api/session/handoff/revoke`（要登录）→ `{ok, revoked}`：作废自己还没用掉的码（Supabase 登录的页面退出前调）；没启用也是 200。
+- 期限与限次：交接出来的登录从交接那一刻起最多 90 天（到期 401 `session_revoked`，重新登录一次）；换码同一 IP 每小时 30 次（429 `rate_limited`）。
 - `GET /api/manifest?h=<码>` → 站点的 manifest，只是 `start_url` 多一个 `h`；不查库，码格式不对 404。
 - 测试：`pg/api_handoff`（安全性质）· `unit/sb_auth`（前台登录模块）· `frontend/handoff`（什么时候要码 / 换码）。真机才能确认的：iPhone 是否把带码的启动网址记进桌面图标。

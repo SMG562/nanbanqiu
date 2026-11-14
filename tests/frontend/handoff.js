@@ -15,7 +15,7 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.NBQ_CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const open = async (ua, url, S = {}) => { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: ua }), pg = await ctx.newPage(), errs = [], api = []; pg.on('pageerror', e => errs.push(e.message));
-    S = Object.assign({ handoff: 200, redeem: 200, n: 0 }, S);
+    S = Object.assign({ handoff: 200, redeem: 200, manifest: 200, n: 0, revoked: 0 }, S);
     await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()), m = r.request().method(), p = u.pathname; if (!p.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, F)) });
       api.push(m + ' ' + p + u.search + (r.request().headers()['authorization'] ? ' [' + r.request().headers()['authorization'].slice(7) + ']' : '')); const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (p === '/api/venues') return J(200, { venues: [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }] });
@@ -24,6 +24,8 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
       if (p === '/api/session/handoff') { S.n++; return S.handoff === 200 ? J(200, { code: CODE, expires_at: new Date(Date.now() + 864e5).toISOString() }) : J(404, { error: 'handoff_unavailable' }) }
       if (p === '/api/session/redeem') return S.redeem === 200 ? J(200, { access_token: 'OWN', refresh_token: RT, expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : J(401, { error: 'handoff_invalid' });
       if (p === '/api/session/logout') return J(200, { ok: true });
+      if (p === '/api/session/handoff/revoke') { S.revoked++; return J(200, { ok: true, revoked: 1 }) }
+      if (p === '/api/manifest') return S.manifest === 200 ? J(200, { name: '南伴球', start_url: '/melbourne/?source=pwa&h=' + u.searchParams.get('h') }) : J(404, { error: 'not_found' });
       return J(404, { error: 'not_found' }) });
     await pg.route(SB + '/**', r => { const v = r.request().url().includes('/verify'); r.fulfill({ status: v ? 200 : 204, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v ? JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : '' }) });
     await pg.route(u => !/^https:\/\/(nanbanqiu\.app|xosrdkrkfxkdrwldfhac\.supabase\.co)\//.test(u.toString()), r => r.abort());
@@ -43,6 +45,7 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   await s.pg.evaluate(() => openA2HS()); await s.pg.settle(500);
   T('① 再打开步骤页：不重复要码；说明写「会自动登录」', s.S.n === 1 && await s.pg.evaluate(() => document.querySelector('#sheet').innerText.includes('会自动登录')), s.S.n);
   await s.pg.evaluate(() => { closeSheet(); sbaLogout(); render() }); await s.pg.settle(600);
+  T('① 退出登录：告诉服务器作废没用掉的码', s.S.revoked === 1, s.S.revoked);
   T('① 退出登录：安装配置换回原样，缓存的码清掉', await s.man() === '/manifest.webmanifest' && await s.pg.evaluate(() => localStorage.getItem('nbq_ho') === null), await s.man());
   T('① 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
 
@@ -53,10 +56,16 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   T('② 换码只发了一次，之后的请求带换来的令牌', s.api.filter(a => a.startsWith('POST /api/session/redeem')).length === 1 && s.api.some(a => a.startsWith('GET /api/me') && a.endsWith('[OWN]')), s.api);
   T('② 地址栏里的码已经去掉，别的参数还在', await s.pg.evaluate(() => !location.href.includes('h=') && location.search.includes('source=pwa')), await s.pg.evaluate(() => location.href));
   T('② 本机存的是 own 登录', await s.pg.evaluate(() => { const x = JSON.parse(localStorage.getItem('nbq_sb')); return x && x.own === true && x.access_token === 'OWN' }));
+  T('② 换过的码记在本机', await s.pg.evaluate(c => localStorage.getItem('nbq_ho_done') === c, CODE));
+  // 桌面图标每次打开都带着同一个码：退出登录后再从图标打开，不再拿它去试（不闪「正在恢复登录」、不白发请求）
+  await s.pg.evaluate(() => { sbaLogout(); render() }); await s.pg.settle(500); s.api.length = 0;
+  await s.pg.goto('https://nanbanqiu.app/melbourne/?source=pwa&h=' + CODE); await s.pg.waitForFunction(() => typeof openAuth === 'function' && typeof nbqApply === 'function'); await s.pg.settle(800);
+  T('② 同一个码再打开：不再去换，地址栏照样去掉，是未登录的首页', !s.api.some(a => a.includes('/api/session/redeem')) && await s.pg.evaluate(() => !ME && !sbaWaiting() && !location.href.includes('h=')), s.api);
   T('② 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
 
   // ③ 码不对
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?h=' + CODE, { redeem: 401 }); await s.pg.settle(800);
+  T('③ 码不对（用过 / 过期）：说明一句，让用户登录一次', await s.pg.evaluate(() => (document.querySelector('#toast') || {}).textContent || '').then(t => t.includes('没能自动登录')), await s.pg.evaluate(() => (document.querySelector('#toast') || {}).textContent));
   T('③ 码不对：未登录的首页，不卡在「正在恢复登录」，地址栏没有码', await s.pg.evaluate(() => !ME && !sbaWaiting() && !location.href.includes('h=') && localStorage.getItem('nbq_sb') === null));
   T('③ 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?h=bad%20code'); await s.pg.settle(500);
@@ -72,6 +81,10 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   T('⑤ 安卓：登录后不要码，安装配置原样', s.S.n === 0 && await s.man() === '/manifest.webmanifest' && await s.pg.evaluate(() => !!ME), [s.S.n, await s.man()]); await s.ctx.close();
   s = await open(IOS, 'https://nanbanqiu.app/', { handoff: 404 }); await s.login(); await s.pg.settle(500);
   T('⑤ 服务器没启用（404）：照常登录，安装配置原样，没有报错', await s.pg.evaluate(() => !!ME) && await s.man() === '/manifest.webmanifest' && !s.errs.length, [await s.man(), s.errs]); await s.ctx.close();
+
+  // ⑥ 带码的安装配置取不到（接口 404 / 抖动）：保持原样，不把「添加到主屏幕」弄坏
+  s = await open(IOS, 'https://nanbanqiu.app/', { manifest: 404 }); await s.login(); await s.pg.settle(800);
+  T('⑥ 探测不到带码的安装配置：不换', s.S.n === 1 && await s.man() === '/manifest.webmanifest' && !s.errs.length, [s.S.n, await s.man(), s.errs]); await s.ctx.close();
 
   await b.close();
   console.log(`handoff: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

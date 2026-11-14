@@ -121,11 +121,14 @@ const ROUTES = {
   // 已登录的页面要一个一次性交接码（明文只在这次响应里出现一次，库里只存 sha256；24 小时内有效，每人每天 5 个）
   'POST /api/session/handoff': (req, d, p) => !d.session ? hoOff() : act(req, d, p, async q => {
     const code = rnd(32); return { code, expires_at: (await one(q, 'select api_handoff_new($1) as e', [await sha256(code)])).e } }, { body: false }),
+  // 退出前作废自己还没用掉的码（不然退出后 24 小时内，之前写进桌面图标的码还能换出登录）。没启用时也返回 200：前台不用区分
+  'POST /api/session/handoff/revoke': (req, d, p) => !d.session ? send(200, { ok: true, revoked: 0 }) : act(req, d, p, async q => ({ ok: true, revoked: (await one(q, 'select api_handoff_revoke() as n')).n }), { body: false }),
   // 用码换登录（不用登录）：码对、没用过、没过期 → 作废这个码，签一份新的登录；其余一律 401，不说明是哪种不对
   'POST /api/session/redeem': async (req, d) => { if (!d.session) return hoOff();
     const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);
     if (!code || !HO_CODE.test(code)) return send(401, { error: 'handoff_invalid' });
-    const refresh = rnd(32), who = await d.db.asService(async q => (await q('select session_handoff_redeem($1, $2) as r', [await sha256(code), await sha256(refresh)])).rows[0].r);
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;   // 同一 IP 每小时 30 次（数据库里判，超了 429 rate_limited）
+    const refresh = rnd(32), who = await d.db.asService(async q => (await q('select session_handoff_redeem($1, $2, $3) as r', [await sha256(code), await sha256(refresh), ip])).rows[0].r);
     return who ? send(200, await hoTokens(d, who, refresh)) : send(401, { error: 'handoff_invalid' }) },
   // 续期：凭证还在、账号没被封 → 新令牌（凭证不变）；否则 401，前台清掉这份登录
   'POST /api/session/refresh': async (req, d) => { if (!d.session) return hoOff();
