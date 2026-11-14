@@ -55,7 +55,7 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
     await pg.evaluate(() => { Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' }); setEnv('pwa'); PUSH.enabled = false }); await pg.settle(300);   // CI 的无头浏览器默认是 denied，不能依赖默认值
     const canAsk = await pg.evaluate(() => pushState());
     if (canAsk === 'ask') {
-      await pg.evaluate(() => pnAfterLogin()); await pg.settle(400);
+      await pg.evaluate(() => pnAfterLogin()); await pg.waitForFunction(() => !!document.querySelector('#sheet.show [data-a="enablePush"]'), null, { timeout: 8000 }).catch(() => { });   // 等它真的出现（CI 上面板出现得慢，固定等 400ms 不够：11-14 CI 红过）
       T('④ 主屏幕 App 里登录完：出现一步开通知', await pg.evaluate(() => !!document.querySelector('#sheet.show [data-a="enablePush"]')));
       await shut(); await pg.evaluate(() => pnAfterLogin()); await pg.settle(300);
       T('④ 只问一次', await pg.evaluate(() => !document.querySelector('#sheet.show [data-a="enablePush"]')));
