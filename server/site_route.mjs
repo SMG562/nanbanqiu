@@ -18,7 +18,10 @@ export const CITY_PATH = '/melbourne/';
 const SLUGS = ['melbourne', 'sydney'];
 // 选排版并原地载入：fetch 手机版 / 网页版整页，document.write 进来，地址栏不变（应用按网址第一段认城市、按 /g/码 认分享）。失败退回跳转。
 // 判断规则的唯一来源；/g /p 的分享页（server/og/page.mjs）也用这个壳，只是头部换成这条链接自己的卡片信息。
-export const chooserScript = () => `var t=!!(window.matchMedia&&matchMedia('${TOUCH}').matches),a=(t||(innerWidth||screen.width)<${NARROW})?'/pwa.html':'/web.html';
+// 登录交接（#299）：iOS 在页面加载时就读安装配置，不等脚本慢慢换。所以本机已缓存、还没过期的交接码要在第一时间同步写进 <link rel="manifest">——
+//   壳里先写一次，整页载进来后页面头部再写一次（src/pwa/page/0010-开头.html 里是同一段，unit/site_route 核对两处一致）。只在本机有登录（nbq_sb）时写；不发请求、不探测
+export const HO_EARLY = `try{var c=JSON.parse(localStorage.getItem('nbq_ho')||'null'),l=document.querySelector('link[rel="manifest"]');if(l&&c&&/^[A-Za-z0-9_-]{40,64}$/.test(c.code)&&c.exp-Date.now()>36e5&&localStorage.getItem('nbq_sb'))l.setAttribute('href','/api/manifest?h='+c.code)}catch(e){}`;
+export const chooserScript = () => `${HO_EARLY};var t=!!(window.matchMedia&&matchMedia('${TOUCH}').matches),a=(t||(innerWidth||screen.width)<${NARROW})?'/pwa.html':'/web.html';
 fetch(a,{credentials:'same-origin'}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(h){document.open();document.write(h);document.close()}).catch(function(){location.replace(a+location.search+location.hash)})`;
 export const chooserHTML = () => `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

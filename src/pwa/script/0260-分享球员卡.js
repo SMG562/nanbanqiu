@@ -185,7 +185,7 @@ function a2hsSteps(k){
   return a2s(1,'点屏幕底部的「分享」','看不到？点地址栏的 <span class="a2i">'+A2G.menu+'</span> 或 <span class="a2i">'+A2G.dots+'</span>，再选「分享」','share')
     +a2s(2,'向上滑，点「添加到主屏幕」','在分享菜单里往上滑一点就能看到','plus')
     +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
-function openA2HS(){a2hsPut('nbq_a2hs_at',String(Date.now()));if(typeof hoPrep==='function')hoPrep();const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+function openA2HS(){a2hsPut('nbq_a2hs_at',String(Date.now()));if(typeof hoGuide==='function')hoGuide();const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
   let top='',main='';
   if(k==='inapp'||k==='ios_other'){
     top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;

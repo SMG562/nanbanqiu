@@ -56,4 +56,13 @@ const fnDirs = []; const walk = (d, rel) => { for (const e of fs.readdirSync(d, 
 walk(path.join(ROOT, 'functions'), '');
 T('functions/ 下每个放了函数的目录（含嵌套）都在 _routes.json 里，自己或某个上级目录的 /…/*（新加函数忘了登记会 404）', fnDirs.length >= 3 && fnDirs.every(rel => { const parts = rel.split('/').filter(Boolean); return parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }), fnDirs.filter(rel => { const parts = rel.split('/').filter(Boolean); return !parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }));
 T('嵌套检查有效：把 /admin/api/* 拿掉就会报', !(() => { const rel = '/admin/api', parts = rel.split('/').filter(Boolean), inc2 = inc.filter(x => x !== '/admin/api/*'); return parts.some((_, k) => inc2.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) })());
+// #299：选排版壳一执行就把本机缓存的交接码同步写进安装配置（iOS 在页面加载时就读），和手机端页面头部是同一段
+{ const { HO_EARLY, chooserHTML } = await import('../../server/site_route.mjs'), pwaHead = fs.readFileSync(path.join(ROOT, 'src/pwa/page/0010-开头.html'), 'utf8');
+  T('壳和手机端页面头部用的是同一段（两处一致）', chooserHTML().includes(HO_EARLY + ';var t=') && pwaHead.includes('<link rel="manifest" href="/manifest.webmanifest">\n<script data-ho>' + HO_EARLY + '</script>'));
+  const run = (store, now = 1_800_000_000_000) => { const link = { href: '/manifest.webmanifest', setAttribute(k, v) { this[k] = v } };
+    vm.runInNewContext(HO_EARLY, { localStorage: { getItem: k => store[k] ?? null }, document: { querySelector: () => link }, JSON, Date: { now: () => now } }); return link.href };
+  const code = 'C'.repeat(43), ho = exp => JSON.stringify({ code, exp, uid: 'u' }), T0 = 1_800_000_000_000;
+  T('有登录 + 码没过期：同步换成带码的安装配置', run({ nbq_sb: '{}', nbq_ho: ho(T0 + 5 * 3600e3) }) === '/api/manifest?h=' + code);
+  T('没登录 / 码快过期 / 码格式不对 / 没有码 / 内容坏了：都不换，也不报错', [{ nbq_ho: ho(T0 + 5 * 3600e3) }, { nbq_sb: '{}', nbq_ho: ho(T0 + 60e3) }, { nbq_sb: '{}', nbq_ho: JSON.stringify({ code: 'x&y=1', exp: T0 + 9e7 }) }, { nbq_sb: '{}' }, { nbq_sb: '{}', nbq_ho: '{oops' }].every(st => run(st) === '/manifest.webmanifest'));
+  let threw = false; try { vm.runInNewContext(HO_EARLY, {}) } catch (_) { threw = true } T('没有 localStorage / document 的环境：不抛错', !threw) }
 console.log(`site_route: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
