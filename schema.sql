@@ -7808,11 +7808,11 @@ end $$;
 insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
  ('handoff_ip', 'handoff_ip', '1 hour', 30, false, 'rate_limited', '登录交接换码：同一 IP 每小时 30 次')
 on conflict do nothing;
--- 两个参数的旧写法（这个迁移的早期版本在测试库跑过）：留着，转到带 IP 的版本，不删函数
-create or replace function session_handoff_redeem(p_code_hash text, p_refresh_hash text) returns jsonb language sql security definer set search_path = public as $$ select session_handoff_redeem(p_code_hash, p_refresh_hash, null::text) $$;
-revoke execute on function api_handoff_new(text), api_handoff_revoke(), session_handoff_redeem(text, text), session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) from public, anon, authenticated, nbq_viewer;
+-- 只有这一个 session_handoff_redeem（第 3 个参数 IP 可省）。这个迁移的早期版本在测试库建过一个 2 参数的重载，和它并存时「只传 2 个参数」会报函数不唯一；
+--   迁移里不放 drop（破坏性语句不进自动迁移），测试库由所有者手工执行一次：drop function if exists session_handoff_redeem(text, text);  正式库没建过，不用管
+revoke execute on function api_handoff_new(text), api_handoff_revoke(), session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) from public, anon, authenticated, nbq_viewer;
 grant execute on function api_handoff_new(text), api_handoff_revoke() to nbq_user;
-grant execute on function session_handoff_redeem(text, text), session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) to nbq_service;
+grant execute on function session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) to nbq_service;
 
 -- 每晚：在上一版的基础上加「交接码 / 交接登录清理」
 create or replace function job_nightly(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$

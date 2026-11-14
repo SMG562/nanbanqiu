@@ -507,7 +507,7 @@ const pathExists = path => Object.keys(ROUTES).some(k => k.endsWith(' ' + path))
 // 最低前端版本（ADR 0013，#63 第 3 件）：deps.minBuild = 环境变量 NBQ_MIN_BUILD（构建号或其前面的秒数），不设 = 不启用。
 //   启用后，请求头 X-NBQ-Build 的秒数低于它、或没带 → 426 client_outdated，前台显示「有新版本 · 点一下刷新」。
 //   不拦：健康检查 / 版本 / 页面报错上报（旧页面的报错也要收）/ 埋点（sendBeacon 带不了请求头）、Service Worker 自己续订推送（它不知道页面的构建号）。
-const BUILD_FREE = new Set(['GET /api/manifest', 'POST /api/session/refresh', 'POST /api/session/logout', 'GET /api/health', 'HEAD /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions']);
+const BUILD_FREE = new Set(['GET /api/manifest', 'POST /api/session/redeem', 'POST /api/session/refresh', 'POST /api/session/logout', 'GET /api/health', 'HEAD /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions']);
 const buildSec = v => { const m = String(v || '').match(/^(\d{9,12})(?:-|$)/); return m ? +m[1] : 0 };
 export function outdated(key, header, minBuild) {
   const min = buildSec(minBuild); if (!min || BUILD_FREE.has(key)) return false;

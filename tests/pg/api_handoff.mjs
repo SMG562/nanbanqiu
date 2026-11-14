@@ -99,6 +99,13 @@ try {
   let last = null; for (let i = 0; i < 31; i++) last = await call(on, 'POST', '/api/session/redeem', null, { code: 'Z'.repeat(43) }, '203.0.113.9');
   T('同一 IP 一小时第 31 次换码：429 rate_limited', last.s === 429 && last.j.error === 'rate_limited', last);
   T('别的 IP 不受影响', (await call(on, 'POST', '/api/session/redeem', null, { code: 'Z'.repeat(43) }, '203.0.113.10')).s === 401);
+  // 独立复核（11-14）：只有一个 session_handoff_redeem——只传 2 个参数也能调（不能报「函数不唯一」）
+  let two = null; try { two = (await admin.query(`select session_handoff_redeem('x', 'y') as r`)).rows[0].r } catch (e) { two = 'ERR ' + e.message }
+  T('session_handoff_redeem 只有一个：2 个参数调用不报「函数不唯一」', two === null && (await admin.query(`select count(*)::int n from pg_proc where proname = 'session_handoff_redeem'`)).rows[0].n === 1, two);
+  // 设了最低前端版本（ADR 0013）：换码 / 续期 / 退出 / 安装配置不带构建号也不能被 426 拦（换码被拦会让前台以为码坏了）
+  const strict = { ...on, minBuild: '9999999999' };
+  const kk = (await call(on, 'POST', '/api/session/handoff', T1)).j, r426 = await call(strict, 'GET', '/api/me', T1), rr = kk && kk.code ? await call(strict, 'POST', '/api/session/redeem', null, { code: kk.code }) : { s: 0 };
+  T('设了最低前端版本：普通接口 426，换码照常 200；续期 / 安装配置也不拦', r426.s === 426 && rr.s === 200 && (await call(strict, 'POST', '/api/session/refresh', null, { refresh_token: rr.j.refresh_token })).s === 200 && (await call(strict, 'GET', '/api/manifest?h=' + code)).s === 200, [r426.s, rr.s, kk]);
   // 安装配置
   r = await call(on, 'GET', '/api/manifest?h=' + code);
   T('带码的安装配置：只有启动网址多了 h，其余不变，不缓存', r.s === 200 && r.j.start_url === '/melbourne/?source=pwa&h=' + code && r.j.id === '/' && r.j.scope === '/' && r.j.display === 'standalone' && /manifest\+json/.test(r.h.get('content-type')) && r.h.get('cache-control') === 'no-store', r);

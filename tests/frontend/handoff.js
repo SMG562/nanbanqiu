@@ -22,6 +22,7 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
       if (p === '/api/me') return J(200, { registered: true, user: USER });
       if (p === '/api/games') return J(200, { games: [] }); if (p === '/api/games/mine') return J(200, { games: [], participants: [], profiles: {} }); if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
       if (p === '/api/session/handoff') { S.n++; return S.handoff === 200 ? J(200, { code: CODE, expires_at: new Date(Date.now() + 864e5).toISOString() }) : J(404, { error: 'handoff_unavailable' }) }
+      if (p === '/api/session/redeem' && S.redeem === 426) return J(426, { error: 'client_outdated' });
       if (p === '/api/session/redeem') return S.redeem === 200 ? J(200, { access_token: 'OWN', refresh_token: RT, expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : J(401, { error: 'handoff_invalid' });
       if (p === '/api/session/logout') return J(200, { ok: true });
       if (p === '/api/session/handoff/revoke') { S.revoked++; return J(200, { ok: true, revoked: 1 }) }
@@ -71,6 +72,12 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?h=bad%20code'); await s.pg.settle(500);
   T('③ 码格式不对：不发换码请求，地址栏照样去掉', !s.api.some(a => a.includes('/api/session/redeem')) && await s.pg.evaluate(() => !location.href.includes('h=')), s.api); await s.ctx.close();
 
+  // 独立复核：换码遇到不确定的失败（版本太旧 426 / 限次 / 服务器忙）不能把码记成「试过」——码还没用掉
+  s = await open(IOS, 'https://nanbanqiu.app/melbourne/?h=' + CODE, { redeem: 426 }); await s.pg.settle(800);
+  T('③ 换码回 426：不记成试过（码没烧掉），不提示「没能自动登录」', await s.pg.evaluate(() => localStorage.getItem('nbq_ho_done') === null && !ME && !((document.querySelector('#toast') || {}).textContent || '').includes('没能自动登录')));
+  s.S.redeem = 200; await s.pg.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await s.pg.waitForFunction(() => !!ME, null, { timeout: 10000 }).catch(() => { });
+  T('③ 回到前台再试：换成功、自动登录', await s.pg.evaluate(() => !!ME && localStorage.getItem('nbq_ho_done') !== null), s.api); await s.ctx.close();
+
   // ④ 本机已有登录
   s = await open(IOS, 'https://nanbanqiu.app/'); await s.login(); s.api.length = 0;
   await s.pg.goto('https://nanbanqiu.app/melbourne/?h=' + CODE); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(500);
@@ -80,6 +87,8 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   s = await open(AND, 'https://nanbanqiu.app/'); await s.login(); await s.pg.settle(500);
   T('⑤ 安卓：登录后不要码，安装配置原样', s.S.n === 0 && await s.man() === '/manifest.webmanifest' && await s.pg.evaluate(() => !!ME), [s.S.n, await s.man()]); await s.ctx.close();
   s = await open(IOS, 'https://nanbanqiu.app/', { handoff: 404 }); await s.login(); await s.pg.settle(500);
+  await s.pg.evaluate(() => openA2HS()); await s.pg.settle(400);
+  T('⑤ 服务器没启用：这次打开只问一次，不反复要码', s.S.n === 1, s.S.n);
   T('⑤ 服务器没启用（404）：照常登录，安装配置原样，没有报错', await s.pg.evaluate(() => !!ME) && await s.man() === '/manifest.webmanifest' && !s.errs.length, [await s.man(), s.errs]); await s.ctx.close();
 
   // ⑥ 带码的安装配置取不到（接口 404 / 抖动）：保持原样，不把「添加到主屏幕」弄坏

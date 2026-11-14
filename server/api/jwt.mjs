@@ -44,7 +44,7 @@ export function makeVerifier({ url, fetch: f = globalThis.fetch, now = () => Dat
 //   没配密钥 = 不启用：makeSession 返回 null，交接接口 404，前台安静跳过。
 //   生成密钥（输出整行就是密钥的值，只放进 Cloudflare 的密钥里，不进仓库）：
 //     node -e "crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign']).then(k=>crypto.subtle.exportKey('jwk',k.privateKey)).then(j=>console.log(JSON.stringify(j)))"
-//   换密钥 = 所有交接出来的登录下次续期前失效一次（1 小时内），之后用续期凭证自动换新，用户无感。
+//   换 / 撤密钥 = 交接登录的人要重新登录一次：旧密钥签的令牌 401 → 前台按「登录失效」退出（并作废续期凭证）。临时漏配密钥同样，所以密钥设上之后别动。
 export const OWN_ISS = 'https://nanbanqiu.app/session';
 export const issOf = token => { try { return dec(String(token).split('.')[1]).iss || null } catch (_) { return null } };
 const b64u = bytes => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') };
