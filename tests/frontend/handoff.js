@@ -15,16 +15,18 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.NBQ_CHROMIUM || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const open = async (ua, url, S = {}) => { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: ua }), pg = await ctx.newPage(), errs = [], api = []; pg.on('pageerror', e => errs.push(e.message));
-    S = Object.assign({ handoff: 200, redeem: 200, manifest: 200, n: 0, revoked: 0 }, S);
+    if (S.init) await ctx.addInitScript(S.init, S.initArg);
+    S = Object.assign({ handoff: 200, redeem: 200, manifest: 200, n: 0, revoked: 0, check: true, checks: 0, code: CODE }, S);
     await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()), m = r.request().method(), p = u.pathname; if (!p.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, F)) });
       api.push(m + ' ' + p + u.search + (r.request().headers()['authorization'] ? ' [' + r.request().headers()['authorization'].slice(7) + ']' : '')); const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (p === '/api/venues') return J(200, { venues: [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }] });
       if (p === '/api/me') return J(200, { registered: true, user: USER });
       if (p === '/api/games') return J(200, { games: [] }); if (p === '/api/games/mine') return J(200, { games: [], participants: [], profiles: {} }); if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
-      if (p === '/api/session/handoff') { S.n++; return S.handoff === 200 ? J(200, { code: CODE, expires_at: new Date(Date.now() + 864e5).toISOString() }) : J(404, { error: 'handoff_unavailable' }) }
+      if (p === '/api/session/handoff') { S.n++; return S.handoff === 200 ? J(200, { code: S.code, expires_at: new Date(Date.now() + 864e5).toISOString() }) : J(404, { error: 'handoff_unavailable' }) }
       if (p === '/api/session/redeem' && S.redeem === 426) return J(426, { error: 'client_outdated' });
       if (p === '/api/session/redeem') return S.redeem === 200 ? J(200, { access_token: 'OWN', refresh_token: RT, expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : J(401, { error: 'handoff_invalid' });
       if (p === '/api/session/logout') return J(200, { ok: true });
+      if (p === '/api/session/handoff/check') { S.checks++; return J(200, S.check ? { ok: true } : { ok: false }) }
       if (p === '/api/session/handoff/revoke') { S.revoked++; return J(200, { ok: true, revoked: 1 }) }
       if (p === '/api/manifest') return S.manifest === 200 ? J(200, { name: '南伴球', start_url: '/melbourne/?source=pwa&h=' + u.searchParams.get('h') }) : J(404, { error: 'not_found' });
       return J(404, { error: 'not_found' }) });
@@ -43,8 +45,10 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   await s.pg.waitForFunction(() => /\/api\/manifest\?h=/.test(document.querySelector('link[rel="manifest"]').getAttribute('href')), null, { timeout: 8000 }).catch(() => { });
   T('① 登录后：安装配置换成带交接码的那份', await s.man() === '/api/manifest?h=' + CODE, await s.man());
   T('① 码缓存在本机（记着是谁的、几时过期）', await s.pg.evaluate(c => { const o = JSON.parse(localStorage.getItem('nbq_ho') || 'null'); return !!o && o.code === c && o.uid === ME.id && o.exp > Date.now() }, CODE));
-  await s.pg.evaluate(() => openA2HS()); await s.pg.settle(500);
-  T('① 再打开步骤页：不重复要码；说明写「会自动登录」', s.S.n === 1 && await s.pg.evaluate(() => document.querySelector('#sheet').innerText.includes('会自动登录')), s.S.n);
+  // 刚登录的这一次，页面打开时安装配置还没带码 → 打开步骤页会刷新一次再回来（#299）
+  await s.pg.evaluate(() => { window.__before = true; openA2HS() });
+  await s.pg.waitForFunction(() => !window.__before && typeof ME !== 'undefined' && !!ME && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'), null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(300);
+  T('① 刚登录就打开步骤页：刷新一次、回到步骤页；不重复要码；说明写「会自动登录」', s.S.n === 1 && await s.pg.evaluate(() => document.querySelector('#sheet').innerText.includes('会自动登录')), s.S.n);
   await s.pg.evaluate(() => { closeSheet(); sbaLogout(); render() }); await s.pg.settle(600);
   T('① 退出登录：告诉服务器作废没用掉的码', s.S.revoked === 1, s.S.revoked);
   T('① 退出登录：安装配置换回原样，缓存的码清掉', await s.man() === '/manifest.webmanifest' && await s.pg.evaluate(() => localStorage.getItem('nbq_ho') === null), await s.man());
@@ -110,6 +114,25 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
     await pg.route(u => !/^https:\/\/nanbanqiu\.app\//.test(u.toString()), r => r.abort());
     await pg.goto('https://nanbanqiu.app/', { waitUntil: 'domcontentloaded' });
     T(`⑦ ${why}：不提前换，安装配置原样`, await pg.evaluate(() => document.querySelector('link[rel="manifest"]').getAttribute('href')) === '/manifest.webmanifest'); await ctx.close(); }
+
+  // ⑧ #299 真机反馈：桌面图标把码用掉之后，Safari 里缓存的还是同一个（已作废的）码——再添加一次图标就登录不上。
+  //   每次打开核对一次；作废了就换新码。打开「添加到主屏幕」步骤页时，iOS 读到的（页面打开那一刻的）安装配置若不是现在有效的这一份，就刷新一次并回到步骤页
+  const NEW = 'N'.repeat(43), preset = ([code]) => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' }));
+    if (!localStorage.getItem('nbq_ho')) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { } };
+  s = await open(IOS, 'https://nanbanqiu.app/', { init: preset, initArg: [CODE], check: false, code: NEW });
+  await s.pg.waitForFunction(n => document.querySelector('link[rel="manifest"]').getAttribute('href') === '/api/manifest?h=' + n, NEW, { timeout: 10000 }).catch(() => { });
+  T('⑧ 缓存的码已作废：核对一次、换成新码，安装配置和本机缓存都换新', s.S.checks === 1 && s.S.n === 1 && await s.man() === '/api/manifest?h=' + NEW && await s.pg.evaluate(n => JSON.parse(localStorage.getItem('nbq_ho')).code === n, NEW), [s.S.checks, s.S.n, await s.man()]);
+  await s.pg.evaluate(() => { window.__before = true; openA2HS() });
+  await s.pg.waitForFunction(() => !window.__before && typeof ME !== 'undefined' && !!ME && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'), null, { timeout: 15000 }).catch(() => { });
+  T('⑧ 这时打开步骤页：页面刷新一次（iOS 重新读到带新码的安装配置），并自动回到步骤页', await s.pg.evaluate(() => !window.__before && !!document.querySelector('#sheet.show [data-a="a2hsDone"]')) && await s.man() === '/api/manifest?h=' + NEW, await s.man());
+  T('⑧ 刷新后页面一打开就是新码（HO_AT_LOAD），不再刷新第二次', await s.pg.evaluate(n => HO_AT_LOAD === '/api/manifest?h=' + n, NEW));
+  await s.pg.evaluate(() => { closeSheet(); window.__before = true; openA2HS() }); await s.pg.settle(1500);
+  T('⑧ 安装配置已经是对的：再开步骤页不刷新', await s.pg.evaluate(() => window.__before === true));
+  T('⑧ 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
+  s = await open(IOS, 'https://nanbanqiu.app/', { init: preset, initArg: [CODE] }); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(600);
+  T('⑧ 缓存的码还有效：只核对、不要新码，安装配置不变', s.S.checks === 1 && s.S.n === 0 && await s.man() === '/api/manifest?h=' + CODE, [s.S.checks, s.S.n]);
+  await s.pg.evaluate(() => { window.__before = true; openA2HS() }); await s.pg.settle(1500);
+  T('⑧ 缓存的码还有效：开步骤页不刷新', await s.pg.evaluate(() => window.__before === true && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'))); await s.ctx.close();
 
   // ⑥ 带码的安装配置取不到（接口 404 / 抖动）：保持原样，不把「添加到主屏幕」弄坏
   s = await open(IOS, 'https://nanbanqiu.app/', { manifest: 404 }); await s.login(); await s.pg.settle(800);

@@ -57,26 +57,42 @@ async function nbqPushHeal(){
  * 把页面的安装配置换成带码的那份（/api/manifest?h=码）；桌面图标第一次打开时带着码，登录模块拿去换登录（0490 sbaHandoff）。
  * 码缓存在本机（nbq_ho），快过期才重新要（每人每天 5 个）；退出登录时清掉并把安装配置换回原样。服务器没启用（404）就什么都不做。 */
 const hoHref=()=>{const l=document.querySelector('link[rel="manifest"]');return l&&l.getAttribute('href')||''};
+const HO_AT_LOAD=hoHref();   // 页面打开那一刻安装配置指向哪一份：iOS 读到的多半就是它
+let HO_CHECKED=false;   // 缓存的码这次打开已向服务器核对过
 let HO_BUSY=false,HO_READY=/^\/api\/manifest\?h=/.test(hoHref()),HO_OFF=false;   // HO_READY：页面头部可能已经同步换好了（#299，本机缓存着没过期的码）   // HO_OFF：服务器没启用（要码回 404），这次打开不再试
 function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
   l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
 // 退出登录：本机的码清掉、安装配置换回原样，并让服务器把这个人还没用掉的码作废（之前写进桌面图标的也跟着失效）。要在清掉登录之前调（请求带的是当前登录）
 function hoClear(){let had=false;try{had=localStorage.getItem('nbq_ho')!==null;localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);
   if(had&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&ME)NBQ_NET.post('/api/session/handoff/revoke').catch(()=>{})}
-async function hoPrep(){
+let HO_P=null;   // 同一时刻只跑一份（启动时登录恢复和读入各触发一次，不能核对两次、要两个码）
+function hoPrep(){return HO_P||(HO_P=hoPrep0().finally(()=>{HO_P=null}))}
+async function hoPrep0(){
   if(typeof NBQ_NET==='undefined'||!NBQ_NET||!ME||typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||typeof ENV==='undefined'||ENV!=='safari')return false;
   if(typeof a2hsKind!=='function'||!/^ios_/.test(a2hsKind()))return false;   // 安卓的浏览器和桌面图标本来就共用登录
   const me=ME.id;let c=null;try{c=JSON.parse(localStorage.getItem('nbq_ho')||'null')}catch(_){}
-  if(!(c&&c.uid===me&&typeof c.code==='string'&&c.exp-Date.now()>3600e3)){
+  let good=!!(c&&c.uid===me&&typeof c.code==='string'&&c.exp-Date.now()>3600e3);
+  // 缓存的码每次打开页面向服务器核对一次：桌面图标把它用掉（或别处退出把它作废）之后，这里缓存的还是同一个码，再添加一次图标就登录不上。没连上就先照用
+  if(good&&!HO_CHECKED){const k=await NBQ_NET.post('/api/session/handoff/check',{code:c.code});if(!ME||ME.id!==me)return false;
+    if(k.ok){HO_CHECKED=true;if(k.data.ok!==true)good=false}}
+  if(!good){
+    try{localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);   // 作废的码先撤下来：换不到新码时也不能把坏的留在安装配置里
     if(HO_BUSY||HO_OFF)return false;HO_BUSY=true;let r;try{r=await NBQ_NET.post('/api/session/handoff')}finally{HO_BUSY=false}
     if(r.status===404)HO_OFF=true;
     if(!r.ok||!r.data.code||!ME||ME.id!==me)return false;
-    c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
+    c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};HO_CHECKED=true;try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
   // 先确认带码的安装配置真的取得到、启动网址里确实带着码，再换；取不到（接口 404 / 抖动）就保持原样——换成坏的会把「添加到主屏幕」弄坏
   if(hoHref()==='/api/manifest?h='+encodeURIComponent(c.code)){HO_READY=true;return true}   // 页面一打开就同步写好了（或上次已换好）：不用再探测
   try{const r=await fetch('/api/manifest?h='+encodeURIComponent(c.code),{cache:'no-store'});if(!r.ok)return false;const m=await r.json();if(!m||typeof m.start_url!=='string'||m.start_url.indexOf('h='+c.code)<0)return false}catch(_){return false}
   if(!ME||ME.id!==me)return false;
   hoLink(c.code);return true}
+// 用户打开「添加到主屏幕」步骤页的那一刻最要紧：iOS 用的是页面打开时读到的安装配置（HO_AT_LOAD）。它如果不是现在有效的这一份
+//   （刚登录还没缓存过码、或缓存的码刚被核对出已作废换了新的），就刷新一次——刷新后页面头部会同步写好——并自动回到步骤页。同一个标签页只刷新一次，不会循环
+function hoGuide(){hoPrep().then(ok=>{if(!ok||!HO_READY)return;
+  if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return}
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return;sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_a2hs_go','1')}catch(_){return}
+  location.reload()}).catch(()=>{})}
+function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
   openAuth=function(next,why){
