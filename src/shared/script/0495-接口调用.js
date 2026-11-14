@@ -247,7 +247,7 @@ async function nbqBoot(){if(!NBQ_NET)return;nbqClear();nbqSnapLoad();
 // 分享链接 /g/码（真实模式，11-13）：球局是异步读进来的，启动时按码找不到，所以读完（未登录读公开球局、或登录后读入）再打开这一局。
 //   公开列表里没有的（超过 100 场 / 开打超过 30 分钟）按分享码单独取；单独取来的那一局记在 NBQ_LINK.g，之后重读球局（nbqApply 整个替换）时补回去。
 //   未登录时取不到（女生局、私人局要登录才看得到）：先不算完，登录读入后再试一次
-const NBQ_LINK={done:false,g:null};
+const NBQ_LINK={done:false,g:null,asked:false};
 function nbqLinkKeep(){const g=NBQ_LINK.g;if(g&&!GAMES.some(x=>x.id===g.id)){GAMES.push(g);nbqCompose([g],PARTS,USERS)}}
 async function nbqLinkOpen(){if(!NBQ_NET||NBQ_LINK.done||typeof location==='undefined')return;
   const m=location.hash.match(/#\/g\/(\w+)/)||location.pathname.match(/\/g\/(\w+)/);if(!m){NBQ_LINK.done=true;return}
@@ -255,7 +255,8 @@ async function nbqLinkOpen(){if(!NBQ_NET||NBQ_LINK.done||typeof location==='unde
   if(!g){const r=await NBQ_NET.get('/api/game',{code},anon?{noauth:true}:undefined);
     if(NBQ_LINK.done||(!r.ok&&r.status!==404))return;   // 断网 / 服务器忙：留到下次读完再试
     if(r.ok&&r.data.game){NBQ_LINK.g=nbqFromGame(r.data.game);nbqLinkKeep();g=GAMES.find(x=>x.id===NBQ_LINK.g.id)}}
-  if(!g){if(!anon)NBQ_LINK.done=true;toast(anon?'这场球局不公开或已结束，登录后再看看':'这场球局已结束或不公开');return}
+  if(!g){if(!anon){NBQ_LINK.done=true;toast('这场球局已结束或不公开');return}
+    if(!NBQ_LINK.asked&&typeof openAuth==='function'){NBQ_LINK.asked=true;openAuth(null,'登录后查看这场球局')}return}   // 未登录看不到（女生局 / 私人局 / 已结束）：给出路——登录面板；登录读入后 nbqEnter 会再试一次（11-14 所有者评审）
   NBQ_LINK.done=true;
   if(AN_BUILD==='pwa'){if(!UI.detail)openDetail(g.id,true)}else{UI.landing=code;render()}}
 // 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code} · {st:'gone'} 读取途中退出了（什么都不做）

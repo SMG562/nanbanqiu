@@ -13,11 +13,12 @@ function makeSW() {
   const store = new Map(), L = {}, net = { online: true, hits: [] };
   const cache = { put: async (k, r) => { store.set(String(typeof k === 'string' ? k : k.url).replace(O, ''), r) }, add: async () => { } };
   const self = { addEventListener: (t, f) => { L[t] = f }, location: { origin: O }, skipWaiting: () => { }, clients: { claim: () => { } }, registration: {} };
-  const ctx = { self, URL, Response, Promise, console, caches: { open: async () => cache, keys: async () => [], delete: async () => true, match: async k => { const r = store.get(String(typeof k === 'string' ? k : k.url).replace(O, '')); return r ? r.clone() : undefined } },
-    fetch: async rq => { const u = typeof rq === 'string' ? rq : rq.url; net.hits.push(u.replace(O, '')); if (!net.online) throw new TypeError('offline'); return new Response('LIVE ' + new URL(u).pathname, { status: 200 }) }, clients: { matchAll: async () => [], openWindow: async () => { } } };
+  const ctx = { self, URL, Response, Promise, console, setTimeout: (f, ms) => setTimeout(f, ms > 100 ? 30 : ms),   // 3.5 秒的等待在测试里缩成 30 毫秒
+    caches: { open: async () => cache, keys: async () => [], delete: async () => true, match: async k => { const r = store.get(String(typeof k === 'string' ? k : k.url).replace(O, '')); return r ? r.clone() : undefined } },
+    fetch: async rq => { const u = typeof rq === 'string' ? rq : rq.url; net.hits.push(u.replace(O, '')); if (net.hang) return new Promise(() => { }); if (net.status) return new Response('ERR', { status: net.status }); if (!net.online) throw new TypeError('offline'); return new Response('LIVE ' + new URL(u).pathname, { status: 200 }) }, clients: { matchAll: async () => [], openWindow: async () => { } } };
   vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8'), ctx);
   // 发一个请求给 fetch 监听；返回 'pass'（没接管，走浏览器默认）、'error'（网络错误）或响应文字
-  const get = async (p, mode = 'cors', method = 'GET') => { let res; const e = { request: { url: O + p, method, mode, clone() { return this } }, respondWith: r => { res = r }, waitUntil: () => { } };
+  const get = async (p, mode = 'cors', method = 'GET') => { let res; const e = { request: { url: O + p, method, mode, clone() { return this } }, respondWith: r => { res = r }, waitUntil: x => { Promise.resolve(x).catch(() => { }) } };
     L.fetch(e); if (res === undefined) return 'pass'; try { const r = await res; await new Promise(x => setTimeout(x, 5)); return !r || r.type === 'error' ? 'error' : await r.text() } catch (_) { return 'error' } };
   return { get, net, store };
 }
@@ -41,5 +42,16 @@ function makeSW() {
   const nav = await s.get('/pwa.html', 'navigate');
   T('③ 没缓存过：导航到 /pwa.html 不能再给选排版壳（否则无限刷新）', nav === 'error', nav);
   T('⑤ 没打开过的城市断网：回退墨尔本的壳', await s.get('/sydney/', 'navigate') === 'LIVE /melbourne/'); }
+
+// ⑥ 弱网（11-14 所有者评审）：连得上但一直不回 → 等一小会儿就先给缓存；服务器报错（5xx）也给缓存；没缓存只能等网络
+{ const s = makeSW(); await s.get('/pwa.html'); s.net.hang = true;
+  const t0 = Date.now(), r = await s.get('/pwa.html');
+  T('⑥ 网络挂住、有缓存：超时后给缓存，不一直等', r === 'LIVE /pwa.html' && Date.now() - t0 < 2000, [r, Date.now() - t0]);
+  s.net.hang = false; s.net.status = 503;
+  T('⑥ 服务器报 503、有缓存：给缓存', await s.get('/pwa.html') === 'LIVE /pwa.html');
+  s.net.status = 0;
+  T('⑥ 网络恢复：又是网络优先', await s.get('/pwa.html') === 'LIVE /pwa.html' && s.net.hits.filter(h => h === '/pwa.html').length === 4) }
+{ const s = makeSW(); s.net.status = 503;
+  T('⑥ 服务器报 503、没缓存：把服务器的回答原样给页面，也不缓存它', await s.get('/pwa.html') === 'ERR' && !s.store.has('/pwa.html')) }
 
 console.log(`sw_offline: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

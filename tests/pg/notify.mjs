@@ -309,6 +309,17 @@ try {
   await run(Zp + M);
   T('坏通知：下一轮谁也不会被重推', callsTo('poisA').length === 1 && callsTo('poisB').length <= 1 && callsTo('poisC').length === 1, [callsTo('poisA').length, callsTo('poisB').length, callsTo('poisC').length]);
   await q(`drop trigger test_poison on notification_deliveries`);
+  // 暂时性错误（11-14 所有者评审）：死锁 / 序列化冲突 / 语句超时不是这条通知的问题——不能记成 none / error 标已处理（那样它永远不推），要整批下一轮重来
+  const nT = (await one(`insert into notifications(user_id, kind, game_id, created_at) values ($1,'approved',$2,$3) returning id`, [pB, gP, new Date(T0 + Zp + 2 * M).toISOString()])).id;
+  for (const code of ['40001', '40P01', '57014']) {
+    await q(`create or replace function test_poison() returns trigger language plpgsql as $$ begin raise exception 'transient' using errcode = '${code}'; end $$`);
+    await q(`create trigger test_poison before insert on notification_deliveries for each row when (new.notification_id = ${Number(nT)}) execute function test_poison()`);
+    let th = null; try { await run(Zp + 3 * M) } catch (e) { th = e.code }
+    T(`暂时性错误 ${code}：整批抛出、这条没被标成已处理、没有 error 记录`, th === code && !(await pushedAt(nT)) && (await one(`select count(*)::int n from notification_deliveries where notification_id=$1`, [nT])).n === 0, th);
+    await q(`drop trigger test_poison on notification_deliveries`);
+  }
+  const bT = callsTo('poisB').length; await run(Zp + 4 * M);
+  T('暂时性错误过去后：下一轮照常推出', !!(await pushedAt(nT)) && callsTo('poisB').length === bT + 1, [callsTo('poisB').length, bT]);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`notify: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
