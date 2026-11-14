@@ -166,7 +166,8 @@ let A2HS_EV=null;
 // 不反复提醒（11-14 真机反馈）：iPhone 上链接总是在 Safari 里打开，Safari 不知道桌面上已经有图标——只能记住用户自己说的「我已添加」（nbq_a2hs_ok），
 //   之后在这个浏览器里不再出现「添加到主屏幕」的卡片和登录前的建议；看过步骤的 7 天内（nbq_a2hs_at），顺带出现的小卡片也不再出现，只留「申请已发送」后那一个按钮
 const a2hsGet=k=>{try{return localStorage.getItem(k)}catch(_){return null}},a2hsPut=(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}};
-const a2hsAdded=()=>a2hsGet('nbq_a2hs_ok')==='1',a2hsRecent=()=>Date.now()-(+a2hsGet('nbq_a2hs_at')||0)<7*864e5;
+const A2HS_OK_DAYS=45;   // 「我已添加」是用户自己说的，点错了也不该永远不提醒：45 天后失效
+const a2hsAdded=()=>{const t=+a2hsGet('nbq_a2hs_ok')||0;return t>0&&Date.now()-t<A2HS_OK_DAYS*864e5},a2hsRecent=()=>Date.now()-(+a2hsGet('nbq_a2hs_at')||0)<7*864e5;
 function a2hsKind(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   if(/MicroMessenger|xhsdiscover|XiaoHongShu|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(ua)||(ios&&!/Safari/.test(ua)))return'inapp';
   if(ios)return/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo/.test(ua)?'ios_other':'ios_safari';

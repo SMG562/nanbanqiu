@@ -47,6 +47,7 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
     await pg.evaluate(() => openA2HS()); await pg.settle(300); await pg.click('#sheet [data-a="a2hsDone"]'); await pg.settle(400);
     T('③ 点「我已添加」：状态 installed，小卡片没有', await pg.evaluate(() => pushState() === 'installed' && pushNudgeHTML('game') === '' && pushNudgeHTML('invite') === ''));
     T('③ 已添加：申请成功页不再给按钮，只说从桌面图标打开', await pg.evaluate(() => { openApplied(GAMES[0].id); const s = document.querySelector('#sheet'); return !s.querySelector('[data-a="a2hs"]') && s.innerText.includes('桌面的南伴球图标') }));
+    T('③ 「我已添加」记的是时间：46 天后失效，又会提醒', await pg.evaluate(() => { const k = 'nbq_a2hs_ok', v = localStorage.getItem(k); localStorage.setItem(k, String(Date.now() - 46 * 864e5)); localStorage.removeItem('nbq_a2hs_at'); const back = pushState() === 'need_install' && /data-a="a2hs"/.test(pushNudgeHTML('game')); localStorage.setItem(k, v); return +v > 0 && back }));
     const shut = async () => { await pg.evaluate(() => closeSheet()); await pg.waitForFunction(() => !document.querySelector('#sheet.show'), null, { timeout: 5000 }).catch(() => { }) };   // 等面板真的关上（并发跑时动画慢，固定等会偶发）
     await shut();
     // ④
@@ -55,7 +56,8 @@ const game = (n, now) => ({ id: `cccccccc-cccc-4ccc-8ccc-00000000000${n}`, share
     await pg.evaluate(() => { Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' }); setEnv('pwa'); PUSH.enabled = false }); await pg.settle(300);   // CI 的无头浏览器默认是 denied，不能依赖默认值
     const canAsk = await pg.evaluate(() => pushState());
     if (canAsk === 'ask') {
-      await pg.evaluate(() => pnAfterLogin()); await pg.waitForFunction(() => !!document.querySelector('#sheet.show [data-a="enablePush"]'), null, { timeout: 8000 }).catch(() => { });   // 等它真的出现（CI 上面板出现得慢，固定等 400ms 不够：11-14 CI 红过）
+      await shut(); await pg.evaluate(() => { document.querySelector('#sheet').classList.remove('show'); pnAfterLogin() });   // 演示账号会自己弹别的面板（徽章庆祝等，时间不定）；有别的面板时 pnAfterLogin 按设计不打断，所以先确保没有再调
+      await pg.waitForFunction(() => !!document.querySelector('#sheet.show [data-a="enablePush"]'), null, { timeout: 8000 }).catch(() => { });   // 等它真的出现（CI 上面板出现得慢，固定等 400ms 不够：11-14 CI 红过）
       T('④ 主屏幕 App 里登录完：出现一步开通知', await pg.evaluate(() => !!document.querySelector('#sheet.show [data-a="enablePush"]')));
       await shut(); await pg.evaluate(() => pnAfterLogin()); await pg.settle(300);
       T('④ 只问一次', await pg.evaluate(() => !document.querySelector('#sheet.show [data-a="enablePush"]')));

@@ -41,6 +41,7 @@ const game = (id, code, now) => ({ id, share_code: code, host_id: HOST, host_nic
 
     s = await open('https://nanbanqiu.app/g/None1');
     T(tag('③ 码不存在：不打开详情'), await s.shown() === null, { shown: await s.shown() });
+    T(tag('③ 未登录看不到（女生局 / 私人局 / 已结束）：弹登录面板，写明「登录后查看这场球局」'), await s.pg.evaluate(() => !!document.querySelector('#ph') && document.body.innerText.includes('登录后查看这场球局')));
     T(tag('③ 首页球局照常显示、没有页面报错'), await s.pg.evaluate(() => GAMES.length === 1) && !s.errs.length, s.errs); await s.ctx.close();
 
     s = await open('https://nanbanqiu.app/');

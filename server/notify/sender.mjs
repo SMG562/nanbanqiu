@@ -7,6 +7,8 @@
 import { priority, quietUntil, staleReason, pickChannels, emailPlan, pushText, emailSubject, EMAIL_RANK, EMAIL_MERGE_MS, EMAIL_DAILY_CAP, MERGE_REQ_MS, localDay } from './rules.mjs';
 
 const ts = t => new Date(t).toISOString();
+// 暂时性的数据库错误（重试就会好）：40001 序列化冲突 · 40P01 死锁 · 55P03 等锁超时 · 57014 语句超时 / 被取消 · 57P0x 服务器关闭 · 08xxx 连接 · 53xxx 资源不足
+const TRANSIENT = /^(40001|40P01|55P03|57014|57P\d\d|08\w{3}|53\w{3})$/;
 // 应用页地址：现在 nanbanqiu.app 由预览站项目提供，根网址是入口页，应用在 /pwa.html、/web.html；以后根网址直接是应用时改这里
 const PUSH_URL = { mobile: '/melbourne/', desktop: '/melbourne/' };   // 统一网址（11-04）；旧推送里的 /pwa.html 由中间件跳转
 
@@ -114,6 +116,7 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200, vers
       try { await handle(n); await db.query('release savepoint nbq_n') }
       catch (e) {
         await db.query('rollback to savepoint nbq_n');
+        if (TRANSIENT.test(String(e && e.code || ''))) throw e;   // 死锁 / 序列化冲突 / 超时 / 连接类：不是这条通知的问题，整批回滚、下一轮重来（吞掉的话这条就永远不推了）
         console.error('notify_row_error', String(n.id), n.kind, String(e && (e.code || e.name) || 'error'));   // 只记编号、种类、错误代码
         await deliver(db, n.id, 'none', 'error', null, now); await done(n, now); stats.errors++;
       }

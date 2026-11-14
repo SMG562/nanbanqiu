@@ -6,6 +6,7 @@
  */
 const VERSION = 'nbq-v8';   // R3-2：每个城市一个网址（/melbourne/ …），离线壳按城市缓存；换版本让旧缓存失效
 const SHELL = ['/melbourne/', '/icons/icon-192.png'];
+const PAGE_WAIT = 3500;   // 整页等网络最多这么久（毫秒），超过就先用缓存
 const PAGES = ['/pwa.html', '/web.html'];   // 整页：城市壳（选排版页）用 fetch 把其中一个载进来
 
 self.addEventListener('install', e => {
@@ -28,10 +29,18 @@ self.addEventListener('fetch', e => {
   // 整页（11-13）：网络优先，成功就缓存，断网给上次那份（应用能打开、显示上次的数据）。没缓存过 = 网络错误，绝不回退到城市壳：
   //   以前断网时壳取不到整页 → 退回跳到 /pwa.html → 这次导航又拿到缓存的壳 → 再取不到 → 再跳，无限刷新
   if (PAGES.includes(url.pathname)) {
-    e.respondWith(fetch(e.request).then(r => {
-      if (r.ok && !r.redirected) { const c = r.clone(); caches.open(VERSION).then(x => x.put(url.pathname, c)).catch(() => { }) }
-      return r;
-    }).catch(async () => (await caches.match(url.pathname)) || Response.error()));
+    e.respondWith((async () => {
+      const net = fetch(e.request).then(r => {
+        if (r.ok && !r.redirected) { const c = r.clone(); caches.open(VERSION).then(x => x.put(url.pathname, c)).catch(() => { }) }
+        return r;
+      });
+      e.waitUntil(net.catch(() => { }));   // 超时先给了缓存也让这次请求跑完，把新的一份存下来，下次打开就是新的
+      const cached = await caches.match(url.pathname);
+      if (!cached) return net.catch(() => Response.error());
+      // 弱网（连得上但很慢）：最多等 PAGE_WAIT 毫秒，等不到就先给上次那份，不让应用像卡死一样白屏到系统超时
+      const first = await Promise.race([net.catch(() => null), new Promise(res => setTimeout(() => res(null), PAGE_WAIT))]);
+      return first && first.ok ? first : cached;
+    })());
     return;
   }
   if (e.request.mode === 'navigate') {
