@@ -92,7 +92,7 @@ function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.nt
   <div style="height:16px"></div><button class="btn btn-p" data-a="doApply" data-g="${id}">发送申请</button>`)}
 function openApplied(id){const c=api.get(id);
   const card=ENV==='wechat'?`<button class="btn btn-p" data-a="wxguide">在浏览器打开，接收通知</button><p class="fine" style="margin:6px 0 4px">微信内无法推送通知</p>`
-    :ENV==='safari'?`<button class="btn btn-p" data-a="a2hs">添加到主屏幕，接收通知</button>`:PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
+    :ENV==='safari'?(a2hsAdded()?`<p class="fine" style="margin:6px 0 4px">从桌面的南伴球图标打开，就能收到回复提醒</p>`:`<button class="btn btn-p" data-a="a2hs">添加到主屏幕，接收通知</button>`):PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-check"/></svg></div><div class="sh-t">申请已发送</div><p class="sh-s">${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</p></div>${card}${emAskHTML(false)}<div style="height:8px"></div><button class="btn btn-s" data-a="close">好的</button>`)}
 function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
   openSheet(`<div class="sh-t">${appr?'取消参加？':'撤回申请？'}</div><p class="sh-s">${appr?`${esc(c.host.name)} 会收到通知，名额会重新开放。${ugLeaveTxt(c)}`:'撤回后可以重新申请。'}</p>
@@ -155,14 +155,18 @@ function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" 
 
 /* 微信 / 主屏幕 / 推送 */
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
-  <h3>用 Safari 打开</h3><p class="lead">微信里会弹「未备案」提示，也收不到通知。换到 Safari，<em>不再有提示</em>，有人申请时<em>第一时间</em>通知你</p>
+  <h3>用 Safari 打开</h3><p class="lead">微信里收不到通知。换到 Safari，<em>不再弹提示</em>，有人申请时<em>第一时间</em>通知你</p>
   <div class="ntf"><svg class="ic"><use href="#logo"/></svg><div><b>南伴球<small>现在</small></b><span>Grace 申请加入你周六 9:00 的球局</span></div></div>
-  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li><li><i>3</i><div>点底部的分享 <span class="kbd">⬆︎</span>（看不到就点地址栏的菜单），选「添加到主屏幕」</div></li></ol>
+  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li></ol><p class="lead" style="margin-top:10px">打开后按提示添加到主屏幕，在桌面图标里登录一次即可</p>
   <button class="btn" data-a="wxclose">知道了</button>`}
 // 添加到主屏幕（10-29 重做）：按浏览器给最直白的步骤，每一步配和真实界面一致的图标；没有演示按钮
 // iOS Safari：底部工具栏的分享（新版 Safari 工具栏收起时，在地址栏的 ≡ / ⋯ 菜单里）→ 添加到主屏幕 → 添加
 // iOS 其他浏览器 / App 内置浏览器：先换到 Safari（复制链接）；安卓 Chrome：能一键就一键（beforeinstallprompt），否则 ⋮ 菜单
 let A2HS_EV=null;
+// 不反复提醒（11-14 真机反馈）：iPhone 上链接总是在 Safari 里打开，Safari 不知道桌面上已经有图标——只能记住用户自己说的「我已添加」（nbq_a2hs_ok），
+//   之后在这个浏览器里不再出现「添加到主屏幕」的卡片和登录前的建议；看过步骤的 7 天内（nbq_a2hs_at），顺带出现的小卡片也不再出现，只留「申请已发送」后那一个按钮
+const a2hsGet=k=>{try{return localStorage.getItem(k)}catch(_){return null}},a2hsPut=(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}};
+const a2hsAdded=()=>a2hsGet('nbq_a2hs_ok')==='1',a2hsRecent=()=>Date.now()-(+a2hsGet('nbq_a2hs_at')||0)<7*864e5;
 function a2hsKind(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   if(/MicroMessenger|xhsdiscover|XiaoHongShu|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(ua)||(ios&&!/Safari/.test(ua)))return'inapp';
   if(ios)return/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo/.test(ua)?'ios_other':'ios_safari';
@@ -180,14 +184,14 @@ function a2hsSteps(k){
   return a2s(1,'点屏幕底部的「分享」','看不到？点地址栏的 <span class="a2i">'+A2G.menu+'</span> 或 <span class="a2i">'+A2G.dots+'</span>，再选「分享」','share')
     +a2s(2,'向上滑，点「添加到主屏幕」','在分享菜单里往上滑一点就能看到','plus')
     +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
-function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+function openA2HS(){a2hsPut('nbq_a2hs_at',String(Date.now()));const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
   let top='',main='';
   if(k==='inapp'||k==='ios_other'){
     top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;
     main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
   else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
-  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'建议先添加到主屏幕，再从桌面图标打开，在里面登录、允许位置和通知——iPhone 的网页和桌面图标不共用登录，在 Safari 里做过的要在桌面 App 里重做一次，只此一次（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'添加后从桌面图标打开，登录一次、允许通知，之后都不用再登录（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="a2hsDone" style="margin-top:6px">我已添加</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}

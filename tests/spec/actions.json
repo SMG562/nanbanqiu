@@ -68,6 +68,7 @@
   "sx:xhsCopy": "baseline",
   "a:a2hsLink": "baseline",
   "a:a2hsGo": "baseline",
+  "a:a2hsDone": "local",
   "sx:endSeries": "baseline",
   "sx:impPick": "write:e2e_fullstack",
   "sx:softNoGo": "baseline",

@@ -269,7 +269,7 @@ async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='gone')return;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
   if(e.st==='new'){openNewProfile();return}
-  toast('欢迎回来');const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
+  toast('欢迎回来');const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380);else if(typeof pnAfterLogin==='function')setTimeout(pnAfterLogin,600)}
 // 新号码填完资料（两端 npDone 调用）：注册 → 常去球场 → 性别 → 读入
 async function nbqNpDone(n){
   const last=($('#npLast')&&$('#npLast').value.trim().slice(0,1).toUpperCase())||'',btn=document.querySelector('[data-a="npDone"]'),err=m=>{const e=$('#npErr');if(e)e.textContent=m;if(btn)btn.disabled=false};
@@ -279,11 +279,20 @@ async function nbqNpDone(n){
   if(NP.clubs&&NP.clubs.length){const c=await NBQ_NET.put('/api/me/clubs',{venue_ids:[...NP.clubs].slice(0,3)});if(!c.ok)toast(apiErrText(c.code))}
   if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok)toast(apiErrText(g.code))}
   const e=await nbqEnter();if(e.st==='gone')return err('');if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
-  toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380)}
+  toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380);else if(typeof pnAfterLogin==='function')setTimeout(pnAfterLogin,600)}
 
 /* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */
 // 重新读入（保持登录；读不到就保留现有数据）
-async function nbqRefresh(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);if(ep!==NBQ_EPOCH)return false;if(r.ok&&r.registered){NBQ_STALE=false;nbqApply(r);return true}return false}
+async function nbqRefresh(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);if(ep!==NBQ_EPOCH)return false;if(r.ok&&r.registered){NBQ_STALE=false;NBQ_FRESH_AT=Date.now();nbqApply(r);return true}return false}
+// 球局列表保持新鲜（11-14 真机反馈）：放到主屏幕的 App 从后台回来不会重新载入页面，以前只在「有新通知」时才重读球局，
+//   别人新发布的球局要手动刷新才看得到。现在回到前台 / 网络恢复 / 每 2 分钟重读一次（距上次不到 1 分钟就不读）；未登录读公开球局。正在输入时不重画
+let NBQ_FRESH_AT=Date.now();
+async function nbqFresh(force){if(!NBQ_NET||typeof document==='undefined'||document.visibilityState!=='visible')return false;
+  if(!force&&Date.now()-NBQ_FRESH_AT<60000)return false;NBQ_FRESH_AT=Date.now();
+  if(ME)return nbqRefresh();
+  const ep=NBQ_EPOCH,pub=await nbqLoadPublic(NBQ_NET);if(ep!==NBQ_EPOCH||ME||!pub.ok)return false;
+  GAMES.length=0;PARTS.length=0;Object.assign(USERS,pub.users);pub.games.forEach(g=>GAMES.push(g));pub.parts.forEach(p=>PARTS.push(p));nbqLinkKeep();nbqRenderSoon();return true}
+if(typeof document!=='undefined'&&NBQ_NET){document.addEventListener('visibilitychange',()=>{nbqFresh()});addEventListener('pageshow',()=>{nbqFresh()});addEventListener('online',()=>{nbqFresh()});setInterval(()=>{nbqFresh()},120000)}
 const NBQ_BUSY=new Set();   // 同一个操作进行中不重复提交（连点）
 // call: net => Promise<{ok,data,code,...}>；返回成功时的 data，失败返回 null（已提示）
 async function nbqWrite(key,call){
