@@ -17,6 +17,7 @@ pwa/style/0130-我的球局.css
 pwa/style/0140-notifications.css
 pwa/style/0150-me.css
 pwa/style/0160-Sheet.css
+pwa/style/0165-添加到桌面引导.css
 pwa/style/0170-share.css
 pwa/style/0180-overlays.css
 pwa/style/0190-demo_panel.css
@@ -149,6 +150,7 @@ shared/script/0500-球友.js
 shared/script/0501-首页引导条_规则.js
 shared/script/0502-首页引导条.js
 pwa/script/0260-分享球员卡.js
+pwa/script/0265-添加到桌面引导.js
 pwa/script/0270-事件.js
 pwa/script/0280-环境_演示.js
 pwa/script/0285-视口.js
