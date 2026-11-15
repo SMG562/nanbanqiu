@@ -1,5 +1,6 @@
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { execFileSync } from 'node:child_process'; import { cleanGitEnv } from '../lib/git_env.mjs';
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, dbFiles, ownerActPost, ownerActKey, OWNER_REMIND_H, OWNER_REMIND_MAX, OWNER, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, dbFacts, runMergeDrift, dbFiles, ownerActPost, ownerActKey, OWNER_REMIND_H, OWNER_REMIND_MAX, OWNER, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -152,4 +153,27 @@ T('到了上限（首次 + 3 次复提醒）就不再发，哪怕又过了 24 �
 T('库结构文件变了：算新的一件事，重新首次提醒', (q => q && !/提醒（第/.test(q.body))(ownerActPost({ ...DP, db: { ...DP.db, files: ['server/migrations/20261119_y.sql'] } }, DC, [cm(post1.body, 3)], NOW)));
 T('不需要提醒的：没有 ownerAct / 草稿 / 机器人作者', ownerActPost(base(), oc(base()), [], NOW) === null && ownerActPost(dbp(false, { draft: true }), DC, [], NOW) === null && ownerActPost(dbp(false, { author: 'dependabot[bot]' }), DC, [], NOW) === null);
 T('作者就是所有者也要提醒（所有者自己的 PR 含迁移也别忘了跑）', (q => q && q.body.includes('@' + OWNER))(ownerActPost(dbp(false, { author: OWNER }), DC, [], NOW)));
+
+// 11-16 线上故障复现：协作看板 job 是稀疏检出，工作区里没有 tools/merge_drift.sh；第一版直接 bash 它 → 退出码 127 → 被当成「不确定」悄悄放过，功能整个失效。
+//   现在从 origin/main 取脚本内容运行（bash -c，$0 仍是 tools/merge_drift.sh），所以工作区里没有也能跑；「不确定」带原因。
+{ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-board-')), envBak = process.env, here = process.cwd();
+  process.env = cleanGitEnv(envBak);   // 在临时目录跑 git：去掉 GIT_DIR 等（钩子里会指到真仓库，tests/unit/git_env 查这条）
+  const g = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore', env: process.env });
+  fs.mkdirSync(path.join(dir, 'tools'));
+  fs.writeFileSync(path.join(dir, 'tools/merge_drift.sh'), '#!/usr/bin/env bash\nset -u\ncd "$(dirname "$0")/.."\n[ "${1:-}" = --db-parity ] || exit 2\ntouch .ran-in-root\n[ "${2:-}" = good ] && exit 0\n[ "${2:-}" = boom ] && exit 7\nexit 1\n');
+  g('init', '-q'); g('-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '-A'); g('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'x'); g('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  fs.rmSync(path.join(dir, 'tools'), { recursive: true });   // 工作区里没有这个脚本（稀疏检出）
+  process.chdir(dir);
+  try {
+    const good = runMergeDrift('good'), bad = runMergeDrift('bad'), boom = runMergeDrift('boom');
+    T('稀疏检出（工作区没有脚本、origin/main 有）：能跑出结论——0 = 算数、1 = 不算数', good.status === 0 && bad.status === 1, [good, bad]);
+    T('脚本里的 cd 回到的是仓库根（$0 仍是 tools/merge_drift.sh），不是上一级', fs.existsSync(path.join(dir, '.ran-in-root')));
+    T('脚本退出码既不是 0 也不是 1：不确定，带原因（不当成「不算数」）', boom.status === null && /退出码 7/.test(boom.why), boom);
+    g('update-ref', '-d', 'refs/remotes/origin/main');
+    const gone = runMergeDrift('good'); T('origin/main 上取不到脚本：不确定，原因写明取不到', gone.status === null && /取不到 origin\/main:tools\/merge_drift\.sh/.test(gone.why), gone);
+  } finally { process.chdir(here); process.env = envBak; fs.rmSync(dir, { recursive: true, force: true }) } }
+const okF = ['schema.sql', 'server/migrations/20261118_x.sql'], mk2 = (fetch, run, files = okF) => dbFacts(1, SHA, files, { fetch, run });
+T('dbFacts：没改库结构文件 → 不调脚本、不算改了', (r => r.changed === false && r.parity === null)(mk2(() => { throw new Error('不该取') }, () => { throw new Error('不该跑') }, ['src/a.js'])));
+T('dbFacts：取不到 PR 提交 → 不确定，带原因', (r => r.changed && r.parity === null && /git fetch 失败/.test(r.why))(mk2(() => false, () => ({ status: 0 }))));
+T('dbFacts：脚本结论 0 / 1 / 其他 → true / false / null（其他带原因）', mk2(() => true, () => ({ status: 0 })).parity === true && mk2(() => true, () => ({ status: 1 })).parity === false && (r => r.parity === null && r.why === '坏了')(mk2(() => true, () => ({ status: null, why: '坏了' }))));
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
