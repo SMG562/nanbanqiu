@@ -82,9 +82,8 @@ details.jrules summary::-webkit-details-marker{display:none}details.jrules summa
 .cx-quick button{flex:none;border:1px solid #DDE2DD;background:#fff;border-radius:99px;font:inherit;font-size:12.5px;font-weight:600;padding:6px 11px;cursor:pointer;color:#1F2A23}
 .cx-in{display:flex;gap:8px;margin-top:4px}.cx-in input{flex:1;height:42px;border-radius:21px;border:1px solid #DDE2DD;padding:0 16px;font:inherit;font-size:14px;outline:0;min-width:0}
 .cx-in button{flex:none;height:42px;padding:0 18px;border-radius:21px;border:0;background:var(--g);color:#fff;font:inherit;font-weight:700;cursor:pointer}
-/* 键盘弹出后可视区很矮（iPhone 约 240pt）：聊天区不能再撑着 240px 最小高度，否则把输入栏挤到弹层外面（11-16 真机：点一下输入框，输入栏消失、滚到底也看不到）。
-   弹层里的聊天：消息区可缩（min-height:0）、整块扣掉顶部拖动条 19px（否则永远多出 19px 要滚）、输入栏贴底不动；键盘态再收掉页脚说明和快捷回复，把高度留给消息和输入。 */
-.sheet.tall .cx-th{height:calc(100% - 19px)}.sheet.tall .cx-msgs{min-height:0}.device.kb .cx-foot,.device.kb .cx-quick{display:none}
+/* 聊天：消息区可缩（唯一能滚的），输入栏贴底不动；键盘态收掉页脚说明和快捷回复，高度留给消息和输入（布局根因见 pwa/style/0220） */
+.cxsheet>.cx-th{flex:1;height:auto;min-height:0}.cxsheet .cx-msgs{min-height:0}.device.kb .cx-foot,.device.kb .cx-quick{display:none}
 .cx-foot{text-align:center;font-size:11px;color:#A3ABA4;margin-top:8px}.cx-foot a{color:#8A928A;text-decoration:underline;cursor:pointer}
 .cx-closed{text-align:center;font-size:12.5px;color:#8A928A;padding:12px;background:#F4F6F4;border-radius:12px}
 .cxsheet{height:calc(100% - 10px);display:flex;flex-direction:column}
