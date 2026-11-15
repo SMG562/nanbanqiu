@@ -56,11 +56,8 @@ const SB = 'https://xosrdkrkfxkdrwldfhac.supabase.co';
     await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
     await pg.goto('https://nanbanqiu.app/'); await pg.settle(800);
     const a = await pg.evaluate(async () => { const o = { net: NBQ_NET, env: ENV, kind: a2hsKind() };
-      openAuth(null); await new Promise(r => setTimeout(r, 300)); o.first = document.body.innerText; o.hasGo = !!document.querySelector('[data-a="authAnyway"]'); o.hasA2hs = !!document.querySelector('[data-a="a2hs"]');
-      document.querySelector('[data-a="authAnyway"]').click(); await new Promise(r => setTimeout(r, 400)); o.after = document.body.innerText; o.flag = sessionStorage.getItem('nbq_a2hs_first');
-      closeSheet(); await new Promise(r => setTimeout(r, 300)); openAuth(null); await new Promise(r => setTimeout(r, 300)); o.again = document.body.innerText; return o });
-    T('iPhone Safari 真实模式：登录前先出「先添加到主屏幕」，有两个按钮', a.net && a.env === 'safari' && a.kind === 'ios_safari' && /先添加到主屏幕，再登录/.test(a.first) && a.hasGo && a.hasA2hs, a);
-    T('选「先在浏览器里用」→ 进入登录；同一次打开里不再问', !/先添加到主屏幕，再登录/.test(a.after) && a.flag === '1' && !/先添加到主屏幕，再登录/.test(a.again), { flag: a.flag, after: a.after.slice(0, 80), again: a.again.slice(0, 80) });
+      openAuth(null); await new Promise(r => setTimeout(r, 300)); o.first = document.body.innerText; o.hasPhone = !!document.querySelector('#ph'); return o });
+    T('iPhone Safari 真实模式：直接进登录，不再先出「先添加到主屏幕，再登录」（登录交接上线后，Safari 里登录一次、桌面图标也能自动登录）', a.net && a.env === 'safari' && a.kind === 'ios_safari' && a.hasPhone && !/先添加到主屏幕，再登录/.test(a.first), a);
     // 静默补订阅
     const h = await pg.evaluate(async () => { const o = {}; const calls = { sub: 0, track: [] };
       Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'granted' });

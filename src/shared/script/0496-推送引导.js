@@ -114,15 +114,6 @@ function hoStaleReload(){
 function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
   if(!b)return;if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast(b.msg||'欢迎回来')}
 function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
-let PN_AUTH=null;
-{if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
-  openAuth=function(next,why){
-    let seen=false;try{seen=sessionStorage.getItem('nbq_a2hs_first')==='1'}catch(_){}
-    if(!seen&&!(typeof a2hsAdded==='function'&&a2hsAdded())&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
-      PN_AUTH={next,why};
-      openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
-      <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
-    return _oa.call(this,next,why)}}}
 // 主屏幕 App 里登录完（没有接着要做的事）：一步开通知。只问一次；系统弹窗只在用户点了「开启通知」之后出现
 function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME||typeof ENV==='undefined'||ENV!=='pwa'||pushState()!=='ask')return;
   if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI.detail))return;   // 正在看别的：不打断
@@ -130,4 +121,3 @@ function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME|
   window.PUSH_FROM='login';
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-bell"/></svg></div><div class="sh-t">开启通知</div><p class="sh-s">有人申请、同意或回复你时，第一时间告诉你。</p></div>
   <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`)}
-function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}

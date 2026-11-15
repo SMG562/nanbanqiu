@@ -81,7 +81,6 @@ DEV.addEventListener('click',e=>{
     case'enablePush':enablePush();break;
     case'pushDenied':openPushDenied();break;
     case'pushRecheck':pushRecheck();break;
-    case'authAnyway':authAnyway();break;
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;
     case'a2hs':openA2HS();break;
