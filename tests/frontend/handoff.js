@@ -20,7 +20,8 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
     await pg.route('https://nanbanqiu.app/**', r => { const u = new URL(r.request().url()), m = r.request().method(), p = u.pathname; if (!p.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, F)) });
       api.push(m + ' ' + p + u.search + (r.request().headers()['authorization'] ? ' [' + r.request().headers()['authorization'].slice(7) + ']' : '')); const J = (s, d) => r.fulfill({ status: s, contentType: 'application/json', body: JSON.stringify(d) });
       if (p === '/api/venues') return J(200, { venues: [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', suburb: 'Malvern', surfaces: ['hard'], courts: 4, lights: true, indoor: false, booking_url: null, lat: -37.86, lng: 145.03 }] });
-      if (p === '/api/me') return J(200, { registered: true, user: USER });
+      if (p === '/api/me/register') { S.reg = 1; return J(200, { ok: true }) }
+      if (p === '/api/me') return J(200, S.newUser && !S.reg ? { registered: false } : { registered: true, user: USER });
       if (p === '/api/games') return J(200, { games: [] }); if (p === '/api/games/mine') return J(200, { games: [], participants: [], profiles: {} }); if (p === '/api/invites') return J(200, { invites: [], profiles: {} });
       if (p === '/api/session/handoff') { S.n++; return S.handoff === 200 ? J(200, { code: S.code, expires_at: new Date(Date.now() + 864e5).toISOString() }) : J(404, { error: 'handoff_unavailable' }) }
       if (p === '/api/session/redeem' && S.redeem === 426) return J(426, { error: 'client_outdated' });
@@ -75,6 +76,17 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
     await s.pg.waitForFunction(() => window.__nx === 1, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(1500);
     T('①b 登录后还要接着做事：不刷新，接着做', await s.pg.evaluate(() => window.__nx === 1 && sessionStorage.getItem('__ld') === '1'));
     T('①b 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
+
+  // ①c 新号码：填完资料后也一样，刷新一次再进入（用户的真机：新账号填资料后添加到桌面，打开还是没登录）
+  { const rec = () => { try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)); document.addEventListener('DOMContentLoaded', () => { try { const l = document.querySelector('link[rel="manifest"]'); sessionStorage.setItem('__mf' + sessionStorage.getItem('__ld'), l ? l.getAttribute('href') : 'none') } catch (_) { } }) } catch (_) { } };
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: rec, newUser: true });
+    await s.pg.evaluate(() => go('me')); await s.login(); await s.pg.waitForFunction(() => typeof NP !== 'undefined' && !!document.querySelector('[data-a="npDone"]'), null, { timeout: 10000 }).catch(() => { });
+    await s.pg.evaluate(() => nbqNpDone('Sam'));
+    await s.pg.waitForFunction(() => sessionStorage.getItem('__ld') === '2' && typeof ME !== 'undefined' && !!ME, null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(1200);
+    const st = await s.pg.evaluate(() => ({ ld: sessionStorage.getItem('__ld'), m2: sessionStorage.getItem('__mf2'), tab: UI.tab, me: !!ME, toast: (document.querySelector('#toast') || {}).innerText || '' }));
+    T('①c 新号码填完资料：刷新一次，加载那一刻安装配置就带码', st.ld === '2' && st.m2 === '/api/manifest?h=' + CODE, st);
+    T('①c 刷新后已登录、回到原标签页、提示「账号已创建」', st.me && st.tab === 'me' && /账号已创建/.test(st.toast), st);
+    T('①c 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
 
   // ② 桌面图标第一次打开
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?source=pwa&h=' + CODE);
