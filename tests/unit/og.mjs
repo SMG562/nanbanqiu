@@ -10,7 +10,7 @@ T('relDay：按墨尔本日期算（UTC 还是前一天时）', relDay(0, '18:00
 const G = { code: 'x', o: 0, t: '18:00', v: 'South Camberwell TC', type: 'singles', spots: 1, lvl: '4.5', host: 'Han Liu', hu: '4.5' };
 T('标题：缺位', ogTitle(G, NOW) === '今晚 18:00 · South Camberwell TC · 缺1位球友 · UTR 4.5', ogTitle(G, NOW));
 T('标题：已满员', ogTitle({ ...G, spots: 0 }, NOW) === '今晚 18:00 · South Camberwell TC · 已满员');
-T('描述', ogDesc(G) === '单打｜发起人 Han Liu UTR 4.5 · 南伴球' && ogDesc({ ...G, type: 'doubles' }).startsWith('双打｜') && ogDesc({ ...G, type: 'rally' }).startsWith('拉球｜'));
+T('描述', ogDesc(G) === '单打｜发起人 Han Liu UTR 4.5' && ogDesc({ ...G, type: 'doubles' }).startsWith('双打｜') && ogDesc({ ...G, type: 'rally' }).startsWith('拉球｜'));
 const H = '<head><title>旧</title><meta property="og:title" content="旧标题"><meta property="og:image" content="x"></head><body></body>';
 const R = rewriteHead(H, { title: 'A "引号" <b> & c', desc: 'd', image: 'https://e/i.png', url: 'https://e/g/1' });
 T('改写：标题换掉、引号和尖括号转义', /<meta property="og:title" content="A &quot;引号&quot; &lt;b&gt; &amp; c">/.test(R) && !/旧标题/.test(R) && /<title>A &quot;引号&quot; &lt;b&gt; &amp; c<\/title>/.test(R), R);

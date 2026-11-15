@@ -64,7 +64,7 @@ function openClubs(){CL=[...myClubIds()];openModal(`<div class="m-b"><div class=
   <div style="position:sticky;bottom:-26px;margin:12px -28px -26px;padding:12px 28px 26px;background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p w100" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div></div>`,'md')}
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
-const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)}`;
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 function openShare(id){const c=api.get(id),h=c.host,url=shareURL('https://nanbanqiu.app/g/'+c.share_code,'webqr');
   openModal(`<div class="m-b"><div class="m-t">分享球局</div><p class="m-s">发到微信群或小红书，更快找到球友</p>

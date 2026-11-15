@@ -16,9 +16,9 @@ export function relDay(o, t, now = new Date()) {
   return o === 0 ? (ev ? '今晚' : '今天') : o === 1 ? (ev ? '明晚' : '明天') : o === 2 ? '后天' : o === -1 ? '昨天' : WD[dow];
 }
 export const ogTitle = (g, now) => `${relDay(g.o, g.t, now)} ${g.t} · ${g.v} · ${g.spots > 0 ? `缺${g.spots}位球友 · UTR ${g.lvl}` : '已满员'}`;
-export const ogDesc = g => `${TYPE[g.type]}｜发起人 ${g.host} UTR ${g.hu} · 南伴球`;
+export const ogDesc = g => `${TYPE[g.type]}｜发起人 ${g.host} UTR ${g.hu}`;
 export const profTitle = u => `${u.name.split(' ')[0]} · UTR ${u.ntrp}`;
-export const profDesc = () => '墨尔本网球球友｜点开看看，约我一起打球 · 南伴球';
+export const profDesc = () => '墨尔本网球球友｜点开看看，约我一起打球';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // 把页面 <head> 里的卡片信息换成这一条链接自己的（没有的标签补上）

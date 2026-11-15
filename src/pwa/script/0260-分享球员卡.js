@@ -110,7 +110,7 @@ function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Clu
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 // 链接卡片的标题 / 描述：和服务端 server/og/card.mjs 同一套文案（tests/frontend/og_parity 逐个核对）
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
-const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)}`;
 // 缩略图 = 链接卡片上真实显示的那张（服务端 og:image = /icons/og-share.jpg（300×300、7KB：微信对缩略图有体积限制，原 512 图 190KB 加载不出）），预览和真实卡片一致
 const thumbHTML=c=>`<div class="thumb"><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div>`;
 const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${esc(ogDesc(c))}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
