@@ -54,6 +54,28 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   T('① 退出登录：安装配置换回原样，缓存的码清掉', await s.man() === '/manifest.webmanifest' && await s.pg.evaluate(() => localStorage.getItem('nbq_ho') === null), await s.man());
   T('① 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
 
+  // ①b 第一次登录就能直接添加到主屏幕：登录完趁「登录中」那一下刷新一次（#299），不用用户关标签页重开
+  //   查：刷新后页面「加载那一刻」的安装配置就带码（init 脚本在页面脚本之前记下 link 的 href）· 回到刚才的标签页 · 只刷新一次 · 有接着要做的事（AUTH.next）不刷新
+  { const rec = () => { window.__loads = (window.__loads || 0) + 1; try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)) } catch (_) { }
+      document.addEventListener('DOMContentLoaded', () => { try { const l = document.querySelector('link[rel="manifest"]'); sessionStorage.setItem('__mf' + sessionStorage.getItem('__ld'), l ? l.getAttribute('href') : 'none') } catch (_) { } }) };
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: rec });
+    await s.pg.evaluate(() => go('me')); await s.login();
+    await s.pg.waitForFunction(() => sessionStorage.getItem('__ld') === '2' && typeof ME !== 'undefined' && !!ME, null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(1200);
+    const st = await s.pg.evaluate(() => ({ ld: sessionStorage.getItem('__ld'), m1: sessionStorage.getItem('__mf1'), m2: sessionStorage.getItem('__mf2'), tab: UI.tab, me: !!ME, toast: (document.querySelector('#toast') || {}).innerText || '' }));
+    T('①b 第一次登录后刷新了一次（第二次加载）', st.ld === '2', st);
+    T('①b 第一次加载安装配置不带码，刷新后加载那一刻就带码', st.m1 === '/manifest.webmanifest' && st.m2 === '/api/manifest?h=' + CODE, st);
+    T('①b 刷新后回到「我的」标签页、已登录', st.tab === 'me' && st.me, st);
+    T('①b 刷新后补一句「欢迎回来」', /欢迎回来/.test(st.toast), st);
+    T('①b 只要了一个码', s.S.n === 1, s.S.n);
+    await s.pg.evaluate(() => { try { sessionStorage.removeItem('__x') } catch (_) { } }); await s.pg.reload(); await s.pg.settle(1500);
+    T('①b 之后再打开不再多刷新', await s.pg.evaluate(() => sessionStorage.getItem('__ld')) === '3' && s.S.n === 1);
+    await s.ctx.close();
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: rec });
+    await s.pg.evaluate(() => { try { sessionStorage.setItem('nbq_a2hs_first', '1') } catch (_) { } openAuth(() => { window.__nx = 1 }) }); await s.pg.fill('#ph', '0412 345 678'); await s.pg.click('[data-a="sendCode"]'); await s.pg.waitForFunction(() => { const o = document.getElementById('otp'); return !!o && typeof o.oninput === 'function' }); await s.pg.fill('#otp', '123456');
+    await s.pg.waitForFunction(() => window.__nx === 1, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(1500);
+    T('①b 登录后还要接着做事：不刷新，接着做', await s.pg.evaluate(() => window.__nx === 1 && sessionStorage.getItem('__ld') === '1'));
+    T('①b 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
+
   // ② 桌面图标第一次打开
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?source=pwa&h=' + CODE);
   await s.pg.waitForFunction(() => !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(500);

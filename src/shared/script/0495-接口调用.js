@@ -264,12 +264,13 @@ async function nbqEnter(){const ep=NBQ_EPOCH,r=await nbqLoadAll(NBQ_NET);
   if(ep!==NBQ_EPOCH)return{st:'gone'};   // 读取途中退出 / 换了人：不再套用（#202）
   if(!r.ok)return{st:'error',code:r.code};
   if(!r.registered)return{st:'new'};
-  NBQ_STALE=false;nbqApply(r);nbqLinkOpen();if(typeof hoPrep==='function')hoPrep().then(()=>{if(typeof hoResume==='function')hoResume()}).catch(()=>{});nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
+  NBQ_STALE=false;nbqApply(r);nbqLinkOpen();if(typeof hoPrep==='function')hoPrep().then(()=>{if(typeof hoBack==='function')hoBack();if(typeof hoResume==='function')hoResume()}).catch(()=>{if(typeof hoBack==='function')hoBack()});nbqNtfStart();nbqPushState();nbqPullNotifs().then(nbqOpenFromPush);nbqPullThreads().then(c=>{if(c)nbqRenderSoon();if(NBQ_PUSH_T&&!NBQ_PUSH_T_DONE)nbqOpenFromPush()});nbqPushSub();return{st:'ok'}}
 // 验证码通过之后（sbaOtpDone 调用）
 async function nbqAfterLogin(){const e=await nbqEnter();SBA_BUSY=false;
   if(e.st==='gone')return;
   if(e.st==='error'){const x=$('#otp');if(x)x.readOnly=false;toast(apiErrText(e.code));return}
   if(e.st==='new'){openNewProfile();return}
+  if(!AUTH.next&&typeof hoLoginReload==='function'&&await hoLoginReload())return;   // 登录完趁这一下刷新一次（#299），刷新后由 hoBack 接着
   toast('欢迎回来');const nx=AUTH.next;AUTH.next=null;typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380);else if(typeof pnAfterLogin==='function')setTimeout(pnAfterLogin,600)}
 // 新号码填完资料（两端 npDone 调用）：注册 → 常去球场 → 性别 → 读入
 async function nbqNpDone(n){

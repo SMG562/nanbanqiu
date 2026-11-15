@@ -92,6 +92,17 @@ function hoGuide(){hoPrep().then(ok=>{if(!ok||!HO_READY)return;
   if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return}
   try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return;sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_a2hs_go','1')}catch(_){return}
   location.reload()}).catch(()=>{})}
+// 刚登录完、还停在验证码页（用户没动手）：iPhone Safari 第一次登录，页面打开时的安装配置不带码，iOS 之后不会再读——所以趁这一下就刷新一次，
+//   让用户不用「关标签页重开」也能直接添加到主屏幕。藏在「登录中」本来就有的等待里：要码最多等 1.5 秒（超时 / 要不到就不刷新，退回原来的行为）；
+//   落点和登录态不变，刷新后补一句「欢迎回来」并回到刚才的标签页（hoBack）。接着要做别的事（AUTH.next）的登录不刷新，那条路由 hoGuide 兜底。同一个标签页只刷新一次
+async function hoLoginReload(){
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false}catch(_){return false}
+  const ok=await Promise.race([hoPrep(),new Promise(r=>setTimeout(()=>r(false),1500))]).catch(()=>false);
+  if(!ok||!HO_READY||hoHref()===HO_AT_LOAD)return false;
+  try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({tab:typeof UI!=='undefined'&&UI.tab||''}))}catch(_){return false}
+  location.reload();return true}
+function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
+  if(!b)return;if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast('欢迎回来')}
 function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
