@@ -1,5 +1,5 @@
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, dbFiles, ownerActPost, ownerActKey, OWNER_REMIND_H, OWNER_REMIND_MAX, OWNER, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -127,4 +127,29 @@ T('卡住提醒：带去重标记 / 作者 / 提交号 / 草稿说明', (m => m.
   T('runState：同一秒 skipped + in_progress（两种顺序）都算 pending', runState([run({ conclusion: 'skipped' }), run({ status: 'in_progress', conclusion: null })], 'tests', now) === 'pending' && runState([run({ status: 'in_progress', conclusion: null }), run({ conclusion: 'skipped' })], 'tests', now) === 'pending');
   T('runState：较新的 skipped 不盖过较早的 success；全是 skipped / 没有运行才算 none', runState([run({}), run({ conclusion: 'skipped', created_at: '2026-11-13T02:05:00Z' })], 'tests', now) === 'ok' && runState([run({ conclusion: 'skipped' })], 'tests', now) === 'none' && runState([], 'tests', now) === 'none');
   T('runState：失败 / 只看对应工作流文件', runState([run({ conclusion: 'failure' }), run({ path: '.github/workflows/tests-fast.yml' })], 'tests', now) === 'failure' && runState([run({ path: '.github/workflows/tests-fast.yml' })], 'tests', now) === 'none'); }
+
+// 11-16（#310）：含数据库改动 → 等所有者先在正式库跑迁移。判断来自 db-parity 的事实（和 pr_merge.sh 同一份），不靠留言约定
+const dbp = (parity, o = {}) => base({ db: { changed: true, files: ['server/migrations/20261118_x.sql', 'schema.sql'], parity }, ...o });
+T('db 文件：只认 schema.sql 和 server/migrations/，生成文件 _bundle.sql 和别的文件不算', JSON.stringify(dbFiles(['schema.sql', 'server/migrations/20261118_x.sql', 'server/migrations/_bundle.sql', 'src/pwa/script/0265.js', 'tests/schema/tests.sql'])) === JSON.stringify(['schema.sql', 'server/migrations/20261118_x.sql']));
+T('含迁移、db-parity 还没通过：球在所有者（不是「可合并」），带 ownerAct、写明文件和 db-parity，不给作者发提醒', (c => c.ball === 'owner' && c.ownerAct === 'migrate' && !c.ping && /迁移/.test(c.reason) && /server\/migrations\/20261118_x\.sql/.test(c.next) && /db-parity/.test(c.next))(classify(dbp(false), NOW)));
+T('共同所有者的红线 PR 含迁移：不再说「你可自行合并」，而是等所有者跑迁移', (c => c.ball === 'owner' && c.ownerAct === 'migrate')(classify(dbp(false, { level: 'owner', coOwner: true }), NOW)));
+T('db-parity 已通过：回到原来的判断（可合并）；共同所有者红线 PR 也回到「可自行合并」', ball(dbp(true)) === 'merge' && ball(dbp(true, { level: 'owner', coOwner: true })) === 'merge');
+T('db-parity 取不到（parity 为 null）：不替所有者认定在等，按原判断', ball(dbp(null)) === 'merge' && !classify(dbp(null), NOW).ownerAct);
+T('没改库结构：和以前完全一样', ball(base({ db: { changed: false, files: [], parity: null } })) === 'merge' && ball(base()) === 'merge');
+T('优先级：草稿 / 有冲突 / CI 红 / CI 在跑 / 要复核，都先于「等所有者跑迁移」', ball(dbp(false, { draft: true })) === 'author' && ball(dbp(false, { mergeable: 'dirty' })) === 'author' && ball(dbp(false, { ci: { tests: 'failure', fast: 'ok' } })) === 'author' && ball(dbp(false, { ci: { tests: 'pending', fast: 'ok' } })) === 'ci' && ball(dbp(false, { level: 'review' })) === 'review');
+// 提醒：首次直接 @ 所有者；24 小时没做每天再提醒，最多 3 次；按「这批库结构文件」去重
+const HR = 36e5, oc = (p) => classify(p, NOW), DP = dbp(false), DC = oc(DP);
+const post1 = ownerActPost(DP, DC, [], NOW);
+T('首次提醒：@所有者、写明动作（文件、正式库、db-parity）、告诉作者先别合前端，并带去重标记', post1 && post1.body.includes('@' + OWNER) && /server\/migrations\/20261118_x\.sql/.test(post1.body) && /nanbanqiu-au/.test(post1.body) && /db-parity/.test(post1.body) && /先别合前端/.test(post1.body) && post1.body.includes(`<!-- ${ownerActKey(DP, DC)} -->`));
+const cm = (body, hoursAgo) => ({ body, at: new Date(NOW - hoursAgo * HR).toISOString() });
+T('已提醒过、不到 24 小时：不重复（作者推别的提交也不重复）', ownerActPost(DP, DC, [cm(post1.body, 3)], NOW) === null && ownerActPost({ ...DP, sha: 'fedcba9876543210' }, DC, [cm(post1.body, 3)], NOW) === null);
+const r1 = ownerActPost(DP, DC, [cm(post1.body, OWNER_REMIND_H + 1)], NOW);
+T('超过 24 小时还没做：再提醒一次，写明已等多久，key 带次数', r1 && /提醒（第 1 次）/.test(r1.body) && /已等 25 小时/.test(r1.body) && r1.key.endsWith(':r1'), r1 && r1.body);
+const mk = (n, ago) => cm(`<!-- ${ownerActKey(DP, DC)}${n ? ':r' + n : ''} -->`, ago);
+const r3 = ownerActPost(DP, DC, [mk(0, 80), mk(1, 56), mk(2, 30)], NOW);
+T('提醒有上限：首次 + 最多 ' + OWNER_REMIND_MAX + ' 次复提醒；第 3 次复提醒还会发', r3 && r3.key.endsWith(':r3') && /提醒（第 3 次）/.test(r3.body), r3 && r3.key);
+T('到了上限（首次 + 3 次复提醒）就不再发，哪怕又过了 24 小时，不刷屏', ownerActPost(DP, DC, [mk(0, 120), mk(1, 96), mk(2, 72), mk(3, 48)], NOW) === null);
+T('库结构文件变了：算新的一件事，重新首次提醒', (q => q && !/提醒（第/.test(q.body))(ownerActPost({ ...DP, db: { ...DP.db, files: ['server/migrations/20261119_y.sql'] } }, DC, [cm(post1.body, 3)], NOW)));
+T('不需要提醒的：没有 ownerAct / 草稿 / 机器人作者', ownerActPost(base(), oc(base()), [], NOW) === null && ownerActPost(dbp(false, { draft: true }), DC, [], NOW) === null && ownerActPost(dbp(false, { author: 'dependabot[bot]' }), DC, [], NOW) === null);
+T('作者就是所有者也要提醒（所有者自己的 PR 含迁移也别忘了跑）', (q => q && q.body.includes('@' + OWNER))(ownerActPost(dbp(false, { author: OWNER }), DC, [], NOW)));
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
