@@ -22,8 +22,4 @@
   document.addEventListener('keydown',e=>{const el=e.target;if(e.key!=='Enter'||e.defaultPrevented||window.nbqImeEnter(e)||!isLine(el)||!inLayer(el))return;
     e.preventDefault();const sel=el.dataset.enter;el.blur();
     if(sel){const b=document.querySelector(sel);if(b&&!b.disabled)b.click()}})
-
-  // 输入完点空白处就收键盘（11-16：iOS 点非输入区不会自动失焦，输入法候选条 / 浮层一直挂着）。只在点到非输入、非按钮区时收；按钮照常响应。
-  document.addEventListener('pointerdown',e=>{const a=document.activeElement;if(!a||!/^(INPUT|TEXTAREA)$/.test(a.tagName)||SKIP.test(a.type||'text'))return;
-    const t=e.target;if(t===a||(t.closest&&t.closest('input,textarea,select,button,a,label,[data-a],[data-sx],[contenteditable]')))return;a.blur()},true);
 })();

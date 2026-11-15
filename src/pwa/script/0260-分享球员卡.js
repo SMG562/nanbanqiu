@@ -113,7 +113,7 @@ const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots
 const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
 // 缩略图 = 链接卡片上真实显示的那张（服务端 og:image = /icons/icon-512.png），预览和真实卡片一致
 const thumbHTML=c=>`<div class="thumb"><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div>`;
-const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub" style="white-space:pre-line;max-width:240px">${esc(shareText(c))}</div></div></div>`};
+const wxPreviewHTML=c=>`<div class="xhs-pv">${ogAHTML(c)}</div>`;
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 const ogLHTML=c=>`<div class="ogL"><div class="l"><svg viewBox="0 0 100 100"><use href="#ball"/></svg><b>南伴球<small>${esc(CITY.zh)}网球约球</small></b></div><div class="r"><div class="t">${WD[c.start.getDay()]} · ${hm(c.start)} · ${relDay(c.start)}</div><div class="p">${esc(c.v.short)}</div><div class="v">${esc(c.v.name)} · ${TYPE[c.game_type]} · UTR ${lvl(c)}</div><div class="n"><i></i>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>`;
 // 分享球局：「发到微信群」= 系统分享面板 → 选「微信」→「发送给朋友」，对方收到的是链接卡片（标题 / 描述 / 缩略图来自服务端 og 标签，预览图就是它的样子）；
@@ -123,7 +123,10 @@ function setOg(c){const m=(p,v)=>{let e=document.querySelector(`meta[property="$
 function wxShare(id){const c=api.get(id);setOg(c);
   if(ENV==='wechat'){closeSheet();openWxShareGuide();return}
   const fb=()=>copy(shareText(c),'已复制，去微信群粘贴');
-  if(navigator.share)navigator.share({text:shareText(c)}).catch(e=>{if(!e||e.name!=='AbortError')fb()});else fb()}
+  // 微信抓不到链接卡片的图和内容，所以直接发图（图上有时间 / 球场 / 二维码），预览就是这张图
+  const go=bl=>{if(!bl){fb();return}const f=new File([bl],'nanbanqiu-'+id+'.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(e=>{if(!e||e.name!=='AbortError')fb()});else fb()};
+  if(XHSP[id])go(XHSP[id]);else{const el=document.querySelector('.xhs-pv .ogW');if(el&&window.html2canvas)nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl;go(bl)});else fb()}}
 function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
   <h3>发给微信好友或群</h3><p class="lead">点右上角 <em>···</em>，选「发送给朋友」或「分享到群聊」</p><button class="btn" data-a="wxclose">知道了</button>`}
 function openShare(id){const c=api.get(id);
@@ -133,7 +136,7 @@ function openShare(id){const c=api.get(id);
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
   ${pushNudgeHTML('game')}
-  <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
+  <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`);setTimeout(()=>xhsPre(id),350)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
 const XHSP={};

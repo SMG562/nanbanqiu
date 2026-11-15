@@ -1,4 +1,4 @@
-// 微信分享：① 前台卡片文案 = 服务端卡片文案（所有演示球局逐个核对，两端）② 手机端「发到微信群」走系统分享（带文字：球局内容 + 链接，对方直接看到内容；11-16 起，链接卡片在微信里拿不到球局内容）
+// 微信分享：① 前台卡片文案 = 服务端卡片文案（所有演示球局逐个核对，两端）② 手机端「发到微信群」走系统分享，发球局图（11-16 起：微信抓不到链接卡片的内容和图）
 //   ③ 预览 = 真实发出的文字 ④ 微信内置浏览器给提示、没有系统分享才复制文案、用户取消不复制
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
@@ -20,24 +20,22 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     T(`${f} 前台和服务端的卡片标题 / 描述逐个一致（${rows.length} 个球局）`, rows.length > 30 && bad.length === 0, bad.slice(0, 2));
     if (!W) {
       const id = 'g1';
-      const o = await pg.evaluate(id => { openShare(id); const c = api.get(id); const tiles = [...document.querySelectorAll('.sgrid button')].map(b => b.dataset.a);
-        return { tiles, bub: document.querySelector('.wxbub').textContent, lnk: !!document.querySelector('[data-a="copyText"]'), txt: shareText(c), card: !!document.querySelector('.wxcard') } }, id);
+      const o = await pg.evaluate(id => { openShare(id); const tiles = [...document.querySelectorAll('.sgrid button')].map(b => b.dataset.a);
+        return { tiles, lnk: !!document.querySelector('[data-a="copyText"]'), img: !!document.querySelector('.xhs-pv .ogW'), card: !!document.querySelector('.wxcard') } }, id);
       T('手机端分享面板：4 个入口（微信群在第一个）+ 复制文案链接', JSON.stringify(o.tiles) === '["wxShare","sysShare","poster","copyLink"]' && o.lnk, o);
-      T('预览 = 真实发出的文字（含球局时间 / 球场 / 链接），没有假卡片', o.bub === o.txt && !o.card && /nanbanqiu\.app\/g\//.test(o.bub), o);
+      T('预览 = 真实发出的图（球局图 + 二维码），没有假卡片', o.img && !o.card, o);
       const xt = await pg.evaluate(() => Object.keys(USERS || {}).slice(0, 40).map(u => scText(u, 'xhs').title.length));
       T('小红书球员卡标题 ≤ 20 字（超了小红书会截断）', xt.length > 0 && xt.every(n => n <= 20), xt);
-      const bl = await pg.evaluate(() => { const i = document.createElement('input'); i.type = 'text'; document.body.appendChild(i); i.focus(); const d = document.createElement('div'); d.textContent = 'x'; document.body.appendChild(d); d.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return document.activeElement === i });
-      T('输入完点空白处：输入框失焦（输入法浮层收起）', bl === false, bl);
       const run = (mode, env) => pg.evaluate(async ([mode, env]) => {
         window.__sh = null; window.__cp = null; ENV = env || 'safari';
         Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__cp = t; return Promise.resolve() } }, configurable: true });
         if (mode === 'none') Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
-        else Object.defineProperty(navigator, 'share', { value: d => { window.__sh = d; return mode === 'ok' ? Promise.resolve() : Promise.reject(Object.assign(new Error('x'), { name: mode })) }, configurable: true });
+        else XHSP.g1 = new Blob(['x'], { type: 'image/png' }); Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+        Object.defineProperty(navigator, 'share', { value: d => { window.__sh = d; return mode === 'ok' ? Promise.resolve() : Promise.reject(Object.assign(new Error('x'), { name: mode })) }, configurable: true });
         openShare('g1'); document.querySelector('[data-a="wxShare"]').click(); await new Promise(r => setTimeout(r, 300));
         const c = api.get('g1'); return { sh: window.__sh, cp: window.__cp, og: document.querySelector('meta[property="og:title"]').content, ogd: document.querySelector('meta[property="og:description"]').content, wxg: !document.getElementById('wxg').hidden && /发送给朋友/.test(document.getElementById('wxg').textContent), title: ogTitle(c), code: c.share_code } }, [mode, env]);
       let r = await run('ok');
-      T('点「发到微信群」：弹系统分享，带的文字就是预览那段（球局内容 + 链接）', r.sh && /南伴球｜/.test(r.sh.text) && /nanbanqiu\.app\/g\/[\w]+/.test(r.sh.text) && r.cp === null, r);
-      T('分享前页面 og 标签换成这个球局的（系统分享扩展读当前页面）', r.og === r.title && /发起人/.test(r.ogd), r);
+      T('点「发到微信群」：系统分享带的是球局图（图片文件）', r.sh && r.sh.files && r.sh.files.length === 1 && r.cp === null, r);
       r = await run('AbortError'); T('用户取消分享：不复制、不提示', r.cp === null, r);
       r = await run('NotAllowedError'); T('分享被拒：退回复制文案', /南伴球｜/.test(r.cp || ''), r);
       r = await run('none'); T('没有系统分享（电脑等）：复制文案', /南伴球｜/.test(r.cp || '') && /g\/[\w]+/.test(r.cp), r);
