@@ -193,6 +193,7 @@ add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'fr
 add('frontend', 'frontend/shot_fallback', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/shot_fallback.js')], { pass: [/shot_fallback: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/a2hs_v2', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs_v2.js')], { pass: [/a2hs_v2: \d+ 通过, 0 失败/], timeout: 300 });   // 添加到桌面引导 v2（开关 NBQ_A2HS2_ON，11-15）
 add('frontend', 'frontend/push_onboarding', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/push_onboarding.js')], { pass: [/push_onboarding: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/badge_seen', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/badge_seen.js')], { pass: [/badge_seen: \d+ 通过, 0 失败/], timeout: 300 });
 for (const t of TIMES) for (const P of ['PWA', 'Web']) add('frontend', 'frontend/demos@' + t.slice(5, 16).replace(':', '') + '@' + P, ['node', '-r', PRELOAD, path.join(HERE, 'frontend/smoke.js')],
