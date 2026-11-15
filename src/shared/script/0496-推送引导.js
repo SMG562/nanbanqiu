@@ -63,8 +63,9 @@ let HO_BUSY=false,HO_READY=/^\/api\/manifest\?h=/.test(hoHref()),HO_OFF=false;  
 function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
   l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
 // 退出登录：本机的码清掉、安装配置换回原样，并让服务器把这个人还没用掉的码作废（之前写进桌面图标的也跟着失效）。要在清掉登录之前调（请求带的是当前登录）
-function hoClear(){let had=false;try{had=localStorage.getItem('nbq_ho')!==null;localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);
+function hoClear(){HO_CLEARED=true;let had=false;try{had=localStorage.getItem('nbq_ho')!==null;localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);
   if(had&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&ME)NBQ_NET.post('/api/session/handoff/revoke').catch(()=>{})}
+let HO_CLEARED=false;   // 这个页面里退出过登录：加载时带的码已经撤了，之后再登录不算「码作废换新」，不走 hoStaleReload
 let HO_P=null;   // 同一时刻只跑一份（启动时登录恢复和读入各触发一次，不能核对两次、要两个码）
 function hoPrep(){return HO_P||(HO_P=hoPrep0().finally(()=>{HO_P=null}))}
 async function hoPrep0(){
@@ -92,6 +93,26 @@ function hoGuide(){hoPrep().then(ok=>{if(!ok||!HO_READY)return;
   if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return}
   try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return;sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_a2hs_go','1')}catch(_){return}
   location.reload()}).catch(()=>{})}
+// 刚登录完、还停在验证码页（用户没动手）：iPhone Safari 第一次登录，页面打开时的安装配置不带码，iOS 之后不会再读——所以趁这一下就刷新一次，
+//   让用户不用「关标签页重开」也能直接添加到主屏幕。藏在「登录中」本来就有的等待里：要码最多等 1.5 秒（超时 / 要不到就不刷新，退回原来的行为）；
+//   落点和登录态不变，刷新后补一句「欢迎回来」并回到刚才的标签页（hoBack）。接着要做别的事（AUTH.next）的登录不刷新，那条路由 hoGuide 兜底。同一个标签页只刷新一次
+async function hoLoginReload(msg){
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false}catch(_){return false}
+  const ok=await Promise.race([hoPrep(),new Promise(r=>setTimeout(()=>r(false),1500))]).catch(()=>false);
+  if(!ok||!HO_READY||hoHref()===HO_AT_LOAD)return false;
+  try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({tab:typeof UI!=='undefined'&&UI.tab||'',msg:msg||'欢迎回来'}))}catch(_){return false}
+  location.reload();return true}
+// 打开页面时本机缓存的码已被核对出作废（桌面图标把它用掉了、或别处退出作废）→ 已换了新码，但 iOS 读的是页面打开那一刻写进安装配置的旧码：
+//   这时直接用 Safari 自带分享添加，图标里是旧码，打开必然「没能自动登录」（11-15 真机）。所以刚打开就静默刷新一次，让加载时读到的就是新码。只在「加载时带的是码、现在换了」时刷新；同一个标签页只刷新一次
+function hoStaleReload(){
+  if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return false}   // 刷新后必然相等：清掉「已刷新」标记，这个标签页之后再有变化还能再刷（不会循环：刷新后加载时带的就是现在这份）
+  if(!/^\/api\/manifest\?h=/.test(HO_AT_LOAD)||!HO_READY||HO_CLEARED)return false;
+  if(typeof AUTH!=='undefined'&&AUTH&&AUTH.next)return false;   // 登录后还有事要接着做：刷新会丢
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false;sessionStorage.setItem('nbq_ho_rl','1')}catch(_){return false}
+  location.reload();return true}
+function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
+  if(!b)return;if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast(b.msg||'欢迎回来')}
 function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
