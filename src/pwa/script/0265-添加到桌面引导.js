@@ -6,7 +6,7 @@
  * 范围：只管 iPhone（Safari / 其他浏览器 / App 内置浏览器）；安卓仍是原来的一键安装 / ⋮ 菜单。入口仍是 openA2HS()（埋点 a2hs_open、hoGuide 刷新都在它那里），这里只换画面。 */
 const NBQ_A2HS2_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_a2hs2')==='1'}catch(_){return false}})();
 const a2hsV2=()=>NBQ_A2HS2_ON&&/^ios_|^inapp$/.test(a2hsKind());
-const A2V={k:'why'};
+const A2V={k:'why',gate:false};
 const A2V_G={dl:'<path d="M12 3v11.5M7.5 10.5l4.5 4.5 4.5-4.5M5 19.5h14"/>',bell:'<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/>',ok:'<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/>'};
 const A2V_PERKS=[['dl','不用下载，没有负担','不占内存，不用 App Store，想删就删'],['bell','有人回复，马上提醒','同意、邀约、开打前，第一时间通知你'],['ok','所有球局，一眼看到','附近有新球局，打开就是最新的']];
 const A2V_STEPS=['点「≡」，选「分享」','往上滑，点「添加到主屏幕」','点右上角的「添加」'];
@@ -41,8 +41,8 @@ function a2vHtml(k){
       <button class="btn btn-p" data-a="a2hsDone">好的</button><button class="a2v-l" data-a="a2hsBack">还没添加？再看一遍</button>`}
   return `<div class="a2v"><img class="a2v-ic" src="/icons/icon-180.png" alt=""><h2 class="a2v-t">比下载 App 更简单</h2><p class="a2v-s">把南伴球放到桌面，所有球局都不错过。</p>
     <ul class="a2v-p">${A2V_PERKS.map(p=>`<li><span class="g">${a2vSvg(A2V_G[p[0]])}</span><div><b>${p[1]}</b><span>${p[2]}</span></div></li>`).join('')}</ul></div>
-    <div style="height:14px"></div><button class="btn btn-p" data-a="a2hsNext">放到桌面</button><button class="a2v-l" data-a="close">以后再说</button>`}
-function a2hsScreen(k){A2V.k=k;openSheet(a2vHtml(k))}
+    <div style="height:14px"></div><button class="btn btn-p" data-a="a2hsNext">放到桌面</button>${A2V.gate?'<button class="a2v-l" data-a="authAnyway">先在浏览器里用</button>':'<button class="a2v-l" data-a="close">以后再说</button>'}`}
+function a2hsScreen(k,gate){A2V.k=k;if(gate!==undefined)A2V.gate=gate;openSheet(a2vHtml(k))}
 // 开了「减少动态效果」时演示不自动播放：点哪一条步骤，演示就停在哪一步（样式见 0165 的 reduced-motion 段；正常模式点了没有可见变化）
 function a2hsStep(i){const d=document.querySelector('.a2d');if(!d)return;d.dataset.step=i;document.querySelectorAll('.a2v-c li').forEach((x,k)=>x.classList.toggle('cur',k===i))}
 // 放到桌面 → 怎么做；返回 → 上一屏（「放好了吗」的「再看一遍」回到演示）
