@@ -6,7 +6,7 @@ create or replace function api_me_installed() returns boolean language sql stabl
 grant execute on function api_me_installed() to nbq_user, nbq_service;
 -- 漏斗第 3 步原来看 users.installed_at，但没有任何地方写它（正式库 0 人）：改成「有从主屏幕打开过的会话」（或 installed_at 有值）
 create or replace function pwa_install_funnel(p_from timestamptz, p_to timestamptz)
-returns table(step int, name text, people bigint) language sql stable as $$
+returns table(step int, name text, people bigint) language sql stable security definer set search_path = public as $$
   with s1 as (select distinct user_id from sessions where device='mobile' and not coalesce(standalone,false) and user_id is not null
                and started_at >= p_from and started_at < p_to),
   s2 as (select * from s1 where user_id in (select user_id from events where event='a2hs_open' and occurred_at >= p_from and occurred_at < p_to)),

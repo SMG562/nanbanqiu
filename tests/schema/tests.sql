@@ -231,6 +231,7 @@ begin
   perform set_config('nbq.uid', a::text, false); assert api_me_installed() is true, '从主屏幕打开过 = true';
   perform set_config('nbq.uid', b::text, false); assert api_me_installed() is false, '只在浏览器里 = false';
   perform set_config('nbq.uid', '', false);
+  assert (select prosecdef from pg_proc where proname='pwa_install_funnel'), 'pwa_install_funnel 必须 security definer（只读角色才能调）';
   select * into r from pwa_install_funnel(t - interval '1 day', t + interval '1 day') where step = 3;
   assert r.people = 1, format('漏斗第 3 步应为 1 人（有主屏幕会话的那位），实际 %s', r.people);
 end $$;
