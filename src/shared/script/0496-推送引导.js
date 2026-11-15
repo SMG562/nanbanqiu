@@ -12,20 +12,22 @@ function pushState(){
   if(!('Notification'in window)||!('PushManager'in window))return'unsupported';
   if(Notification.permission==='denied')return'denied';
   return'ask'}
+// 新引导（开关 NBQ_A2HS2_ON）的统一说法：按钮和标题用「放到桌面」，只有引用 iOS 菜单原文时才写「添加到主屏幕」；开关关时一个字都不变
+const a2n=(o,n)=>(typeof NBQ_A2HS2_ON!=='undefined'&&NBQ_A2HS2_ON)?n:o;
 const PN_TXT={game:['有人申请，第一时间知道','不开着南伴球，也会提醒你'],invite:['对方回复，不错过','接受、回复或换时间，都会提醒你']};
 const PN_BTN={ask:['开启提醒','enablePush','i-bell'],need_install:['放到主屏幕','a2hs','i-plus'],denied:['怎么开','pushDenied','i-bell'],wechat:['怎么换','wxguide','i-share']};
 function pushNudgeHTML(why){
   if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME)return'';   // 电脑端不推送（11-03 你定的），只有手机端引导
   const st=pushState();if(st==='on'||st==='unsupported'||st==='installed'||(st==='need_install'&&typeof a2hsRecent==='function'&&a2hsRecent()))return'';
-  const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st];
-  const sub=st==='need_install'?'放到主屏幕后，才能像 App 一样收提醒':st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
+  const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st].slice();if(st==='need_install')b[0]=a2n(b[0],'放到桌面');   // 文案开关在用到时才取：NBQ_A2HS2_ON 在后面的 pwa/0265 才定义，加载时取会撞上还没初始化的 const
+  const sub=st==='need_install'?a2n('放到主屏幕后，才能像 App 一样收提醒','放到桌面，有人回复你马上知道'):st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
   return `<div class="pushcard pnudge" data-pn="${why}"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${sub}</p></div><button class="pc-go" data-a="${b[1]}" data-pf="${why}"><svg><use href="#${b[2]}"/></svg>${b[0]}</button></div>`}
 // 记下是从哪个引导点进来的（push_enable 埋点带 from）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-pf]');if(b)window.PUSH_FROM=b.dataset.pf},true);
 // 被拒绝后：不再弹系统窗口，指引去系统设置
 function openPushDenied(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   const steps=ios?['打开 iPhone 的「设置」','点「通知」，找到「南伴球」','打开「允许通知」']:['长按桌面上的南伴球图标，点「应用信息」','点「通知」','打开「允许通知」'];
-  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：</p></div>
+  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">${pnV2()?'关着通知，球友同意或回复你时，要打开南伴球才看得到。系统不允许网页再次弹窗，请在手机设置里打开：':'有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：'}</p></div>
   <ol class="pdsteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
   <button class="btn btn-p" data-a="pushRecheck">我已打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function pushRecheck(){
@@ -120,6 +122,7 @@ let PN_AUTH=null;
     let seen=false;try{seen=sessionStorage.getItem('nbq_a2hs_first')==='1'}catch(_){}
     if(!seen&&!(typeof a2hsAdded==='function'&&a2hsAdded())&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
       PN_AUTH={next,why};
+      if(typeof a2hsV2==='function'&&a2hsV2()){openA2HS(true);return}   // 新引导的「为什么」屏，下面留「先在浏览器里用」（authAnyway）；hoGuide 和 a2hs_open 埋点都在 openA2HS 里
       openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
       <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
     return _oa.call(this,next,why)}}}
@@ -128,6 +131,11 @@ function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME|
   if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI.detail))return;   // 正在看别的：不打断
   try{if(localStorage.getItem('nbq_push_asked')==='1')return;localStorage.setItem('nbq_push_asked','1')}catch(_){return}
   window.PUSH_FROM='login';
+  if(pnV2()){openSheet(`<div class="a2v"><h2 class="a2v-t sm">有人回复，马上知道</h2><p class="a2v-s">不用一直开着南伴球，球友的回复会像这样出现在手机上。</p>${pnSampleHTML()}<p class="a2v-s tight">想关随时能在手机设置里关。</p></div>
+  <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`);return}
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-bell"/></svg></div><div class="sh-t">开启通知</div><p class="sh-s">有人申请、同意或回复你时，第一时间告诉你。</p></div>
   <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`)}
+// 新风格（开关 NBQ_A2HS2_ON，脚本在 pwa/0265；调用时才读，不在加载期碰后面才定义的 const）
+function pnV2(){try{return typeof NBQ_A2HS2_ON!=='undefined'&&!!NBQ_A2HS2_ON}catch(_){return false}}
+function pnSampleHTML(){return `<div class="a2v-card pn-sample"><img src="/icons/icon-180.png" alt=""><div><b>南伴球</b><span>Sam 同意了一起打球，周六 9:00 见</span></div></div>`}
 function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}
