@@ -1,5 +1,5 @@
-// 微信分享：① 前台卡片文案 = 服务端卡片文案（所有演示球局逐个核对，两端）② 手机端「发到微信群」走系统分享（只带标题 + 链接，对方收到的是卡片）
-//   ③ 预览图 = 真实卡片 ④ 微信内置浏览器给提示、没有系统分享才复制文案、用户取消不复制
+// 微信分享：① 前台卡片文案 = 服务端卡片文案（所有演示球局逐个核对，两端）② 手机端「发到微信群」走系统分享（带文字：球局内容 + 链接，对方直接看到内容；11-16 起，链接卡片在微信里拿不到球局内容）
+//   ③ 预览 = 真实发出的文字 ④ 微信内置浏览器给提示、没有系统分享才复制文案、用户取消不复制
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
 const DIR = process.env.NBQ_DIR || path.join(__dirname, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 500) : '')) };
@@ -21,9 +21,13 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     if (!W) {
       const id = 'g1';
       const o = await pg.evaluate(id => { openShare(id); const c = api.get(id); const tiles = [...document.querySelectorAll('.sgrid button')].map(b => b.dataset.a);
-        return { tiles, card: document.querySelector('.wxcard b').textContent, desc: document.querySelector('.wxcard p').textContent, th: !!document.querySelector('.wxcard .thumb svg use[href="#logo"]'), tip: !!document.querySelector('.sh-tip') && /微信.*发送给朋友/.test(document.querySelector('.sh-tip').textContent), lnk: !!document.querySelector('[data-a="copyText"]'), title: ogTitle(c), d: ogDesc(c) } }, id);
-      T('手机端分享面板：4 个入口（微信群在第一个）+ 复制文案链接 + 操作提示', JSON.stringify(o.tiles) === '["wxShare","sysShare","poster","copyLink"]' && o.tip && o.lnk, o);
-      T('预览卡片 = 真实卡片：同一个标题 / 描述，缩略图是品牌 logo', o.card === o.title && o.desc === o.d && o.th, o);
+        return { tiles, bub: document.querySelector('.wxbub').textContent, lnk: !!document.querySelector('[data-a="copyText"]'), txt: shareText(c), card: !!document.querySelector('.wxcard') } }, id);
+      T('手机端分享面板：4 个入口（微信群在第一个）+ 复制文案链接', JSON.stringify(o.tiles) === '["wxShare","sysShare","poster","copyLink"]' && o.lnk, o);
+      T('预览 = 真实发出的文字（含球局时间 / 球场 / 链接），没有假卡片', o.bub === o.txt && !o.card && /nanbanqiu\.app\/g\//.test(o.bub), o);
+      const xt = await pg.evaluate(() => Object.keys(USERS || {}).slice(0, 40).map(u => scText(u, 'xhs').title.length));
+      T('小红书球员卡标题 ≤ 20 字（超了小红书会截断）', xt.length > 0 && xt.every(n => n <= 20), xt);
+      const bl = await pg.evaluate(() => { const i = document.createElement('input'); i.type = 'text'; document.body.appendChild(i); i.focus(); const d = document.createElement('div'); d.textContent = 'x'; document.body.appendChild(d); d.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return document.activeElement === i });
+      T('输入完点空白处：输入框失焦（输入法浮层收起）', bl === false, bl);
       const run = (mode, env) => pg.evaluate(async ([mode, env]) => {
         window.__sh = null; window.__cp = null; ENV = env || 'safari';
         Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__cp = t; return Promise.resolve() } }, configurable: true });
@@ -32,7 +36,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
         openShare('g1'); document.querySelector('[data-a="wxShare"]').click(); await new Promise(r => setTimeout(r, 300));
         const c = api.get('g1'); return { sh: window.__sh, cp: window.__cp, og: document.querySelector('meta[property="og:title"]').content, ogd: document.querySelector('meta[property="og:description"]').content, wxg: !document.getElementById('wxg').hidden && /发送给朋友/.test(document.getElementById('wxg').textContent), title: ogTitle(c), code: c.share_code } }, [mode, env]);
       let r = await run('ok');
-      T('点「发到微信群」：弹系统分享，只带标题和链接（不带文字，微信才出卡片）', r.sh && r.sh.title === r.title && /^https:\/\/nanbanqiu\.app\/g\/[\w]+\?s=wx/.test(r.sh.url) && !('text' in r.sh) && r.cp === null, r);
+      T('点「发到微信群」：弹系统分享，带的文字就是预览那段（球局内容 + 链接）', r.sh && /南伴球｜/.test(r.sh.text) && /nanbanqiu\.app\/g\/[\w]+/.test(r.sh.text) && r.cp === null, r);
       T('分享前页面 og 标签换成这个球局的（系统分享扩展读当前页面）', r.og === r.title && /发起人/.test(r.ogd), r);
       r = await run('AbortError'); T('用户取消分享：不复制、不提示', r.cp === null, r);
       r = await run('NotAllowedError'); T('分享被拒：退回复制文案', /南伴球｜/.test(r.cp || ''), r);
@@ -51,8 +55,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
     const x = await pg.evaluate(() => { const bar = document.querySelector('.wxbar'), top = document.querySelector('.topbar'); return { env: ENV, bar: getComputedStyle(bar).display, wx: getComputedStyle(document.getElementById('dev')).getPropertyValue('--wx').trim(), tip: !!document.querySelector('.wxtip') && getComputedStyle(document.querySelector('.wxtip')).display !== 'none' } });
     T(`${name}：${wantBar ? '演示里的模拟微信顶栏照常显示' : '没有第二层 ✕ / ··· 顶栏，也没给它留位置'}`, wantBar ? (x.env === 'wechat' && x.bar !== 'none' && x.wx === '44px') : (x.env === 'wechat' && x.bar === 'none' && x.wx === '0px'), x);
     if (!wantBar) { T('微信手机：顶部提示条仍在，引导去 Safari', x.tip, x);
-      const tx = await pg.evaluate(() => { openShare('g1'); const n = document.querySelector('.sh-note'); const t = document.querySelector('.wxtip').textContent; return { note: n && n.textContent, tip: t, cardDesc: document.querySelector('.wxcard p').textContent } });
-      T('分享面板有「未备案点继续」提醒（给发送人看，不放进卡片）', /未备案/.test(tx.note || '') && /继续/.test(tx.note) && !/未备案/.test(tx.cardDesc), tx);
+      const tx = await pg.evaluate(() => ({ tip: document.querySelector('.wxtip').textContent }));
       T('提示条文案：用 Safari 打开 / 不再弹提示', /Safari/.test(tx.tip) && /不再弹提示/.test(tx.tip), tx) }
     await ctx.close();
   }

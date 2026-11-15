@@ -7,7 +7,7 @@ var SC={uid:null,to:'moments',blob:null};
 function tileRetry(l){l.on('tileerror',e=>{const t=e.tile;window.TILE_ERR=(window.TILE_ERR||0)+1;t._rt=(t._rt||0)+1;if(t._rt<=3){const u=(t._u0=t._u0||t.src);setTimeout(()=>{t.src=u+(u.includes('?')?'&':'?')+'_r='+t._rt},700*t._rt)}})}
 function scMini(uid,w){const k=w/640;return `<div class="sc-img" style="width:${w}px;height:${Math.round(520*k)}px"><div style="transform:scale(${k});transform-origin:0 0">${shareShot(uid)}</div></div>`}
 function scText(uid,to){const u=U(uid),s=stats(uid),home=(u.home_club_ids||[])[0]||s.topClub,club=home?VEN[home].short:'';
-  return to==='xhs'?{title:`${CITY.zh}找球友｜UTR ${f1(u.ntrp)}${club?' · '+club:''} 🎾`,body:`在南伴球打了 ${s.played} 场，欢迎扫图上的二维码约我打球～\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`}
+  return to==='xhs'?{title:`${CITY.zh}找球友｜UTR ${f1(u.ntrp)} 🎾`,body:`${club?club+' · ':''}在南伴球打了 ${s.played} 场，欢迎扫图上的二维码约我打球～\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`}
     :{body:`在南伴球打了 ${s.played} 场球 🎾 UTR ${f1(u.ntrp)}${club?' · '+club:''}，扫码约我打球`}}
 const scCopyText=(uid,to)=>{const t=scText(uid,to);return to==='xhs'?t.title+'\n'+t.body:t.body};
 function scPrevHTML(uid,to){const u=U(uid),t=scText(uid,to);
