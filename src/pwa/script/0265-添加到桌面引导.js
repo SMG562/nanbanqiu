@@ -42,11 +42,11 @@ function a2vHtml(k){
   return `<div class="a2v"><img class="a2v-ic" src="/icons/icon-180.png" alt=""><h2 class="a2v-t">比下载 App 更简单</h2><p class="a2v-s">把南伴球放到桌面，所有球局都不错过。</p>
     <ul class="a2v-p">${A2V_PERKS.map(p=>`<li><span class="g">${a2vSvg(A2V_G[p[0]])}</span><div><b>${p[1]}</b><span>${p[2]}</span></div></li>`).join('')}</ul></div>
     <div style="height:14px"></div><button class="btn btn-p" data-a="a2hsNext">放到桌面</button><button class="a2v-l" data-a="close">以后再说</button>`}
-function a2hsScreen(k){A2V.k=k;openSheet(a2vHtml(k))}
+function a2hsScreen(k){A2V.k=k;openSheet(a2vHtml(k));if(k==='go')try{track('a2hs_back')}catch(_){}}   // 「放好了吗」出现 = 用户添加完回到了页面
 // 开了「减少动态效果」时演示不自动播放：点哪一条步骤，演示就停在哪一步（样式见 0165 的 reduced-motion 段；正常模式点了没有可见变化）
 function a2hsStep(i){const d=document.querySelector('.a2d');if(!d)return;d.dataset.step=i;document.querySelectorAll('.a2v-c li').forEach((x,k)=>x.classList.toggle('cur',k===i))}
 // 放到桌面 → 怎么做；返回 → 上一屏（「放好了吗」的「再看一遍」回到演示）
-function a2hsNav(d){if(A2V.k==='go'){if(d<0)a2hsScreen('how');return}const seq=['why','how'],i=seq.indexOf(A2V.k);if(i<0)return;const n=seq[i+d];if(n)a2hsScreen(n)}
+function a2hsNav(d){if(A2V.k==='go'){if(d<0)a2hsScreen('how');return}if(A2V.k==='why'&&d>0)try{track('a2hs_go')}catch(_){}const seq=['why','how'],i=seq.indexOf(A2V.k);if(i<0)return;const n=seq[i+d];if(n)a2hsScreen(n)}
 // 用户在演示那一屏离开页面（去分享、添加、被带回桌面），再回来：显示「放好了吗？」。只在「演示屏正在显示」时触发（离开前后各查一次，中间被换成别的弹层 / 关掉都不触发）；全局只挂一个监听
 // 「演示屏正在显示」：弹层开着、且里面确实是演示（.a2d）。只看 #sheet 开着不够——别的弹层共用 #sheet，A2V.k 在弹层关掉后也不会重置（复核：别的弹层会被误换成「放好了吗」）
 const a2vShown=()=>{const e=document.getElementById('sheet');return !!e&&e.classList.contains('show')&&!!e.querySelector('.a2d')};

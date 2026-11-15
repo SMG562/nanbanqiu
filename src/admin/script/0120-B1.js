@@ -16,6 +16,8 @@ const B1_EVENTS=[   // 与 events_spec.md v2 逐条一致（名称、分类、�
  ["pwa_installed", "安装", "安装完成", "os", "client"],
  ["pwa_first_launch", "安装", "第一次从主屏幕打开", "os", "client"],
  ["a2hs_open", "安装", "打开「添加到主屏幕」引导", "env", "client"],
+ ["a2hs_go", "安装", "引导第一屏点「放到桌面」", "", "client"],
+ ["a2hs_back", "安装", "从添加步骤回到页面，看到「放好了吗」", "", "client"],
  ["analytics_off", "隐私", "关闭使用数据（发完这一条后停止）", "", "client"],
  ["analytics_on", "隐私", "重新打开使用数据", "", "client"],
  ["login_open", "登录", "打开登录（含被动触发）", "trigger(apply/create/invite/chat/manual/sideline/...)", "client"],

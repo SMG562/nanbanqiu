@@ -719,6 +719,8 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('pwa_installed','安装','安装完成','os','client','active',null),
  ('pwa_first_launch','安装','第一次从主屏幕打开','os','client','active',null),
  ('a2hs_open','安装','打开「添加到主屏幕」引导','env','client','active',null),
+ ('a2hs_go','安装','引导第一屏点「放到桌面」','','client','active',null),
+ ('a2hs_back','安装','从添加步骤回到页面，看到「放好了吗」','','client','active',null),
  ('analytics_off','隐私','关闭使用数据（发完这一条后停止）','','client','active',null),
  ('analytics_on','隐私','重新打开使用数据','','client','active',null),
  ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/...)','client','active',null),
@@ -869,7 +871,7 @@ on conflict (event) do update set status='deprecated', replaced_by=excluded.repl
 -- 其余不在 spec 里的旧名：标记废弃（新库里不会有这些行；老库迁移时生效）
 update event_definitions set status='deprecated'
  where status='active' and event <> all (array[
-   'session_start', 'page_view', 'page_time', 'app_hide', 'app_show', 'pwa_install_prompt', 'pwa_installed', 'pwa_first_launch', 'a2hs_open',
+   'session_start', 'page_view', 'page_time', 'app_hide', 'app_show', 'pwa_install_prompt', 'pwa_installed', 'pwa_first_launch', 'a2hs_open', 'a2hs_go', 'a2hs_back',
    'analytics_off', 'analytics_on', 'login_open', 'login_send_code', 'login_verify', 'login_success', 'signup_complete', 'logout', 'account_blocked', 'account_delete', 'account_restore', 'filter_open',
    'filter_reset', 'filter_utr_band', 'filter_type', 'filter_tag', 'filter_radius', 'day_select', 'view_mode', 'loc_suburb_pick', 'location_allow',
    'map_day', 'map_cluster_open', 'game_select', 'game_view', 'women_lock_view', 'game_create_start', 'game_create_submit', 'game_edit',
@@ -2171,12 +2173,14 @@ returns table(device text, active_people bigint, signups bigint, games bigint, a
 $$;
 
 -- 添加到主屏幕（任意区间）：在手机浏览器里用过的球友 → 打开过引导 → 已添加 → 最近 7 天还从主屏幕打开（按人去重，每一步都是上一步里的人）
+-- 漏斗第 3 步原来看 users.installed_at，但没有任何地方写它（正式库 0 人）：改成「有从主屏幕打开过的会话」（或 installed_at 有值）
 create or replace function pwa_install_funnel(p_from timestamptz, p_to timestamptz)
 returns table(step int, name text, people bigint) language sql stable as $$
   with s1 as (select distinct user_id from sessions where device='mobile' and not coalesce(standalone,false) and user_id is not null
                and started_at >= p_from and started_at < p_to),
   s2 as (select * from s1 where user_id in (select user_id from events where event='a2hs_open' and occurred_at >= p_from and occurred_at < p_to)),
-  s3 as (select * from s2 where user_id in (select id from users where installed_at is not null)),
+  s3 as (select * from s2 where user_id in (select user_id from sessions where standalone and user_id is not null)
+                            or user_id in (select id from users where installed_at is not null)),
   s4 as (select * from s3 where user_id in (select user_id from sessions where standalone and started_at > now() - interval '7 days'))
   select 1, '在手机浏览器里用过', (select count(*) from s1) union all select 2, '打开过添加引导', (select count(*) from s2)
   union all select 3, '已添加到主屏幕', (select count(*) from s3) union all select 4, '最近 7 天还从主屏幕打开', (select count(*) from s4)
@@ -3023,6 +3027,12 @@ $$;
 -- ---------- 球局 ----------
 create or replace function api_pact_accept() returns void language plpgsql security definer set search_path = public as $$
 begin update users set pact_accepted_at = coalesce(pact_accepted_at, now()), pact_version = 1 where id = nbq_me(); end $$;
+
+-- 添加到主屏幕（11-15，迁移 20261118_a2hs_installed）：这个人有没有从主屏幕图标打开过（服务器记的 sessions.standalone）。只读、只看自己；
+--   前台身份不能直接读 sessions，所以走 SECURITY DEFINER。Safari 读到 true 就永久记「已添加」，不再提醒
+create or replace function api_me_installed() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from sessions where user_id = nbq_me() and standalone) $$;
+grant execute on function api_me_installed() to nbq_user, nbq_service;
 
 -- 徽章接服务器（11-04，迁移 20261104_badges_server）
 create or replace function api_badges_claim(p_codes text[]) returns void language plpgsql security definer set search_path = public as $$
@@ -7861,5 +7871,6 @@ insert into schema_migrations(version) values
   ('20261114_admin_step4'),
   ('20261115_app_switches'),
   ('20261116_idempotency_keys'),
-  ('20261117_login_handoff')
+  ('20261117_login_handoff'),
+  ('20261118_a2hs_installed')
 on conflict do nothing;

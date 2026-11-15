@@ -222,3 +222,15 @@ begin
 end $$;
 reset timezone;
 select 'ok' as dst;
+-- ## 添加到主屏幕（11-15）：api_me_installed 只看自己；漏斗第 3 步看「从主屏幕打开过的会话」，不再依赖没人写的 installed_at
+do $$
+declare a uuid := '00000000-0000-0000-0000-000000000004'; b uuid := '00000000-0000-0000-0000-000000000005'; t timestamptz := now(); r record;
+begin
+  insert into sessions(session_id, anon_id, user_id, build, device, started_at, standalone) values ('s_a2_1', 'an1', a, 'pwa', 'mobile', t, false), ('s_a2_2', 'an1', a, 'pwa', 'mobile', t, true), ('s_a2_3', 'an2', b, 'pwa', 'mobile', t, false);
+  insert into events(event, user_id, anon_id, session_id, build, occurred_at) values ('a2hs_open', a, 'an1', 's_a2_1', 'pwa', t), ('a2hs_open', b, 'an2', 's_a2_3', 'pwa', t);
+  perform set_config('nbq.uid', a::text, false); assert api_me_installed() is true, '从主屏幕打开过 = true';
+  perform set_config('nbq.uid', b::text, false); assert api_me_installed() is false, '只在浏览器里 = false';
+  perform set_config('nbq.uid', '', false);
+  select * into r from pwa_install_funnel(t - interval '1 day', t + interval '1 day') where step = 3;
+  assert r.people = 1, format('漏斗第 3 步应为 1 人（有主屏幕会话的那位），实际 %s', r.people);
+end $$;
