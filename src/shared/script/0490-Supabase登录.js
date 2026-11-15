@@ -104,7 +104,7 @@ function sbaWaiting(){return SBA_WAIT&&!ME&&typeof NBQ_NET!=='undefined'&&!!NBQ_
 function sbaHandoff(){if(!SBA_HO||SBA_HO_BUSY||!SBA.on())return false;if(SBA.session()){SBA_HO=null;return false}
   SBA_HO_BUSY=true;const code=SBA_HO;
   SBA.redeem(code).then(r=>{SBA_HO_BUSY=false;if(r.ok||r.code==='handoff_invalid'||r.code==='has_session'){SBA_HO=null;try{localStorage.setItem('nbq_ho_done',code)}catch(_){}}   // 有了确定的结果（成功 / 码不对 / 用过 / 过期）才记下这个码、以后不再试；没连上、限次、服务器忙、版本太旧（426）这些不算——码还没用掉，留着回到前台时再试，不能白白烧掉（11-14 独立复核）
-    if(!r.ok&&r.code==='handoff_invalid'&&typeof toast==='function')toast('这次没能自动登录（添加到主屏幕超过 24 小时后才打开会这样），请登录一次');
+    if(!r.ok&&r.code==='handoff_invalid'&&typeof toast==='function')toast('这次没能自动登录，请登录一次');
     if(r.ok){SBA_TRY=0;SBA_HO_OK=true;sbaRestore()}else if(typeof render==='function')render()});
   return true}
 function sbaWaitHTML(){return '<div class="empty"><b>正在恢复登录…</b></div>'}   // 恢复中各处「需要登录」的区域画这个，不要画登录按钮
