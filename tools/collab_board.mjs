@@ -44,11 +44,21 @@ export const gitCarry = (n, sha) => old => fetchPr(n) && carries(old, sha, 'orig
 // 11-16（#310）：含数据库改动的 PR，db-parity 在「库结构最后一次改动」之后有没有通过——和 pr_merge.sh ④ / merge_gate.mjs 同一份实现（tools/merge_drift.sh --db-parity），这里只取结果。
 //   取不到（没拉到提交 / 读不到运行记录）= null（不确定）：看板不替所有者「认定在等」，宁可不提醒也不乱提醒
 export const dbFiles = files => files.filter(f => /^(schema\.sql|server\/migrations\/)/.test(f) && f !== 'server/migrations/_bundle.sql');   // _bundle.sql 是生成文件（ADR 0011），不算
-export function dbFacts(n, sha, files) {
-  const f = dbFiles(files); if (!f.length) return { changed: false, files: [], parity: null };
-  if (!fetchPr(n)) return { changed: true, files: f, parity: null };
-  try { execFileSync('bash', ['tools/merge_drift.sh', '--db-parity', sha], { stdio: 'ignore', timeout: 60e3 }); return { changed: true, files: f, parity: true } }
-  catch (e) { return { changed: true, files: f, parity: e.status === 1 ? false : null } }   // 退出 1 = 明确「不算数」；别的（超时、脚本崩了）= 不确定
+// 取 db-parity 结果：运行的是 **origin/main 上的** merge_drift.sh（不依赖检出：协作看板 job 是稀疏检出，只有几个脚本；也不运行 PR 里的代码）。
+//   `bash -c <脚本内容> tools/merge_drift.sh ...`：$0 仍是 tools/merge_drift.sh，脚本里的 cd "$(dirname "$0")/.." 才回到仓库根。
+//   11-16 教训：第一版直接 `bash tools/merge_drift.sh`，在 Actions 里「找不到文件」（退出码 127），被当成「不确定」悄悄放过，功能在线上整个失效而没人知道——
+//   所以「不确定」必须带原因、并在日志里大声警告（::warning），不能静默。返回 { status, why }：status 0 / 1 = 脚本明确的结论，其余 = 不确定。
+export const runMergeDrift = sha => {
+  let script; try { script = execFileSync('git', ['show', 'origin/main:tools/merge_drift.sh'], { encoding: 'utf8', timeout: 60e3, stdio: ['ignore', 'pipe', 'ignore'] }) } catch (e) { return { status: null, why: `取不到 origin/main:tools/merge_drift.sh（${String(e.message).split('\n')[0].slice(0, 80)}）` } }
+  try { execFileSync('bash', ['-c', script, 'tools/merge_drift.sh', '--db-parity', sha], { stdio: 'ignore', timeout: 60e3 }); return { status: 0 } }
+  catch (e) { return e.status === 1 ? { status: 1 } : { status: null, why: `merge_drift.sh 退出码 ${e.status ?? e.signal ?? e.code}（不是 0 / 1）` } }
+};
+export function dbFacts(n, sha, files, deps = {}) {
+  const fetch = deps.fetch || fetchPr, run = deps.run || runMergeDrift, f = dbFiles(files);
+  if (!f.length) return { changed: false, files: [], parity: null };
+  if (!fetch(n)) return { changed: true, files: f, parity: null, why: `取不到 PR #${n} 的提交（git fetch 失败）` };
+  const r = run(sha);
+  return { changed: true, files: f, parity: r.status === 0 ? true : r.status === 1 ? false : null, ...(r.status === 0 || r.status === 1 ? {} : { why: r.why || '未知原因' }) };
 }
 
 // p = { number, title, author, draft, sha, mergeable, behind（落后 main 几个提交）, updated, level: owner|review|self, ci: { tests, fast }: ok|failure|pending|none, review }
@@ -173,7 +183,7 @@ export function gather(R, now = Date.now()) {
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
     const lv = levelOf(files, CO), isCo = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).includes(x.user.login);
     const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: isCo && lv.level === 'owner' && coOwns(lv.owner, CO, x.user.login), updated: x.updated_at, level: lv.level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
-    p.db = dbFacts(x.number, p.sha, files);   // 只有含库结构文件的 PR 才会去调 merge_drift.sh（很少）
+    p.db = dbFacts(x.number, p.sha, files); if (p.db.changed && p.db.parity === null) console.log(`::warning title=协作看板::#${x.number} 含数据库改动，但 db-parity 的判断取不到：${p.db.why}。看板暂不提醒所有者，请查原因（别让这个功能静默失效）`);   // 只有含库结构文件的 PR 才会去调 merge_drift.sh（很少）
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
