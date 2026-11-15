@@ -3,10 +3,12 @@ import { cardFor, rewriteHead } from './card.mjs';
 import { chooserHTML } from '../site_route.mjs';
 
 // data：{games, users}（预览站是 demo_data.json，由 functions/ 入口导入——这里不直接 import JSON，Node 测试才能直接载入）
-export async function sharePage(kind, key, request, env, data) {
+export async function sharePage(kind, key, request, env, data, lookup) {
   const url = new URL(request.url), asset = '(同城市网址的选排版壳)';
   // 和 /melbourne/ 同一个壳：浏览器里按同一条规则把手机版 / 网页版原地载入；爬虫只看头部这条链接自己的卡片
   const shell = chooserHTML();
+  // 真实球局：先按分享码问接口（lookup 由 functions 入口给），查不到 / 出错再用演示快照，最后才是品牌通用卡片
+  if (kind === 'g' && lookup) { try { const g = await lookup(key); if (g) data = { ...data, games: [g] } } catch (e) {} }
   // 排查用：打开 /g/码?og=debug 直接看服务端认出了什么（部署后 Safari 里打开，能看到文字就说明服务端在跑）
   if (url.searchParams.get('og') === 'debug') return new Response(JSON.stringify({ server: 'og', kind, key, asset, card: cardFor(kind, key, data, url.origin, url.pathname) }, null, 1), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
   const html = rewriteHead(shell, cardFor(kind, key, data, url.origin, url.pathname));

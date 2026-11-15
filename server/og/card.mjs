@@ -35,6 +35,15 @@ export function rewriteHead(html, m) {
   return h.replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(m.title)}</title>`);
 }
 
+// 接口返回的球局（GET /api/game 匿名版）→ 卡片用的那一套字段；时间按墨尔本算
+export function fromApiGame(g, now = new Date()) {
+  const f1 = n => (+n).toFixed(1), at = new Date(g.starts_at);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at).filter(x => x.type !== 'literal').map(x => [x.type, +x.value]));
+  const [y, m, d] = melbToday(now), o = Math.round((Date.UTC(parts.year, parts.month - 1, parts.day) - Date.UTC(y, m - 1, d)) / 864e5);
+  const lo = +g.utr_min, hi = +g.utr_max, lvl = lo <= 1 && hi >= 16 ? '不限' : lo === hi ? f1(lo) : f1(lo) + '–' + f1(hi);
+  return { code: g.share_code, o, t: String(parts.hour).padStart(2, '0') + ':' + String(parts.minute).padStart(2, '0'), v: g.short_name || g.venue_name, type: g.game_type, spots: Math.max(0, g.capacity - (g.filled || 0)), lvl, host: g.host_nickname, hu: f1(g.host_utr) };
+}
+
 // 一条分享链接 → 卡片信息。找不到就用品牌通用卡片
 export function cardFor(kind, key, data, origin, pathname, now = new Date()) {
   const img = origin + BRAND.image;

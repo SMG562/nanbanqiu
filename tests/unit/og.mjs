@@ -1,6 +1,6 @@
 // 分享链接卡片（server/og）：文案规则、head 改写（转义、补标签）、通用兜底、整页处理（用仓库里的手机端 / 网页端页面当资源）
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
-import { relDay, ogTitle, ogDesc, rewriteHead, cardFor, BRAND } from '../../server/og/card.mjs';
+import { relDay, ogTitle, ogDesc, rewriteHead, cardFor, fromApiGame, BRAND } from '../../server/og/card.mjs';
 import { sharePage } from '../../server/og/page.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
@@ -32,4 +32,13 @@ r = await sharePage('g', 'x', req('/g/x', DESK), env, D); const t2 = await r.tex
 T('整页：手机和电脑 UA 拿到同一个壳（分辨在浏览器里做）', t2 === t);
 r = await sharePage('p', 'x', req('/p/x', MOB), { ASSETS: { fetch: async () => new Response('x', { status: 500 }) } }, D);
 T('整页：不依赖静态资源服务（资源取不到也照常给壳）', r.status === 200);
+// 真实球局（接口版）：时间按墨尔本、缺位 = 容量 - 已加入、水平范围；查不到 / 出错退回演示快照或通用卡片
+const API = { share_code: 'Zz9k', starts_at: '2026-10-29T07:30:00Z', short_name: 'Tennis World', game_type: 'doubles', capacity: 4, filled: 2, utr_min: 3, utr_max: 4, host_nickname: 'Han', host_utr: 4 };   // 墨尔本 10-29 18:30（今晚）
+const ag = fromApiGame(API, NOW);
+T('接口球局 → 卡片字段：今晚 18:30、缺 2 位、UTR 3.0–4.0', ag.o === 0 && ag.t === '18:30' && ag.spots === 2 && ag.lvl === '3.0–4.0' && ag.host === 'Han' && ag.hu === '4.0' && ogTitle(ag, NOW) === '今晚 18:30 · Tennis World · 缺2位球友 · UTR 3.0–4.0', ag);
+T('接口球局：水平不限 / 单一值 / 已满', fromApiGame({ ...API, utr_min: 1, utr_max: 16 }, NOW).lvl === '不限' && fromApiGame({ ...API, utr_min: 4, utr_max: 4 }, NOW).lvl === '4.0' && fromApiGame({ ...API, filled: 4 }, NOW).spots === 0);
+r = await sharePage('g', 'Zz9k', req('/g/Zz9k', MOB), env, D, async () => ag); t = await r.text();
+T('整页：真实球局的分享链接带这条球局自己的标题（不是通用卡片）', /og:title" content="今晚 18:30 · Tennis World/.test(t) && !t.includes(BRAND.desc), t.slice(0, 0));
+r = await sharePage('g', 'Zz9k', req('/g/Zz9k', MOB), env, D, async () => { throw new Error('超时') }); t = await r.text();
+T('整页：接口出错 → 退回通用卡片，不报错', r.status === 200 && t.includes(BRAND.title));
 console.log(`og: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
