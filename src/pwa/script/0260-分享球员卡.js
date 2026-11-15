@@ -123,7 +123,9 @@ function setOg(c){const m=(p,v)=>{let e=document.querySelector(`meta[property="$
 function wxShare(id){const c=api.get(id);setOg(c);
   if(ENV==='wechat'){closeSheet();openWxShareGuide();return}
   const fb=()=>copy(shareText(c),'已复制，去微信群粘贴');
-  if(navigator.share)navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()});else fb()}
+  // iOS 分享面板把「当前页面标题」交给微信（不认 share() 的 title 参数）：分享前临时换成球局标题，结束后还原
+  const t0=document.title,back=()=>{document.title=t0};document.title=ogTitle(c);
+  if(navigator.share)navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()}).finally(back);else{back();fb()}}
 function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
   <h3>发给微信好友或群</h3><p class="lead">点右上角 <em>···</em>，选「发送给朋友」或「分享到群聊」</p><button class="btn" data-a="wxclose">知道了</button>`}
 function openShare(id){const c=api.get(id);
