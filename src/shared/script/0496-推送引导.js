@@ -101,6 +101,12 @@ async function hoLoginReload(){
   if(!ok||!HO_READY||hoHref()===HO_AT_LOAD)return false;
   try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({tab:typeof UI!=='undefined'&&UI.tab||''}))}catch(_){return false}
   location.reload();return true}
+// 打开页面时本机缓存的码已被核对出作废（桌面图标把它用掉了、或别处退出作废）→ 已换了新码，但 iOS 读的是页面打开那一刻写进安装配置的旧码：
+//   这时直接用 Safari 自带分享添加，图标里是旧码，打开必然「没能自动登录」（11-15 真机）。所以刚打开就静默刷新一次，让加载时读到的就是新码。只在「加载时带的是码、现在换了」时刷新；同一个标签页只刷新一次
+function hoStaleReload(){
+  if(!/^\/api\/manifest\?h=/.test(HO_AT_LOAD)||!HO_READY||hoHref()===HO_AT_LOAD)return false;
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false;sessionStorage.setItem('nbq_ho_rl','1')}catch(_){return false}
+  location.reload();return true}
 function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
   if(!b)return;if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast('欢迎回来')}
 function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}

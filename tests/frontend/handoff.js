@@ -26,7 +26,7 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
       if (p === '/api/session/redeem' && S.redeem === 426) return J(426, { error: 'client_outdated' });
       if (p === '/api/session/redeem') return S.redeem === 200 ? J(200, { access_token: 'OWN', refresh_token: RT, expires_in: 3600, user: { id: 'sb-1', phone: '61412345678' } }) : J(401, { error: 'handoff_invalid' });
       if (p === '/api/session/logout') return J(200, { ok: true });
-      if (p === '/api/session/handoff/check') { S.checks++; return J(200, S.check ? { ok: true } : { ok: false }) }
+      if (p === '/api/session/handoff/check') { S.checks++; let bc = ''; try { bc = JSON.parse(r.request().postData() || '{}').code } catch (_) { } return J(200, S.check || bc !== CODE ? { ok: true } : { ok: false }) }   // check:false = 只有旧码 CODE 作废，换来的新码有效
       if (p === '/api/session/handoff/revoke') { S.revoked++; return J(200, { ok: true, revoked: 1 }) }
       if (p === '/api/manifest') return S.manifest === 200 ? J(200, { name: '南伴球', start_url: '/melbourne/?source=pwa&h=' + u.searchParams.get('h') }) : J(404, { error: 'not_found' });
       return J(404, { error: 'not_found' }) });
@@ -141,15 +141,14 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   //   每次打开核对一次；作废了就换新码。打开「添加到主屏幕」步骤页时，iOS 读到的（页面打开那一刻的）安装配置若不是现在有效的这一份，就刷新一次并回到步骤页
   const NEW = 'N'.repeat(43), preset = ([code]) => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' }));
     if (!localStorage.getItem('nbq_ho')) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { } };
-  s = await open(IOS, 'https://nanbanqiu.app/', { init: preset, initArg: [CODE], check: false, code: NEW });
-  await s.pg.waitForFunction(n => document.querySelector('link[rel="manifest"]').getAttribute('href') === '/api/manifest?h=' + n, NEW, { timeout: 10000 }).catch(() => { });
-  T('⑧ 缓存的码已作废：核对一次、换成新码，安装配置和本机缓存都换新', s.S.checks === 1 && s.S.n === 1 && await s.man() === '/api/manifest?h=' + NEW && await s.pg.evaluate(n => JSON.parse(localStorage.getItem('nbq_ho')).code === n, NEW), [s.S.checks, s.S.n, await s.man()]);
-  await s.pg.evaluate(() => { window.__before = true; openA2HS() });
-  await s.pg.waitForFunction(() => !window.__before && typeof ME !== 'undefined' && !!ME && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'), null, { timeout: 15000 }).catch(() => { });
-  T('⑧ 这时打开步骤页：页面刷新一次（iOS 重新读到带新码的安装配置），并自动回到步骤页', await s.pg.evaluate(() => !window.__before && !!document.querySelector('#sheet.show [data-a="a2hsDone"]')) && await s.man() === '/api/manifest?h=' + NEW, await s.man());
-  T('⑧ 刷新后页面一打开就是新码（HO_AT_LOAD），不再刷新第二次', await s.pg.evaluate(n => HO_AT_LOAD === '/api/manifest?h=' + n, NEW));
-  await s.pg.evaluate(() => { closeSheet(); window.__before = true; openA2HS() }); await s.pg.settle(1500);
-  T('⑧ 安装配置已经是对的：再开步骤页不刷新', await s.pg.evaluate(() => window.__before === true));
+  //   刚打开就核对出作废 → 换新码后静默刷新一次，让页面加载那一刻读到的就是新码（用 Safari 自带分享添加也对）；之后不再刷新
+  const preset2 = ([code]) => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' })); if (!localStorage.getItem('nbq_ho')) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { } try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)) } catch (_) { } };
+  s = await open(IOS, 'https://nanbanqiu.app/', { init: preset2, initArg: [CODE], check: false, code: NEW });
+  await s.pg.waitForFunction(() => sessionStorage.getItem('__ld') === '2' && typeof ME !== 'undefined' && !!ME, null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(1000);
+  T('⑧ 缓存的码已作废：换成新码，并静默刷新一次', await s.pg.evaluate(() => sessionStorage.getItem('__ld')) === '2' && s.S.n === 1 && await s.pg.evaluate(n => JSON.parse(localStorage.getItem('nbq_ho')).code === n, NEW), [s.S.n]);
+  T('⑧ 刷新后页面加载那一刻就是新码（HO_AT_LOAD），不再刷新第二次', await s.pg.evaluate(n => HO_AT_LOAD === '/api/manifest?h=' + n && sessionStorage.getItem('__ld') === '2', NEW) && await s.man() === '/api/manifest?h=' + NEW, await s.man());
+  await s.pg.evaluate(() => { window.__before = true; openA2HS() }); await s.pg.settle(1500);
+  T('⑧ 这时开步骤页：安装配置已经是对的，不再刷新', await s.pg.evaluate(() => window.__before === true && !!document.querySelector('#sheet.show [data-a="a2hsDone"]')));
   T('⑧ 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
   s = await open(IOS, 'https://nanbanqiu.app/', { init: preset, initArg: [CODE] }); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(600);
   T('⑧ 缓存的码还有效：只核对、不要新码，安装配置不变', s.S.checks === 1 && s.S.n === 0 && await s.man() === '/api/manifest?h=' + CODE, [s.S.checks, s.S.n]);
