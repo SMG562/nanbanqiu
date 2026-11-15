@@ -25,7 +25,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 // 被拒绝后：不再弹系统窗口，指引去系统设置
 function openPushDenied(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   const steps=ios?['打开 iPhone 的「设置」','点「通知」，找到「南伴球」','打开「允许通知」']:['长按桌面上的南伴球图标，点「应用信息」','点「通知」','打开「允许通知」'];
-  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：</p></div>
+  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">${pnV2()?'关着通知，球友同意或回复你时，要打开南伴球才看得到。系统不允许网页再次弹窗，请在手机设置里打开：':'有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：'}</p></div>
   <ol class="pdsteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
   <button class="btn btn-p" data-a="pushRecheck">我已打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function pushRecheck(){
@@ -128,6 +128,11 @@ function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME|
   if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI.detail))return;   // 正在看别的：不打断
   try{if(localStorage.getItem('nbq_push_asked')==='1')return;localStorage.setItem('nbq_push_asked','1')}catch(_){return}
   window.PUSH_FROM='login';
+  if(pnV2()){openSheet(`<div class="a2v"><h2 class="a2v-t sm">有人回复，马上知道</h2><p class="a2v-s">不用一直开着南伴球，球友的回复会像这样出现在手机上。</p>${pnSampleHTML()}<p class="a2v-s tight">想关随时能在手机设置里关。</p></div>
+  <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`);return}
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-bell"/></svg></div><div class="sh-t">开启通知</div><p class="sh-s">有人申请、同意或回复你时，第一时间告诉你。</p></div>
   <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`)}
+// 新风格（开关 NBQ_A2HS2_ON，脚本在 pwa/0265；调用时才读，不在加载期碰后面才定义的 const）
+function pnV2(){try{return typeof NBQ_A2HS2_ON!=='undefined'&&!!NBQ_A2HS2_ON}catch(_){return false}}
+function pnSampleHTML(){return `<div class="a2v-card pn-sample"><img src="/icons/icon-180.png" alt=""><div><b>南伴球</b><span>Sam 同意了一起打球，周六 9:00 见</span></div></div>`}
 function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}
