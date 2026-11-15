@@ -138,6 +138,23 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   s = await open(IOS, 'https://nanbanqiu.app/', { manifest: 404 }); await s.login(); await s.pg.settle(800);
   T('⑥ 探测不到带码的安装配置：不换', s.S.n === 1 && await s.man() === '/manifest.webmanifest' && !s.errs.length, [s.S.n, await s.man(), s.errs]); await s.ctx.close();
 
+  // ⑨ 设计不变量（#299 的根因，真机用 Mac Safari 检查器实测）：iOS 在页面加载时读安装配置，<link rel="manifest"> 一出现浏览器就去取，事后改 href 来不及。
+  //   所以：页面加载期间（DOMContentLoaded 之前）manifest 的 link 不能被脚本改写——它出现时 href 就得是最终值；页面里只能有一个这样的 link。
+  //   这条抓的是 #300 第一版（静态 link + 脚本改 href：DOM 里的 href 最终是对的，旧测试全绿，真机却取了默认那份）。
+  //   查不到什么：iOS 真机的实际取用时机（Chromium 无头不取安装配置，没法在网络层观测）——仍靠真机检查器的网络面板，见 #299 的验收。
+  const watch = ([code, cache]) => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' }));
+      if (cache) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { }
+    window.__mut = []; const isMf = el => el && el.tagName === 'LINK' && /manifest/i.test(el.getAttribute('rel') || ''); let dcl = false; document.addEventListener('DOMContentLoaded', () => { dcl = true });
+    const sa = Element.prototype.setAttribute; Element.prototype.setAttribute = function (k, v) { if (!dcl && isMf(this) && String(k).toLowerCase() === 'href') window.__mut.push(String(v)); return sa.apply(this, arguments) };
+    const d = Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype, 'href'); Object.defineProperty(HTMLLinkElement.prototype, 'href', { configurable: true, get() { return d.get.call(this) }, set(v) { if (!dcl && isMf(this)) window.__mut.push(String(v)); d.set.call(this, v) } });
+    document.addEventListener('DOMContentLoaded', () => { const l = [...document.querySelectorAll('link[rel="manifest"]')]; window.__mf = { n: l.length, href: l[0] && l[0].getAttribute('href') } }) };
+  for (const [why, cache, want] of [['本机有登录 + 缓存的码没过期', true, '/api/manifest?h=' + CODE], ['本机有登录、没有缓存的码', false, '/manifest.webmanifest']]) {
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: watch, initArg: [CODE, cache] }); await s.pg.settle(300);
+    const r = await s.pg.evaluate(() => ({ mut: window.__mut, mf: window.__mf }));
+    T(`⑨ ${why}：加载期间 manifest 的 link 没被改写过`, Array.isArray(r.mut) && r.mut.length === 0, r);
+    T(`⑨ ${why}：页面只有一个 manifest link，它出现时就是最终值`, !!r.mf && r.mf.n === 1 && r.mf.href === want, r);
+    await s.ctx.close() }
+
   await b.close();
   console.log(`handoff: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })();
