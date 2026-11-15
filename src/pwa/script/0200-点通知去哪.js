@@ -101,7 +101,7 @@ const loginCTA=t=>`<div class="empty"><svg class="lg-solo" width="56" height="56
 /* ---------- 通知 ---------- */
 function pushCardHTML(){if(PUSH.enabled)return'';
   // 先让人看到「会收到什么」（App 图标上的红点），再告诉 TA 一步怎么做
-  const t=ENV==='wechat'?['换到浏览器，才收得到提醒','微信里收不到申请和通过的通知','怎么换','i-share']:ENV==='safari'?['有人申请，马上知道','放到主屏幕，像 App 一样收提醒','放到主屏幕','i-plus']:['有人申请，马上知道','申请、通过、开打前都会提醒你','开启提醒','i-bell'];
+  const t=ENV==='wechat'?['换到浏览器，才收得到提醒','微信里收不到申请和通过的通知','怎么换','i-share']:ENV==='safari'?['有人申请，马上知道',a2n('放到主屏幕，像 App 一样收提醒','比下载 App 更简单，放到桌面就能收提醒'),a2n('放到主屏幕','放到桌面'),'i-plus']:['有人申请，马上知道','申请、通过、开打前都会提醒你','开启提醒','i-bell'];
   return `<div class="pushcard"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${t[1]}</p></div><button class="pc-go" data-a="enablePush"><svg><use href="#${t[3]}"/></svg>${t[2]}</button></div>`}
 function renderNotif(){
   if(!ME){$('#notifBody').innerHTML=authView({out:()=>`<div class="pad">${loginCTA('登录后接收通知')}</div>`});return}
