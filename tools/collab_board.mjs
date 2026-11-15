@@ -39,10 +39,17 @@ export function reviewState(comments, sha, carry = () => false) {
 }
 // 沿用要用 git 比对提交内容：按需取 main 和 PR 头（工作流是 blob:none 的完整历史，只取提交和目录树）；取不到 = 不沿用（宁可多要一次复核）
 const fetched = new Map();
-export const gitCarry = (n, sha) => old => {
-  if (!fetched.has(n)) { try { execFileSync('git', ['fetch', '-q', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main', `+refs/pull/${n}/head`], { stdio: 'ignore', timeout: 60e3 }); fetched.set(n, true) } catch { fetched.set(n, false) } }
-  return fetched.get(n) && carries(old, sha, 'origin/main').carry;
-};
+const fetchPr = n => { if (!fetched.has(n)) { try { execFileSync('git', ['fetch', '-q', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main', `+refs/pull/${n}/head`], { stdio: 'ignore', timeout: 60e3 }); fetched.set(n, true) } catch { fetched.set(n, false) } } return fetched.get(n) };
+export const gitCarry = (n, sha) => old => fetchPr(n) && carries(old, sha, 'origin/main').carry;
+// 11-16（#310）：含数据库改动的 PR，db-parity 在「库结构最后一次改动」之后有没有通过——和 pr_merge.sh ④ / merge_gate.mjs 同一份实现（tools/merge_drift.sh --db-parity），这里只取结果。
+//   取不到（没拉到提交 / 读不到运行记录）= null（不确定）：看板不替所有者「认定在等」，宁可不提醒也不乱提醒
+export const dbFiles = files => files.filter(f => /^(schema\.sql|server\/migrations\/)/.test(f) && f !== 'server/migrations/_bundle.sql');   // _bundle.sql 是生成文件（ADR 0011），不算
+export function dbFacts(n, sha, files) {
+  const f = dbFiles(files); if (!f.length) return { changed: false, files: [], parity: null };
+  if (!fetchPr(n)) return { changed: true, files: f, parity: null };
+  try { execFileSync('bash', ['tools/merge_drift.sh', '--db-parity', sha], { stdio: 'ignore', timeout: 60e3 }); return { changed: true, files: f, parity: true } }
+  catch (e) { return { changed: true, files: f, parity: e.status === 1 ? false : null } }   // 退出 1 = 明确「不算数」；别的（超时、脚本崩了）= 不确定
+}
 
 // p = { number, title, author, draft, sha, mergeable, behind（落后 main 几个提交）, updated, level: owner|review|self, ci: { tests, fast }: ok|failure|pending|none, review }
 export function classify(p, now = Date.now()) {
@@ -59,6 +66,9 @@ export function classify(p, now = Date.now()) {
     if (p.review === 'fix') return R('author', '独立复核结论「要改」', '按复核意见改，推完在 PR 留言「已改，请重新复核 <提交号前7位>」');
     return R('review', p.review === 'rereview' ? '改动后需要重新复核' : '需要独立复核', '另开一个没看过过程的会话只读复核，在 PR 留言复核结论（通过就写「独立复核：通过 <提交号前7位>」，写明看了什么、风险、怎么回退）');
   }
+  // 11-16（#310）：含数据库改动、db-parity 还没在库结构最后一次改动之后通过 = 球在所有者（只有所有者能在正式库跑迁移）。
+  //   以前这里会对共同所有者说「可以合并了」，作者撞上 pr_merge.sh 的闸门才发现要等迁移，所有者也没人通知。判断来自事实（db-parity 运行记录），不靠「迁移已跑」留言约定。
+  if (p.db?.changed && p.db.parity === false) return { ...R('owner', '含数据库改动：等所有者先在正式库跑迁移，再跑 db-parity', `所有者：在正式库 nanbanqiu-au 跑迁移（${p.db.files.join('、')}），再在 Actions 手动跑 db-parity；✅ 后看板自动放行。作者先别合前端`), ownerAct: 'migrate' };
   // 11-11：落后 main 不再把球推给作者——pr_merge.sh 自己判断（只多文档 / 文件不重叠自动放行，否则提示 sync_main.sh），省掉不必要的合 main 和重跑
   const bh = p.behind > 0 ? `（main 前进了 ${p.behind} 个提交：只多文档 / 文件不重叠会自动放行，否则它会提示 \`bash tools/sync_main.sh\`）` : '';
   const loop = (p.syncs || 0) >= SYNC_LOOP ? `（已合并 main ${p.syncs} 次，别再同步，留【可合 ${p.sha.slice(0, 7)}】）` : '';
@@ -87,6 +97,19 @@ const h6 = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 6);
 export const pingKey = (p, c) => `nbq-ball:${c.ball}:${h6(c.reason)}:${p.sha.slice(0, 7)}`;
 export const isoWeek = t => { const d = new Date(t); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); const y = d.getUTCFullYear(); return `${y}-W${Math.ceil(((d - Date.UTC(y, 0, 1)) / D + 1) / 7)}` };
 export const pingText = (p, c) => `<!-- ${pingKey(p, c)} -->\n@${p.author} ${c.ball === 'merge' ? '可以合并了' : '球在你这边'}：**${c.reason}**。\n下一步：${c.next}\n\n> 自动消息（协作看板）。进度由看板从 PR 状态自动推出，不用另外汇报；卡住了直接在这里留言写「卡住 + 在哪」。`;
+// 11-16（#310）：「等所有者做一件事」的提醒：首次直接在 PR 上 @ 所有者写明动作；24 小时还没做，每天再提醒一次，最多 OWNER_REMIND_MAX 次（不刷屏）。
+//   标记按「这批库结构文件」去重（作者推别的提交不重复提醒），文件变了才算新的一件事。comments = [{ body, at }]；返回 null 或 { key, body }
+export const OWNER_REMIND_H = 24, OWNER_REMIND_MAX = 3;
+export const ownerActKey = (p, c) => `nbq-owner-act:${c.ownerAct}:${h6((p.db?.files || []).join(','))}`;
+export function ownerActPost(p, c, comments, now) {
+  if (!c.ownerAct || p.draft || p.author.endsWith('[bot]')) return null;
+  const k = ownerActKey(p, c), mine = comments.filter(m => m.body.includes(`<!-- ${k}`));
+  const tail = '\n\n> 自动消息（协作看板）。判断来自 db-parity 的运行记录（和合并闸门同一份），做完不用留言，✅ 后看板会自动改成「可合并」。';
+  if (!mine.length) return { key: k, body: `<!-- ${k} -->\n@${OWNER} **需要你做一件事**：${c.reason}。\n下一步：${c.next}\n\n作者（@${p.author}）先别合前端，等 db-parity ✅。${tail}` };
+  const last = Math.max(...mine.map(m => Date.parse(m.at || 0) || 0)), n = mine.length;   // n = 已提醒次数（含首次）
+  if (n > OWNER_REMIND_MAX || now - last < OWNER_REMIND_H * 36e5) return null;
+  return { key: `${k}:r${n}`, body: `<!-- ${k}:r${n} -->\n@${OWNER} 提醒（第 ${n} 次）：${c.reason}，已等 ${Math.floor((now - Date.parse(mine[0].at || 0)) / 36e5)} 小时。\n${c.next}${tail}` };
+}
 export const idleText = (p, c, now) => `<!-- nbq-idle:${isoWeek(now)} -->\n@${p.author} 这个 PR 已 ${c.idle} 天没动（${c.reason}）。默认方案：本周内推进；不做了就转草稿并在这里留一句结论，或关闭。`;
 export const already = (comments, key) => comments.some(c => c.body.includes(`<!-- ${key} -->`));
 export const labelsFor = (current, ball) => [...current.filter(l => !Object.values(BALL).includes(l)), BALL[ball]];
@@ -94,7 +117,7 @@ export const ownerKey = rows => rows.filter(r => r.c.ball === 'owner').map(r => 
 
 const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、复核留言、红线级别自动推出；球换手时机器人会在 PR 上 @ 对应的人并给出下一步命令，所以**不用另外汇报进度**。
 - 标签 \`球在作者 / 球在复核 / 球在所有者 / 等CI / 可合并\` 随状态自动更新，可直接按标签筛选。
-- **所有者只处理三类事**：红线 PR（当场点头）、每日真机、每周一周报；红线集合变化时这里会 @ 一次。
+- **所有者只处理四类事**：红线 PR（当场点头）、含数据库改动的 PR（先在正式库跑迁移，再跑 db-parity；PR 上会直接 @ 你并每天提醒，最多 3 次）、每日真机、每周一周报；需要你处理的 PR 集合变化时这里会 @ 一次。
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
 - 在制品（非草稿 PR）上限：**每个作者 ${WIP_LIMIT} 个**（#229，11-13：两人都能合并后不再全仓共 ${WIP_LIMIT} 个）。`;
 
@@ -145,11 +168,12 @@ export function gather(R, now = Date.now()) {
     const cmp = JSON.parse(gh(`repos/${R}/compare/main...${x.head.sha}`, '--jq', '{files:[.files[].filename],behind:.behind_by}')), files = cmp.files;
     const runs = JSON.parse(gh(`repos/${R}/actions/runs?head_sha=${x.head.sha}&per_page=50`)).workflow_runs;
     const st = w => runState(runs, w, now);
-    const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot' }));
+    const comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`).map(c => ({ body: c.body || '', bot: c.user?.type === 'Bot', at: c.created_at }));
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
     const lv = levelOf(files, CO), isCo = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).includes(x.user.login);
     const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: isCo && lv.level === 'owner' && coOwns(lv.owner, CO, x.user.login), updated: x.updated_at, level: lv.level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    p.db = dbFacts(x.number, p.sha, files);   // 只有含库结构文件的 PR 才会去调 merge_drift.sh（很少）
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
   return rows;
@@ -169,6 +193,7 @@ function main() {
     }
     if (Object.values(p.ci).includes('stuck') && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, stuckKey(p))) post(p.number, stuckText(p));
     if ((p.syncs || 0) >= SYNC_LOOP && ['owner', 'merge'].includes(c.ball) && !p.draft && p.author !== OWNER && !p.author.endsWith('[bot]') && !already(p.comments, `nbq-syncloop:${p.number}`)) post(p.number, syncText(p, p.syncs));
+    const oa = ownerActPost(p, c, p.comments, now); if (oa) post(p.number, oa.body);   // 所有者要做的事：在 PR 上 @ 他（作者是所有者本人也一样要提醒，所以放在下面的 continue 之前）
     if (!c.ping || p.author === OWNER || p.author.endsWith('[bot]')) continue;
     if (!already(p.comments, pingKey(p, c))) post(p.number, pingText(p, c));
     else if (c.idle >= IDLE_DAYS && c.ball !== 'merge' && !already(p.comments, `nbq-idle:${isoWeek(now)}`)) post(p.number, idleText(p, c, now));
@@ -187,7 +212,7 @@ function main() {
   if (!issue) issue = JSON.parse(gh('-X', 'POST', `repos/${R}/issues`, '-f', 'title=协作看板（自动更新，别手改）', '-f', 'labels[]=协作看板', '-f', `body=${full}`));
   else if (!(issue.body || '').includes(`nbq-board:${hash}`)) gh('-X', 'PATCH', `repos/${R}/issues/${issue.number}`, '-f', `body=${full}`);
   const prev = list(`repos/${R}/issues/${issue.number}/comments?per_page=100`).filter(c => c.body.includes('nbq-owner-set:')).pop()?.body.match(/nbq-owner-set:([\d,]*)/)?.[1];
-  if (okey && okey !== prev) post(issue.number, `<!-- nbq-owner-set:${okey} -->\n@${OWNER} 现在需要你的 PR（红线，当场点头）：${rows.filter(r => r.c.ball === 'owner').map(r => `#${r.p.number} ${r.p.title}`).join('；')}。其余不用你处理。`);
+  if (okey && okey !== prev) post(issue.number, `<!-- nbq-owner-set:${okey} -->\n@${OWNER} 现在需要你的 PR：${rows.filter(r => r.c.ball === 'owner').map(r => `#${r.p.number} ${r.p.title}（${r.c.reason}）`).join('；')}。其余不用你处理。`);
   else if (!okey && prev) post(issue.number, `<!-- nbq-owner-set: -->\n现在没有需要所有者处理的 PR。`);
 }
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) main();
