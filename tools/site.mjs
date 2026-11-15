@@ -32,6 +32,8 @@ export const FILES = {
   'icons/icon-192.png': 'icons/icon-192.png',
   'icons/icon-512.png': 'icons/icon-512.png',
   'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
+  // 链接卡片缩略图（og:image；300×300、7KB：微信对缩略图有体积限制）
+  'icons/og-share.jpg': 'icons/og-share.jpg',
 };
 // 第三方库（L5，11-11）：leaflet / qrcodejs / html2canvas 放在仓库 vendor/，随站点发布（不再从 cdnjs 加载，CSP 也不再放行它）
 const vend = d => fs.readdirSync(path.join(ROOT, 'vendor', d), { withFileTypes: true }).forEach(e => e.isDirectory() ? vend(path.join(d, e.name)) : (FILES[`vendor/${path.join(d, e.name)}`] = `vendor/${path.join(d, e.name)}`));
