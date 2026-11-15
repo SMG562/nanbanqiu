@@ -2,6 +2,7 @@
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import { relDay, ogTitle, ogDesc, rewriteHead, cardFor, fromApiGame, BRAND } from '../../server/og/card.mjs';
 import { sharePage } from '../../server/og/page.mjs';
+import { FILES } from '../../tools/site.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
 const NOW = new Date('2026-10-29T08:00:00+11:00');   // 墨尔本周四
@@ -41,4 +42,5 @@ r = await sharePage('g', 'Zz9k', req('/g/Zz9k', MOB), env, D, async () => ag); t
 T('整页：真实球局的分享链接带这条球局自己的标题（不是通用卡片）', /og:title" content="今晚 18:30 · Tennis World/.test(t) && !t.includes(BRAND.desc), t.slice(0, 0));
 r = await sharePage('g', 'Zz9k', req('/g/Zz9k', MOB), env, D, async () => { throw new Error('超时') }); t = await r.text();
 T('整页：接口出错 → 退回通用卡片，不报错', r.status === 200 && t.includes(BRAND.title));
+T('链接卡片图（og:image）在站点发布清单里（11-16：新图没登记，线上落回首页、微信没图）', Object.prototype.hasOwnProperty.call(FILES, BRAND.image.replace(/^\//, '')), BRAND.image);
 console.log(`og: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
