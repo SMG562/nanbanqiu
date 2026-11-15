@@ -114,7 +114,7 @@ function authView(o){if(ME)return o.in?o.in():'';if(sbaWaiting())return o.wait!=
 function sbaRetry(){if(SBA_TRY++<5)setTimeout(sbaRestore,1500*SBA_TRY);else{SBA_WAIT=false;render()}}
 function sbaClosePrompt(){if(typeof $==='function'&&($('#ph')||$('#otp'))){typeof closeSheet==='function'?closeSheet():typeof closeModal==='function'&&closeModal()}}
 function sbaRestore(){if(!SBA.on()||(ME&&!NBQ_STALE))return;if(sbaHandoff()||SBA_HO_BUSY){if(typeof render==='function')render();return}
-  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME&&!NBQ_STALE)return;if(!s){if(SBA.session())sbaRetry();else{SBA_WAIT=false;nbqSnapDrop();render()}return}
+  if(typeof NBQ_NET!=='undefined'&&NBQ_NET){SBA.fresh().then(s=>{if(ME&&!NBQ_STALE)return;if(!s){if(SBA.session())sbaRetry();else{SBA_WAIT=false;nbqSnapDrop();if(typeof hoClear==='function')hoClear();render()}return}   // 登录已失效：页面头部同步写进安装配置的交接码也撤掉（#299）
     return nbqEnter().then(e=>{if(e.st==='ok'){SBA_TRY=0;SBA_WAIT=false;sbaClosePrompt();render();if(SBA_HO_OK){SBA_HO_OK=false;toast('已自动登录');if(typeof pnAfterLogin==='function')setTimeout(pnAfterLogin,600)}}   // 交接登录成功：说一声，接着一步开通知   // 读入成功一定要重画：此时「我」已经被读进来，不能再用 if(ME)return 跳过（11-03：刷新后内存里是登录的、页面却还画着「登录」按钮）
       else if((!ME||NBQ_STALE)&&e.st==='error')sbaRetry();else{SBA_WAIT=false;if(e.st==='new')nbqSnapDrop();render()}})});return}
   SBA.fresh().then(s=>{if(!s||ME)return;const p=SBA.prof(s.uid);if(!p)return;api.login(Object.assign({sb_uid:s.uid},p));render()})}

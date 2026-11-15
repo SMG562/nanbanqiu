@@ -123,6 +123,14 @@ const ROUTES = {
     const code = rnd(32); return { code, expires_at: (await one(q, 'select api_handoff_new($1) as e', [await sha256(code)])).e } }, { body: false }),
   // 退出前作废自己还没用掉的码（不然退出后 24 小时内，之前写进桌面图标的码还能换出登录）。没启用时也返回 200：前台不用区分
   'POST /api/session/handoff/revoke': (req, d, p) => !d.session ? send(200, { ok: true, revoked: 0 }) : act(req, d, p, async q => ({ ok: true, revoked: (await one(q, 'select api_handoff_revoke() as n')).n }), { body: false }),
+  // 本机缓存的码还能不能用（是我的、没用过、还剩 1 小时以上）。Safari 每次打开页面核对一次：桌面图标用掉码之后，Safari 里缓存的还是同一个（已作废的）码，
+  //   再添加一次图标就登录不上（#299 真机反馈）。只读，不改库；没启用 404
+  'POST /api/session/handoff/check': async (req, d) => { if (!d.session) return hoOff();
+    const w = await whoIs(req, d); if (w.err || !w.uid) return send(401, { error: 'login_required' });
+    const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);
+    if (!code || !HO_CODE.test(code)) return send(200, { ok: false });
+    const exp = await d.db.asService(async q => (await q(`select expires_at from login_handoffs where code_hash = $1 and user_id = $2 and used_at is null and expires_at > now() + interval '1 hour'`, [await sha256(code), w.uid])).rows[0]?.expires_at || null);
+    return send(200, exp ? { ok: true, expires_at: exp } : { ok: false }) },
   // 用码换登录（不用登录）：码对、没用过、没过期 → 作废这个码，签一份新的登录；其余一律 401，不说明是哪种不对
   'POST /api/session/redeem': async (req, d) => { if (!d.session) return hoOff();
     const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);

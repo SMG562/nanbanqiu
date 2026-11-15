@@ -47,6 +47,7 @@ export function cityPage(html, city, origin = 'https://nanbanqiu.app') {
     .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${attr(desc)}">`)
     .replace(/<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${attr(t)}">`)
     .replace(/<link rel="manifest" href="[^"]*">/, `<link rel="manifest" href="/${city.slug}/manifest.webmanifest">`)
+    .replace("var h='/manifest.webmanifest'", `var h='/${city.slug}/manifest.webmanifest'`)   // 手机端页面头部的脚本（登录交接）：默认那份也是这个城市的
     .replace('</head>', `<link rel="canonical" href="${origin}/${city.slug}/">\n</head>`);
 }
 

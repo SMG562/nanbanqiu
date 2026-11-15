@@ -106,6 +106,13 @@ try {
   const strict = { ...on, minBuild: '9999999999' };
   const kk = (await call(on, 'POST', '/api/session/handoff', T1)).j, r426 = await call(strict, 'GET', '/api/me', T1), rr = kk && kk.code ? await call(strict, 'POST', '/api/session/redeem', null, { code: kk.code }) : { s: 0 };
   T('设了最低前端版本：普通接口 426，换码照常 200；续期 / 安装配置也不拦', r426.s === 426 && rr.s === 200 && (await call(strict, 'POST', '/api/session/refresh', null, { refresh_token: rr.j.refresh_token })).s === 200 && (await call(strict, 'GET', '/api/manifest?h=' + code)).s === 200, [r426.s, rr.s, kk]);
+  // #299：本机缓存的码还能不能用（Safari 每次打开核对一次）
+  await admin.query(`delete from login_handoffs where user_id = $1`, [U1]);
+  const ck = (await call(on, 'POST', '/api/session/handoff', T1)).j.code, chk = c => call(on, 'POST', '/api/session/handoff/check', T1, { code: c });
+  T('核对：自己的、没用过的码 → ok', (await chk(ck)).j.ok === true);
+  T('核对：要登录；别人拿我的码核对 → 不 ok；格式不对 → 不 ok；没启用 → 404', (await call(on, 'POST', '/api/session/handoff/check', null, { code: ck })).s === 401 && (await call(on, 'POST', '/api/session/handoff/check', T3, { code: ck })).j.ok === false && (await chk('bad')).j.ok === false && (await call(off, 'POST', '/api/session/handoff/check', T1, { code: ck })).s === 404);
+  await call(on, 'POST', '/api/session/redeem', null, { code: ck });
+  T('核对：码被用掉之后 → 不 ok（Safari 据此换新码）；核对本身不消耗码', (await chk(ck)).j.ok === false && (await admin.query(`select count(*)::int n from login_handoffs where user_id = $1`, [U1])).rows[0].n === 1);
   // 安装配置
   r = await call(on, 'GET', '/api/manifest?h=' + code);
   T('带码的安装配置：只有启动网址多了 h，其余不变，不缓存', r.s === 200 && r.j.start_url === '/melbourne/?source=pwa&h=' + code && r.j.id === '/' && r.j.scope === '/' && r.j.display === 'standalone' && /manifest\+json/.test(r.h.get('content-type')) && r.h.get('cache-control') === 'no-store', r);
