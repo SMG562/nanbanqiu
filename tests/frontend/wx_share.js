@@ -58,5 +58,20 @@ const FAKE = '2026-10-14T13:10:00+11:00';
       T('提示条文案：用 Safari 打开 / 不再弹提示', /Safari/.test(tx.tip) && /不再弹提示/.test(tx.tip), tx) }
     await ctx.close();
   }
+  // 分享页载入应用后，标题 / og 不能被应用改回通用的（会执行脚本的抓取方先看到球局标题、随后被覆盖）
+  {
+    const page = await import(require('url').pathToFileURL(path.join(DIR, 'server', 'og', 'page.mjs')).href), siteR = await import(require('url').pathToFileURL(path.join(DIR, 'server', 'site_route.mjs')).href);
+    const G1 = { code: 'Zz9k', o: 0, t: '18:30', v: 'Tennis World', type: 'doubles', spots: 2, lvl: '3.0–4.0', host: 'Han', hu: '4.0' };
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }), pg = await ctx.newPage();
+    await pg.route('https://nanbanqiu.test/**', async r => { const u = new URL(r.request().url());
+      if (u.pathname === '/pwa.html') return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) });
+      const res = await page.sharePage('g', 'Zz9k', new Request(u.href), { ASSETS: { fetch: async () => new Response('x') } }, { games: [G1] });
+      return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: await res.text() }) });
+    await pg.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await pg.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await pg.goto('https://nanbanqiu.test/g/Zz9k'); await pg.settle(1500);
+    const x = await pg.evaluate(() => ({ title: document.title, ogt: (document.querySelector('meta[property="og:title"]') || {}).content, ogd: (document.querySelector('meta[property="og:description"]') || {}).content }));
+    T('分享页载入应用后：页面标题 / og 仍是这条球局的（没被改回通用）', /18:30 · Tennis World/.test(x.title) && /18:30 · Tennis World/.test(x.ogt) && /双打｜发起人 Han/.test(x.ogd), x);
+    await ctx.close();
+  }
   await b.close(); console.log(`wx_share: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1) });

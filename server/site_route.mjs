@@ -22,8 +22,10 @@ const SLUGS = ['melbourne', 'sydney'];
 //   所以页面里不写静态 <link rel="manifest">，由这段同步脚本在原地 document.write 出来：本机有登录（nbq_sb）且缓存的交接码还没过期就直接写带码的那份，否则写默认那份。不发请求、不探测。
 //   壳里写一次，整页载进来后页面头部再写一次（src/pwa/page/0010-开头.html 里是同一段，unit/site_route 核对两处一致；城市页把默认地址换成 /城市/manifest.webmanifest，见 server/routes.mjs）
 export const HO_EARLY = `(function(){var h='/manifest.webmanifest';try{var c=JSON.parse(localStorage.getItem('nbq_ho')||'null');if(c&&/^[A-Za-z0-9_-]{40,64}$/.test(c.code)&&c.exp-Date.now()>36e5&&localStorage.getItem('nbq_sb'))h='/api/manifest?h='+c.code}catch(e){}document.write('<link rel="manifest" href="'+h+'">')})()`;
+// 分享页（头部带这条链接自己的 og:title）：整页 document.write 之后应用会把标题改回通用的「南伴球 · 墨尔本网球约局」、og 标签换回通用那套，
+//   会执行脚本的抓取方（iOS 分享面板 / 微信）先看到球局标题、随后被覆盖（11-16 真机）。所以载入后把壳里的标题和 og / description 写回去。
 export const chooserScript = () => `var t=!!(window.matchMedia&&matchMedia('${TOUCH}').matches),a=(t||(innerWidth||screen.width)<${NARROW})?'/pwa.html':'/web.html';
-fetch(a,{credentials:'same-origin'}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(h){document.open();document.write(h);document.close()}).catch(function(){location.replace(a+location.search+location.hash)})`;
+fetch(a,{credentials:'same-origin'}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(h){window.__nbqS=document.querySelector('meta[property="og:title"]')&&{t:document.title,m:[].map.call(document.querySelectorAll('meta[property^="og:"],meta[name="description"]'),function(e){return e.outerHTML})};document.open();document.write(h);document.close();if(window.__nbqS){var fx=function(){document.title=window.__nbqS.t;window.__nbqS.m.forEach(function(x){var d=document.createElement('div');d.innerHTML=x;var n=d.firstChild,k=n.getAttribute('property')?'property':'name',o=document.querySelector('meta['+k+'="'+n.getAttribute(k)+'"]');o?o.replaceWith(n):document.head.appendChild(n)})};fx();[50,500,1500].forEach(function(ms){setTimeout(fx,ms)})}}).catch(function(){location.replace(a+location.search+location.hash)})`;
 export const chooserHTML = () => `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#176B4D"><title>南伴球</title><link rel="apple-touch-icon" href="/icons/icon-180.png">
