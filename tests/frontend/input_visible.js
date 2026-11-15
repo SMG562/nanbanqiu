@@ -60,17 +60,16 @@ const FLOWS = [
   T('同屏重画：写了 data-keep 且没改默认值 → 保留；故意清空 → 不盖回；没写 data-keep（如聊天发送后清空）→ 一律不恢复', dr2.keep === 'abcdef' && dr2.cleared === '' && dr2.plain === '', dr2);
   T('检查到的输入框数量合理（防止检查失效）', total >= 14, total);
   T('无脚本错误', errs.length === 0, errs);
-  // iOS 26：键盘上方「▲ ▼ ✓」工具条浮在页面上、不算进 visualViewport（11-16 真机：聊天输入栏被它盖住，滚到底也看不到）。
-  //   iOS 26 的 UA 下外壳要再让出 68px，旧版 iOS 不让；输入栏底边必须在让出之后的可见区内。
-  for (const [tag, ua, acc] of [['iOS 26', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1', 68], ['iOS 18', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1', 0]]) {
-    const c2 = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, userAgent: ua }), p2 = await c2.newPage();
-    await p2.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
-    await p2.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p2.route('https://basemaps.cartocdn.com/**', r => r.abort());
-    await p2.goto('https://nanbanqiu.test/'); await p2.waitForTimeout(700);
-    await p2.evaluate(() => { openSheet('<div class="cx-th"><div class="cx-msgs"></div><div class="cx-in"><input id="cxIn"><button>发送</button></div></div>', true) }); await p2.waitForTimeout(500);
-    await p2.setViewportSize({ width: 390, height: 470 }); await p2.focus('#cxIn'); await p2.waitForTimeout(800);
-    const r = await p2.evaluate(() => ({ vv: Math.round(visualViewport.height), dev: Math.round(document.querySelector('.device').getBoundingClientRect().bottom), inp: Math.round(document.querySelector('.cx-in').getBoundingClientRect().bottom) }));
-    T(`${tag}：键盘弹出时外壳底边 = 可视区 − ${acc}，输入栏在其内`, r.dev === r.vv - acc && r.inp <= r.dev, r); await c2.close();
+  // 聊天弹层 + 键盘：可视区矮到 300 时，输入栏也必须在外壳可见区内（11-16 真机：消息区最小高度把输入栏挤出去）
+  for (const h of [470, 300]) {
+    const c3 = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }), p3 = await c3.newPage();
+    await p3.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
+    await p3.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p3.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await p3.goto('https://nanbanqiu.test/'); await p3.waitForTimeout(700);
+    await p3.evaluate(() => { let m = ''; for (let i = 0; i < 14; i++)m += `<div class="cx-m"><p>消息 ${i}</p></div>`; openSheet(`<div class="cx-th"><div class="cx-hd"><div><b>标题</b><small>2 人</small></div></div><div class="cx-msgs">${m}</div><div class="cx-quick"><button>我到了</button></div><div class="cx-in"><input id="cxIn" placeholder="开始聊天"><button>发送</button></div><div class="cx-foot">说明</div></div>`, true) }); await p3.waitForTimeout(500);
+    await p3.setViewportSize({ width: 390, height: h }); await p3.focus('#cxIn'); await p3.waitForTimeout(800);
+    const r = await p3.evaluate(() => { const q = e => document.querySelector(e).getBoundingClientRect(), sh = document.querySelector('.sheet'); return { dev: Math.round(q('.device').bottom), inp: Math.round(q('.cx-in').bottom), top: Math.round(q('.cx-in').top), hd: Math.round(q('.cx-hd').top), over: sh.scrollHeight - sh.clientHeight, sc: sh.scrollTop } });
+    T(`聊天弹层 + 键盘（可视区 ${h}）：不需要滚动（标题和输入栏同时可见），输入栏在外壳内`, r.over <= 1 && r.sc === 0 && r.inp <= r.dev && r.hd > 0, r); await c3.close();
   }
   await b.close();
   console.log(`input_visible: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
