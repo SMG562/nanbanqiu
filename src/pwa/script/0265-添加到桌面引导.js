@@ -47,8 +47,9 @@ function a2hsScreen(k){A2V.k=k;openSheet(a2vHtml(k))}
 function a2hsStep(i){const d=document.querySelector('.a2d');if(!d)return;d.dataset.step=i;document.querySelectorAll('.a2v-c li').forEach((x,k)=>x.classList.toggle('cur',k===i))}
 // 放到桌面 → 怎么做；返回 → 上一屏（「放好了吗」的「再看一遍」回到演示）
 function a2hsNav(d){if(A2V.k==='go'){if(d<0)a2hsScreen('how');return}const seq=['why','how'],i=seq.indexOf(A2V.k);if(i<0)return;const n=seq[i+d];if(n)a2hsScreen(n)}
-// 用户在演示那一屏离开页面（去分享、添加、被带回桌面），再回来：显示「放好了吗？」。只在弹层还开着、停在演示屏时触发；全局只挂一个监听
-const a2vShown=()=>{const e=document.getElementById('sheet');return !!e&&e.classList.contains('show')};
+// 用户在演示那一屏离开页面（去分享、添加、被带回桌面），再回来：显示「放好了吗？」。只在「演示屏正在显示」时触发（离开前后各查一次，中间被换成别的弹层 / 关掉都不触发）；全局只挂一个监听
+// 「演示屏正在显示」：弹层开着、且里面确实是演示（.a2d）。只看 #sheet 开着不够——别的弹层共用 #sheet，A2V.k 在弹层关掉后也不会重置（复核：别的弹层会被误换成「放好了吗」）
+const a2vShown=()=>{const e=document.getElementById('sheet');return !!e&&e.classList.contains('show')&&!!e.querySelector('.a2d')};
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'){A2V.away=A2V.k==='how'&&a2vShown();return}
   if(A2V.away){A2V.away=false;if(A2V.k==='how'&&a2vShown())a2hsScreen('go')}});

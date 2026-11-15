@@ -55,6 +55,17 @@ const UAS = { ios_safari: IOS + 'Version/18.0 Mobile/15E148 Safari/604.1', ios_o
   T('① 在第一屏离开再回来：不出现「放好了吗」', !/放好了吗/.test(t), t);
   await s.click('[data-a="a2hsNext"]'); await s.pg.evaluate(() => closeSheet()); await s.pg.settle(300); await vis('hidden'); await vis('visible'); await s.pg.settle(300);
   T('① 演示屏时弹层已关：离开再回来不重新打开弹层', await s.pg.evaluate(() => !document.querySelector('#sheet').classList.contains('show')));
+  // 复核反例：看完演示关掉、再开别的弹层，离开再回来，别的弹层不能被换成「放好了吗」
+  await s.pg.evaluate(() => { a2hsScreen('how'); closeSheet() }); await s.pg.settle(300);
+  await s.pg.evaluate(() => openSheet('<div id="other">别的弹层</div>')); await s.pg.settle(300);
+  await vis('hidden'); await vis('visible'); await s.pg.settle(300);
+  T('① 演示屏关掉后开了别的弹层：离开再回来，别的弹层原样，不出现「放好了吗」', await s.pg.evaluate(() => !!document.querySelector('#sheet #other') && !/放好了吗/.test(document.querySelector('#sheet').innerText)), await s.txt());
+  await s.pg.evaluate(() => { closeSheet(); a2hsScreen('how'); openSheet('<div id="other2">直接换成别的弹层</div>') }); await s.pg.settle(300);
+  await vis('hidden'); await vis('visible'); await s.pg.settle(300);
+  T('① 演示屏没关、被直接换成别的弹层：离开再回来，同样不出现「放好了吗」', await s.pg.evaluate(() => !!document.querySelector('#sheet #other2') && !/放好了吗/.test(document.querySelector('#sheet').innerText)));
+  await s.pg.evaluate(() => { closeSheet(); a2hsScreen('how') }); await s.pg.settle(300);
+  await vis('hidden'); await s.pg.evaluate(() => openSheet('<div id="other3">离开期间被换掉</div>')); await vis('visible'); await s.pg.settle(300);
+  T('① 离开期间演示屏被换成别的弹层：回来也不出现「放好了吗」', await s.pg.evaluate(() => !!document.querySelector('#sheet #other3') && !/放好了吗/.test(document.querySelector('#sheet').innerText)));
   await s.pg.evaluate(() => a2hsScreen('go')); await s.pg.settle(300); await s.click('[data-a="a2hsDone"]');
   T('③ 点「好的」：记下「我已添加」、弹层收起', await s.pg.evaluate(() => !!localStorage.getItem('nbq_a2hs_ok') && !document.querySelector('#sheet').classList.contains('show')));
   T('① 没有脚本错误', s.errs.length === 0, s.errs); await s.ctx.close();
