@@ -72,6 +72,8 @@
 @keyframes a2bob{0%,100%{transform:translateY(0)}35%{transform:translateY(-8px)}}
 .a2v-dock{position:absolute;left:12px;right:12px;bottom:10px;height:50px;border-radius:20px;background:rgba(255,255,255,.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 @media (max-height:760px){.a2d{height:206px}.a2v-home{height:150px}.a2v-dock{display:none}.a2v-ic{width:68px;height:68px}.a2v-t{margin-top:12px}}
-@media (prefers-reduced-motion:reduce){
-  .a2d *,.a2d *::after,.a2v-c li,.a2v-c .hl,.a2v-c u,.a2v-home .me{animation:none!important}
-  .a2d-pop{opacity:1;transform:none}.a2v-c li{opacity:1}}
+@media (prefers-reduced-motion:reduce){   /* 不自动播放：点哪一条步骤，演示就停在哪一步，三步都看得到 */
+  .a2d *,.a2d *::after,.a2v-c li,.a2v-c .hl,.a2v-c u,.a2v-home .me{animation:none!important;transition:none!important}
+  .a2d-pop{opacity:0;transform:none}.a2d[data-step="0"] .a2d-pop{opacity:1}
+  .a2d[data-step="1"] .a2d-shs,.a2d[data-step="2"] .a2d-dlg{transform:none}
+  .a2v-c li{opacity:.5;cursor:pointer}.a2v-c li.cur{opacity:1}.a2v-c li.cur .hl,.a2v-c li.cur u{opacity:1}}

@@ -15,7 +15,7 @@ const A2V_SHARE=a2vSvg('<path d="M12 15V3.5M8 7l4-4 4 4"/><path d="M7 10H6a1.5 1
   A2V_MARK=a2vSvg('<path d="M6 4h12v17l-6-4-6 4z"/>'),A2V_FIND=a2vSvg('<circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/>'),
   A2V_COPY=a2vSvg('<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>'),A2V_PLUS=a2vSvg('<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8.5v7M8.5 12h7"/>');
 function a2vHow(){return `<h2 class="a2v-t sm">三步，放到桌面</h2><p class="a2v-s tight">手机最下面那一排，约 15 秒</p>
-  <div class="a2d" aria-hidden="true"><div class="a2d-pg"><i></i><i></i><i></i><i></i></div>
+  <div class="a2d" data-step="0" aria-hidden="true"><div class="a2d-pg"><i></i><i></i><i></i><i></i></div>
     <div class="a2d-bar"><span class="a2d-lp gl">${a2vSvg('<path d="m14.5 5.5-6 6.5 6 6.5"/>')}${a2vSvg('<path d="m9.5 5.5 6 6.5-6 6.5"/>')}</span>
       <span class="a2d-url gl"><span class="a2d-mb">${a2vSvg('<path d="M5 7.5h14M5 12h14M5 16.5h14"/>')}</span><em>nanbanqiu.app</em></span>
       <span class="a2d-rp gl">${a2vSvg('<rect x="4" y="6" width="12" height="12" rx="2.5"/><path d="M8 3h10a2 2 0 0 1 2 2v10"/>')}</span></div>
@@ -25,7 +25,7 @@ function a2vHow(){return `<h2 class="a2v-t sm">三步，放到桌面</h2><p clas
       <div class="a2d-sw">${a2vSvg('<path d="m6 14 6-6 6 6"/>')}上滑</div></div>
     <div class="a2d-dlg"><div class="a2d-top"><span class="c">取消</span><span class="t">添加到主屏幕</span><span class="ad">添加</span></div>
       <div class="a2d-app"><img src="/icons/icon-180.png" alt=""><div><b>南伴球</b><span>nanbanqiu.app</span></div></div></div></div>
-  <ol class="a2v-c">${A2V_STEPS.map((t,i)=>`<li><span class="hl"></span><i><u>${i+1}</u>${i+1}</i><b>${t}</b></li>`).join('')}</ol>
+  <ol class="a2v-c">${A2V_STEPS.map((t,i)=>`<li class="${i?'':'cur'}" data-a="a2hsStep" data-i="${i}"><span class="hl"></span><i><u>${i+1}</u>${i+1}</i><b>${t}</b></li>`).join('')}</ol>
   <button class="a2v-l" data-a="a2hsBack">返回</button>`}
 function a2vHtml(k){
   if(k==='open'){const inapp=a2hsKind()==='inapp';
@@ -43,6 +43,8 @@ function a2vHtml(k){
     <ul class="a2v-p">${A2V_PERKS.map(p=>`<li><span class="g">${a2vSvg(A2V_G[p[0]])}</span><div><b>${p[1]}</b><span>${p[2]}</span></div></li>`).join('')}</ul></div>
     <div style="height:14px"></div><button class="btn btn-p" data-a="a2hsNext">放到桌面</button><button class="a2v-l" data-a="close">以后再说</button>`}
 function a2hsScreen(k){A2V.k=k;openSheet(a2vHtml(k))}
+// 开了「减少动态效果」时演示不自动播放：点哪一条步骤，演示就停在哪一步（样式见 0165 的 reduced-motion 段；正常模式点了没有可见变化）
+function a2hsStep(i){const d=document.querySelector('.a2d');if(!d)return;d.dataset.step=i;document.querySelectorAll('.a2v-c li').forEach((x,k)=>x.classList.toggle('cur',k===i))}
 // 放到桌面 → 怎么做；返回 → 上一屏（「放好了吗」的「再看一遍」回到演示）
 function a2hsNav(d){if(A2V.k==='go'){if(d<0)a2hsScreen('how');return}const seq=['why','how'],i=seq.indexOf(A2V.k);if(i<0)return;const n=seq[i+d];if(n)a2hsScreen(n)}
 // 用户在演示那一屏离开页面（去分享、添加、被带回桌面），再回来：显示「放好了吗？」。只在弹层还开着、停在演示屏时触发；全局只挂一个监听

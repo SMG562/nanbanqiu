@@ -89,6 +89,7 @@ DEV.addEventListener('click',e=>{
     case'a2hsGo':if(A2HS_EV){const ev=A2HS_EV;ev.prompt();ev.userChoice.then(r=>{A2HS_EV=null;closeSheet();if(r&&r.outcome==='accepted')toast('已添加到主屏幕')},()=>{})}break;
     case'a2hsNext':a2hsNav(1);break;
     case'a2hsBack':a2hsNav(-1);break;
+    case'a2hsStep':a2hsStep(+a.dataset.i);break;
     case'a2hsLink':copy(location.href.split('#')[0],'链接已复制，到 Safari 粘贴打开');break;
     case'logout':sbaLogout();ME=null;toast('已退出登录');render();break;
     case'create':closeDetail();openCreate();break;

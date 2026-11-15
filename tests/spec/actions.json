@@ -71,6 +71,7 @@
   "a:a2hsDone": "local",
   "a:a2hsNext": "local",
   "a:a2hsBack": "local",
+  "a:a2hsStep": "local",
   "sx:endSeries": "baseline",
   "sx:impPick": "write:e2e_fullstack",
   "sx:softNoGo": "baseline",

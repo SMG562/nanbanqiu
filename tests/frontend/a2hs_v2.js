@@ -79,7 +79,11 @@ const UAS = { ios_safari: IOS + 'Version/18.0 Mobile/15E148 Safari/604.1', ios_o
   // ⑥ 减少动态效果：演示不动
   s = await mk(UAS.ios_safari, true, { width: 390, height: 844 }, true); await s.open(); await s.click('[data-a="a2hsNext"]');
   const rm = await s.pg.evaluate(() => ({ shs: getComputedStyle(document.querySelector('.a2d-shs')).animationName, pop: getComputedStyle(document.querySelector('.a2d-pop')).opacity, li: getComputedStyle(document.querySelector('.a2v-c li')).animationName, liop: getComputedStyle(document.querySelector('.a2v-c li')).opacity }));
-  T('⑥ 开了「减少动态效果」：演示和说明条都不动，菜单固定显示，三条说明都清楚可读', rm.shs === 'none' && rm.pop === '1' && rm.li === 'none' && rm.liop === '1', rm); await s.ctx.close();
+  T('⑥ 开了「减少动态效果」：演示不自动播放，默认停在第一步（菜单显示、第一条高亮）', rm.shs === 'none' && rm.pop === '1' && rm.li === 'none' && rm.liop === '1', rm);
+  const st = async i => { await s.click(`.a2v-c li[data-i="${i}"]`); return s.pg.evaluate(() => { const g = (q, k) => getComputedStyle(document.querySelector(q))[k]; return { step: document.querySelector('.a2d').dataset.step, pop: g('.a2d-pop', 'opacity'), shs: g('.a2d-shs', 'transform'), dlg: g('.a2d-dlg', 'transform'), cur: [...document.querySelectorAll('.a2v-c li')].map(x => x.classList.contains('cur')) } }) };
+  const s1 = await st(1), s2 = await st(2), s0 = await st(0);
+  T('⑥ 减少动态效果：点第 2 条 → 分享面板出现、菜单收起；点第 3 条 → 「添加到主屏幕」页出现；点第 1 条回到菜单（三步都看得到）', s1.step === '1' && s1.pop === '0' && s1.shs === 'none' && JSON.stringify(s1.cur) === '[false,true,false]' && s2.step === '2' && s2.dlg === 'none' && JSON.stringify(s2.cur) === '[false,false,true]' && s0.step === '0' && s0.pop === '1' && s0.shs !== 'none', [s1, s2, s0]);
+  await s.ctx.close();
 
   // ⑦ 小屏不横向溢出
   s = await mk(UAS.ios_safari, true, { width: 320, height: 568 }); await s.open();
