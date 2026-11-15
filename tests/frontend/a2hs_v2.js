@@ -39,9 +39,12 @@ const UAS = { ios_safari: IOS + 'Version/18.0 Mobile/15E148 Safari/604.1', ios_o
   T('⑥ 演示在动：分享面板、说明条都是 9 秒一圈的 CSS 动画，第 2、3 条依次错开 3 秒（负延迟，开头就是暗的）', an.shs !== 'none' && an.dur === '9s' && an.cap2 === '-6s' && an.cap3 === '-3s', an);
   T('⑥ 高亮只用透明度叠层（iOS 上 background / color 的关键帧不可靠，真机截图里曾没高亮）', an.hl === 'a2hl' && an.u === 'a2hl' && !/background|color/.test(await s.pg.evaluate(() => [...document.styleSheets].flatMap(x => { try { return [...x.cssRules] } catch (_) { return [] } }).filter(r => r.name === 'a2cap' || r.name === 'a2hl').map(r => r.cssText).join(' '))), an);
   T('⑤ 翻页不重复埋点、不再调 hoGuide', await s.pg.evaluate(() => window.__tr.filter(x => x === 'a2hs_open').length === 1 && window.__hg === 1));
+  T('⑤ 点「放到桌面」发 a2hs_go 一次；回到页面前还没有 a2hs_back', await s.pg.evaluate(() => window.__tr.filter(x => x === 'a2hs_go').length === 1 && !window.__tr.includes('a2hs_back')), await s.pg.evaluate(() => window.__tr));
   // 离开页面（去分享、添加、被带回桌面）再回来 → 「放好了吗？」
   const vis = v => s.pg.evaluate(v => { Object.defineProperty(document, 'visibilityState', { get: () => v, configurable: true }); document.dispatchEvent(new Event('visibilitychange')) }, v);
   await vis('hidden'); await vis('visible'); await s.pg.settle(300); t = await s.txt();
+  T('⑤ 「放好了吗」出现时发 a2hs_back 一次', await s.pg.evaluate(() => window.__tr.filter(x => x === 'a2hs_back').length === 1), await s.pg.evaluate(() => window.__tr));
+  T('⑨ /api/me 说从桌面图标打开过：永久算已添加（不看 14 天）；没说 / 说 false 仍走 14 天', await s.pg.evaluate(() => { const k = 'nbq_a2hs_ok'; try { localStorage.removeItem(k) } catch (_) { } const m = ME; ME = { installed: true }; const a = a2hsAdded(); ME = { installed: false }; const b = a2hsAdded(); ME = m; return a === true && b === false }));
   T('① 在演示屏离开页面再回来：显示「放好了吗？」，有桌面示意和「好的」', /放好了吗/.test(t) && /回到桌面，点南伴球/.test(t) && /好的/.test(t) && await s.pg.evaluate(() => !!document.querySelector('.a2v-home .me img')), t);
   T('⑧ 登录交接没就绪：写「登录一次，之后都不用再登录」', /登录一次，之后都不用再登录/.test(t) && !/自动登录/.test(t), t);
   await s.pg.evaluate(() => { HO_READY = true; a2hsScreen('go') }); await s.pg.settle(300); t = await s.txt();

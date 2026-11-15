@@ -52,7 +52,7 @@ const eP = evNames(H.pwa), eW = evNames(H.web);
 const SIDE = [...new Set(rows.filter(r => r[1] === '场边').map(r => r[0]))];
 const quoted = (h, x) => new RegExp(`['"]${x}['"]`).test(h);   // 另一端用别的写法发（如 ['report_open',{…}]）也算有
 const onlyP = [...eP].filter(x => !eW.has(x) && !quoted(H.web, x)), onlyW = [...eW].filter(x => !eP.has(x) && !quoted(H.pwa, x));
-T('两端代码里的事件名一致（只允许 map_day 只在网页）', onlyP.length === 0 && onlyW.every(x => x === 'map_day'), { onlyP, onlyW });
+T('两端代码里的事件名一致（只允许 map_day 只在网页；a2hs_go / a2hs_back 是手机端添加引导专有，网页端没有这个流程）', onlyP.every(x => x === 'a2hs_go' || x === 'a2hs_back') && onlyW.every(x => x === 'map_day'), { onlyP, onlyW });
 T('场边类事件两端代码里都发出（字典有、代码没有 = 漏了）', SIDE.length === 12 && SIDE.every(x => eP.has(x) && eW.has(x)), SIDE.filter(x => !eP.has(x) || !eW.has(x)));
 const demos = h => [...h.matchAll(/data-demo="([a-z0-9_]+)"/g)].map(m => m[1]).join(',');
 T('两端演示菜单相同（内容与顺序）', demos(H.pwa) === demos(H.web), { pwa: demos(H.pwa), web: demos(H.web) });

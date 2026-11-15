@@ -20,6 +20,8 @@
 | pwa_installed | 安装 | C | 安装完成 | os |
 | pwa_first_launch | 安装 | C | 第一次从主屏幕打开 | os |
 | a2hs_open | 安装 | C | 打开「添加到主屏幕」引导 | env |
+| a2hs_go | 安装 | C | 引导第一屏点「放到桌面」 | — |
+| a2hs_back | 安装 | C | 从添加步骤回到页面，看到「放好了吗」 | — |
 | analytics_off | 隐私 | C | 关闭使用数据（发完这一条后停止） | — |
 | analytics_on | 隐私 | C | 重新打开使用数据 | — |
 | login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/...) |

@@ -213,6 +213,9 @@
 
 ## 3. 我的资料
 
+### GET /api/me · 新增只读返回字段 `installed`（11-15，`api_me_installed()`，只加不改，ADR 0013）
+- `installed: boolean`：这个人有没有从主屏幕图标打开过（服务器记的 `sessions.standalone`）。前台读到 true 就永久记「已添加到桌面」；旧前台忽略。
+
 ### PATCH /api/me · 直接 update users（行级权限只允许改资料类的列）
 - 可改：nickname（1–20 字）、last_initial、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
 - 不可改：status、level、member_no、手机号、utr / utr_estimated（11-07 起只走 PUT /api/me/utr）等 → 403 `forbidden`
