@@ -17,7 +17,7 @@ T('改写：标题换掉、引号和尖括号转义', /<meta property="og:title"
 T('改写：缺的标签补上（描述 / url / site_name），不重复', /og:description" content="d"/.test(R) && /og:url" content="https:\/\/e\/g\/1"/.test(R) && /og:site_name" content="南伴球"/.test(R) && (R.match(/og:title/g) || []).length === 1 && (R.match(/og:image/g) || []).length === 1);
 const D = { games: [G], users: [{ no: 7, name: 'Grace Lin', ntrp: '3.5' }] };
 const c1 = cardFor('g', 'x', D, 'https://nanbanqiu.app', '/g/x', NOW);
-T('分享码对得上：球局自己的卡片，图片是同域名的图标', c1.title === ogTitle(G, NOW) && c1.image === 'https://nanbanqiu.app/icons/icon-512.png' && c1.url === 'https://nanbanqiu.app/g/x', c1);
+T('分享码对得上：球局自己的卡片，图片是同域名的图标', c1.title === ogTitle(G, NOW) && c1.image === 'https://nanbanqiu.app/icons/og-share.jpg' && c1.url === 'https://nanbanqiu.app/g/x', c1);
 const c2 = cardFor('g', 'nope', D, 'https://nanbanqiu.app', '/g/nope', NOW);
 T('分享码不存在：品牌通用卡片（不报错、不露别的球局）', c2.title === BRAND.title && c2.desc === BRAND.desc, c2);
 const c3 = cardFor('p', '0007', D, 'https://nanbanqiu.app', '/p/0007', NOW);

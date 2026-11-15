@@ -1,7 +1,7 @@
 // 分享链接卡片（微信 / iMessage / 小红书等抓取 /g/码、/p/编号 时看到的标题、描述、缩略图）。
 // 纯函数，Node 和 Cloudflare Pages Functions 共用；文案规则必须和前台 ogTitle / ogDesc 一致（tests/frontend/og_parity 逐个核对）。
 // 数据：预览站用 demo_data.json（演示数据快照，tools/og_demo.mjs 生成）；正式版改成从数据库按分享码读同样的字段。
-export const BRAND = { title: '南伴球 · 墨尔本网球约局', desc: '找到同水平的网球搭子，申请加入附近球局', image: '/icons/icon-512.png' };
+export const BRAND = { title: '南伴球 · 墨尔本网球约局', desc: '找到同水平的网球搭子，申请加入附近球局', image: '/icons/og-share.jpg' };
 const WD = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'], TYPE = { singles: '单打', doubles: '双打', rally: '拉球' };
 const TZ = 'Australia/Melbourne';
 
