@@ -31,7 +31,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
         Object.defineProperty(navigator, 'clipboard', { value: { writeText: t => { window.__cp = t; return Promise.resolve() } }, configurable: true });
         if (mode === 'none') Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
         else Object.defineProperty(navigator, 'share', { value: d => { window.__sh = d; window.__tt = document.title; return mode === 'ok' ? Promise.resolve() : Promise.reject(Object.assign(new Error('x'), { name: mode })) }, configurable: true });
-        openShare('g1'); document.querySelector('[data-a="wxShare"]').click(); await new Promise(r => setTimeout(r, 300));
+        openShare('g1'); document.querySelector('[data-a="wxShare"]').click(); await new Promise(r => setTimeout(r, 700));
         const c = api.get('g1'); return { tt: window.__tt, back: document.title, sh: window.__sh, cp: window.__cp, og: document.querySelector('meta[property="og:title"]').content, ogd: document.querySelector('meta[property="og:description"]').content, wxg: !document.getElementById('wxg').hidden && /发送给朋友/.test(document.getElementById('wxg').textContent), title: ogTitle(c), code: c.share_code } }, [mode, env]);
       let r = await run('ok');
       T('点「发到微信群」：弹系统分享，只带标题和链接（不带文字，微信才出卡片）', r.sh && r.sh.title === r.title && /^https:\/\/nanbanqiu\.app\/g\/[\w]+\?s=wx/.test(r.sh.url) && !('text' in r.sh) && r.cp === null, r);
