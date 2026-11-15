@@ -167,6 +167,25 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   await s.pg.evaluate(() => { window.__before = true; openA2HS() }); await s.pg.settle(1500);
   T('⑧ 缓存的码还有效：开步骤页不刷新', await s.pg.evaluate(() => window.__before === true && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'))); await s.ctx.close();
 
+  // ⑧b 本机有登录、页面打开时没带码（比如码过期了）：不静默刷新；打开「添加到主屏幕」步骤页才刷新一次，并自动回到步骤页（hoGuide，兜底）
+  const bare = () => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' })) } catch (_) { } };
+  s = await open(IOS, 'https://nanbanqiu.app/', { init: bare }); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME && /\/api\/manifest\?h=/.test(document.querySelector('link[rel="manifest"]').getAttribute('href')), null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(1200);
+  T('⑧b 打开时没带码：换好了新码，但页面没有自己刷新', await s.pg.evaluate(() => HO_AT_LOAD === '/manifest.webmanifest') && await s.man() === '/api/manifest?h=' + CODE, [await s.man()]);
+  await s.pg.evaluate(() => { window.__before = true; openA2HS() });
+  await s.pg.waitForFunction(() => !window.__before && typeof ME !== 'undefined' && !!ME && !!document.querySelector('#sheet.show [data-a="a2hsDone"]'), null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(300);
+  T('⑧b 打开步骤页：刷新一次、自动回到步骤页，刷新后加载那一刻就带码', await s.pg.evaluate(() => !window.__before && !!document.querySelector('#sheet.show [data-a="a2hsDone"]') && /\/api\/manifest\?h=/.test(HO_AT_LOAD)));
+  await s.pg.evaluate(() => { closeSheet(); window.__before = true; openA2HS() }); await s.pg.settle(1500);
+  T('⑧b 安装配置已经是对的：再开步骤页不刷新', await s.pg.evaluate(() => window.__before === true)); await s.ctx.close();
+
+  // ⑧c 同一标签页：带码打开 → 退出 → 再登录（登录后还有事要做）：不能静默刷新（刷新会吃掉要做的事）
+  { const init = ([code]) => { try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)) } catch (_) { } try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' })); if (!localStorage.getItem('nbq_ho')) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { } };
+    s = await open(IOS, 'https://nanbanqiu.app/', { init, initArg: [CODE] }); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME && /\/api\/manifest\?h=/.test(HO_AT_LOAD), null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(800);
+    await s.pg.evaluate(() => { closeSheet(); sbaLogout(); render() }); await s.pg.settle(600); s.S.code = 'M'.repeat(43);   // 再登录要到的是另一个码（和页面打开时带的不同）
+    await s.pg.evaluate(() => { try { sessionStorage.setItem('nbq_a2hs_first', '1') } catch (_) { } openAuth(() => { window.__nx = 1 }) }); await s.pg.fill('#ph', '0412 345 678'); await s.pg.click('[data-a="sendCode"]'); await s.pg.waitForFunction(() => { const o = document.getElementById('otp'); return !!o && typeof o.oninput === 'function' }); await s.pg.fill('#otp', '123456');
+    await s.pg.waitForFunction(() => window.__nx === 1, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(2000);
+    T('⑧c 退出再登录（有接着要做的事）：不刷新，接着做', await s.pg.evaluate(() => window.__nx === 1 && sessionStorage.getItem('__ld') === '1'), await s.pg.evaluate(() => sessionStorage.getItem('__ld')));
+    T('⑧c 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
+
   // ⑥ 带码的安装配置取不到（接口 404 / 抖动）：保持原样，不把「添加到主屏幕」弄坏
   s = await open(IOS, 'https://nanbanqiu.app/', { manifest: 404 }); await s.login(); await s.pg.settle(800);
   T('⑥ 探测不到带码的安装配置：不换', s.S.n === 1 && await s.man() === '/manifest.webmanifest' && !s.errs.length, [s.S.n, await s.man(), s.errs]); await s.ctx.close();
