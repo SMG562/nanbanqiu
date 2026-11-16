@@ -16,6 +16,8 @@ const H = '<head><title>旧</title><meta property="og:title" content="旧标题"
 const R = rewriteHead(H, { title: 'A "引号" <b> & c', desc: 'd', image: 'https://e/i.png', url: 'https://e/g/1' });
 T('改写：标题换掉、引号和尖括号转义', /<meta property="og:title" content="A &quot;引号&quot; &lt;b&gt; &amp; c">/.test(R) && !/旧标题/.test(R) && /<title>A &quot;引号&quot; &lt;b&gt; &amp; c<\/title>/.test(R), R);
 T('改写：缺的标签补上（描述 / url / site_name），不重复', /og:description" content="d"/.test(R) && /og:url" content="https:\/\/e\/g\/1"/.test(R) && /og:site_name" content="南伴球"/.test(R) && (R.match(/og:title/g) || []).length === 1 && (R.match(/og:image/g) || []).length === 1);
+const R2 = rewriteHead(H, { title: "Park $' $& $`", desc: 'd$&', image: 'i', url: 'u' });
+T('改写：用户输入里的 $\' $& 不被当替换模式（文档不被塞进标签）', R2.includes("content=\"Park $' $&amp; $`\"") && (R2.match(/<body>/g) || []).length === 1 && R2.length < H.length + 600, R2);
 const D = { games: [G], users: [{ no: 7, name: 'Grace Lin', ntrp: '3.5' }] };
 const c1 = cardFor('g', 'x', D, 'https://nanbanqiu.app', '/g/x', NOW);
 T('分享码对得上：球局自己的卡片，图片是同域名的图标', c1.title === ogTitle(G, NOW) && c1.image === 'https://nanbanqiu.app/icons/og-share.jpg' && c1.url === 'https://nanbanqiu.app/g/x', c1);

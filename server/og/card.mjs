@@ -25,14 +25,14 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replac
 export function rewriteHead(html, m) {
   const set = (h, attr, name, val) => {
     const re = new RegExp(`<meta ${attr}="${name}"[^>]*>`, 'i'), tag = `<meta ${attr}="${name}" content="${esc(val)}">`;
-    return re.test(h) ? h.replace(re, tag) : h.replace(/<\/head>/i, tag + '\n</head>');
+    return re.test(h) ? h.replace(re, () => tag) : h.replace(/<\/head>/i, () => tag + '\n</head>');
   };
   let h = html;
   h = set(h, 'property', 'og:title', m.title); h = set(h, 'property', 'og:description', m.desc);
   h = set(h, 'property', 'og:image', m.image); h = set(h, 'property', 'og:url', m.url);
   h = set(h, 'property', 'og:type', 'website'); h = set(h, 'property', 'og:site_name', '南伴球');
   h = set(h, 'name', 'description', m.desc); h = set(h, 'name', 'twitter:card', 'summary');
-  return h.replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(m.title)}</title>`);
+  return h.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${esc(m.title)}</title>`);
 }
 
 // 接口返回的球局（GET /api/game 匿名版）→ 卡片用的那一套字段；时间按墨尔本算

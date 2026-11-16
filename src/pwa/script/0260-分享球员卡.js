@@ -124,7 +124,7 @@ function wxShare(id){const c=api.get(id);setOg(c);
   if(ENV==='wechat'){closeSheet();openWxShareGuide();return}
   const fb=()=>copy(shareText(c),'已复制，去微信群粘贴');
   // iOS 分享面板把「当前页面标题」交给微信（不认 share() 的 title 参数）：分享前临时换成球局标题，结束后还原
-  const t0=document.title,back=()=>{document.title=t0};document.title=ogTitle(c);
+  const t0=window.__wxT0||(window.__wxT0=document.title),back=()=>{document.title=t0;window.__wxT0=0};document.title=ogTitle(c);
   // 标签页标题要先生效（Safari 读的是它，不是 document.title 的瞬时值）：等 350ms 再弹面板，仍在点击后的有效时间内
   if(navigator.share)setTimeout(()=>navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()}).finally(back),350);else{back();fb()}}
 function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
