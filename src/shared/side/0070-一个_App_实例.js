@@ -72,8 +72,8 @@ function App(el,init){
   const meV=()=>typeof ME!=='undefined'&&ME?ME:{home_club_ids:[]};
   const pool=()=>Object.values(VEN).filter(v=>!v.custom||v.owner===meV().id);
   // 真实球场用「简称」当键（帖子 / 提示 / 标签直接显示键，不能是内部编号）；和演示球场或别的球场重名时加区名
-  const courtOf=v=>{let k=v.short;if(COURTS[k]&&COURTS[k].vid!==v.id)k=v.short+' · '+v.suburb;if(!COURTS[k])COURTS[k]={n:v.short,area:v.suburb,f:[],games:'',v:1,vid:v.id};if(hereOK())KM[k]=km(LOC,v);return k};
-  const locSub=(k,g)=>g==='here'?'你在这里':COURTS[k].v?[COURTS[k].area,KM[k]!=null&&hereOK()?fkm(KM[k]):''].filter(Boolean).join(' · '):fkm(KM[k]);
+  const courtOf=v=>{let k=v.short;if(COURTS[k]&&COURTS[k].vid!==v.id)k=v.short+' · '+v.suburb;if(COURTS[k]&&COURTS[k].vid!==v.id)k+=' #'+v.id;if(!COURTS[k])COURTS[k]={n:v.short,area:v.suburb,f:[],games:'',v:1,vid:v.id};if(hereOK())KM[k]=km(LOC,v);return k};
+  const locSub=(k,g)=>g==='here'?'你在这里':COURTS[k].v?[esc(COURTS[k].area),KM[k]!=null&&hereOK()?fkm(KM[k]):''].filter(Boolean).join(' · '):fkm(KM[k]);
   const locGroups=cur=>{const seen=new Set(),G=[];const take=(ks,g,l,n)=>{let a=ks.filter(k=>k&&COURTS[k]&&!seen.has(k));if(n)a=a.slice(0,n);a.forEach(k=>seen.add(k));if(a.length)G.push({g,l,a})};
     if(real()){take((meV().home_club_ids||[]).filter(i=>VEN[i]).map(i=>courtOf(VEN[i])),'mine','我的球场');
       if(hereOK())take(pool().sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,5).map(courtOf),'near','附近');take([cur],'cur','已选');return G}
