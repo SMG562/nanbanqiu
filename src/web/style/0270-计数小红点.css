@@ -1,4 +1,4 @@
-.btn-new{height:36px!important;border-radius:99px!important;padding:0 16px 0 13px!important;margin-right:6px}
+.btn-new{height:36px!important;border-radius:999px!important;padding:0 16px 0 13px!important;margin-right:6px}
 [data-cx=inbox].iconbtn,[data-a=notif].iconbtn{width:36px;height:36px;border-radius:50%;color:#4B564E}
 [data-cx=inbox].iconbtn:hover,[data-a=notif].iconbtn:hover{background:#F0F3F0}
 [data-cx=inbox].iconbtn svg,[data-a=notif].iconbtn svg{width:20px;height:20px}

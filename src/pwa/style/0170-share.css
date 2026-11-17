@@ -25,7 +25,7 @@
 .ogA .a-time{font-size:13px;color:#888;letter-spacing:.08em;font-weight:600}
 .ogA .a-place{font-size:34px;font-weight:800;letter-spacing:-.02em;margin:8px 0 2px;line-height:1.05}
 .ogA .a-venue{color:#555}
-.ogA .a-tag{display:inline-block;margin-top:12px;background:var(--gss);color:var(--g);font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:99px}
+.ogA .a-tag{display:inline-block;margin-top:12px;background:var(--gss);color:var(--g);font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:999px}
 .ogA .a-line{height:1px;background:#eee;margin:16px 0}
 .ogA .a-need{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
 .ogA .a-need i{width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 4px #F1FAD2}

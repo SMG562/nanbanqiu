@@ -28,7 +28,7 @@
 .dots{display:flex;gap:3px}
 .dots i{width:8px;height:8px;border-radius:50%;background:var(--g)}
 .dots i.o{background:transparent;border:1.5px solid #B9C1B9}
-.tagx{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;white-space:nowrap}
+.tagx{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
 .gc.hot .tagx{background:#EEF8C8;color:#3F5600}
 .gc.mine{background:var(--g);border-color:var(--g);color:#fff}
 .gc.mine::before{background:var(--lime)}

@@ -3,7 +3,7 @@
  "pwa": {
   "colors": 237,
   "fontSizes": 33,
-  "radii": 25,
+  "radii": 24,
   "shadows": 69,
   "zIndex": 19,
   "reducedMotion": 5,
@@ -13,7 +13,7 @@
  "web": {
   "colors": 232,
   "fontSizes": 35,
-  "radii": 22,
+  "radii": 21,
   "shadows": 64,
   "zIndex": 20,
   "reducedMotion": 4,

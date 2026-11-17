@@ -3,6 +3,6 @@
 .em-l{display:flex;flex-direction:column;margin-top:12px;border-radius:14px;background:#F4F7F5;padding:2px 14px}
 .em-t{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 0;border:0;background:none;font:inherit;font-size:14px;color:#1F2A23;text-align:left;cursor:pointer}
 .em-t+.em-t{border-top:1px solid #E6EAE6}
-.em-t i{flex:none;width:40px;height:24px;border-radius:99px;background:#D5DAD5;position:relative;transition:background .15s}
+.em-t i{flex:none;width:40px;height:24px;border-radius:999px;background:#D5DAD5;position:relative;transition:background .15s}
 .em-t i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
 .em-t.on i{background:#176B4D}.em-t.on i::after{transform:translateX(16px)}

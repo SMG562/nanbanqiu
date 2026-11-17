@@ -13,8 +13,8 @@
 .lvbox{background:#fff;border-radius:18px;padding:14px 16px;margin-top:14px}
 .lvbox .t{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--mut)}
 .lvbox .t b{font-size:15px;color:var(--ink)}
-.lvbar{height:9px;border-radius:99px;background:#E7ECE7;overflow:hidden;margin:9px 0 6px}
-.lvbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--g),#7DC243)}
+.lvbar{height:9px;border-radius:999px;background:#E7ECE7;overflow:hidden;margin:9px 0 6px}
+.lvbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--g),#7DC243)}
 .lvsteps{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut)}
 .lvsteps span.on{color:var(--g);font-weight:700}
 .bdgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 6px}
