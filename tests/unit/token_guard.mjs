@@ -48,5 +48,6 @@ T('钩子：SessionStart 注入常驻规矩', /不订阅/.test(run(JSON.stringif
 T('settings.json 接了订阅拦截与 SessionStart 注入', /subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && JSON.stringify(st.hooks.SessionStart).includes('role_guard.mjs'));
 const L = await import(pathToFileURL(path.join(DIR, 'tools/lib/lessons_digest.mjs')));
 T('经验收集：只抓踩坑 / 教训行并去标记；重复的识别出来', (p => p.length === 2 && !/\*/.test(p[0]) && L.dupes([...p, p[0]]).length === 1)(L.pitfalls(['**踩过的坑**：A 别重踩\n无关行', '第二次出现 B'])));
+T('规则体检：取 #号 / 脚本名为证据；老且没用到才算候选删除', JSON.stringify(L.ruleKeys('1. 见 #333 与 `ci_wait.sh`')) === JSON.stringify(['#333', 'ci_wait.sh']) && L.stale(40, 0) && !L.stale(40, 1) && !L.stale(10, 0));
 T('技能 §十一 点名 lessons_digest.mjs 与「净增 ≤ 0」', /lessons_digest\.mjs/.test(sk) && /净增行数必须 ≤ 0/.test(sk));
 console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
