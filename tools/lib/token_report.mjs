@@ -4,7 +4,7 @@ import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 const M = n => (n / 1e6).toFixed(2) + 'M', K = n => Math.round(n / 1024) + 'KB';
 const ctxOf = u => (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
 const text = c => typeof c === 'string' ? c : Array.isArray(c) ? c.filter(b => b && b.type === 'text').map(b => b.text).join('\n') : '';
-const ASK = /(要我|需要我|是否|要不要|可以吗|好吗).{0,30}[吗？?]\s*$/;   // 收尾在问「要我…吗」= 多花一个完整历史重读的回合
+export const ASK = /(要我|需要我|是否|要不要|可以吗|好吗).{0,30}[吗？?]\s*$/;   // 收尾在问「要我…吗」= 多花一个完整历史重读的回合
 
 export function analyze(jsonl) {
   const ev = []; for (const l of jsonl.split('\n')) { if (!l) continue; try { ev.push(JSON.parse(l)) } catch { } }

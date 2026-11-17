@@ -34,8 +34,20 @@ const rep = R.analyze([hu('human'), u('a1', 100000), u('a1', 100000), hu('task-n
 T('统计：流式重复按 id 去重；人 / 通知回合分开；收尾提问计数', rep.calls === 3 && rep.human === 2 && rep.notif === 1 && rep.asks === 1 && rep.read === 460000 && rep.notifRead === 200000 && rep.ctxNow === 160001, rep);
 T('摘要 ≤5 行、不含对话内容', R.summary(rep).split('\n').length <= 5 && !/要我现在/.test(R.summary(rep)));
 T('上下文 > 150K 就提醒（哪怕文件不大），并带自动统计', (h => h.length === 1 && /自动统计/.test(h[0][1]))(G.stopNudges({ bytes: 1000, edits: [], ctx: 160000, report: 'r' })) && G.stopNudges({ bytes: 1000, edits: [], ctx: 100000 }).length === 0);
+// 11-17 第二批：大会话拒绝订阅 / 唤醒、整读大文件、收尾提问（协作者用量记录：通知回合空转 0.23–0.42M、「要我…吗」每次一个整段重读回合）
+T('大会话（≥60K）拒绝订阅 PR / send_later / 唤醒；小会话放行；NBQ_NOSUB_K=0 关闭', !!G.wakeBlock('mcp__github__subscribe_pr_activity', 80000) && !!G.wakeBlock('mcp__claude-code-remote__send_later', 60000) && !G.wakeBlock('mcp__github__subscribe_pr_activity', 30000) && !G.wakeBlock('Bash', 200000) && (() => { process.env.NBQ_NOSUB_K = '0'; const r = G.wakeBlock('ScheduleWakeup', 200000); delete process.env.NBQ_NOSUB_K; return r === null })());
+T('整读 >20KB 文件拒绝；带 limit / offset、小文件、图片放行', !!G.bigReadBlock('Read', { file_path: '/a/进度记录.md' }, 30000) && !G.bigReadBlock('Read', { file_path: '/a/b.md', limit: 50 }, 30000) && !G.bigReadBlock('Read', { file_path: '/a/b.md' }, 5000) && !G.bigReadBlock('Read', { file_path: '/a/x.png' }, 90000) && !G.bigReadBlock('Edit', { file_path: '/a/b.md' }, 90000));
+const big = path.join(tmp, 'big.md'); fs.writeFileSync(big, 'x'.repeat(30000));
+T('钩子：Read 大文件 → deny；带 limit → 放行', /"deny"/.test(run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_input: { file_path: big } })).stdout) && !run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_input: { file_path: big, limit: 40 } })).stdout);
+const tc = path.join(tmp, 'ctx.jsonl'); fs.writeFileSync(tc, [u('c1', 90000), u('c2', 120000)].join('\n'));
+T('ctxNowOf 取最后一次调用；坏路径 → 0', G.ctxNowOf(tc) === 120001 && G.ctxNowOf('/no/such') === 0);
+T('钩子：大会话订阅 → deny；小会话 → 放行', /"deny"/.test(run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'mcp__github__subscribe_pr_activity', tool_input: {}, transcript_path: tc })).stdout) && !run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'mcp__github__subscribe_pr_activity', tool_input: {}, transcript_path: path.join(tmp, 'nope') })).stdout);
+T('收尾「要我…吗」提醒一次，done 后不再出', G.stopNudges({ bytes: 1, edits: [], ask: true }).some(h => h[0] === 'ask') && !G.stopNudges({ bytes: 1, edits: [], ask: true, done: new Set(['ask']) }).length);
+const sr = G.stopReason({ transcript_path: tr, session_id: 's2', last_assistant_message: '做完了。要我现在合并吗？' }, { dir: tmp });
+T('Stop：收尾提问被提醒', /要我/.test(sr || ''), sr);
 // 防漂移：护栏已接线、经验文档点名了它（改了一边忘另一边会红）
 const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8')), sk = fs.readFileSync(path.join(DIR, '.claude/skills/collaborator-pitfalls/SKILL.md'), 'utf8');
+T('settings.json 的 PreToolUse 还接了 Read / 订阅 / 唤醒类工具',/subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && /Read/.test(JSON.stringify(st.hooks.PreToolUse)));
 T('settings.json 接了 PreToolUse（手写轮询拦截）和 Stop', !!(st.hooks.PreToolUse && JSON.stringify(st.hooks.PreToolUse).includes('role_guard.mjs')) && JSON.stringify(st.hooks.Stop).includes('role_guard.mjs'));
 T('技能 §十 点名 token_report.mjs 与 NBQ_CTX_K', /token_report\.mjs/.test(sk) && /NBQ_CTX_K|150K/.test(sk));
 console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

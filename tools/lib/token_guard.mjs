@@ -1,8 +1,15 @@
 // 省 token 的自动护栏（11-17）：把「一会话一件事 / 别手写轮询 / 同一处改两次没好就停手」从靠人记变成脚本管。
-// 由 tools/role_guard.mjs 按钩子事件分发（Stop 已接线；PreToolUse 要所有者在 .claude/settings.json 加一段，见 PRE_SNIPPET）。
+// 由 tools/role_guard.mjs 按钩子事件分发（Stop 已接线；PreToolUse 已接线：Bash / Read / 订阅与唤醒类工具）。
 // 安全阀：任何出错 / 读不到 → 放行；每种提醒每个会话只出一次（标记文件），绝不卡死会话。
-import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { analyze, summary } from './token_report.mjs';
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { analyze, summary, ASK } from './token_report.mjs';
 export const PRE_SNIPPET = '"PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \\"$CLAUDE_PROJECT_DIR/tools/role_guard.mjs\\"", "timeout": 10 }] }]';
+const NOSUB = () => process.env.NBQ_NOSUB_K !== undefined ? +process.env.NBQ_NOSUB_K : 60, BIGREAD = () => (+process.env.NBQ_BIGREAD_KB || 20) * 1024;   // NBQ_NOSUB_K=0 关掉「大会话拒绝订阅/唤醒」
+const WAKE = /subscribe_pr_activity|send_later|ScheduleWakeup|CronCreate|create_trigger/;
+export function ctxNowOf(file) {   // 只读记录尾部 512KB，取最后一次模型调用的上下文大小（token）；出错 → 0（放行）
+  try { const st = fs.statSync(file), n = Math.min(st.size, 512 << 10), fd = fs.openSync(file, 'r'); try { const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, st.size - n);
+    const ls = b.toString('utf8').split('\n'); for (let i = ls.length - 1; i >= 0; i--) { if (!ls[i].includes('"usage"')) continue; try { const u = JSON.parse(ls[i]).message?.usage; if (u) return (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) } catch { } } } finally { fs.closeSync(fd) } } catch { }
+  return 0;
+}
 const KB = () => +process.env.NBQ_SESSION_KB || 1024, MIN_EDITS = () => +process.env.NBQ_EDIT_MIN || 4, CTX = () => +process.env.NBQ_CTX_K || 150;   // 上下文超 150K token 就该换会话（比看文件大小准）
 
 // ① 手写轮询 / 会 403 重试的命令 → 直接拒绝并给替代品（PreToolUse）
@@ -12,9 +19,23 @@ export function pollingBlock(cmd) {
   if (/\b(while|until)\b[\s\S]*\b(sleep|gh|curl)\b[\s\S]*\bdone\b/.test(cmd) || /\bsleep\s+\d+[\s\S]*\bgh\s+(api|run)\b/.test(cmd) || /\bgh\s+(api|run)\b[\s\S]*\bsleep\s+\d+/.test(cmd)) return '别手写轮询循环：等 CI 用 `bash tools/ci_wait.sh [提交号|PR号]`；有 PR 订阅就推完结束本轮，事件会唤醒你。';
   return null;
 }
+const deny = r => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: r } });
+// ①b 大会话里订阅 PR / 设兜底唤醒 → 每个通知回合都整段重读历史（实测 0.23–0.42M，输出只有几百 token）。大会话（≥NOSUB K）直接拒绝，给替代
+export function wakeBlock(tool, ctx) {
+  const k = NOSUB(); if (!k || !WAKE.test(String(tool)) || ctx < k * 1000) return null;
+  return `上下文已约 ${Math.round(ctx / 1000)}K：大会话里订阅 PR / 设唤醒，每次事件都要整段重读。等 CI 用 \`bash tools/ci_wait.sh <PR号>\`（在 shell 里等，不占回合）；等复核的 PR 推完就结束本轮，复核后开小会话合并。（NBQ_NOSUB_K=0 可关）`;
+}
+// ①c 整读大文件（进度记录.md 等）→ 先 grep 定位，再 offset / limit 读几十行
+export function bigReadBlock(tool, inp, size) {
+  if (tool !== 'Read' || !inp || inp.limit || inp.offset || /\.(png|jpe?g|gif|webp|pdf)$/i.test(inp.file_path || '') || !(size > BIGREAD())) return null;
+  return `${path.basename(inp.file_path)} 有 ${Math.round(size / 1024)}KB：别整读。先 grep 定位，再用 offset / limit 读相关几十行。`;
+}
 export function preDecision(input) {
-  if (input.tool_name !== 'Bash') return null; const r = pollingBlock(input.tool_input && input.tool_input.command); if (!r) return null;
-  return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: r } };
+  const tool = input.tool_name, inp = input.tool_input || {};
+  if (tool === 'Bash') { const r = pollingBlock(inp.command); return r ? deny(r) : null }
+  if (tool === 'Read') { let size = 0; try { size = fs.statSync(inp.file_path).size } catch { } const r = bigReadBlock(tool, inp, size); return r ? deny(r) : null }
+  if (WAKE.test(String(tool))) { const r = wakeBlock(tool, input.transcript_path ? ctxNowOf(input.transcript_path) : 0); return r ? deny(r) : null }
+  return null;
 }
 
 // ② 对话记录里同一文件被 Edit / Write 的次数（≥ min 的）
@@ -26,18 +47,19 @@ export function repeatedEdits(jsonl, min = 4) {
 }
 
 // ③ Stop 时的提醒（返回理由或 null）：会话太长 → 交接换新会话；同一文件改了 ≥ N 次 → 先停手取证
-export function stopNudges({ bytes, edits, done = new Set(), ctx = 0, report = '' }) {
+export function stopNudges({ bytes, edits, done = new Set(), ctx = 0, report = '', ask = false }) {
   const out = [];
   if ((bytes > KB() * 1024 || ctx > CTX() * 1000) && !done.has('long')) out.push(['long', `${report ? '本会话用量（自动统计）：\n' + report + '\n' : ''}本会话上下文已约 ${Math.round(ctx / 1000)}K token、记录 ${Math.round(bytes / 1024)} KB：长会话每一轮都要重读全部历史，越往后越贵。把这件事收尾，然后用 ≤ 5 行写「现状 / 下一步 / 踩过的坑」（贴到对应 Issue 或 PR 评论，不另建文件），建议用户新开会话只读这段，别在这个会话里接着做下一件事。`]);
   if (edits.length && !done.has('edits')) out.push(['edits', `同一文件已改 ${edits.slice(0, 3).map(([f, n]) => `${path.basename(f)}×${n}`).join('、')} 次。如果是在排查同一个问题而它还没好：先停手，不再改——① 全局 grep 同名 / 同类写法 ② 沿祖先链往上查（根因常在祖先容器上，不在出问题的元素上）③ 列 2–3 个假设并写明怎么证伪 ④ 一次性取证（一条只读 SQL / 一张截图 / 一行日志），再动手。若只是在写新功能，忽略本条。`]);
+  if (ask && !done.has('ask')) out.push(['ask', '收尾在问「要我…吗」：每问一次 = 多一个整段历史重读的回合（约 0.4–0.5M）。不是红线 / 单向门（ADR 0012）就直接做完再汇报，别问；真要所有者定的，一次问清并给推荐。']);
   return out;
 }
 export function stopReason(input, { dir = os.tmpdir() } = {}) {
   const f = input.transcript_path; if (!f) return null; const sid = String(input.session_id || path.basename(f)).replace(/[^\w-]/g, '').slice(0, 64) || 'x';
-  const mark = k => path.join(dir, `nbq-guard-${sid}-${k}`), done = new Set(['long', 'edits'].filter(k => fs.existsSync(mark(k))));
-  const st = fs.statSync(f); let tail = ''; if (done.size < 2) { const n = Math.min(st.size, 32 << 20), fd = fs.openSync(f, 'r'); try { const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, st.size - n); tail = b.toString('utf8') } finally { fs.closeSync(fd) } }
+  const mark = k => path.join(dir, `nbq-guard-${sid}-${k}`), done = new Set(['long', 'edits', 'ask'].filter(k => fs.existsSync(mark(k))));
+  const st = fs.statSync(f); let tail = ''; if (done.size < 3) { const n = Math.min(st.size, 32 << 20), fd = fs.openSync(f, 'r'); try { const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, st.size - n); tail = b.toString('utf8') } finally { fs.closeSync(fd) } }
   const r = done.has('long') || !tail ? null : analyze(tail);
-  const hits = stopNudges({ bytes: st.size, edits: done.has('edits') ? [] : repeatedEdits(tail, MIN_EDITS()), done, ctx: r ? r.ctxNow : 0, report: r ? summary(r) : '' }); if (!hits.length) return null;
+  const hits = stopNudges({ bytes: st.size, edits: done.has('edits') ? [] : repeatedEdits(tail, MIN_EDITS()), done, ctx: r ? r.ctxNow : 0, report: r ? summary(r) : '', ask: !done.has('ask') && ASK.test(String(input.last_assistant_message || '').trim()) }); if (!hits.length) return null;
   for (const [k] of hits) try { fs.writeFileSync(mark(k), '1') } catch { }
   return '【省 token 提醒，只出一次】\n' + hits.map(h => '· ' + h[1]).join('\n');
 }
