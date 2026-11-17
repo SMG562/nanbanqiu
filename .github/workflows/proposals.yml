@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: proposals
@@ -27,6 +26,7 @@ jobs:
     if: github.event_name != 'push' && (github.event_name != 'issue_comment' || !github.event.issue.pull_request)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
+    permissions: { contents: read, issues: write }   # 写权限只给各 job（workflow 级只读，zizmor）
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +41,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 3
+    permissions: { contents: read, issues: write }   # 写权限只给各 job（workflow 级只读，zizmor）
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 50 }
