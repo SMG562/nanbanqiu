@@ -187,7 +187,7 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
   //   刚打开就核对出作废 → 换新码后静默刷新一次，让页面加载那一刻读到的就是新码（用 Safari 自带分享添加也对）；之后不再刷新
   const preset2 = ([code]) => { try { localStorage.setItem('nbq_sb', JSON.stringify({ access_token: 'AT', refresh_token: 'SBRT', expires_at: Math.floor(Date.now() / 1000) + 3000, uid: 'sb-1', phone: '61412345678' })); if (!localStorage.getItem('nbq_ho')) localStorage.setItem('nbq_ho', JSON.stringify({ code, exp: Date.now() + 20 * 3600e3, uid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })) } catch (_) { } try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)) } catch (_) { } };
   s = await open(IOS, 'https://nanbanqiu.app/', { init: preset2, initArg: [CODE], check: false, code: NEW });
-  await s.pg.waitForFunction(() => sessionStorage.getItem('__ld') === '2' && typeof ME !== 'undefined' && !!ME, null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(1000);
+  await s.pg.until(() => s.pg.evaluate(n => sessionStorage.getItem('__ld') === '2' && typeof ME !== 'undefined' && !!ME && (JSON.parse(localStorage.getItem('nbq_ho') || '{}').code === n), NEW), 20000); await s.pg.settle(1000);   // 等「刷新完 + 已登录 + 新码已存」这个真正的完成信号，不靠固定时间（#304 第4条）
   T('⑧ 缓存的码已作废：换成新码，并静默刷新一次', await s.pg.evaluate(() => sessionStorage.getItem('__ld')) === '2' && s.S.n === 1 && await s.pg.evaluate(n => JSON.parse(localStorage.getItem('nbq_ho')).code === n, NEW), [s.S.n]);
   T('⑧ 刷新后页面加载那一刻就是新码（HO_AT_LOAD），不再刷新第二次', await s.pg.evaluate(n => HO_AT_LOAD === '/api/manifest?h=' + n && sessionStorage.getItem('__ld') === '2', NEW) && await s.man() === '/api/manifest?h=' + NEW, await s.man());
   await s.pg.evaluate(() => { window.__before = true; openA2HS() }); await s.pg.settle(1500);
