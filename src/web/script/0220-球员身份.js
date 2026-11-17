@@ -20,7 +20,7 @@ function profileHTML(){
   ${utSectionHTML('web')}
   ${rkSectionHTML('web')}
   ${partnersHTML()}
-  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span></button></div>`}`;
+  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启</span></button></div>`}`;
 }
 // 「我的球局」左栏只放摘要；资料、UTR、球拍、球友、设置都在「我的」标签（#134 P1）
 function mineSumHTML(){if(!ME)return profileHTML();
@@ -93,7 +93,7 @@ function agendaHTML(all){
   // 第一屏从「此刻」开始：今天第一局还没结束的球局所在的时段；今天没有就取当前时间所在（或之后）的时段
   const g0=days[0]===0?all.filter(c=>dOff(c.start)===0&&c.end>NOW).sort((a,b)=>a.start-b.start)[0]:null,hr0=g0?g0.start.getHours():NOW.getHours();
   const nowBand=days[0]===0?(bands.find(b=>hr0>=b[3]&&hr0<b[4])||bands.find(b=>b[4]>hr0)||bands[bands.length-1]):null;
-  bands.forEach(b=>{h+=`<div class="ag-band${b===nowBand?' now':''}">${b[1]}<small>${b[2]}</small></div>`;
+  bands.forEach(b=>{h+=`<div class="ag-band${b===nowBand?' now':''}">${b[1]}</div>`;
     days.forEach(o=>{const items=vis.filter(c=>dOff(c.start)===o&&c.start.getHours()>=b[3]&&c.start.getHours()<b[4]).sort((x,y)=>rank(x)-rank(y));
       const key=o+'-'+b[0],open=UI.exp.has(key);let inner='';
       if(!items.length)inner='<div class="ag-empty">·</div>';
@@ -135,7 +135,7 @@ function renderMap(all){
 
 /* ---------- 中栏：我的球局（按月分组 + 滚动加载） ---------- */
 function renderMine(){
-  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'发起的和申请过的，都在这条时间轴上':authView({wait:'',out:()=>'登录后查看'})}</div></div></div>`;
+  let h=`<div class="ctool"><div><h1>我的球局</h1><div class="sub">${ME?'':authView({wait:'',out:()=>'登录后查看'})}</div></div></div>`;
   if(!ME){$('#colC').innerHTML=authView({wait:h+sbaWaitHTML(),out:()=>h+`<div class="card empty"><b>登录后查看你的球局</b><br><button class="btn btn-p btn-sm" data-a="login">登录 / 注册</button></div>`});return}
   const all=api.mine(),up=all.filter(c=>!c.past&&c.status!=='cancelled').sort((a,b)=>a.start-b.start),past=all.filter(c=>c.past||c.status==='cancelled').sort((a,b)=>b.start-a.start);
   const thisMonth=past.filter(c=>c.start.getMonth()===NOW.getMonth()&&c.start.getFullYear()===NOW.getFullYear()).length;
@@ -144,7 +144,7 @@ function renderMine(){
   const item=c=>{const st=stateOf(c),o=dOff(c.start),cls=c.past||c.status==='cancelled'?'past':st==='pending'?'pending':'';
     return `<div class="ti ${cls}"><div class="ti-date${o===0?' today':''}"><b>${c.start.getDate()}</b><span>${o===0?'今天':o===1?'明天':WD[c.start.getDay()]}</span></div><div class="ti-rail"><i></i></div>
     <button class="ti-card${UI.sel===c.id?' sel':''}" data-sel="${c.id}"><span class="ti-time num">${hm(c.start)}${lt(c.start)}</span><span class="ti-body"><b>${esc(c.v.name)}</b><span>${TYPE[c.game_type]} · ${lvl(c)}</span></span><span class="stack">${stackAv(c)}</span>${pill(c)}</button></div>`};
-  if(!all.length){$('#colC').innerHTML=h+`<div class="card empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b>去发现页申请一局，或者自己发起<br><br><button class="btn btn-p btn-sm" data-tab="disc">去发现</button></div>`;return}
+  if(!all.length){$('#colC').innerHTML=h+`<div class="card empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b><br><button class="btn btn-p btn-sm" data-tab="disc">去发现</button></div>`;return}
   let p='',lastM='';const shown=past.slice(0,UI.pastShown);
   shown.forEach(c=>{const m=c.start.getFullYear()+'年'+(c.start.getMonth()+1)+'月';if(m!==lastM){const n=past.filter(x=>x.start.getFullYear()+'年'+(x.start.getMonth()+1)+'月'===m).length;p+=`<div class="tmon">${m}<span>${n} 场</span></div>`;lastM=m}p+=item(c)});
   h+=`<div class="tl2">${up.length?`<div class="tsec">即将开始</div>${up.map(item).join('')}`:''}<div class="nowmark">现在</div>${p}
@@ -170,7 +170,7 @@ function requestsHTML(c){if(!(c.isHost&&c.pend.length&&!['past','cancelled'].inc
   return `<div class="sec-t">申请 · ${c.pend.length}</div>`+c.pend.map(p=>{const u=U(p.user_id),s=stats(u.id);return `<div class="req"><div class="req-top"><button data-user="${u.id}">${av(u)}<div><b>${esc(u.name)}</b> <span class="lvchip" style="background:${LVCOLOR[s.lv]}">Lv${s.lv+1} ${LV[s.lv][1]}</span><div class="pm">UTR ${f1(u.ntrp)} · 已打 ${s.played} 场 · ${s.kudos} 个赞${wTrust(c,u)}${lessHas(ME.id,u.id)?' · <span class="lt">你设过少遇到</span>':''}</div></div></button><span class="pm">${ago(p.created_at)}</span></div>${p.message?`<div class="quote">“${esc(p.message)}”</div>`:''}<div class="acts"><button class="btn btn-p btn-sm" data-a="approve" data-g="${c.id}" data-u="${u.id}">接受</button><button class="btn btn-s btn-sm" data-sx="softNo" data-g="${c.id}" data-u="${u.id}">婉拒</button></div></div>`}).join('')}
 function actionsHTML(c){const st=stateOf(c),nav=`https://maps.google.com/?daddr=${encodeURIComponent(c.v.name+' VIC')}`,safe='<div class="safe"><svg width="14" height="14" style="color:var(--g)"><use href="#i-shield"/></svg>见面前，看看<b data-pact="1">球友约定</b>和<b data-a="safety">安全须知</b></div>';
   if(ME&&blockedPair(ME.id,c.host_id))return `<div class="cap">你与发起人之间存在屏蔽关系，无法申请</div>`;
-  return {open:`${lateNote(c)}<button class="btn btn-p w100" data-a="apply" data-g="${c.id}">申请加入</button><div class="cap">${ME?`${esc(c.host.name)} 确认后${NOTIFY_WHERE()}`:'无需下载 · 手机号 30 秒完成'}</div>`,
+  return {open:`${lateNote(c)}<button class="btn btn-p w100" data-a="apply" data-g="${c.id}">申请加入</button>`,
   pending:`<button class="btn btn-o w100" data-a="leave" data-g="${c.id}">撤回申请</button>${safe}`,
   approved:`<div class="row2"><button class="btn btn-o" data-a="ics" data-g="${c.id}"><svg><use href="#i-cal"/></svg>加入日历</button><a class="btn btn-p" href="${nav}" target="_blank" rel="noopener"><svg><use href="#i-dir"/></svg>导航</a></div><button class="btn btn-link red" data-a="leave" data-g="${c.id}">取消参加</button>${safe}`,
   host:`<button class="btn btn-p w100" data-a="share" data-g="${c.id}"><svg><use href="#i-wx"/></svg>分享到微信群</button><div class="hostlinks">${c.start>NOW?`<button class="btn btn-link" data-ge="edit" data-g="${c.id}">修改球局</button><i></i>`:''}<button class="btn btn-link red" data-a="cancelGame" data-g="${c.id}">取消球局</button></div>`,

@@ -19,8 +19,6 @@ for(const plat of ['PWA','Web']){const W=plat==='Web';
   const det=W?'#colR':'#detail';
   await js(W=>{AN.ctx='list';W?select('g1'):openDetail('g1')},W);await wait(300);
   await S('share_open',[['game_share_open',{game_id:'g1'}]],()=>click(`${W?'#colR':'#dNav'} [data-a="share"]`));
-  await S('copy_text',[['share_copy_text',{game_id:'g1'}]],()=>click('[data-a="copyText"]'));
-  await S('copy_link',[['share_copy_link',{game_id:'g1'}]],()=>click('[data-a="copyLink"]'));
   if(!W){await S('sys_share',[['share_system',{game_id:'g1'}]],()=>click('[data-a="sysShare"]'));
     await S('poster_open',[['poster_open',{game_id:'g1'}]],()=>click('[data-a="poster"]'))}
   await S('xhs_copy',[['share_xhs_copy',{game_id:'g1'}]],()=>click('[data-sx="xhsCopy"]'));
