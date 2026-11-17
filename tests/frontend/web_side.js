@@ -71,6 +71,14 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   await pg.click('#tabs [data-tab="side"]'); await W(400);
   T('再回场边：同一个实例，草稿、滚动位置都在', inst && await E(() => SBV === _sbv) && await sr('[data-in]').inputValue() === '草稿还在吗' && await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-sc="home"]').scrollTop) >= 590);
   await sr('[data-in]').fill('');
+  // 11-17 所有者要求：网页端输入框和手机一样——点一下弹出写动态界面，不在原地输入
+  const tapBox = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, b = r.querySelector('.bar .box').getBoundingClientRect(), o = r.querySelector('[data-open]'), g = getComputedStyle(r.querySelector('[data-in]')); const ob = o && o.getBoundingClientRect(); return { hasOpen: !!o, cover: !!ob && Math.abs(ob.width - b.width) < 1 && Math.abs(ob.height - b.height) < 1, ghost: parseFloat(g.width) <= 1 && g.pointerEvents === 'none' } });
+  T('网页端输入框：有点击层盖住整个输入框，真输入框是点不到的幽灵', tapBox.hasOpen && tapBox.cover && tapBox.ghost, tapBox);
+  await sr('[data-open]').click(); await W(600);
+  const tapped = await E(() => { const r = document.querySelector('#sbHost').shadowRoot; return { composing: /\bcomposing\b/.test(r.querySelector('.wb>div').className), inFocus: r.activeElement && r.activeElement.matches('[data-in]') } });
+  T('网页端点输入框 → 弹出写动态界面，不在原输入框里输入', tapped.composing && !tapped.inFocus, tapped);
+  await sh('[data-cx]'); await W(500);
+
 
   // ---- 没登录：第一次互动时登录，登录后接着做 ----
   const login = async (ph, name) => { await pg.fill('#ph', ph); await pg.locator('[data-a="sendCode"]').first().click(); await W(500); await pg.fill('#otp', '123456'); await W(400);
