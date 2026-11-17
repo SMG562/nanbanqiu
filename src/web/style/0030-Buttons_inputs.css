@@ -14,7 +14,7 @@
 .w100{width:100%}
 .inp{width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:#F7F8F7;padding:0 12px;font-size:14.5px;outline:none}
 .inp:focus{border-color:var(--g);background:#fff}
-select.inp{appearance:none;background:#F7F8F7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A919C' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:30px}
+select.inp{appearance:none;background:#F7F8F7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237F8882' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:30px}
 textarea.inp{height:88px;padding:10px 12px;resize:none;line-height:1.5}
 .opt{display:flex;gap:6px;flex-wrap:wrap}
 .opt.eq{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:5px}

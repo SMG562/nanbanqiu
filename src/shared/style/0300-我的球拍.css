@@ -27,7 +27,7 @@
 .rk-chip:active{transform:scale(.98);background:var(--gss);border-color:var(--gs)}
 .rk-chip.brand{font-size:13.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .rk-chip.oth{border-style:dashed;color:var(--ink2);font-weight:500}
-.rk-chip[disabled]{background:#F6F7F6;color:var(--mut);cursor:default;transform:none}
+.rk-chip[disabled]{background:#F6F7F6;color:var(--dim);cursor:default;transform:none}
 .rk-chip small{font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--mut)}
 .rk-chip.busy::after,.rk-act.busy::after{content:"";position:absolute;right:14px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;border:2px solid var(--gs);border-top-color:var(--g);animation:rkspin .7s linear infinite}
 @keyframes rkspin{to{transform:rotate(360deg)}}

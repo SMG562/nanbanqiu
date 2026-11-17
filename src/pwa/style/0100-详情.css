@@ -23,7 +23,7 @@
 .pass-place .pi svg{width:19px;height:19px}
 .pass-place b{display:block;font-size:17px;font-weight:700}
 .pass-place small{display:block;font-size:13px;color:var(--mut)}
-.pass-place .go{margin-left:auto;color:#C2C8C2}
+.pass-place .go{margin-left:auto;color:var(--dim)}
 .pass-meta{display:flex;margin-top:18px;border-radius:14px;background:var(--bg)}
 .pass-meta div{flex:1;text-align:center;padding:10px 4px}
 .pass-meta div+div{border-left:1px solid #E1E5E1}

@@ -3,7 +3,7 @@
 .banner.show{transform:none}
 .banner svg.ai{width:38px;height:38px;flex:none;border-radius:9px}
 .banner .bt{flex:1;min-width:0}
-.banner .bt div{display:flex;justify-content:space-between;font-size:12.5px;color:#777}
+.banner .bt div{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut)}
 .banner .bt b{display:block;font-size:14.5px;font-weight:600;color:#111;margin-top:1px}
 .banner .bt p{font-size:13.5px;color:#333}
 .toast{position:absolute;left:50%;bottom:calc(92px + var(--hb));transform:translate(-50%,10px);z-index:960;background:rgba(20,24,22,.92);color:#fff;font-size:13.5px;font-weight:500;padding:10px 16px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}

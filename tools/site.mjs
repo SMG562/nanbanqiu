@@ -91,7 +91,7 @@ export function indexHTML(sha, when) {
 <script>/* 分享短链接 /g/码、/p/编号：预览站没有后端，落到入口页后按屏幕宽度转到手机端 / 网页端，用 #/g/码 的写法交给页面 */
 (function(){var m=location.pathname.match(/^[/]([gp])[/]([A-Za-z0-9]+)/);if(m)location.replace((innerWidth<=820?'/pwa.html':'/web.html')+location.search+'#/'+m[1]+'/'+m[2])})()</script>
 <style>
-:root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--line:#E5E8E5}
+:root{--bg:#F2F4F2;--ink:#1B2620;--mut:#5F6D66;--g:#176B4D;--line:#E5E8E5}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
 main{width:100%;max-width:420px;padding:32px 16px}
 h1{margin:0 0 4px;font-size:22px;color:var(--g)}p{margin:0 0 22px;color:var(--mut);font-size:13px}
@@ -113,7 +113,7 @@ export function materialsHTML(list, sha, when) {
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>南伴球 宣传物料</title>
 <style>
-:root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--lime:#C6EA3D;--line:#E5E8E5}
+:root{--bg:#F2F4F2;--ink:#1B2620;--mut:#5F6D66;--g:#176B4D;--lime:#C6EA3D;--line:#E5E8E5}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
 header,main{max-width:1100px;margin:0 auto;padding:0 16px}header{padding-top:20px}
 .back{display:inline-block;color:var(--mut);font-size:13px;text-decoration:none;margin-bottom:10px}

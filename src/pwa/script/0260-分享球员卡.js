@@ -23,7 +23,7 @@ function openContact(){openSheet(`<div class="sh-t">联系我们</div><p class="
   <a href="mailto:club@nanbanqiu.app?subject=${encodeURIComponent('Club 合作')}"><span style="font-size:22px">🏟</span><span><b>Club / 球场合作</b><small>场地优惠、活动合作 · club@nanbanqiu.app</small></span></a></div>
   <p class="fine">举报时请写上对方昵称、球局时间和经过，可附截图</p>`)}
 function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">${esc(CITY.zh)}的华人球友都在这里约球、聊球、组队<br>长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div><p class="fine">有想法也欢迎在群里告诉我们 🙌</p></div>`);qr($('#cqr'),'https://nanbanqiu.app/'+CITY.slug+'/community')}
-function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
+function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#1B2620',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#1B2620;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
 function openLocSheet(){LOC.asked=true;nbqLocSave();
