@@ -43,6 +43,7 @@ const big = JSON.stringify({ type: 'assistant', message: { id: 'z', usage: { inp
 const wt = (f, c) => { fs.writeFileSync(f, c); return { tool_name: 'mcp__claude-code-remote__subscribe_pr_activity', transcript_path: f, session_id: 'w' + path.basename(f) } };
 const wb = wt(path.join(tmp, 'wb.jsonl'), big), ws = wt(path.join(tmp, 'ws.jsonl'), small);
 T('订阅：上下文 ≥100K 拦一次、再调放行；<100K 不拦；其他工具不拦', /deny/.test(JSON.stringify(G.watchDecision(wb, { dir: tmp }))) && G.watchDecision(wb, { dir: tmp }) === null && G.watchDecision(ws, { dir: tmp }) === null && G.watchDecision({ ...wb, tool_name: 'Read' }, { dir: tmp }) === null);
+T('新开会话的定时任务不拦', G.watchDecision({ ...wb, tool_name: 'mcp__claude-code-remote__create_trigger', session_id: 'n1', tool_input: { create_new_session_on_fire: true } }, { dir: tmp }) === null);
 T('钩子：SessionStart 注入常驻规矩', /不订阅/.test(run(JSON.stringify({ hook_event_name: 'SessionStart' })).stdout));
 T('settings.json 接了订阅拦截与 SessionStart 注入', /subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && JSON.stringify(st.hooks.SessionStart).includes('role_guard.mjs'));
 const L = await import(pathToFileURL(path.join(DIR, 'tools/lib/lessons_digest.mjs')));

@@ -47,6 +47,7 @@ export const WATCH_TOOLS = /^(mcp__claude-code-remote__(subscribe_pr_activity|se
 export function lastCtx(tail) { let c = 0; for (const l of tail.split('\n')) { if (!l.includes('"usage"')) continue; try { const u = JSON.parse(l).message.usage; if (u) c = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) } catch { } } return c }
 export function watchDecision(input, { dir = os.tmpdir() } = {}) {
   if (!WATCH_TOOLS.test(input.tool_name || '') || !input.transcript_path) return null;
+  if (input.tool_input && input.tool_input.create_new_session_on_fire === true) return null;   // 每次新开会话的定时任务不会重读本会话历史（11-17 自己被误拦后补）
   const sid = String(input.session_id || path.basename(input.transcript_path)).replace(/[^\w-]/g, '').slice(0, 64) || 'x', mark = path.join(dir, `nbq-guard-${sid}-watch`);
   if (fs.existsSync(mark)) return null;
   const st = fs.statSync(input.transcript_path), n = Math.min(st.size, 4 << 20), fd = fs.openSync(input.transcript_path, 'r'); let tail; try { const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, st.size - n); tail = b.toString('utf8') } finally { fs.closeSync(fd) }
