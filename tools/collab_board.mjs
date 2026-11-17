@@ -129,6 +129,7 @@ const GUIDE = `**怎么用**：每个 PR 的「球」由机器从 CI、冲突、
 - 标签 \`球在作者 / 球在复核 / 球在所有者 / 等CI / 可合并\` 随状态自动更新，可直接按标签筛选。
 - **所有者只处理四类事**：红线 PR（当场点头）、含数据库改动的 PR（先在正式库跑迁移，再跑 db-parity；PR 上会直接 @ 你并每天提醒，最多 3 次）、每日真机、每周一周报；需要你处理的 PR 集合变化时这里会 @ 一次。
 - 提问格式固定「默认方案 + 一句理由 + 不回复就按它做」，24 小时无异议即生效（#87）；协作者在 Issue 里只回「N 做完 / N 不做 + 理由 / N 卡住 + 在哪」。
+- **这套通知本身也能改**：哪类消息漏了 / 太吵 / 写得不清，在 #216 回「通知：想改什么 + 理由」，两边都能提 PR（说明见 docs/协作分工.md §6）；改了会自动通知对方。
 - 在制品（非草稿 PR）上限：**每个作者 ${WIP_LIMIT} 个**（#229，11-13：两人都能合并后不再全仓共 ${WIP_LIMIT} 个）。`;
 
 // main 有新提交时告诉「相关的」开着的 PR（#189，11-13 所有者同意）：同改了文件，或提交信息 / 新增行里 #提到了它。
@@ -158,6 +159,20 @@ export function mainNotices(prs, commits) {
   return out;
 }
 
+// 11-18（#363）：依赖链通知。#358 写了「依赖 PR：#357」，#357 合并后没有任何东西叫 #358 的作者往下走（草稿 PR 不走 ping，GitHub 自动改基也不通知）。
+//   从 PR 描述「依赖 PR：…」那一行取 #号；依赖的 PR 已合并 → 在这个 PR 上 @ 作者一次（按依赖号去重），写明三步。草稿 / Ready 都发，所有者自己的 PR 和机器人不发。
+export const depsOf = body => { const m = /依赖 PR[：:][ \t]*([^\n]*)/.exec(body || ''); return m ? [...new Set([...m[1].matchAll(/#(\d+)/g)].map(x => +x[1]))] : [] };
+export const depKey = dep => `nbq-dep:${dep}`;
+export const depText = (p, dep) => `<!-- ${depKey(dep)} -->\n@${p.author} #${dep} 已合并，这个 PR 依赖它，可以往下走了：\n1. \`bash tools/sync_main.sh\` 把 main 合进来（GitHub 若已把基改成 main 就不用再改基）；\n2. 看 PR 的 Files changed：只该剩你自己的改动，不该再出现 #${dep} 的文件，再本地测；\n3. 测过后 \`bash tools/pr_state.sh ${p.number} ready\` 转 Ready（你的非草稿在制品 ≤ ${WIP_LIMIT}）。\n\n> 自动消息（协作看板，依赖链）。每个依赖只提醒一次，不用回复。`;
+export function depNotices(prs, merged) {
+  const out = [];
+  for (const p of prs) {
+    if (p.author === OWNER || p.author.endsWith('[bot]')) continue;
+    for (const dep of p.deps || []) if (dep !== p.number && merged.has(dep) && !already(p.comments || [], depKey(dep))) out.push({ number: p.number, body: depText(p, dep) });
+  }
+  return out;
+}
+
 export function render(rows, now = Date.now()) {
   const order = ['owner', 'review', 'author', 'merge', 'ci'], wipBy = {};
   for (const r of rows) if (!r.p.draft && !/\[bot\]$/.test(r.p.author)) wipBy[r.p.author] = (wipBy[r.p.author] || 0) + 1;
@@ -182,7 +197,7 @@ export function gather(R, now = Date.now()) {
     const syncs = syncsOf(list(`repos/${R}/pulls/${x.number}/commits?per_page=100`).map(c => ({ parents: c.parents, message: c.commit.message })));
     const mergeable = gh(`repos/${R}/pulls/${x.number}`, '--jq', '.mergeable_state').trim();
     const lv = levelOf(files, CO), isCo = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CO_OWNERS'), 'utf8').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).includes(x.user.login);
-    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: isCo && lv.level === 'owner' && coOwns(lv.owner, CO, x.user.login), updated: x.updated_at, level: lv.level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), comments };
+    const p = { number: x.number, title: x.title, branch: x.head.ref, author: x.user.login, draft: x.draft, sha: x.head.sha, mergeable, behind: cmp.behind, syncs, files, coOwner: isCo && lv.level === 'owner' && coOwns(lv.owner, CO, x.user.login), updated: x.updated_at, level: lv.level, ci: { tests: st('tests'), fast: st('tests-fast') }, labels: x.labels.map(l => l.name), deps: depsOf(x.body), comments };
     p.db = dbFacts(x.number, p.sha, files); if (p.db.changed && p.db.parity === null) console.log(`::warning title=协作看板::#${x.number} 含数据库改动，但 db-parity 的判断取不到：${p.db.why}。看板暂不提醒所有者，请查原因（别让这个功能静默失效）`);   // 只有含库结构文件的 PR 才会去调 merge_drift.sh（很少）
     p.review = reviewState(comments, p.sha, p.level === 'review' ? gitCarry(x.number, p.sha) : undefined); rows.push({ p, c: classify(p, now) });
   }
@@ -213,6 +228,9 @@ function main() {
   const commits = list(`repos/${R}/commits?sha=main&since=${since}&per_page=100`).map(c => { const d = JSON.parse(gh(`repos/${R}/commits/${c.sha}`));
     return { sha: c.sha, parents: (c.parents || []).length, message: d.commit?.message || '', files: (d.files || []).map(f => ({ filename: f.filename, patch: f.patch || '' })) } });
   for (const n of mainNotices(rows.map(r => r.p), commits)) post(n.number, n.body);
+  // 依赖链（#363）：只查被依赖的 PR 号（通常 0–2 个）是否已合并；查不到（不是 PR / 无权限）= 当没合并
+  const merged = new Set(); for (const d of new Set(rows.flatMap(r => r.p.deps))) { try { if (gh(`repos/${R}/pulls/${d}`, '--jq', '.merged').trim() === 'true') merged.add(d) } catch { } }
+  for (const n of depNotices(rows.map(r => r.p), merged)) post(n.number, n.body);
   // 看板 Issue（标签「协作看板」，没有就建）：正文只在内容变化时写；红线集合变了 @所有者 一次
   const hash = h6(board), when = new Date(now).toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }), okey = ownerKey(rows);
   if (dry) { console.log(`[看板] hash ${hash}，需要所有者：${okey || '无'}`); return }
