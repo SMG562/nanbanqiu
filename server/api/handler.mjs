@@ -124,7 +124,7 @@ const SB_POST_COLS = `p.id, p.user_id, p.city, p.body, p.topic_id, p.floor, p.ve
     coalesce(p.user_id = nbq_uid(), false) as mine,
     exists (select 1 from sb_balls b where b.post_id = p.id and b.user_id = nbq_uid()) as my_ball`;
 export const SB_FEED_SQL = `select ${SB_POST_COLS}, ${SB_CUR} as cur from sb_posts p
-   where p.city = $1 and p.status = 'visible' and p.deleted_at is null and p.publish_at <= now() and p.publish_at > now() - interval '2 days'   -- 上限 48 小时 = public_hours 的最大值；让部分索引能用、帖子少时也不扫旧帖
+   where p.city = $1 and p.status = 'visible' and p.deleted_at is null and p.publish_at <= now() and p.publish_at > now() - interval '48 hours'   -- 上限 48 小时 = public_hours 的最大值；让部分索引能用、帖子少时也不扫旧帖
      and sb_post_public(p.id, nbq_uid()) and ($2::text is null or p.topic_id = $2)
      and ($3::timestamptz is null or (p.publish_at, p.id) < ($3::timestamptz, $4::uuid))
    order by p.publish_at desc, p.id desc limit $5`;

@@ -87,7 +87,7 @@ m = mk({ post: post(2, { status: 'visible', public: true }), replies: [] }); r =
 T('详情：登录 → 本人身份（我的回复 / 我点过网球才对）', r.s === 200 && m.log.find(x => x.sql === SB_POST_SQL).uid === UID);
 
 // ---- SQL 文本的几条硬规矩（真库行为见 pg/sb_read）----
-T('SQL：动态流走公开判断函数 + 游标按（公开时间, id）+ 有 48 小时上限（让部分索引可用）', /sb_post_public\(p\.id, nbq_uid\(\)\)/.test(SB_FEED_SQL) && /\(p\.publish_at, p\.id\) < /.test(SB_FEED_SQL) && /interval '2 days'/.test(SB_FEED_SQL) && /p\.status = 'visible' and p\.deleted_at is null/.test(SB_FEED_SQL));
+T('SQL：动态流走公开判断函数 + 游标按（公开时间, id）+ 有 48 小时上限（让部分索引可用）', /sb_post_public\(p\.id, nbq_uid\(\)\)/.test(SB_FEED_SQL) && /\(p\.publish_at, p\.id\) < /.test(SB_FEED_SQL) && /interval '48 hours'/.test(SB_FEED_SQL) && /p\.status = 'visible' and p\.deleted_at is null/.test(SB_FEED_SQL));
 T('SQL：不选 hidden_reason / views / shares（前台拿不到或一期不用）', ![SB_FEED_SQL, SB_MINE_SQL, SB_POST_SQL].some(s => /hidden_reason|p\.views|p\.shares/.test(s)));
 T('SQL：回复排除已删除、别人的隐藏回复', /deleted_at is null/.test(SB_REPLIES_SQL) && /status = 'visible' or r\.user_id = nbq_uid\(\)/.test(SB_REPLIES_SQL));
 
