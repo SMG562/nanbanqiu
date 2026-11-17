@@ -14,13 +14,16 @@ function pushState(){
   return'ask'}
 // 新引导（开关 NBQ_A2HS2_ON）的统一说法：按钮和标题用「放到桌面」，只有引用 iOS 菜单原文时才写「添加到主屏幕」；开关关时一个字都不变
 const a2n=(o,n)=>(typeof NBQ_A2HS2_ON!=='undefined'&&NBQ_A2HS2_ON)?n:o;
+// iOS 16.4 以下的 iPhone 收不到网页推送：新引导（开关 NBQ_A2HS2_ON）的入口不承诺「马上提醒」。版本从 UA 读，读不到按支持处理
+function iosPushOk(ua){ua=ua===undefined?(navigator.userAgent||''):ua;const m=/(?:iPhone|iPad|iPod).*? OS (\d+)_(\d+)/.exec(ua);return!m||+m[1]>16||(+m[1]===16&&+m[2]>=4)}
 const PN_TXT={game:['有人申请，第一时间知道','不开着南伴球，也会提醒你'],invite:['对方回复，不错过','接受、回复或换时间，都会提醒你']};
 const PN_BTN={ask:['开启提醒','enablePush','i-bell'],need_install:['放到主屏幕','a2hs','i-plus'],denied:['怎么开','pushDenied','i-bell'],wechat:['怎么换','wxguide','i-share']};
 function pushNudgeHTML(why){
   if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME)return'';   // 电脑端不推送（11-03 你定的），只有手机端引导
   const st=pushState();if(st==='on'||st==='unsupported'||st==='installed'||(st==='need_install'&&typeof a2hsRecent==='function'&&a2hsRecent()))return'';
-  const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st].slice();if(st==='need_install')b[0]=a2n(b[0],'放到桌面');   // 文案开关在用到时才取：NBQ_A2HS2_ON 在后面的 pwa/0265 才定义，加载时取会撞上还没初始化的 const
-  const sub=st==='need_install'?a2n('放到主屏幕后，才能像 App 一样收提醒','放到桌面，有人回复你马上知道'):st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
+  const t=(PN_TXT[why]||PN_TXT.game).slice(),b=PN_BTN[st].slice();if(st==='need_install')b[0]=a2n(b[0],'放到桌面');   // 文案开关在用到时才取：NBQ_A2HS2_ON 在后面的 pwa/0265 才定义，加载时取会撞上还没初始化的 const
+  const oldIos=st==='need_install'&&pnV2()&&!iosPushOk();if(oldIos)t[0]='所有球局，一眼看到';
+  const sub=st==='need_install'?a2n('放到主屏幕后，才能像 App 一样收提醒',oldIos?'放到桌面，附近的球局一眼看到':'放到桌面，有人回复你马上知道'):st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
   return `<div class="pushcard pnudge" data-pn="${why}"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${sub}</p></div><button class="pc-go" data-a="${b[1]}" data-pf="${why}"><svg><use href="#${b[2]}"/></svg>${b[0]}</button></div>`}
 // 记下是从哪个引导点进来的（push_enable 埋点带 from）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-pf]');if(b)window.PUSH_FROM=b.dataset.pf},true);
