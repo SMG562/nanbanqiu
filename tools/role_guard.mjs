@@ -99,6 +99,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const login = ghLogin(), reason = decide({ login, text, stopHookActive: !!input.stop_hook_active, coOwners: login === OWNER_LOGIN ? [] : coOwnerList() });
     const tg = reason ? null : TG.stopReason(input);                                                          // 11-17：会话过长 / 同处反复改 → 提醒一次
     if (reason || tg) process.stdout.write(JSON.stringify({ decision: 'block', reason: reason || tg }) + '\n');
+    TG.postLedger(input);                                                                                       // 11-17：每会话一行纯数字写进台账 Issue #349（NBQ_LEDGER=0 关；出错静默）
   } catch (_) { }                                                                                             // 检查自己出错绝不拦人
   process.exit(0);
 }

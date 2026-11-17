@@ -45,6 +45,18 @@ T('钩子：大会话订阅 → deny；小会话 → 放行', /"deny"/.test(run(
 T('收尾「要我…吗」提醒一次，done 后不再出', G.stopNudges({ bytes: 1, edits: [], ask: true }).some(h => h[0] === 'ask') && !G.stopNudges({ bytes: 1, edits: [], ask: true, done: new Set(['ask']) }).length);
 const sr = G.stopReason({ transcript_path: tr, session_id: 's2', last_assistant_message: '做完了。要我现在合并吗？' }, { dir: tmp });
 T('Stop：收尾提问被提醒', /要我/.test(sr || ''), sr);
+// 11-17 第三批：命中打标签 + 机器台账（两侧互相检验闸门有效性 / 时效性的数据来源）
+T('deny / 提醒都带 [nbq:种类] 标签（台账靠它数命中）', /\[nbq:poll\]/.test(G.preDecision({ tool_name: 'Bash', tool_input: { command: 'gh pr view 1' } }).hookSpecificOutput.permissionDecisionReason) && /\[nbq:bigread\]/.test(G.preDecision({ tool_name: 'Read', tool_input: { file_path: big } }).hookSpecificOutput.permissionDecisionReason) && /\[nbq:wake\]/.test(run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'mcp__x__send_later', tool_input: {}, transcript_path: tc })).stdout) && /\[nbq:ask\]/.test(G.stopReason({ transcript_path: tr, session_id: 's3', last_assistant_message: '要我现在合并吗？' }, { dir: tmp })));
+const lj = [hu('human'), u('l1', 100000), hu('human'), u('l2', 120000), hu('task-notification'), u('l3', 130000), hu('human'), u('l4', 140000), JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', content: '[nbq:wake] x [nbq:wake] y [nbq:bigread] z' }] } })].join('\n');
+const ll = G.ledgerLine(lj, 'MDD1102', new Date('2026-11-18T01:00:00Z'));
+T('台账行：固定格式、含登录名 / 日期 / 回合 / 各闸门命中；不含对话内容', /^NBQ-LEDGER v1 \| MDD1102 \| 2026-11-18 \| human=3 notif=1 \| readPerHuman=\d+ \| notifShare=\d+ \| ctxMax=140K \| asks=\d \| hits=long:0,edits:0,poll:0,wake:2,bigread:1,ask:0$/.test(ll) && !/好|要我/.test(ll), ll);
+T('台账登录名被清洗（防注入）', !/[|\n<]/.test(G.ledgerLine(lj, 'a|b\n<x>').split(' | ')[1]));
+// postLedger：注入假 gh，不碰网络
+const calls = [], fake = (c, a) => { calls.push(a.join(' ')); return a[1] === 'user' ? { status: 0, stdout: 'MDD1102\n' } : { status: 0, stdout: '777\n' } };
+const tl = path.join(tmp, 'led.jsonl'); fs.writeFileSync(tl, lj);
+const L1 = G.postLedger({ transcript_path: tl, session_id: 'L1' }, { dir: tmp, run: fake });
+T('postLedger：首次 POST 到台账 Issue，记下评论号；5 分钟内不重复；之后 PATCH 同一条', /^NBQ-LEDGER/.test(L1 || '') && calls.some(c => /POST repos\/SMG562\/nanbanqiu\/issues\/349\/comments/.test(c)) && G.postLedger({ transcript_path: tl, session_id: 'L1' }, { dir: tmp, run: fake }) === null && (G.postLedger({ transcript_path: tl, session_id: 'L1' }, { dir: tmp, run: fake, now: Date.now() + 600e3 }), calls.some(c => /PATCH repos\/SMG562\/nanbanqiu\/issues\/comments\/777/.test(c))), calls);
+T('postLedger：NBQ_LEDGER=0 / 会话太短 / gh 失败 → 静默不写', (() => { process.env.NBQ_LEDGER = '0'; const a = G.postLedger({ transcript_path: tl, session_id: 'L2' }, { dir: tmp, run: fake }); delete process.env.NBQ_LEDGER; const sh = path.join(tmp, 'short.jsonl'); fs.writeFileSync(sh, [hu('human'), u('s1', 1000)].join('\n')); const b = G.postLedger({ transcript_path: sh, session_id: 'L3' }, { dir: tmp, run: fake }); const c = G.postLedger({ transcript_path: tl, session_id: 'L4' }, { dir: tmp, run: () => ({ status: 1, stdout: '' }) }); return a === null && b === null && c === null })());
 // 防漂移：护栏已接线、经验文档点名了它（改了一边忘另一边会红）
 const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8')), sk = fs.readFileSync(path.join(DIR, '.claude/skills/collaborator-pitfalls/SKILL.md'), 'utf8');
 T('settings.json 的 PreToolUse 还接了 Read / 订阅 / 唤醒类工具',/subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && /Read/.test(JSON.stringify(st.hooks.PreToolUse)));

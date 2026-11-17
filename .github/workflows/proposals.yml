@@ -10,6 +10,9 @@ on:
     types: [opened, labeled, edited]
   issue_comment:
     types: [created]
+  push:                             # 11-17：主干上规则文件有变化 → 自动在 #216 通知协作者（不再靠人记得发）
+    branches: [main]
+    paths: ['.claude/**', 'CLAUDE.md', 'tools/lib/token_*.mjs']
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   tick:
-    if: github.event_name != 'issue_comment' || !github.event.issue.pull_request
+    if: github.event_name != 'push' && (github.event_name != 'issue_comment' || !github.event.issue.pull_request)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
@@ -33,3 +36,21 @@ jobs:
       - name: 对账提案
         env: { GH_TOKEN: '${{ github.token }}' }
         run: node tools/proposal_tick.mjs
+
+  notify:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 50 }
+      - name: 通知协作者（只读文件名和提交标题，不执行任何内容）
+        env: { GH_TOKEN: '${{ github.token }}', BEFORE: '${{ github.event.before }}', SHA: '${{ github.sha }}' }
+        run: |
+          set -eu
+          git cat-file -e "$BEFORE" 2>/dev/null || git fetch -q --depth=50 origin "$BEFORE" || exit 0
+          files=$(git diff --name-only "$BEFORE" "$SHA" -- .claude CLAUDE.md 'tools/lib/token_*.mjs' | head -5 | sed 's/^/- /')
+          [ -n "$files" ] || exit 0
+          subj=$(git log --format='%s' "$BEFORE..$SHA" | head -3 | cut -c1-80 | sed 's/^/- /')
+          body=$(printf '【规则自动同步 %s】@MDD1102 主干规则文件有变化；你开工时 Claude 会自动提示 `git pull`，不用另外读这条。\n改了：\n%s\n提交：\n%s\n只读上面文件的 diff 即可。' "${SHA:0:7}" "$files" "$subj")
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/216/comments" -f body="$body" >/dev/null
