@@ -45,4 +45,7 @@ const wb = wt(path.join(tmp, 'wb.jsonl'), big), ws = wt(path.join(tmp, 'ws.jsonl
 T('订阅：上下文 ≥100K 拦一次、再调放行；<100K 不拦；其他工具不拦', /deny/.test(JSON.stringify(G.watchDecision(wb, { dir: tmp }))) && G.watchDecision(wb, { dir: tmp }) === null && G.watchDecision(ws, { dir: tmp }) === null && G.watchDecision({ ...wb, tool_name: 'Read' }, { dir: tmp }) === null);
 T('钩子：SessionStart 注入常驻规矩', /不订阅/.test(run(JSON.stringify({ hook_event_name: 'SessionStart' })).stdout));
 T('settings.json 接了订阅拦截与 SessionStart 注入', /subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && JSON.stringify(st.hooks.SessionStart).includes('role_guard.mjs'));
+const L = await import(pathToFileURL(path.join(DIR, 'tools/lib/lessons_digest.mjs')));
+T('经验收集：只抓踩坑 / 教训行并去标记；重复的识别出来', (p => p.length === 2 && !/\*/.test(p[0]) && L.dupes([...p, p[0]]).length === 1)(L.pitfalls(['**踩过的坑**：A 别重踩\n无关行', '第二次出现 B'])));
+T('技能 §十一 点名 lessons_digest.mjs 与「净增 ≤ 0」', /lessons_digest\.mjs/.test(sk) && /净增行数必须 ≤ 0/.test(sk));
 console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
