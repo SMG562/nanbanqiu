@@ -84,7 +84,7 @@ function renderMine(){
   const b=$('#mineBody');
   if(!ME){b.innerHTML=authView({out:()=>loginCTA('登录后查看你的球局')});return}
   const all=api.mine(),up=all.filter(c=>!c.past&&c.status!=='cancelled').sort((a,b)=>a.start-b.start),past=all.filter(c=>c.past||c.status==='cancelled').sort((a,b)=>b.start-a.start);
-  if(!all.length){b.innerHTML=ivqHTML()+`<div class="empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b>去发现页申请一局，或者自己发起<br><br><button class="sbtn p" style="flex:none" data-tab="disc">去发现</button></div>`+commHTML();return}
+  if(!all.length){b.innerHTML=ivqHTML()+`<div class="empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b><br><button class="sbtn p" style="flex:none" data-tab="disc">去发现</button></div>`+commHTML();return}
   const thisMonth=past.filter(c=>c.start.getMonth()===NOW.getMonth()&&c.start.getFullYear()===NOW.getFullYear()).length;
   const item=c=>{const st=stateOf(c),o=dOff(c.start),cls=c.past||c.status==='cancelled'?'past':st==='pending'?'pending':'';
     return `<div class="ti ${cls}"><div class="ti-date${o===0?' today':''}"><b>${c.start.getDate()}</b><span>${o===0?'今天':o===1?'明天':WD[c.start.getDay()]}</span></div><div class="ti-rail"><i></i></div>
@@ -93,7 +93,7 @@ function renderMine(){
   let p='',lastM='';past.slice(0,UI.pastShown).forEach(c=>{const m=c.start.getFullYear()+'年'+(c.start.getMonth()+1)+'月';if(m!==lastM){p+=`<div class="tmon">${m}<span>${past.filter(x=>x.start.getFullYear()+'年'+(x.start.getMonth()+1)+'月'===m).length} 场</span></div>`;lastM=m}p+=item(c)});
   b.innerHTML=`<div class="tstat"><span><b>${up.length}</b>即将开始</span><span><b>${past.length}</b>已结束</span><span><b>${thisMonth}</b>本月</span></div>`+ivqHTML()
     +(up.length?`<div class="tsec">即将开始</div>${up.map(item).join('')}`:'')+`<div class="nowmark">现在</div>`+p
-    +(past.length>UI.pastShown?`<div class="sentinel" id="sentinel">继续上滑加载更早的球局 · 还有 ${past.length-UI.pastShown} 场</div>`:past.length?`<div class="sentinel" style="border:0">已经到底了 · 共 ${past.length} 场</div>`:'')+commHTML();
+    +(past.length>UI.pastShown?`<div class="sentinel" id="sentinel">更早的球局 · 还有 ${past.length-UI.pastShown} 场</div>`:past.length?`<div class="sentinel" style="border:0">已经到底了 · 共 ${past.length} 场</div>`:'')+commHTML();
   const s=$('#sentinel');if(s&&'IntersectionObserver'in window){const io=new IntersectionObserver(es=>{if(es[0].isIntersecting){io.disconnect();UI.pastShown+=20;renderMine()}},{root:$('#scr-mine'),rootMargin:'300px'});io.observe(s)}
 }
 const loginCTA=t=>`<div class="empty"><svg class="lg-solo" width="56" height="56"><use href="#logo"/></svg><b>${t}</b>手机号验证码登录，30 秒完成<br><br><button class="sbtn p" style="flex:none" data-a="login">登录 / 注册</button></div>`;
@@ -112,7 +112,7 @@ function renderNotif(){
   $('#notifBody').innerHTML=seg+pushCardHTML()+(list.length?`<div class="pad"><div class="group">${list.map(n=>{const[t,b]=ntfText(n),f=U(n.from)||{name:'?',color:'#999'},p=n.kind==='request'?PARTS.find(p=>p.game_id===n.game_id&&p.user_id===n.from&&p.status!=='withdrawn'&&p.status!=='left'):null;
     const acts=p&&p.status==='pending'?`<div class="acts"><button class="sbtn p" data-a="approve" data-g="${n.game_id}" data-u="${n.from}">接受</button><button class="sbtn" data-sx="softNo" data-g="${n.game_id}" data-u="${n.from}">婉拒</button></div>`:p?`<div class="acts"><span class="pill ${p.status==='approved'?'p-green':'p-gray'}">${p.status==='approved'?'已接受':p.reason==='timeout'?'已过时间':p.reason==='full_auto'?'已满员':'已婉拒'}</span></div>`:'';
     return `<div class="ntf${n.read?'':' unread'}" ${n.invite_id&&n.kind!=='invite_accepted'?`data-iv="view" data-i="${n.invite_id}"`:`data-ntfo="${n.id}"`}>${nrAv(n,f)||`<span data-user="${f.id}">${av(f)}</span>`}<div class="nb"><b>${esc(t)}</b><p>${esc(b)}</p>${p&&p.message&&p.status==='pending'?`<q>“${esc(p.message)}”</q>`:''}${acts}</div><span class="tm">${ago(n.at)}</span></div>`}).join('')}</div></div>`
-    :`<div class="empty"><b>暂无通知</b>申请结果、新的申请都会出现在这里</div>`);
+    :`<div class="empty"><b>暂无通知</b></div>`);
   setTimeout(()=>{list.forEach(n=>{if(!nrTodo(n))n.read=true});renderBadge()},1500);
 }
 

@@ -20,7 +20,7 @@ function profileHTML(){
   ${utSectionHTML('web')}
   ${rkSectionHTML('web')}
   ${partnersHTML()}
-  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span></button></div>`}`;
+  ${nrDev(ME).mobile.push||PUSH.enabled?'':`<div class="card" style="padding:4px 0"><button class="set" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启</span></button></div>`}`;
 }
 // 「我的球局」左栏只放摘要；资料、UTR、球拍、球友、设置都在「我的」标签（#134 P1）
 function mineSumHTML(){if(!ME)return profileHTML();
@@ -93,7 +93,7 @@ function agendaHTML(all){
   // 第一屏从「此刻」开始：今天第一局还没结束的球局所在的时段；今天没有就取当前时间所在（或之后）的时段
   const g0=days[0]===0?all.filter(c=>dOff(c.start)===0&&c.end>NOW).sort((a,b)=>a.start-b.start)[0]:null,hr0=g0?g0.start.getHours():NOW.getHours();
   const nowBand=days[0]===0?(bands.find(b=>hr0>=b[3]&&hr0<b[4])||bands.find(b=>b[4]>hr0)||bands[bands.length-1]):null;
-  bands.forEach(b=>{h+=`<div class="ag-band${b===nowBand?' now':''}">${b[1]}<small>${b[2]}</small></div>`;
+  bands.forEach(b=>{h+=`<div class="ag-band${b===nowBand?' now':''}">${b[1]}</div>`;
     days.forEach(o=>{const items=vis.filter(c=>dOff(c.start)===o&&c.start.getHours()>=b[3]&&c.start.getHours()<b[4]).sort((x,y)=>rank(x)-rank(y));
       const key=o+'-'+b[0],open=UI.exp.has(key);let inner='';
       if(!items.length)inner='<div class="ag-empty">·</div>';
@@ -144,7 +144,7 @@ function renderMine(){
   const item=c=>{const st=stateOf(c),o=dOff(c.start),cls=c.past||c.status==='cancelled'?'past':st==='pending'?'pending':'';
     return `<div class="ti ${cls}"><div class="ti-date${o===0?' today':''}"><b>${c.start.getDate()}</b><span>${o===0?'今天':o===1?'明天':WD[c.start.getDay()]}</span></div><div class="ti-rail"><i></i></div>
     <button class="ti-card${UI.sel===c.id?' sel':''}" data-sel="${c.id}"><span class="ti-time num">${hm(c.start)}${lt(c.start)}</span><span class="ti-body"><b>${esc(c.v.name)}</b><span>${TYPE[c.game_type]} · ${lvl(c)}</span></span><span class="stack">${stackAv(c)}</span>${pill(c)}</button></div>`};
-  if(!all.length){$('#colC').innerHTML=h+`<div class="card empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b>去发现页申请一局，或者自己发起<br><br><button class="btn btn-p btn-sm" data-tab="disc">去发现</button></div>`;return}
+  if(!all.length){$('#colC').innerHTML=h+`<div class="card empty"><div class="ic"><svg width="28" height="28"><use href="#ball"/></svg></div><b>还没有球局</b><br><button class="btn btn-p btn-sm" data-tab="disc">去发现</button></div>`;return}
   let p='',lastM='';const shown=past.slice(0,UI.pastShown);
   shown.forEach(c=>{const m=c.start.getFullYear()+'年'+(c.start.getMonth()+1)+'月';if(m!==lastM){const n=past.filter(x=>x.start.getFullYear()+'年'+(x.start.getMonth()+1)+'月'===m).length;p+=`<div class="tmon">${m}<span>${n} 场</span></div>`;lastM=m}p+=item(c)});
   h+=`<div class="tl2">${up.length?`<div class="tsec">即将开始</div>${up.map(item).join('')}`:''}<div class="nowmark">现在</div>${p}
