@@ -41,3 +41,18 @@ export function stopReason(input, { dir = os.tmpdir() } = {}) {
   for (const [k] of hits) try { fs.writeFileSync(mark(k), '1') } catch { }
   return '【省 token 提醒，只出一次】\n' + hits.map(h => '· ' + h[1]).join('\n');
 }
+
+// ④ 订阅 PR / 兜底唤醒 / 定时：大会话里每个通知回合都重读整段历史（实测一条「没有新评论」≈0.4M）。上下文 ≥ 100K 时拦一次并说明，用户明确要就再调一次放行。
+export const WATCH_TOOLS = /^(mcp__claude-code-remote__(subscribe_pr_activity|send_later|create_trigger)|ScheduleWakeup|CronCreate)$/;
+export function lastCtx(tail) { let c = 0; for (const l of tail.split('\n')) { if (!l.includes('"usage"')) continue; try { const u = JSON.parse(l).message.usage; if (u) c = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) } catch { } } return c }
+export function watchDecision(input, { dir = os.tmpdir() } = {}) {
+  if (!WATCH_TOOLS.test(input.tool_name || '') || !input.transcript_path) return null;
+  const sid = String(input.session_id || path.basename(input.transcript_path)).replace(/[^\w-]/g, '').slice(0, 64) || 'x', mark = path.join(dir, `nbq-guard-${sid}-watch`);
+  if (fs.existsSync(mark)) return null;
+  const st = fs.statSync(input.transcript_path), n = Math.min(st.size, 4 << 20), fd = fs.openSync(input.transcript_path, 'r'); let tail; try { const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, st.size - n); tail = b.toString('utf8') } finally { fs.closeSync(fd) }
+  const ctx = lastCtx(tail), lim = (+process.env.NBQ_WATCH_K || 100) * 1000; if (ctx < lim) return null;
+  try { fs.writeFileSync(mark, '1') } catch { }
+  return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `本会话上下文已约 ${Math.round(ctx / 1000)}K：订阅 / 兜底唤醒 / 定时会让每个通知回合重读整段历史（一条「没有新评论」≈0.4M token）。推完就结束本轮，把现状写进 Issue / PR；等复核后由新的小会话订阅或合并。若用户明确要求订阅，再调用一次即放行。` } };
+}
+// ⑤ 开会话时自动注入的常驻规矩（不放 CLAUDE.md，不占规则预算；每个会话、每个人拉到仓库就得到同一份）
+export const START_NOTE = '省 token 常驻规矩：①授权前置——被点名的任务按交接一路做到合并，只在红线 / 单向门才停，不以「要我开始吗/是否继续」收尾；②等复核或等 CI 的 PR：推完就结束本轮，不订阅、不设兜底唤醒；③一件事一个会话，合并或交接后换新会话；④查状态只用 pr_state.sh / ci_wait.sh / pr_merge.sh --check。';

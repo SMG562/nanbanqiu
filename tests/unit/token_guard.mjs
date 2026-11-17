@@ -38,4 +38,11 @@ T('上下文 > 150K 就提醒（哪怕文件不大），并带自动统计', (h 
 const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8')), sk = fs.readFileSync(path.join(DIR, '.claude/skills/collaborator-pitfalls/SKILL.md'), 'utf8');
 T('settings.json 接了 PreToolUse（手写轮询拦截）和 Stop', !!(st.hooks.PreToolUse && JSON.stringify(st.hooks.PreToolUse).includes('role_guard.mjs')) && JSON.stringify(st.hooks.Stop).includes('role_guard.mjs'));
 T('技能 §十 点名 token_report.mjs 与 NBQ_CTX_K', /token_report\.mjs/.test(sk) && /NBQ_CTX_K|150K/.test(sk));
+// 订阅 / 兜底唤醒：大上下文拦一次，再调放行；小上下文不管
+const big = JSON.stringify({ type: 'assistant', message: { id: 'z', usage: { input_tokens: 1, cache_read_input_tokens: 120000, output_tokens: 5 } } }), small = big.replace('120000', '20000');
+const wt = (f, c) => { fs.writeFileSync(f, c); return { tool_name: 'mcp__claude-code-remote__subscribe_pr_activity', transcript_path: f, session_id: 'w' + path.basename(f) } };
+const wb = wt(path.join(tmp, 'wb.jsonl'), big), ws = wt(path.join(tmp, 'ws.jsonl'), small);
+T('订阅：上下文 ≥100K 拦一次、再调放行；<100K 不拦；其他工具不拦', /deny/.test(JSON.stringify(G.watchDecision(wb, { dir: tmp }))) && G.watchDecision(wb, { dir: tmp }) === null && G.watchDecision(ws, { dir: tmp }) === null && G.watchDecision({ ...wb, tool_name: 'Read' }, { dir: tmp }) === null);
+T('钩子：SessionStart 注入常驻规矩', /不订阅/.test(run(JSON.stringify({ hook_event_name: 'SessionStart' })).stdout));
+T('settings.json 接了订阅拦截与 SessionStart 注入', /subscribe_pr_activity/.test(JSON.stringify(st.hooks.PreToolUse)) && JSON.stringify(st.hooks.SessionStart).includes('role_guard.mjs'));
 console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
