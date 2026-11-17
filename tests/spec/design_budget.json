@@ -11,7 +11,7 @@
   "safeArea": 3
  },
  "web": {
-  "colors": 231,
+  "colors": 230,
   "fontSizes": 35,
   "radii": 22,
   "shadows": 64,
@@ -117,5 +117,12 @@
    4.5,
    "弱化文字 / 浅绿底（AA）"
   ]
- ]
+ ],
+ "side": {
+  "colors": 38,
+  "fontSizes": 26,
+  "radii": 27,
+  "shadows": 47,
+  "zIndex": 28
+ }
 }

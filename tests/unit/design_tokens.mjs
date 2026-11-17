@@ -85,10 +85,17 @@ for (const [fg, bg, min, why] of B.contrast) for (const [end, V] of [['手机', 
   const css = (raw.match(/const SB_CSS="([\s\S]*?)";\nconst SB_SVG/) || [])[1] || '';
   const host = {}; for (const m of css.matchAll(/--(bg|sf|ink|ink2|mut|dim):(#[0-9A-Fa-f]{6})/g)) host['--' + m[1]] = m[2].toUpperCase();
   T('场边：:host 里读到 --bg --sf --ink --ink2 --mut --dim', ['--bg', '--sf', '--ink', '--ink2', '--mut', '--dim'].every(k => host[k]), host);
-  for (const k of ['--ink', '--ink2', '--mut', '--dim']) T(`场边 ${k} 与主站一致`, host[k] === P[k], [host[k], P[k]]);
+  for (const k of ['--bg', '--ink', '--ink2', '--mut', '--dim']) T(`场边 ${k} 与主站一致`, host[k] === P[k] && host[k] === W[k], [host[k], P[k], W[k]]);
+  { const a = (css.match(/--acc:(#[0-9A-Fa-f]{6})/) || [])[1]; T('场边 --acc（场边绿）与主站品牌绿 --g 一致', a && a.toUpperCase() === P['--g'].toUpperCase(), [a, P['--g']]); }
   for (const [fg, bg, min] of [['--mut', '--bg', 4.5], ['--mut', '--sf', 4.5], ['--ink2', '--bg', 4.5], ['--dim', '--bg', 3], ['--dim', '--sf', 3]])
     T(`场边对比度 ${fg} / ${bg} ≥ ${min}`, host[fg] && host[bg] && contrast(host[fg], host[bg]) >= min, [host[fg], host[bg]]);
   // 手写的浅灰文字色（低饱和、在稿纸底上低于 4.5）一律不许；有意的装饰灰登记在下面白名单
+  // 棘轮：场边的样式在 JS 字符串里，上面的 pwa/web 统计看不到它，单独设预算（只降不升）
+  const sm = metrics(css), sb = B.side;
+  for (const key of ['colors', 'fontSizes', 'radii', 'shadows', 'zIndex']) {
+    T(`场边 ${key} 种类 ${sm[key]} ≤ 预算 ${sb[key]}`, sm[key] <= sb[key], '场边也用标尺值，别造新的');
+    if (sm[key] < sb[key]) console.log(`  提示：场边 ${key} 已降到 ${sm[key]}，请把 design_budget.json 的 side.${key} 下调到 ${sm[key]}`);
+  }
   const OK = new Set(['#A3A6A1']);   // .av.an 匿名头像的占位图形（装饰）
   const bad = uniq([...css.matchAll(/[^a-z-]color:\s*(#[0-9A-Fa-f]{6})\b/g)].map(m => m[1].toUpperCase())).filter(h => {
     const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const sat = Math.max(...c) - Math.min(...c);
