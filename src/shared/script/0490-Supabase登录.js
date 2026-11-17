@@ -78,12 +78,12 @@ const sbaMsg=c=>SB_TXT[c]||apiErrText(c);
 // 点「获取验证码 / 重新发送」：启用时先真发，成功才进验证码页；演示模式直接进
 function sbaSendThen(next){if(!SBA.on()){next();return}
   if(SBA_BUSY)return;SBA_BUSY=true;
-  sbSmsPaused({fetch:(u,o)=>fetch(u,o)}).then(p=>p?{ok:false,code:'sms_paused'}:SBA.send(AUTH.e164)).then(r=>{SBA_BUSY=false;if(r.ok)next();else toast(sbaMsg(r.code))})}
+  sbSmsPaused({fetch:(u,o)=>fetch(u,o)}).then(p=>p?{ok:false,code:'sms_paused'}:SBA.send(AUTH.e164)).then(r=>{SBA_BUSY=false;if(typeof anLoginSend==='function')anLoginSend(r.ok,r.code);if(r.ok)next();else toast(sbaMsg(r.code))})}
 // 验证码输满 6 位
 function sbaOtpDone(code){
   if(!SBA.on()){clearInterval(AUTH.t);openNewProfile();return}
   if(SBA_BUSY)return;SBA_BUSY=true;const o=$('#otp');if(o)o.readOnly=true;
-  SBA.verify(AUTH.e164,code).then(r=>{SBA_BUSY=false;
+  SBA.verify(AUTH.e164,code).then(r=>{SBA_BUSY=false;if(typeof anLoginVerify==='function')anLoginVerify(r.ok,r.code);
     if(!r.ok){const x=$('#otp');if(x){x.readOnly=false;x.value='';x.focus()}toast(sbaMsg(r.code));return}
     clearInterval(AUTH.t);
     if(typeof NBQ_NET!=='undefined'&&NBQ_NET){nbqAfterLogin();return}   // 真实数据：资料在数据库里
