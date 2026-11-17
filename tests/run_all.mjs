@@ -96,6 +96,7 @@ add('pg', 'pg/risk', ['node', path.join(HERE, 'pg/risk.mjs')], { pass: [/risk: \
 add('pg', 'pg/privacy', ['node', path.join(HERE, 'pg/privacy.mjs')], { pass: [/privacy: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass: [/sb_schema: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_read', ['node', path.join(HERE, 'pg/sb_read.mjs')], { pass: [/sb_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')], { pass: [/admin_reports: \d+ 通过, 0 失败/], timeout: 300 });
