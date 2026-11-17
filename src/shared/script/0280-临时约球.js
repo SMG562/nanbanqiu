@@ -95,10 +95,9 @@ const _ugPass=passHTML0;passHTML0=function(c){let h=_ugPass(c);const p=c.mineP;i
 // 「申请加入」按钮：能直接加入时改成「直接加入」
 function ugDecorate(){document.querySelectorAll('[data-a="apply"]:not([data-ugd])').forEach(b=>{b.dataset.ugd='1';
   let id=b.dataset.g||(typeof UI!=='undefined'&&(UI.detail||UI.sel));if(!id&&typeof UI!=='undefined'&&UI.landing&&api.byCode){const x=api.byCode(UI.landing);id=x&&x.id}
-  const g=id&&GAMES.find(x=>x.id===id);if(!g)return;const c=V(g);if(!ugInstant(c))return;const cap=b.nextElementSibling&&b.nextElementSibling.classList.contains('cap')?b.nextElementSibling:null;
-  if(!ME){b.textContent='直接加入';if(cap)cap.textContent='不用等确认 · 手机号 30 秒完成';return}
-  if(ugFits(c,ME)){b.textContent='直接加入';if(cap)cap.textContent='不用等确认，加入后就定了'}
-  else if(cap&&!ugLvFit(c,ME))cap.textContent=`你的水平不在 ${lvl(c)} 内，需要 ${c.host.name.split(' ')[0]} 确认`})}
+  const g=id&&GAMES.find(x=>x.id===id);if(!g)return;const c=V(g);if(!ugInstant(c))return;
+  if(!ME||ugFits(c,ME)){b.textContent='直接加入';return}
+  if(!ugLvFit(c,ME)){let cap=b.nextElementSibling&&b.nextElementSibling.classList.contains('cap')?b.nextElementSibling:null;if(!cap){cap=document.createElement('div');cap.className='cap';b.after(cap)}cap.textContent=`你的水平不在 ${lvl(c)} 内，需要 ${c.host.name.split(' ')[0]} 确认`}})}
 new MutationObserver(()=>ugDecorate()).observe(document.documentElement,{childList:true,subtree:true});
 
 // ---------- 通知 ----------

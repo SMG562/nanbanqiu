@@ -18,7 +18,7 @@ const T=(n,ok,x='')=>console.log((ok?'PASS ':'FAIL ')+n,x);
  r=await w.evaluate(id=>{UI.sel=id;const c=api.get(id);return ufHostCard(c)},gid);T('host card instant note & no ufc',r.includes('不用你确认')&&!r.includes('看看办法'),r.slice(0,120));
  // 2 合适的人直接加入
  await w.evaluate(id=>{const u=Object.values(USERS).find(u=>u.id!=='han'&&u.ntrp>=3&&u.ntrp<=4&&!blockedPair('han',u.id));window._fit=u.id;setWho(u.id);select(id)},gid);await w.waitForTimeout(300);
- r=await w.evaluate(()=>[$('#colR [data-a="apply"]').textContent,$('#colR [data-a="apply"]').nextElementSibling.textContent]);T('button 直接加入',r[0]==='直接加入',r.join(' | '));
+ r=await w.evaluate(()=>[$('#colR [data-a="apply"]').textContent,!$('#colR [data-a="apply"]').nextElementSibling]);T('button 直接加入（下面不再有说明小字）',r[0]==='直接加入'&&r[1]===true,r.join(' | '));
  await w.click('#colR [data-a="apply"]');await w.waitForTimeout(300);r=await w.evaluate(()=>!!$('#modal [data-ug="join"]'));T('join modal',r);
  await (await w.$('#modal')).screenshot({path:'r57_join.png'});
  await w.click('#modal [data-ug="join"]');await w.waitForTimeout(300);await (await w.$('#modal')).screenshot({path:'r57_joined.png'});
