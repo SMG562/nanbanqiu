@@ -58,9 +58,22 @@ function trig(next){if(AN.trig)return AN.trig;const el=AN.clickEl,d=el&&el.close
   if(d.iv==='new')return'invite';if(d.a==='login')return/女生/.test(el.textContent||'')?'women':'manual';return'other'}
 wrap('openAuth',o=>function(next,why){
   if(document.getElementById('otp')&&AUTH&&AN.login)return o.call(this,AUTH.next,AN.login.why);   // 验证码页「修改手机号」：还是同一次登录
-  AN.login={trigger:trig(next),why};const r=o.apply(this,arguments);track('login_open',{trigger:AN.login.trigger});anOverlay('login');return r});
-wrap('openOtp',o=>function(){const r=o.apply(this,arguments);track('login_send_code',{cc:AUTH.cc});return r});   // 号码格式不对时不会走到这里
-wrap('openNewProfile',o=>function(){track('login_verify',{ok:true});return o.apply(this,arguments)});
+  AN.login={trigger:trig(next),why};AN.lg={n:0};const r=o.apply(this,arguments);track('login_open',{trigger:AN.login.trigger});anOverlay('login');return r});
+// 登录漏斗（#297）：发送结果 / 验证结果 / 重发 / 放弃。不记手机号；原因用固定枚举（不用自由文本）。
+//   真实登录由 0490 的 sbaSendThen / sbaOtpDone 在拿到结果时调用；演示登录（没配 Supabase）没有失败，沿用下面两个 wrap（发码 = 打开验证码页，验证 = 打开资料页）
+const AN_SEND_RSN={otp_too_fast:'rate_limited',rate_limited:'rate_limited',sms_failed:'provider_error',sms_paused:'paused',network:'network'};
+function anLoginSend(ok,code){const lg=AN.lg||(AN.lg={n:0});lg.n++;const p={ok:!!ok,cc:AUTH.cc,n:lg.n};if(!ok)p.reason=AN_SEND_RSN[code]||'unknown';
+  track('login_send_code',p);if(lg.n>1)track('login_resend',{n:lg.n});if(ok)lg.t=Date.now()}
+function anLoginVerify(ok,code){const lg=AN.lg||(AN.lg={n:0}),p={ok:!!ok};if(lg.t)p.secs=Math.round((Date.now()-lg.t)/1000);
+  if(!ok)p.reason=code==='otp_wrong'?'wrong_code':code==='network'?'network':(code==='rate_limited'||code==='otp_too_fast')?'too_many':'unknown';
+  track('login_verify',p);if(ok&&AN.login)AN.login.left=1}   // 验证成功 = 这次登录不再算「放弃」
+function anLoginLeave(){const l=AN.login;if(!l||l.left)return;const step=document.getElementById('otp')?'otp':document.getElementById('ph')?'phone':null;
+  if(!step)return;l.left=1;track('login_abandon',{step,n:(AN.lg&&AN.lg.n)||0})}   // 关闭时还停在手机号页 / 验证码页；已到填资料页或已登录的不算
+window.anLoginSend=anLoginSend;window.anLoginVerify=anLoginVerify;   // 0490（外层脚本）在拿到发码 / 验证结果时调用
+['closeSheet','closeModal'].forEach(n=>wrap(n,o=>function(){anLoginLeave();return o.apply(this,arguments)}));
+const anDemoLogin=()=>!(typeof SBA!=='undefined'&&SBA.on());
+wrap('openOtp',o=>function(){const r=o.apply(this,arguments);if(anDemoLogin())anLoginSend(true);return r});   // 号码格式不对时不会走到这里
+wrap('openNewProfile',o=>function(){if(anDemoLogin())anLoginVerify(true);return o.apply(this,arguments)});
 apiWrap('login',o=>function(p){const r=o.apply(this,arguments);if(ME){ME.created_at=ME.created_at||now();anIdentity();
     track('login_success',{is_new:true,trigger:(AN.login||{}).trigger||'other',entry:AN.entry});
     track('signup_complete',{ntrp:ME.ntrp,clubs_n:(ME.home_club_ids||[]).length,gender_given:!!ME.gender,avatar_kind:ME.avatar_kind||'letter'});AN.login=null}return r});
