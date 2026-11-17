@@ -14,6 +14,8 @@ export function checkBody(body, files, { merge = false } = {}) {
     const none = /入口清单\s*[:：]\s*无[（(][^）)]{4,}[）)]/.test(b);   // 「入口清单：无（理由）」，理由至少 4 个字
     if (!real.length && !none) bad.push('缺「入口清单」：列出这份用户可改数据的所有修改入口（入口 | 真实模式是否写服务器 | 读回在哪 | 测试）；确实不涉及就写「入口清单：无（理由）」');
   }
+  // 11-17（经验对齐）：改了经验 / 技能 / 钩子 / ADR 的 PR，描述里必须 @SMG562——GitHub 自动通知所有者，不靠人转告；缺了 CI 变红
+  if ((files || []).some(f => /^(\.claude\/|逃逸缺陷\.md|docs\/adr\/|tools\/lib\/(token_guard|token_report|lessons_digest))/.test(f)) && !/@SMG562\b/.test(b)) bad.push('改了经验 / 技能 / 钩子 / ADR：描述里要写 @SMG562（一句话说改了什么、为什么），GitHub 会自动通知所有者，不用人转告');
   // 11-05（逃逸：用户照「你来做」去电脑上找迁移文件，没有）：「你来做」里提到的、本 PR 才有的文件，main 的同步不会带到用户电脑 →
   //   必须先 sync_files.sh --branch=<分支> <文件…> 写过去并回读核对，再在描述里写一行「已同步到电脑：…」
   const todo = /##+[^\n]*你来做[^\n]*\n([\s\S]*?)(?=\n##+ |$)/.exec(b);
