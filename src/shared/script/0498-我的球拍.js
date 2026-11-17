@@ -53,6 +53,10 @@ function rkSectionHTML(kind){if(!NBQ_RACKETS_ON||!ME)return '';
   return kind==='web'?`<div class="card rk-card"><div class="ch-h">${h}</div><div class="rk">${rows}</div></div>`
     :`<div class="sec-t">${h}</div><div class="group rk">${rows}</div>`}
 
+// 别人的球员卡弹层里的一行（#60 PR-C）：开关关着 / 没拍 / 已注销 → 空串（不出空栏）；数据来自球友卡片的 rackets（服务器已把注销的人过滤掉）
+function rkCardHTML(uid){if(!NBQ_RACKETS_ON)return '';const u=USERS[uid],L=u&&!u.gone&&Array.isArray(u.rackets)?u.rackets:[];if(!L.length)return '';
+  return `<div class="rk-pc"><span class="rk-h">${RK_ICO}球拍</span><div class="rk-pl">${L.map((r,i)=>`<span class="rk-pi">${i===0&&L.length>1?'<em>主力</em>':''}${esc(rkName(r))}</span>`).join('')}</div></div>`}
+
 /* ---- 弹层（PWA 底部弹层 / 网页端弹窗，同一份内容）---- */
 const RK={i:0,mode:'add',brand:null,step:'brand',view:null};
 const rkSheet=()=>typeof openSheet==='function';

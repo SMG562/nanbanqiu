@@ -10,7 +10,7 @@ $('#mbg').addEventListener('mousedown',e=>{if(e.target.id==='mbg')closeModal()})
 function openCard(uid){
   const u=U(uid),s=stats(uid),self=ME&&uid===ME.id;
   if(!self){const blocked=ME&&ME.blocked.has(uid);
-    openModal(`<div class="m-b center"><div class="pcwrap">${flipCard(uid)}</div>
+    openModal(`<div class="m-b center"><div class="pcwrap">${flipCard(uid)}</div>${typeof rkCardHTML==='function'?rkCardHTML(uid):''}
       <div class="bdgrid" style="margin:18px 0 6px;grid-template-columns:repeat(6,1fr)">${s.badges.filter(b=>b.got).slice(0,6).map(b=>`<div class="bd" data-bdgd="${b.code}" data-u="${uid}"><div class="hx" style="width:40px;height:44px;font-size:14px">${b.glyph}</div><span>${b.name}</span></div>`).join('')}</div>
       ${impressionsHTML(U(uid),'大家最喜欢 TA 的地方')}${invBtnHTML(uid)}${chatBtnHTML(uid)}${kudosHTML(uid)}${ME?`<div class="row2" style="margin-top:14px"><button class="btn btn-o btn-sm" data-a="${blocked?'unblock':'block'}" data-u="${uid}"><svg><use href="#i-ban"/></svg>${blocked?'解除屏蔽':'屏蔽此人'}</button><button class="btn btn-o btn-sm" data-a="report" data-u="${uid}"><svg><use href="#i-mail"/></svg>举报</button></div>`:''}</div>`,'sm');return}
   const pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;

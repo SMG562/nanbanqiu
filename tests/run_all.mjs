@@ -152,6 +152,7 @@ add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'fronte
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
 add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
+add('frontend', 'frontend/racket_card', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/racket_card.js')], { pass: [/racket_card: \d+ 通过, 0 失败/], timeout: 300 });   // 球员卡显示球拍 #60 PR-C2
 add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
 add('frontend', 'frontend/buddies_scan', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies_scan.js')], { pass: [/buddies_scan: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B2 扫码加球友
 add('frontend', 'frontend/logout_race', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/logout_race.js')], { pass: [/logout_race: \d+ 通过, 0 失败/], timeout: 300 });   // 读到一半退出登录（11-09）
