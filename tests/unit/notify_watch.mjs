@@ -3,7 +3,7 @@
 import fs from 'node:fs'; import path from 'node:path';
 const DIR = process.argv[2] || path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..'), rd = f => fs.readFileSync(path.join(DIR, f), 'utf8');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? 'PASS ' : 'FAIL ') + n + (!ok && x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
-export const MACHINERY = ['tools/collab_board.mjs', 'tools/pr_say.sh', '.github/workflows/collab-board.yml', '.github/workflows/proposals.yml', 'docs/协作分工.md'];
+export const MACHINERY = ['tools/collab_board.mjs', 'tools/pr_say.sh', '.github/workflows/collab-board.yml', '.github/workflows/proposals.yml', 'docs/协作分工.md', 'docs/roadmap.md'];
 const norm = x => x.replace(/^['"]|['"]$/g, '').replace(/\/\*\*$/, '');
 const yml = rd('.github/workflows/proposals.yml'), settings = rd('.claude/settings.json'), handoff = rd('tools/handoff_check.sh');
 const paths = ((/paths:\s*\[([^\]]*)\]/.exec(yml) || [])[1] || '').split(',').map(s => norm(s.trim())).filter(Boolean);
@@ -17,5 +17,5 @@ for (const f of MACHINERY) {
   T(`proposals.yml 的触发器和过滤都盯着 ${f}`, paths.includes(f) && spec.includes(f));
   T(`SessionStart 钩子盯着 ${f}（协作者开工会提示 git pull）`, hook.split(/\s+/).includes(f), hook);
 }
-for (const f of ['tools/collab_board.mjs', 'tools/pr_say.sh', 'docs/协作分工.md']) T(`handoff_check「近 7 天协作规则变化」盯着 ${f}`, handoff.includes(f));
+for (const f of ['tools/collab_board.mjs', 'tools/pr_say.sh', 'docs/协作分工.md', 'docs/roadmap.md']) T(`handoff_check「近 7 天协作规则变化」盯着 ${f}`, handoff.includes(f));
 console.log(`notify_watch: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
