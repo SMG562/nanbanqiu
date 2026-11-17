@@ -5,14 +5,13 @@ const web=await open('web');const rw=await web.pg.evaluate(()=>({deskRows:docume
 ok(r.phones.every(Boolean),'手机端场边渲染了');ok(r.rows0>5,'第一台信息流有内容',r.rows0);ok(r.deskRows>5,'电脑版信息流有内容',r.deskRows);ok(r.rail>=3&&r.railTopics>=1,'电脑右栏：热闹的球场和大家在聊',`${r.rail}/${r.railTopics}`);
 // 实时新消息
 const n0=await pg.evaluate(()=>document.querySelectorAll('#d0 [data-s="home"] .ln').length);await W(6500);
-const live=await pg.evaluate(()=>({n:document.querySelectorAll('#d0 [data-s="home"] .ln').length,typing:document.querySelectorAll('#d0 .typing').length}));
-ok(live.n>n0,'第一台：新消息会自动冒出来',`${n0}→${live.n}`);
-// 新消息冒出时，名字那一行与文字同时出现
-const sync=await pg.evaluate(()=>new Promise(res=>{const d=document.querySelector('#d0');const t0=performance.now();let mT=null,tT=null;const L=()=>{const ln=d.querySelector('.slot .ln');if(ln){const m=ln.querySelector('.bd>.m'),pill=ln.querySelector('.typing');if(mT===null&&+getComputedStyle(m).opacity>.05)mT=performance.now();if(tT===null&&!pill&&mT!==null)tT=performance.now()}if(performance.now()-t0<9000&&(mT===null||tT===null))requestAnimationFrame(L);else res({mT,tT})};requestAnimationFrame(L)}));
-ok(sync.mT&&sync.tT&&Math.abs(sync.mT-sync.tT)<250,'名字行和文字同时出现',sync.mT&&sync.tT?`相差 ${Math.round(Math.abs(sync.mT-sync.tT))} ms`:'没测到');
-// 滚到下面时来了新消息 → 出现「有新消息」提示，点它回到顶部
-const more=await pg.evaluate(async()=>{const d=document.querySelector('#d0'),sc=d.querySelector('[data-sc="home"]');sc.scrollTop=900;for(let i=0;i<30&&!d.querySelector("[data-more]").classList.contains("show");i++)await new Promise(r=>setTimeout(r,500));const m=d.querySelector('[data-more]');const shown=m&&m.classList.contains('show');if(shown)m.click();await new Promise(r=>setTimeout(r,900));return {shown,top:sc.scrollTop,exists:!!m}});
-ok(more.exists,'有「新消息」提示元素');ok(more.shown,'滚动后来了新消息，提示出现');ok(more.top<5,'点提示回到顶部',more.top);
+const live=await pg.evaluate(()=>({n:document.querySelectorAll('#d0 [data-s="home"] .ln').length,typing:document.querySelectorAll('#d0 .typing').length,pend:(SBV.pend||[]).length,pill:document.querySelector('#d0 [data-more]').classList.contains('show')}));
+// #344：新动态一律先攒着，不自己冒出来（不论用户在不在顶部），只亮「↑ N 条新动态」
+ok(live.n===n0&&live.pend>0&&live.pill,'第一台：新消息不自己冒出来，只亮胶囊',`${n0}→${live.n}，攒着 ${live.pend}`);
+// 点胶囊才放进来：直接放，没有让高度增长的 slot 动画；回顶、胶囊收起
+const more=await pg.evaluate(async()=>{const d=document.querySelector('#d0'),sc=d.querySelector('[data-sc="home"]');sc.scrollTop=900;await new Promise(r=>setTimeout(r,300));const m=d.querySelector('[data-more]');const shown=m&&m.classList.contains('show'),n1=d.querySelectorAll('[data-s="home"] .ln').length;if(shown)m.click();await new Promise(r=>setTimeout(r,120));return {shown,top:sc.scrollTop,exists:!!m,grew:d.querySelectorAll('[data-s="home"] .ln').length>n1,slots:d.querySelectorAll('.slot').length,hidden:!m.classList.contains('show')}});
+ok(more.exists,'有「新消息」提示元素');ok(more.shown,'滚动后提示还在');ok(more.top<5,'点提示回到顶部',more.top);
+ok(more.grew&&more.slots===0&&more.hidden,'点提示后：攒着的放进来、没有增高的 slot 动画、提示收起',more);
 // 不停插入后，没有残留的气泡、slot 等
 await pg.evaluate(()=>{SBV.every=1e9});await W(4500);const left=await pg.evaluate(()=>({slots:[...document.querySelectorAll('#d0 .slot')].filter(s=>s.style.overflow==='hidden').length,bub:document.querySelectorAll('#d0 .tx.bub').length}));
 ok(left.slots===0,'新消息动画结束后没有卡住的容器',left.slots);

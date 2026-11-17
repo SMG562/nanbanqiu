@@ -48,8 +48,11 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('读到一半：新动态先攒着，亮「↑ N 条新动态」', mid.pend >= 1 && mid.pill && /条新动态/.test(mid.txt), mid);
   await E(() => { SBV.every = 1e9 });
   await E(() => { document.querySelector('#sbHost').shadowRoot.querySelector('[data-sc="home"]').scrollTop = 0 }); await W(900);
+  const held = await E(() => (SBV.pend || []).length);
+  T('回到顶部停稳后：攒着的新动态仍攒着，不自己放进来（#344）', held >= 1, held);
+  await E(() => { document.querySelector('#sbHost').shadowRoot.querySelector('[data-more]').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: window })) }); await W(500);
   const top = await E(() => { const r = document.querySelector('#sbHost').shadowRoot; return { pend: SBV.pend ? SBV.pend.length : 0, pill: r.querySelector('[data-more]').classList.contains('show'), rows: r.querySelectorAll('[data-s="home"] .ln').length } });
-  T('回到顶部停稳后：攒着的新动态放进列表，提示条收起', top.pend === 0 && !top.pill, top);
+  T('点提示条后：攒着的新动态放进列表，提示条收起', top.pend === 0 && !top.pill, top);
 
   // ---- 帖子卡片：手机上有关闭按钮，能下滑关闭（顶部条拖 / 内容在最上面时下拉），短拖弹回，内容滚下去后下拉不关 ----
   await E(() => { SBV.every = 1e9 });

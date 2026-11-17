@@ -14,8 +14,10 @@ s=await snap();
 ok(s.pend.every(id=>!s.ids.includes(id)),'重画首页后：攒着的还没画进列表（不会提前出现）',{pend:s.pend,inList:s.pend.filter(id=>s.ids.includes(id))});
 ok(s.pill.includes(String(s.pend.length)),'重画首页后：胶囊数量没丢',s.pill);
 await pg.evaluate(()=>{document.querySelector('#d0 [data-sc="home"]').scrollTop=0});await W(1800);
+s=await snap();ok(s.pend.length>0,'回到顶部后：攒着的仍攒着（#344，不再自动放进来）',s.pend.length);
+await pg.evaluate(()=>{document.querySelector('#d0 [data-more]').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,composed:true,view:window}))});await W(500);
 s=await snap();
-ok(s.dup.length===0,'回到顶部放进来之后：列表里没有重复的动态',s.dup);
+ok(s.dup.length===0,'点胶囊放进来之后：列表里没有重复的动态',s.dup);
 ok(s.pill==='','放进来之后胶囊收起',s.pill);
 // B：胶囊数跟着筛选走。全部在一次同步执行里完成（不被定时器 / 回顶放入打断），攒着的人为造 2 条：一条属于我的球场（Kooyong），一条不属于（Hawthorn）
 const B=await pg.evaluate(()=>{const d=document.querySelector('#d0'),pill=()=>{const p=d.querySelector('[data-more]');return p.classList.contains('show')?p.textContent:''};

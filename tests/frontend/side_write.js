@@ -44,7 +44,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('登录后接着发出去（刚写的那条）', await E(() => SBV.L.filter(x => x.mine).length) === n0 + 1 && await E(() => SBV.L.some(x => x.mine && x.x === '今天风好大')) && await sr('[data-in]').inputValue() === '');
 
   await E(() => { setWho(null, true) }); await W(200);
-  const other = await E(() => String(SBV.L.find(x => !x.mine && !x.closed).id));
+  const other = await E(() => String(SBV.L.find(x => !x.mine && !x.closed && !(SBV.pend || []).includes(x)).id));
   await E(id => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(`[data-ln="${id}"]`); r ? r.click() : 0 }, other); await W(500);
   if (!(await E(() => SBV.open))) await E(id => { SBV.open = id }, other);
   await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="report"]').click(); await W(400);
@@ -101,7 +101,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   // 回复已关闭（别人关了回复）
   // 回复已关闭：打开时还能回，作者这时关了回复（关了的那条本来就没有回复框）
   await E(() => { SBV.rl = {} });
-  const cl = await E(() => String(SBV.L.find(x => !x.mine && !x.closed).id));
+  const cl = await E(() => String(SBV.L.find(x => !x.mine && !x.closed && !(SBV.pend || []).includes(x)).id));
   await E(id => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(`[data-ln="${id}"]`); r && r.click() }, cl); await W(500);
   const cr0 = await E(id => SBV.L.find(x => String(x.id) === id).r.length, cl);
   await E(id => { SBV.L.find(x => String(x.id) === id).closed = true }, cl);
@@ -109,7 +109,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('作者关了回复 → 「作者关闭了回复」，没回出去', await toast() === '作者关闭了回复' && await E(id => SBV.L.find(x => String(x.id) === id).r.length, cl) === cr0, await toast());
   await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-shut]')?.click()); await W(300);
   // 重复举报
-  const rp = await E(() => String(SBV.L.find(x => !x.mine).id));
+  const rp = await E(() => String(SBV.L.find(x => !x.mine && !(SBV.pend || []).includes(x)).id));
   await E(id => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(`[data-ln="${id}"]`); r && r.click() }, rp); await W(500);
   for (let i = 0; i < 2; i++) { await sr('.sheet [data-menu]').click(); await W(250); await sr('[data-act="report"]').click(); await W(250); await sr('[data-act="r"]').first().click(); await W(250) }
   T('同一条举报两次 → 「你已经举报过，我们正在处理」', await toast() === '你已经举报过，我们正在处理', await toast());
