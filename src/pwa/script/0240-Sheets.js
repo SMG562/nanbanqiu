@@ -28,7 +28,7 @@ $('#sbg').onclick=closeSheet;
 /* 球员卡：他人 → 屏蔽 / 举报；自己 → 等级 / 徽章 / 规则 / 保存 */
 function openCard(uid){const u=U(uid),s=stats(uid),self=ME&&uid===ME.id;
   if(!self){const blocked=ME&&ME.blocked.has(uid);
-    openSheet(`${flipCard(uid)}<div class="bdgrid" style="margin:18px 0 4px;grid-template-columns:repeat(6,1fr)">${s.badges.filter(b=>b.got).slice(0,6).map(b=>`<div class="bd" data-bdgd="${b.code}" data-u="${uid}"><div class="hx" style="width:40px;height:44px;font-size:14px">${b.glyph}</div><span style="color:#9BA79F">${b.name}</span></div>`).join('')}</div>
+    openSheet(`${flipCard(uid)}${typeof rkCardHTML==='function'?rkCardHTML(uid):''}<div class="bdgrid" style="margin:18px 0 4px;grid-template-columns:repeat(6,1fr)">${s.badges.filter(b=>b.got).slice(0,6).map(b=>`<div class="bd" data-bdgd="${b.code}" data-u="${uid}"><div class="hx" style="width:40px;height:44px;font-size:14px">${b.glyph}</div><span style="color:#9BA79F">${b.name}</span></div>`).join('')}</div>
     ${impressionsHTML(U(uid),'大家最喜欢 TA 的地方')}${invBtnHTML(uid)}${chatBtnHTML(uid)}${kudosHTML(uid)}${ME?`<div class="row2" style="margin-top:14px"><button class="btn btn-mini" style="background:#232B26;color:#fff" data-a="${blocked?'unblock':'block'}" data-u="${uid}"><svg><use href="#i-ban"/></svg>${blocked?'解除屏蔽':'屏蔽此人'}</button><button class="btn btn-mini" style="background:#232B26;color:#fff" data-a="report" data-u="${uid}"><svg><use href="#i-mail"/></svg>举报</button></div>`:''}`,false,true);return}
   const pct=s.next?Math.round((s.points-LV[s.lv][0])/(s.next[0]-LV[s.lv][0])*100):100;
   openSheet(`<div class="selfcard">${flipCard(uid)}</div>${journeyHTML(U(uid),s)}
