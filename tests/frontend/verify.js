@@ -24,7 +24,7 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   const close=()=>js(W=>{W?closeModal():closeSheet()},W);
   const SH=W?'#modal':'#sheet',DET=W?'#colR':'#detail';
   const openGame=id=>js(([id,W])=>{AN.ctx='list';if(W){UI.tab='disc';select(id)}else{if(UI.detail)closeDetail();openDetail(id)}},[id,W]);
-  const goTab=t=>js(([t,W])=>{if(W){if(t==='notif'){togglePop(true);return}closeModal();UI.landing=null;UI.tab=t==='me'?'mine':t;UI.sel=null;render()}else{closeSheet();if(UI.detail)closeDetail();if(t==='notif')UI.msgTab='ntf';if(t==='chat'){UI.msgTab='chat';t='notif'}go(t)}},[t,W]);
+  const goTab=t=>js(([t,W])=>{if(W){if(t==='notif'){togglePop(true);return}closeModal();UI.landing=null;UI.tab=t;UI.sel=null;render()}else{closeSheet();if(UI.detail)closeDetail();if(t==='notif')UI.msgTab='ntf';if(t==='chat'){UI.msgTab='chat';t='notif'}go(t)}},[t,W]);
   const who=u=>js(u=>{typeof closeSheet==='function'?closeSheet():closeModal();if(typeof closeDetail==='function'&&UI.detail)closeDetail();setWho(u,true)},u);
   async function S(name,expect,fn,opt={}){if(!opt.keep)await clean();await ev();try{await fn()}catch(e){T(plat+' '+name+' (run)',false,e.message.split('\n')[0])}await wait(opt.wait||350);
     const L=await ev();ALL[plat].push(...L);const core=L.filter(e=>!NOISE.has(e.ev));R[plat][name]={core,common:opt.common!==false,all:L};
@@ -48,10 +48,10 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   {const gv=R[plat].list_open.all.filter(e=>e.ev==='game_view');T(plat+' game_view once via list',gv.length===1&&gv[0].props.via==='list'&&gv[0].props.game_id===g0&&gv[0].props.venue_id,gv.map(e=>e.props))}
   await S('login_open',[['login_open',{trigger:'apply'}]],()=>click((W?'#colR':'#dAct')+' [data-a="apply"]'),{only:true});
   await S('send_code_bad',[],async()=>{await pg.fill('#ph','12');await click('[data-a="sendCode"]')},{only:true});
-  await S('send_code',[['login_send_code',{cc:'+61'}]],async()=>{await pg.fill('#ph','0412 345 678');await click('[data-a="sendCode"]')},{only:true});
+  await S('send_code',[['login_send_code',{cc:'+61',ok:true,n:1}]],async()=>{await pg.fill('#ph','0412 345 678');await click('[data-a="sendCode"]')},{only:true});
   await S('edit_phone',[],async()=>{await wait(400);await click(SH+' [data-a="login"]')},{only:true});
   T(plat+' edit phone keeps next',await js(()=>typeof AUTH.next==='function'));
-  await S('send_code2',[['login_send_code',{cc:'+61'}]],async()=>{await pg.fill('#ph','0412 345 678');await click('[data-a="sendCode"]')},{only:true});
+  await S('send_code2',[['login_send_code',{cc:'+61',ok:true,n:2}],['login_resend',{n:2}]],async()=>{await pg.fill('#ph','0412 345 678');await click('[data-a="sendCode"]')},{only:true});
   await S('verify',[['login_verify',{ok:true}]],async()=>{await wait(500);await pg.fill('#otp','123456')},{only:true});
   await S('signup',[['login_success',{is_new:true,trigger:'apply',entry:'direct'}],['signup_complete',{ntrp:3,clubs_n:0,gender_given:false,avatar_kind:'letter'}],['pact_view',{via:'gate'}]],
     async()=>{await wait(300);await pg.fill('#npName','Tess');await pg.check('#npAdult');await click('[data-a="npDone"]');await wait(900)},{only:true});
@@ -76,7 +76,7 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   await S('leave_late',[['game_leave_open',{game_id:gi}],['game_leave',{game_id:gi,grace:false,after_change:false}]],async()=>{await click((W?'#colR':'#dAct')+' [data-a="leave"]');await click('[data-a="doLeave"]')},{only:true});
   // ===== 4 性别（第一次填写）=====
   await goTab('me');await wait(300);
-  await S('gender_first',[['gender_open',{}],['gender_set',{first:true,changed:false}]],async()=>{await click((W?'#colL':'#meBody')+' [data-sx="gender"]');await click('[data-sx="pickG"][data-v="m"]')},{only:true});
+  await S('gender_first',[['gender_open',{}],['gender_set',{first:true,changed:false}]],async()=>{await js(()=>openSettings());await click('[data-sx="gender"]');await click('[data-sx="pickG"][data-v="m"]')},{only:true});
   // ===== 5 发起人：接受 / 婉拒（看过 / 没看过球员卡）· 取消 =====
   await who('han');await js(()=>{ensureJasonPending()});await openGame('g1');await wait(300);
   await S('approve_nocard',[['host_decide',{game_id:'g1',target_uid:'jason',ok:true,viewed_card:false,has_note:false,ms_since_request:x=>x>0}]],()=>click(`${W?'#colR':'#dBody'} [data-a="approve"][data-u="jason"]`),{only:true});
@@ -206,10 +206,10 @@ async function run(b,plat){const W=plat==='Web',ctx=await ctxFor(b,plat),pg=awai
   await wait(1800);
   // ===== 16 性别（改）不记值 =====
   await close();await goTab('me');await wait(300);
-  await S('gender_change',[['gender_open',{}],['gender_set',{first:false,changed:true}]],async()=>{await click((W?'#colL':'#meBody')+' [data-sx="gender"]');await click('[data-sx="pickG"][data-v="f"]');await click('[data-sx="gConfirm"]')},{only:true});
+  await S('gender_change',[['gender_open',{}],['gender_set',{first:false,changed:true}]],async()=>{await js(()=>openSettings());await click('[data-sx="gender"]');await click('[data-sx="pickG"][data-v="f"]');await click('[data-sx="gConfirm"]')},{only:true});
   // ===== 17 退出 → 新 anon；访客关闭使用数据 → 不再发任何事件 =====
   const anon0=await js(()=>AN.anon);
-  await S('logout',[['logout',{}],['session_start',{entry:'direct'}]],async()=>{if(W){await click('[data-a="umenu"]');await click('#umenu [data-a="logout"]')}else{await click('#meBody [data-a="logout"]')}},{only:true});
+  await S('logout',[['logout',{}],['session_start',{entry:'direct'}]],async()=>{if(W){await click('[data-a="umenu"]');await click('#umenu [data-a="logout"]')}else{await js(()=>openSettings());await click('#sheet [data-a="logout"]')}},{only:true});
   {const L=R[plat].logout.all;const lo=L.find(e=>e.ev==='logout'),ss=L.find(e=>e.ev==='session_start');T(plat+' logout → new anon & sid',lo&&ss&&lo.anon===anon0&&ss.anon!==anon0&&ss.sid!==lo.sid&&ss.uid===null,[lo&&lo.anon,ss&&ss.anon])}
   await goTab('me');await wait(300);
   await S('analytics_off',[['analytics_off',{}]],()=>click((W?'#colL':'#meBody')+' [data-anx]'),{only:true});
@@ -246,13 +246,13 @@ async function entries(b,plat){const W=plat==='Web',out={};
   return out}
 
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
-  for(const p of ['PWA','Web']){await run(b,p);await entries(b,p)}
+  await Promise.all(['PWA','Web'].map(async p=>{await run(b,p);await entries(b,p)}))   // 11-11：两端各自独立的浏览器上下文，结果按端存（R / ALL），并行跑；下面的两端对照在两端都跑完之后
   // 字典之外的事件
   for(const p of ['PWA','Web']){const bad=[...new Set(ALL[p].map(e=>e.ev).filter(x=>!SPEC.has(x)&&x!=='ui_action'))];T(p+' only spec events',!bad.length,bad);
     const leak=ALL[p].filter(e=>/secret-xyz|秘密内容|我到了/.test(JSON.stringify(e.props)));T(p+' no chat text in events',!leak.length,leak.map(e=>e.ev));
     const gs=ALL[p].filter(e=>e.ev==='gender_set');T(p+' gender_set has no value',gs.length===2&&gs.every(e=>!/"[fm]"/.test(JSON.stringify(e.props))&&!('value'in e.props)&&!('gender'in e.props)),gs.map(e=>e.props))}
   // 两端同一个动作：事件名和 props 一致（时间、编号类的值不比）
-  const norm=e=>{const p={};Object.keys(e.props||{}).sort().forEach(k=>{const v=e.props[k];p[k]=/^(minutes_to_start|ms|ms_since_request|from|to|notif_id|invite_id|game_id|vw|days_since_signup|landing|value)$/.test(k)&&!(e.ev==='badge_share'&&k==='to')&&!(e.ev!=='card_customize'&&k==='value')?typeof v:v});return e.ev+' '+JSON.stringify(p)};
+  const norm=e=>{const p={};Object.keys(e.props||{}).sort().forEach(k=>{const v=e.props[k];p[k]=/^(minutes_to_start|ms|secs|ms_since_request|from|to|notif_id|invite_id|game_id|vw|days_since_signup|landing|value)$/.test(k)&&!(e.ev==='badge_share'&&k==='to')&&!(e.ev!=='card_customize'&&k==='value')?typeof v:v});return e.ev+' '+JSON.stringify(p)};
   let same=0;for(const k of Object.keys(R.PWA)){const a=R.PWA[k],w=R.Web[k];if(!a||!w||!a.common)continue;const A=a.core.map(norm).sort(),B=w.core.map(norm).sort();if(eq(A,B))same++;else T('parity '+k,false,{PWA:A,Web:B})}
   console.log(`parity steps equal: ${same}`);
   for(const p of ['PWA','Web']){const ua={};ALL[p].filter(e=>e.ev==='ui_action').forEach(e=>{const k=e.props.attr+':'+e.props.action;ua[k]=(ua[k]||0)+1});console.log(p,'ui_action',JSON.stringify(ua));

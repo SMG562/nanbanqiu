@@ -34,7 +34,7 @@ export function senderVersion(root = ROOT) {
   return h.digest('hex').slice(0, 10);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   if (process.argv.includes('--list')) console.log(closure().join('\n'));
   else console.log(senderVersion());
 }

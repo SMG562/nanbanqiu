@@ -8,7 +8,9 @@ const AN={q:[],sent:0,pre:[],ready:false,sid:null,last:0,ctx:'list',pv:null,over
   qp:(()=>{const o={};try{const h=location.hash.indexOf('?');[new URLSearchParams(location.search),new URLSearchParams(h>=0?location.hash.slice(h+1):'')].forEach(p=>p.forEach((v,k)=>{if(v&&o[k]==null)o[k]=v}))}catch(e){}return o})()};
 // 分享出去的链接都带上来源：?s=渠道&f=分享人编号 —— 站外回流能精确算到「哪种分享、谁分享的」
 // 渠道：link 复制链接 / text 复制文案 / sys 系统分享 / xhs 小红书 / moments 朋友圈 / qr 图片上的二维码 / webqr 电脑端扫码
-function shareURL(url,ch){if(!ch)return url;let q='s='+ch;try{if(typeof ME!=='undefined'&&ME&&ME.no!=null)q+='&f='+(typeof fmtNo==='function'?fmtNo(ME.no):ME.no)}catch(e){}return url+(url.includes('?')?'&':'?')+q}
+// 分享 / 二维码链接写的是正式域名；分支预览站（测试库）上换成当前站点，扫码才留在预览站、不跳到正式站（#208）。正式站、预览站根、本地都不变。
+function nbqLinkFor(url,host){return typeof nbqEnvOf==='function'&&nbqEnvOf(host)==='staging'?String(url).replace(/^https:\/\/nanbanqiu\.app(?=[/?#]|$)/,'https://'+host):url}
+function shareURL(url,ch){url=nbqLinkFor(url,typeof location!=='undefined'?location.hostname:'');if(!ch)return url;let q='s='+ch;try{if(typeof ME!=='undefined'&&ME&&ME.no!=null)q+='&f='+(typeof fmtNo==='function'?fmtNo(ME.no):ME.no)}catch(e){}return url+(url.includes('?')?'&':'?')+q}
 // 进入方式：推送（?n=&k=）· 站外分享（带 s=）· 外部来源 · 直接（输入网址 / 收藏 / 主屏幕）
 AN.entry=AN.qp.n||AN.qp.k?'push':AN.qp.s?'share':(document.referrer&&!/nanbanqiu\.com/.test(document.referrer))?'external':'direct';
 
@@ -101,7 +103,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-anx]');if(
 
 /* ---------- 球员卡翻面：正面是卡，背面是「扫码约我打球」的二维码 ---------- */
 function cardBack(uid){const u=U(uid),f=playerCard(uid),base=f.slice(0,f.indexOf('<div class="pc-top">')).replace(/<svg class="court"[\s\S]*?<\/svg>/,'');
-  return base+`<div class="bk"><i class="q" style="color:${u.color}">${qrSVG(profileUrl(u,'qr'))}</i></div></div>`}
+  return base+`<div class="bk"><i class="q" data-qr="${esc(profileUrl(u,'qr'))}" style="color:${u.color}">${qrSVG(profileUrl(u,'qr'))}</i></div></div>`}
 const flipCard=uid=>`<div class="flip" data-flip title="翻面"><div class="fi"><div class="ff">${playerCard(uid)}</div><div class="fb">${cardBack(uid)}</div></div></div>`;
 document.addEventListener('click',e=>{const f=e.target.closest('[data-flip],[data-flipbtn]');if(!f)return;e.stopPropagation();const el=f.matches('[data-flip]')?f:f.previousElementSibling;el&&el.classList.toggle('on')},true);
 

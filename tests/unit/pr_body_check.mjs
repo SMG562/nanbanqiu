@@ -24,4 +24,5 @@ T('「你来做」用到本 PR 新文件、没写已同步 → 不过，且点�
 T('只同步了一部分 → 仍不过（点名没同步的那个）', (r => r.some(x => /admin_create/.test(x) && !/x\.sql、/.test(x)))(checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql\n', FILES2)));
 T('全部写了已同步 → 过', checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2).length === 0, checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2));
 T('「你来做」只提 main 上已有的文件 → 不要求', checkBody(TBL + RISK + '## 你来做\n- 看 `tools/site.mjs`\n', FILES2).length === 0);
+T('改了技能 / 钩子、描述没 @SMG562 / @MDD1102 → 不过；写其一 → 过；普通文档不要求', (m => checkBody(RISK, ['.claude/skills/x/SKILL.md']).some(m) && !checkBody(RISK + '@SMG562 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK + '@MDD1102 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK, DOC).some(m))(x => /@SMG562 或 @MDD1102/.test(x)));
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

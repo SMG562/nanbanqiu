@@ -23,6 +23,6 @@ function openCard(uid){
 // 分享图：正面 + 背面（二维码，颜色 = 用户印色），轻微反向旋转
 function shareShot(uid){const u=U(uid);const front=playerCard(uid);
   const base=front.slice(0,front.indexOf('<div class="pc-top">')).replace(/<svg class="court"[\s\S]*?<\/svg>/,'');
-  const back=base+`<div class="bk"><i class="q" style="color:${u.color}">${qrSVG(profileUrl(u,typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments'))}</i><div class="cta">扫码约我打球</div></div></div>`;
+  const back=base+`<div class="bk"><i class="q" data-qr="${esc(profileUrl(u,typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments'))}" style="color:${u.color}">${qrSVG(profileUrl(u,typeof SC!=='undefined'&&SC.to==='xhs'?'xhs':'moments'))}</i><div class="cta">扫码约我打球</div></div></div>`;
   return `<div class="shot"><div class="bw">${back}</div><div class="fw">${front}</div></div>`}
 const SHARE_OPEN=h=>openModal(`<div class="m-b">${h}</div>`,'sm');

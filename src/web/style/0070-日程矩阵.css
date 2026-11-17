@@ -21,13 +21,14 @@
 .gc-r1{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
 .gc-r1 b{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .gc-r1 span{font-size:11.5px;color:var(--mut)}
+.gc-r1{min-width:0;flex-wrap:wrap;row-gap:0}.gc-r1 .lt{margin-left:0}@container (max-width:180px){.gc-r1:has(.lt) .gc-d{display:none}}   /* 11-09：多了「当地 HH:MM」放不下时先藏时长（详情里有），不挤出卡片 */
 .gc-v{font-size:13.5px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc-m{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc-f{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
 .dots{display:flex;gap:3px}
 .dots i{width:8px;height:8px;border-radius:50%;background:var(--g)}
 .dots i.o{background:transparent;border:1.5px solid #B9C1B9}
-.tagx{font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;white-space:nowrap}
+.tagx{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
 .gc.hot .tagx{background:#EEF8C8;color:#3F5600}
 .gc.mine{background:var(--g);border-color:var(--g);color:#fff}
 .gc.mine::before{background:var(--lime)}

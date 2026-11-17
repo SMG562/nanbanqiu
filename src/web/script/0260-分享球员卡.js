@@ -1,7 +1,7 @@
 function doSaveCard(uid){const src=$('#modal').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
-  if(window.html2canvas)html2canvas(el,{backgroundColor:null,scale:3}).then(cv=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`nanbanqiu-${fmtNo(U(uid).no)}.png`;a.click();tmp.remove();toast('分享图已保存')}).catch(()=>{tmp.remove();toast('保存失败，请截图保存')});
+  if(window.html2canvas)nbqShot(el,3).then(bl=>{tmp.remove();if(bl){imgSave(bl,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')});
   else{tmp.remove();toast('需要联网加载保存组件，也可以直接截图')}}
 function openBlock(uid){const u=U(uid);openModal(`<div class="m-b"><div class="m-t">屏蔽 ${esc(u.name)}？</div><p class="m-s" style="margin-bottom:12px">屏蔽后：</p>
   <ul class="tips"><li><i>🙈</i><div>TA 看不到你发起的球局<small>包括通过分享链接打开</small></div></li><li><i>✋</i><div>TA 无法申请加入你的球局<small>TA 当前的待确认申请会自动婉拒</small></div></li><li><i>👀</i><div>你也不会再看到 TA 发起的球局</div></li><li><i>🔕</i><div>对方不会收到任何通知</div></li></ul>
@@ -29,7 +29,7 @@ function openCommunity(){openModal(`<div class="m-b center"><div class="bigic" s
 let AUTH={next:null,phone:'',cc:'+61',t:0},NP={ntrp:3.0,clubs:[]};
 function openAuth(next,why){AUTH.next=next;openModal(`<div class="m-b"><svg class="auth-logo" viewBox="0 0 100 100"><use href="#logo"/></svg><div class="m-t center">用手机号继续</div><p class="m-s center">${why||'30 秒创建账号，以后打开链接自动登录'}</p>
   <div class="lrow"><select class="inp" id="cc" style="width:92px;flex:none">${COUNTRIES.map(k=>`<option>${k.dial}</option>`).join('')}</select><input class="inp" id="ph" inputmode="tel" placeholder="0412 345 678"></div>
-  <div style="height:12px"></div><button class="btn btn-p w100" data-a="sendCode">获取验证码</button><p class="fine">演示：任意手机号和 6 位验证码<br>继续即表示同意${legalLinks()}</p></div>`,'sm');setTimeout(()=>$('#ph')&&$('#ph').focus(),60)}
+  <div style="height:12px"></div><button class="btn btn-p w100" data-a="sendCode">获取验证码</button><p class="fine">${typeof SBA!=='undefined'&&SBA.on()?'目前仅支持澳洲手机号（04 开头）<br>':'演示：任意手机号和 6 位验证码<br>'}继续即表示同意${legalLinks()}</p></div>`,'sm');setTimeout(()=>$('#ph')&&$('#ph').focus(),60)}
 function openOtp(){openModal(`<div class="m-b"><button class="btn-link" data-a="login" style="margin:-6px 0 8px">‹ 修改手机号</button><div class="m-t">输入验证码</div><p class="m-s">已发送至 ${esc(AUTH.cc)} ${esc(AUTH.phone)}</p><input class="inp otp num" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······"><div class="fine" id="resend">60 秒后可重新发送</div></div>`,'sm');
   let n=60;clearInterval(AUTH.t);AUTH.t=setInterval(()=>{n--;const r=$('#resend');if(!r){clearInterval(AUTH.t);return}r.innerHTML=n>0?n+' 秒后可重新发送':'<b style="color:var(--g);cursor:pointer" data-a="sendCode">重新发送</b>';if(n<=0)clearInterval(AUTH.t)},1000);
   setTimeout(()=>{const o=$('#otp');o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},60)}
@@ -57,14 +57,16 @@ function openLeave(id){const c=api.get(id),appr=c.mine==='approved';openModal(`<
   <div class="row2"><button class="btn btn-s" data-a="closeModal">再想想</button><button class="btn btn-d" data-a="doLeave" data-g="${id}">${appr?'取消参加':'撤回申请'}</button></div></div>`,'sm')}
 function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;openModal(`<div class="m-b"><div class="m-t">取消这个球局？</div><p class="m-s">${n?`${n} 位球友会收到通知。`:'还没有球友加入。'}</p>
   <div class="row2"><button class="btn btn-s" data-a="closeModal">保留</button><button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button></div></div>`,'sm')}
-let CL=[];const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
-function clubRows(){return Object.values(VEN).sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openModal(`<div class="m-b"><div class="m-t">我的 Club</div><p class="m-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
+let CL=[],CLQ='';const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
+function clubRows(){const q=CLQ.trim().toLowerCase(),vs=Object.values(VEN).filter(v=>!q||(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q));if(q&&!vs.length)return '<div class="vp-none">没找到，换个词</div>';return vs.sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
+document.addEventListener('input',e=>{if(e.target.id==='clQ'){CLQ=e.target.value;const l=document.getElementById('clList');if(l)l.innerHTML=clubRows()}});
+function openClubs(){CL=[...myClubIds()];CLQ='';openModal(`<div class="m-b"><div class="m-t">我的 Club</div><p class="m-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
+  <div class="vp" style="margin:0 0 8px"><div class="vp-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="clQ" placeholder="搜索 Club 名称或区域" autocomplete="off" spellcheck="false"></div></div>
   <div id="clList">${clubRows()}</div>
   <div style="position:sticky;bottom:-26px;margin:12px -28px -26px;padding:12px 28px 26px;background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p w100" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div></div>`,'md')}
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
-const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)}`;
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 function openShare(id){const c=api.get(id),h=c.host,url=shareURL('https://nanbanqiu.app/g/'+c.share_code,'webqr');
   openModal(`<div class="m-b"><div class="m-t">分享球局</div><p class="m-s">发到微信群或小红书，更快找到球友</p>

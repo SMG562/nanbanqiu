@@ -1,7 +1,7 @@
 /* discover */
 .disc{display:flex;flex-direction:column;overflow:hidden;overflow:clip;padding-bottom:0}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 16px 10px;margin:0 -16px;scrollbar-width:none}
-.chip{flex:none;display:flex;align-items:center;gap:5px;height:32px;padding:0 12px;border-radius:99px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.chip{flex:none;display:flex;align-items:center;gap:5px;height:32px;padding:0 12px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
 .chip.on{background:var(--g);border-color:var(--g);color:#fff}
 .chip svg{width:14px;height:14px}
 .week{display:grid;grid-template-columns:repeat(7,1fr);padding:2px 0 10px}

@@ -1,6 +1,6 @@
 /* 等级进度 & 徽章 */
-.lvbar{height:10px;border-radius:99px;background:#E7ECE7;overflow:hidden;margin:8px 0 6px}
-.lvbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--g),#7DC243)}
+.lvbar{height:10px;border-radius:999px;background:#E7ECE7;overflow:hidden;margin:8px 0 6px}
+.lvbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--g),#7DC243)}
 .lvsteps{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
 .lvsteps span.on{color:var(--g);font-weight:700}
 .bdgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}

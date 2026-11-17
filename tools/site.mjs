@@ -14,7 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,7 +32,14 @@ export const FILES = {
   'icons/icon-192.png': 'icons/icon-192.png',
   'icons/icon-512.png': 'icons/icon-512.png',
   'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
+  // 推送通知的状态栏徽章（sw.js 的 badge；Android 只认透明度，所以是透明底的白色剪影；11-17 补，之前一直 404）
+  'icons/badge-72.png': 'icons/badge-72.png',
+  // 链接卡片缩略图（og:image；300×300、7KB：微信对缩略图有体积限制）
+  'icons/og-share.jpg': 'icons/og-share.jpg',
 };
+// 第三方库（L5，11-11）：leaflet / qrcodejs / html2canvas 放在仓库 vendor/，随站点发布（不再从 cdnjs 加载，CSP 也不再放行它）
+const vend = d => fs.readdirSync(path.join(ROOT, 'vendor', d), { withFileTypes: true }).forEach(e => e.isDirectory() ? vend(path.join(d, e.name)) : (FILES[`vendor/${path.join(d, e.name)}`] = `vendor/${path.join(d, e.name)}`));
+vend('');
 // 宣传物料：清单来自 marketing/posters.json（build.py 登记），图在 marketing/img、thumb（webp，已入库）
 export const posterName = p => `${String(p.id).padStart(2, '0')}-${p.slug}`;
 export function posters() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'marketing', 'posters.json'), 'utf8')) } catch { return [] } }
@@ -43,7 +50,7 @@ for (const p of posters()) {
 // 代码里最新的数据库迁移（文件名去掉 .sql）；线上库执行到的版本要等于它（/api/version 的 schema.latest）
 export function migrations() { try { return fs.readdirSync(path.join(ROOT, 'server', 'migrations')).filter(f => f.endsWith('.sql') && !f.startsWith('_')).sort().map(f => f.replace(/\.sql$/, '')) } catch { return [] } }
 export const latestMigration = () => migrations().pop() || null;
-export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json'];
+export const GENERATED = ['index.html', 'materials.html', '_headers', 'manifest.webmanifest', 'version.json', '_routes.json', 'build.json'];
 // Pages Functions 只在这些路径上运行（其余静态文件直接给，不算函数调用次数）：
 //   /（跳城市网址）· /melbourne/ 等（按宽度载入手机版 / 网页版）· 旧 /pwa.html /web.html（导航请求跳城市网址）· server/site_route.mjs · 正式站 /materials 回首页 · /api · 分享短链接 /g、/p
 export const ROUTES = { version: 1, include: ['/', '/melbourne', '/melbourne/', '/sydney', '/sydney/', '/pwa', '/pwa.html', '/web', '/web.html', '/materials', '/materials.html', '/api/*', '/admin/api/*', '/g/*', '/p/*'], exclude: [] };
@@ -63,6 +70,19 @@ function commit() {
   try { return execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' }
 }
 
+// 构建号（#63 第 3 件，ADR 0013）：提交时间（秒）+ 短提交号，如 1763017920-a9356c8；按前面的数字比大小（最低前端版本用）。
+//   写进手机版 / 网页版页面的 <meta name="nbq-build">，并生成 /build.json；页面回到前台时比较两者，不一样 = 有新版本。
+//   拿不到提交时间（不在 git 里）就不生成构建号：页面不检查、不带 X-NBQ-Build。
+export function buildId() {
+  const sha = commit(); if (!sha) return '';
+  for (const ref of [process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA, 'HEAD'].filter(Boolean)) {
+    try { const t = execFileSync('git', ['log', '-1', '--format=%ct', ref], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); if (/^\d+$/.test(t)) return `${t}-${sha}` } catch { /* 下一个 */ }
+  }
+  return '';
+}
+export const BUILD_PAGES = ['pwa.html', 'web.html'];
+export const stampBuild = (html, id) => id ? html.replace(/<head>/i, `<head><meta name="nbq-build" content="${id}">`) : html;
+
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export function indexHTML(sha, when) {
   return `<!doctype html>
@@ -71,7 +91,7 @@ export function indexHTML(sha, when) {
 <script>/* 分享短链接 /g/码、/p/编号：预览站没有后端，落到入口页后按屏幕宽度转到手机端 / 网页端，用 #/g/码 的写法交给页面 */
 (function(){var m=location.pathname.match(/^[/]([gp])[/]([A-Za-z0-9]+)/);if(m)location.replace((innerWidth<=820?'/pwa.html':'/web.html')+location.search+'#/'+m[1]+'/'+m[2])})()</script>
 <style>
-:root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--line:#E5E8E5}
+:root{--bg:#F2F4F2;--ink:#1B2620;--mut:#5F6D66;--g:#176B4D;--line:#E5E8E5}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
 main{width:100%;max-width:420px;padding:32px 16px}
 h1{margin:0 0 4px;font-size:22px;color:var(--g)}p{margin:0 0 22px;color:var(--mut);font-size:13px}
@@ -93,7 +113,7 @@ export function materialsHTML(list, sha, when) {
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>南伴球 宣传物料</title>
 <style>
-:root{--bg:#F3F5F3;--ink:#101828;--mut:#8A919C;--g:#176B4D;--lime:#C6EA3D;--line:#E5E8E5}
+:root{--bg:#F2F4F2;--ink:#1B2620;--mut:#5F6D66;--g:#176B4D;--lime:#C6EA3D;--line:#E5E8E5}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
 header,main{max-width:1100px;margin:0 auto;padding:0 16px}header{padding-top:20px}
 .back{display:inline-block;color:var(--mut);font-size:13px;text-decoration:none;margin-bottom:10px}
@@ -152,15 +172,23 @@ export const HEADERS = `/*
 /sw.js
   Cache-Control: no-cache
   Service-Worker-Allowed: /
+
+/vendor/*
+  Cache-Control: public, max-age=86400
 `;
 
 export function build(out = path.join(ROOT, 'site')) {
+  // ADR 0011：页面 HTML 不入库，部署构建（构建命令就是 node tools/site.mjs）先从 src/ 现拼；拼不出来就停，不发布旧的
+  execFileSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs')], { stdio: 'inherit' });
   // 只清本脚本建的文件，且只在 site/ 之内
   if (fs.existsSync(out)) {
     if (fs.lstatSync(out).isSymbolicLink()) throw new Error('site/ 是链接，停止');
     for (const f of [...Object.keys(FILES), ...GENERATED]) { const p = path.join(out, f); if (fs.existsSync(p)) fs.unlinkSync(p) }
   } else fs.mkdirSync(out);
   for (const [to, from] of Object.entries(FILES)) { fs.mkdirSync(path.dirname(path.join(out, to)), { recursive: true }); fs.copyFileSync(path.join(ROOT, from), path.join(out, to)) }
+  const bid = buildId();
+  for (const f of BUILD_PAGES) fs.writeFileSync(path.join(out, f), stampBuild(fs.readFileSync(path.join(out, f), 'utf8'), bid));
+  fs.writeFileSync(path.join(out, 'build.json'), JSON.stringify({ build: bid }) + '\n');
   fs.writeFileSync(path.join(out, 'manifest.webmanifest'), previewManifest(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8')));
   const when = new Date().toLocaleString('zh-CN', { timeZone: 'Australia/Melbourne', hour12: false }).slice(0, -3);
   fs.writeFileSync(path.join(out, 'index.html'), indexHTML(commit(), when + ' 墨尔本'));   // 只有预览站根用得到；正式站 / 由中间件给选排版页
@@ -172,7 +200,7 @@ export function build(out = path.join(ROOT, 'site')) {
   return out;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   const out = build();
   console.log(`site/：${fs.readdirSync(out).length} 个文件`);
 }

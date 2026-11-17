@@ -1,7 +1,7 @@
 function playerCard(uid){const u=U(uid),s=stats(uid),home=(u.home_club_ids||[])[0],top=bdgTop(s);
   return `<div class="pc th-${u.card_theme||'court'}" data-card="${uid}"><svg class="court" viewBox="0 0 300 430" fill="none" stroke="#fff" stroke-width="2"><rect x="40" y="40" width="220" height="350"/><path d="M40 215h220M70 40v350M230 40v350M70 130h160M70 300h160M150 130v170"/></svg><i class="pc-light"></i><i class="pc-grain"></i>
     <div class="pc-top"><div class="pc-rt"><b>${f1(u.ntrp)}</b><span>UTR</span></div><div class="pc-lv"><b>Lv${s.lv+1}</b><span>${LV[s.lv][1]}</span></div></div>
-    <div class="pc-av wdc ${u.avatar_kind==='animal'&&sealOf(u).endsWith('-g')?'glass':''}">${stampSVG(s=>avContent(u,s),u.color,128,String(u.id)+(u.animal||'')+u.color+(u.seal_roll||0),u.avatar_kind==='animal'?sealOf(u):'bw-rd',String(u.id)+(u.animal||''))}</div>
+    <div class="pc-av wdc ${u.avatar_kind==='animal'&&sealOf(u).endsWith('-g')?'glass':''}" data-ini="${esc((String(u.name||'?').trim()[0]||'?').toUpperCase())}" data-bg="${esc(u.color||'')}">${stampSVG(s=>avContent(u,s),u.color,128,String(u.id)+(u.animal||'')+u.color+(u.seal_roll||0),u.avatar_kind==='animal'?sealOf(u):'bw-rd',String(u.id)+(u.animal||''))}</div>
     <div class="pc-name">${esc(cardName(u))}</div><div class="pc-club">${home?clubLabelHTML(VEN[home].name):esc(CITY.zh)+' · 南伴球'}</div>
     <div class="pc-stats"><div><b class="num">${s.played}</b><span>场次</span></div><div><b class="num">${s.hosted}</b><span>组织</span></div><div><b class="num">${s.kudos}</b><span>好评</span></div>
       <div><b class="num">${s.streak}</b><span>连续周</span></div><div><b class="num">${s.clubs}</b><span>CLUB</span></div><div><b class="num">${s.played?Math.round(s.att*100)+'%':'—'}</b><span>赴约率</span></div></div>
@@ -19,9 +19,15 @@ function renderMe(){
   <div class="group">${myClubIds().map(id=>{const v=VEN[id];return `<div class="club"><span class="ci"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)} · ${km(LOC,v).toFixed(1)} km</small></span><span class="pill p-green">Home</span></div>`}).join('')}
     ${often.map(([id,n])=>{const v=VEN[id];return `<div class="club"><span class="ci" style="background:#F0F2F0;color:var(--mut)"><svg><use href="#i-court"/></svg></span><span class="v"><b>${esc(v.name)}</b><small>最近打过 ${n} 次</small></span><button class="pill p-gray" data-a="addClub" data-v="${id}">+ Home</button></div>`}).join('')}
     ${!myClubIds().length&&!often.length?`<button class="club" data-a="editClubs"><span class="ci"><svg><use href="#i-plus"/></svg></span><span class="v"><b>添加我的 Club</b><small>会员 Club 可多选，主 Club 显示在球员卡上</small></span></button>`:''}</div>
+  ${utSectionHTML('pwa')}
+  ${rkSectionHTML('pwa')}
   ${partnersHTML()}
   <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册<small>只有自己看得到</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>
-  <div class="sec-t">设置</div><div class="group">
+  ${PUSH.enabled||ENV==='wechat'?'':`<div class="group" style="margin-top:14px"><button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启<small>开启后才能收到约局消息</small></span><svg class="ch"><use href="#i-ch"/></svg></button></div>`}`;
+}
+// 设置子页（#134 P2）：原来堆在「我的」里的设置，收进右上角齿轮
+function settingsHTML(){return `<h3 class="sh-t">设置</h3>
+  <div class="group">
     <button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">提醒方式<small>${PUSH.enabled?'已开启':ENV==='wechat'?'微信内不可用':'未开启'}</small></span>${PUSH.enabled?'<span class="pill p-green">已开启</span>':'<svg class="ch"><use href="#i-ch"/></svg>'}</button>
     ${ENV!=='pwa'?`<button class="li" data-a="${ENV==='wechat'?'wxguide':'a2hs'}"><span class="ico" style="background:var(--g)"><svg><use href="#i-home"/></svg></span><span class="v">添加到主屏幕<small>像 App 一样打开，接收通知</small></span><svg class="ch"><use href="#i-ch"/></svg></button>`:''}
     <button class="li" data-em="settings"><span class="ico" style="background:#3B82F6"><svg><use href="#i-mail"/></svg></span><span class="v">邮件提醒<small>${ME.email?esc(ME.email):'默认不发'}</small></span><svg class="ch"><use href="#i-ch"/></svg></button>
@@ -32,6 +38,5 @@ function renderMe(){
     <button class="li" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="contact"><span class="ico" style="background:#2F80ED"><svg><use href="#i-mail"/></svg></span><span class="v">联系我们 / 举报</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>
-  ${pvLegalHTML()}`;
-}
-
+  ${pvLegalHTML()}`}
+function openSettings(){if(!ME){toast('请先登录');return}openSheet(settingsHTML(),true)}

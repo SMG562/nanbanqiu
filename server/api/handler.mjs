@@ -2,6 +2,7 @@
 //   handleApi(request, { verify, db }) → Response。纯函数风格，Node / Workers 都能用；同域调用，不开 CORS。
 //   错误一律 { error: '<码>' }，码和前台 API_ERR 对照；没登录 401 unauthorized；数据库没配 / 连不上 503 db_unavailable。
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
+import { OWN_ISS, issOf } from './jwt.mjs';
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
@@ -13,13 +14,14 @@ const GAME_COLS = 'g.id, g.share_code, g.host_id, g.host_nickname, g.host_utr, g
 const GAME_FROM = 'api_game_cards g join games gg on gg.id = g.id';
 const ME_COLS = 'id, nickname, last_initial, member_no, utr, utr_estimated, avatar_kind, avatar_animal, avatar_color, card_theme, created_at';
 // 「我」的完整资料：基本列 + 性别 + 常去球场（user_clubs）。注册返回、GET /api/me 都用这个
-const ME_SEL = `${ME_COLS}, seal_roll, wechat_id, invite_from, (email is not null) as mail_set, email_prefs as mail_prefs, gender, pact_accepted_at, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
+const ME_SEL = `${ME_COLS}, seal_roll, wechat_id, invite_from, (email is not null) as mail_set, email_prefs as mail_prefs, gender, pact_accepted_at, api_me_installed() as installed, coalesce((select array_agg(uc.venue_id order by uc.created_at) from user_clubs uc where uc.user_id = users.id), '{}') as club_ids`;
 
 // 登录令牌 → 球友 id（没有对应的球友 = 还没注册，返回 null）
-async function whoIs(request, { verify, db }) {
+async function whoIs(request, { verify, db, session }) {
   const m = (request.headers.get('Authorization') || '').match(/^Bearer\s+(\S+)$/i);
   if (!m) return { err: send(401, { error: 'unauthorized' }) };
-  const v = await verify(m[1]);
+  const own = session && issOf(m[1]) === OWN_ISS;   // 登录交接签发的令牌（11-14）：由接口层自己的公钥验；其余仍是 Supabase 的
+  const v = own ? await session.verify(m[1]) : await verify(m[1]);
   if (!v.ok) return { err: send(401, { error: 'unauthorized' }, { 'X-Auth-Reason': v.code }) };
   const uid = await db.asService(async q => (await q('select id from users where auth_id = $1', [v.sub])).rows[0]?.id || null);
   return { sub: v.sub, uid, phone: typeof v.claims?.phone === 'string' ? v.claims.phone : null };
@@ -38,8 +40,8 @@ const why = e => { const c = String(e && e.code || ''), m = String(e && e.messag
 // ---- 写操作（5g-3 第 3 步）：规则全在数据库的 api_ 函数里，这里只管登录、参数格式、错误码 → HTTP 状态 ----
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 数据库错误（P0001，message = 错误码，见 tests/spec/api_spec.md §1）→ HTTP 状态；表里没有的按 409
-const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game']);
-const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed']);
+const ST403 = new Set(['forbidden', 'women_only', 'blocked', 'not_host', 'invite_closed', 'invite_played_only', 'invite_declined_twice', 'not_in_game', 'register_paused']);
+const ST422 = new Set(['invalid', 'postpone_too_late', 'invite_self', 'counter_same', 'time_past', 'time_out_of_range', 'report_note_required', 'message_link', 'nickname_not_allowed', 'adult_required', 'topic_too_generic', 'topic_name_not_allowed', 'buddy_self']);
 export const statusOf = code => code === 'login_required' ? 401 : code === 'not_found' ? 404 : code === 'pact_required' ? 428 : code === 'restore_expired' ? 410
   : /^account_/.test(code) || ST403.has(code) ? 403 : ST422.has(code) ? 422
   : code !== 'game_open_limit' && /(_limit|_too_fast)$|^rate_limited$|^otp_/.test(code) ? 429 : 409;
@@ -61,7 +63,9 @@ async function readBody(req) {
   try { const b = JSON.parse(t); return b && typeof b === 'object' && !Array.isArray(b) ? { body: b } : { err: send(400, { error: 'bad_json' }) } } catch (_) { return { err: send(400, { error: 'bad_json' }) } }
 }
 // 写接口的固定流程：验令牌 → 球友 → 取 JSON → 在 nbq_user 事务里执行（死锁 / 序列化冲突整笔重试一次）→ 失败按错误码返回
-async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon = false } = {}) {
+//   idem（#276）：会新插一行的接口填自己的路由名，opt-in 幂等。请求带 Idempotency-Key 时，和写操作在同一个事务里先 idem_begin：
+//   同一个 key 来过就直接返回第一次的结果，否则照常做、再 idem_finish 存结果。不带 key 的请求（旧前台）和以前完全一样
+async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon = false, idem = null } = {}) {
   let uid = null;
   if (anon && !req.headers.get('Authorization')) uid = null;          // 没登录也能调的接口（浏览 / 分享 / 配置）：以匿名身份执行，由数据库函数判断
   else {
@@ -73,14 +77,18 @@ async function act(req, d, params, fn, { body = true, ids = [], nums = [], anon 
   for (const k of ids) if (!UUID.test(params[k] || '')) return send(404, { error: 'not_found' });
   for (const k of nums) if (!/^\d{1,15}$/.test(params[k] || '')) return send(404, { error: 'not_found' });
   let b = {}; if (body) { const r = await readBody(req); if (r.err) return r.err; b = r.body }
+  const key = idem && uid ? req.headers.get('Idempotency-Key') : null, route = idem && idem.replace(/:(\w+)/g, (_, k) => params[k]);   // 拼上具体对象：同一个 key 发到另一个会话 / 帖子 → 409，不会错拿第一次的结果
+  const run = !key ? q => fn(q, b, params) : async q => {
+    const old = (await one(q, 'select idem_begin($1, $2) as r', [key, route])).r; if (old) return old;
+    const out = await fn(q, b, params); await q('select idem_finish($1, $2::jsonb)', [key, JSON.stringify(out ?? {})]); return out };
   for (let i = 0; ; i++) {
-    try { return send(200, await d.db.asUser(uid, q => fn(q, b, params))) }
+    try { return send(200, await d.db.asUser(uid, run)) }
     catch (e) { if ((e.code === '40P01' || e.code === '40001') && i === 0) continue; if (e.code === '40P01' || e.code === '40001') return send(503, { error: 'busy_retry' }); throw e }
   }
 }
 const str = v => typeof v === 'string' ? v : null;   // 不是文字的字段一律当没填，让数据库的检查去报错
 const bad = () => Object.assign(new Error('invalid'), { code: '22023' });
-const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'utr', 'utr_estimated', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
+const ME_EDITABLE = new Set(['nickname', 'last_initial', 'avatar_kind', 'avatar_animal', 'seal_roll', 'avatar_color', 'card_theme', 'wechat_id', 'gender', 'main_club_id', 'invite_from', 'analytics_opt_out', 'email', 'email_prefs']);
 const one = async (q, sql, args) => (await q(sql, args)).rows[0];
 
 
@@ -102,7 +110,49 @@ const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as sta
 // 匿名浏览：没有「我」，所以不走行级权限，改成在这里写死两条——只给公开的（visibility = public）、不是女生局的（女生局只给已注册的女生看）
 const anonGames = (d, where, params, tail) => d.db.asService(async q => (await q(`select ${GAME_COLS} from game_cards g join games gg on gg.id = g.id where g.visibility = 'public' and not coalesce('women' = any(g.tags), false) and ${where} ${tail}`, params)).rows);
 
+// ---- 登录交接（11-14）：Safari 登录 → 添加到主屏幕 → 从桌面图标打开不用再登录（设计见 schema.sql「登录交接」）----
+const sha256 = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map(b => b.toString(16).padStart(2, '0')).join('');
+const rnd = n => { let s = ''; for (const b of crypto.getRandomValues(new Uint8Array(n))) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') };   // n 字节随机数，网址安全写法
+const HO_CODE = /^[A-Za-z0-9_-]{40,64}$/, HO_TTL = 3600;
+const hoTokens = async (d, who, refresh) => ({ access_token: await d.session.sign({ sub: who.auth_id, phone: who.phone }, HO_TTL), refresh_token: refresh, expires_in: HO_TTL, user: { id: who.auth_id, phone: who.phone } });
+const hoOff = () => send(404, { error: 'handoff_unavailable' });   // 没配签名密钥 = 不启用，前台安静跳过
+
 const ROUTES = {
+  // 已登录的页面要一个一次性交接码（明文只在这次响应里出现一次，库里只存 sha256；24 小时内有效，每人每天 5 个）
+  'POST /api/session/handoff': (req, d, p) => !d.session ? hoOff() : act(req, d, p, async q => {
+    const code = rnd(32); return { code, expires_at: (await one(q, 'select api_handoff_new($1) as e', [await sha256(code)])).e } }, { body: false }),
+  // 退出前作废自己还没用掉的码（不然退出后 24 小时内，之前写进桌面图标的码还能换出登录）。没启用时也返回 200：前台不用区分
+  'POST /api/session/handoff/revoke': (req, d, p) => !d.session ? send(200, { ok: true, revoked: 0 }) : act(req, d, p, async q => ({ ok: true, revoked: (await one(q, 'select api_handoff_revoke() as n')).n }), { body: false }),
+  // 本机缓存的码还能不能用（是我的、没用过、还剩 1 小时以上）。Safari 每次打开页面核对一次：桌面图标用掉码之后，Safari 里缓存的还是同一个（已作废的）码，
+  //   再添加一次图标就登录不上（#299 真机反馈）。只读，不改库；没启用 404
+  'POST /api/session/handoff/check': async (req, d) => { if (!d.session) return hoOff();
+    const w = await whoIs(req, d); if (w.err || !w.uid) return send(401, { error: 'login_required' });
+    const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);
+    if (!code || !HO_CODE.test(code)) return send(200, { ok: false });
+    const exp = await d.db.asService(async q => (await q(`select expires_at from login_handoffs where code_hash = $1 and user_id = $2 and used_at is null and expires_at > now() + interval '1 hour'`, [await sha256(code), w.uid])).rows[0]?.expires_at || null);
+    return send(200, exp ? { ok: true, expires_at: exp } : { ok: false }) },
+  // 用码换登录（不用登录）：码对、没用过、没过期 → 作废这个码，签一份新的登录；其余一律 401，不说明是哪种不对
+  'POST /api/session/redeem': async (req, d) => { if (!d.session) return hoOff();
+    const r = await readBody(req); if (r.err) return r.err; const code = str(r.body.code);
+    if (!code || !HO_CODE.test(code)) return send(401, { error: 'handoff_invalid' });
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;   // 同一 IP 每小时 30 次（数据库里判，超了 429 rate_limited）
+    const refresh = rnd(32), who = await d.db.asService(async q => (await q('select session_handoff_redeem($1, $2, $3) as r', [await sha256(code), await sha256(refresh), ip])).rows[0].r);
+    return who ? send(200, await hoTokens(d, who, refresh)) : send(401, { error: 'handoff_invalid' }) },
+  // 续期：凭证还在、账号没被封 → 新令牌（凭证不变）；否则 401，前台清掉这份登录
+  'POST /api/session/refresh': async (req, d) => { if (!d.session) return hoOff();
+    const r = await readBody(req); if (r.err) return r.err; const rt = str(r.body.refresh_token);
+    if (!rt || !HO_CODE.test(rt)) return send(401, { error: 'session_revoked' });
+    const who = await d.db.asService(async q => (await q('select session_refresh($1) as r', [await sha256(rt)])).rows[0].r);
+    return who ? send(200, await hoTokens(d, who, rt)) : send(401, { error: 'session_revoked' }) },
+  'POST /api/session/logout': async (req, d) => { const r = await readBody(req); if (r.err) return r.err; const rt = str(r.body.refresh_token);
+    if (rt && HO_CODE.test(rt)) await d.db.asService(async q => { await q('select session_logout($1)', [await sha256(rt)]) });
+    return send(200, { ok: true }) },
+  // 带交接码的安装配置：和站点的 manifest.webmanifest 一样，只是启动网址多一个 h=码（iPhone 添加到主屏幕时把启动网址记进桌面图标）。不查库，只看码的格式
+  'GET /api/manifest': async (req, d) => { const h = new URL(req.url).searchParams.get('h') || '';
+    if (!d.asset || !HO_CODE.test(h)) return send(404, { error: 'not_found' });
+    let m; try { const r = await d.asset('/manifest.webmanifest'); if (!r.ok) throw 0; m = await r.json() } catch (_) { return send(404, { error: 'not_found' }) }
+    const u = new URL(m.start_url || '/', 'https://x.invalid'); u.searchParams.set('h', h); m.start_url = u.pathname + u.search + u.hash;
+    return new Response(JSON.stringify(m), { status: 200, headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } }) },
   'GET /api/health': async (req, d) => {
     const out = { ok: true, db: null };
     if (new URL(req.url).searchParams.get('db') === '1') {
@@ -118,6 +168,8 @@ const ROUTES = {
     let schema = null; try { schema = await d.db.asService(async q => { const r = (await q(`select max(version) as latest, coalesce(array_agg(version order by version), '{}') as versions from schema_migrations`)).rows[0]; return { latest: r.latest, versions: r.versions } }) } catch (_) { }
     return send(200, { sender: { version: v ? v.name.slice(7) : null, at: v ? v.at : null, heartbeat_age_s: hb ? hb.age_s : null }, schema }, { 'Cache-Control': 'no-store' });
   },
+  // 运行时开关（#49）：暂停注册 / 维护页 / 停发短信；没登录也能读，不缓存；前台读不到时按「全关」处理
+  'GET /api/switches': async (req, d) => send(200, { switches: await switchesOf(d, true) }, { 'Cache-Control': 'no-store' }),
   // 页面报错上报（11-03 补：前台和数据库早就有，唯独这个路由漏了，报的错一直被丢）。sendBeacon 发来，不带令牌；
   // 只收 build / device / msg / src / line 五个字段，逐个截断；同一个 IP 每分钟最多 30 条（超了静默丢，不报错）；任何情况都返回 204，不让页面因为上报失败再出错。
   'POST /api/client-errors': async (req, d) => {
@@ -131,6 +183,17 @@ const ROUTES = {
     const src = typeof b.src === 'string' ? b.src.slice(0, 80) : '', line = Number.isInteger(b.line) && b.line >= 0 && b.line < 1e7 ? b.line : 0;
     try { await d.db.asService(async q => { await q('select client_error_log($1,$2,$3,$4,$5)', [build, device, b.msg.slice(0, 200), src, line]) }) } catch (_) { }
     return new Response(null, { status: 204 });
+  },
+  // 还没开放的城市「开放时通知我」（11-13 补：前台和数据库函数早就有，路由漏了，一直 404）。不用登录；以 nbq_service 调 api_city_waitlist，
+  //   城市是否未开放、邮箱格式、同一 IP 每小时 5 次（429 rate_limited）、同一邮箱只记一次（added=false）都由数据库判断；这里只挡明显不合格式的参数
+  'POST /api/city-waitlist': async (req, d) => {
+    const r = await readBody(req); if (r.err) return r.err;
+    const city = str(r.body.city), email = str(r.body.email)?.trim();
+    if (!city || !/^[a-z]{2,12}$/.test(city)) return send(422, { error: 'invalid', detail: 'city' });
+    if (!email || email.length > 200 || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) return send(422, { error: 'invalid', detail: 'email' });
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || null;
+    const added = await d.db.asService(async q => (await q('select api_city_waitlist($1, $2, $3) as v', [city, email, ip])).rows[0].v);
+    return send(200, { ok: true, added });
   },
   'GET /api/me': async (req, d) => {
     const w = await whoIs(req, d); if (w.err) return w.err;
@@ -172,7 +235,7 @@ const ROUTES = {
   'POST /api/me/pact': (req, d, p) => act(req, d, p, async q => { await q('select api_pact_accept()'); return { ok: true } }, { body: false }),
   'POST /api/games': (req, d, p) => act(req, d, p, async (q, b) => {
     const id = (await one(q, 'select api_game_create($1::jsonb) as id', [JSON.stringify(b)])).id;
-    return { id, share_code: (await one(q, 'select share_code from games where id = $1', [id])).share_code } }),
+    return { id, share_code: (await one(q, 'select share_code from games where id = $1', [id])).share_code } }, { idem: 'POST /api/games' }),
   'PATCH /api/games/:id': (req, d, p) => act(req, d, p, async (q, b, x) => ({ changes: (await one(q, 'select api_game_edit($1, $2::jsonb) as r', [x.id, JSON.stringify(b)])).r }), { ids: ['id'] }),
   'POST /api/games/:id/postpone': (req, d, p) => act(req, d, p, async (q, b, x) => ({ starts_at: (await one(q, 'select api_game_postpone($1) as t', [x.id])).t }), { ids: ['id'], body: false }),
   'POST /api/games/:id/cancel': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_game_cancel($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
@@ -209,7 +272,7 @@ const ROUTES = {
   'POST /api/threads': (req, d, p) => act(req, d, p, async (q, b) => {
     const u = str(b.user_id), g = str(b.game_id); if ((u ? 1 : 0) + (g ? 1 : 0) !== 1 || !UUID.test(u || g)) throw bad();
     return { id: u ? (await one(q, 'select api_thread_dm($1) as t', [u])).t : (await one(q, 'select api_thread_game($1) as t', [g])).t } }),
-  'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'] }),
+  'POST /api/threads/:id/messages': (req, d, p) => act(req, d, p, async (q, b, x) => ({ id: Number((await one(q, 'select api_message_send($1, $2) as m', [x.id, str(b.body)])).m) }), { ids: ['id'], idem: 'POST /api/threads/:id/messages' }),
   'POST /api/reports': (req, d, p) => act(req, d, p, async (q, b) => {
     const tt = str(b.target_type), tid = str(b.target_id), why = str(b.reason), via = str(b.via), note = str(b.note);
     const sb = tt === 'sb_post' || tt === 'sb_reply';
@@ -226,6 +289,13 @@ const ROUTES = {
     const blocks = (await q('select blocked_id as user_id, created_at from blocks where blocker_id = nbq_uid() order by created_at desc limit 200')).rows;
     return { blocks, profiles: await cardsOf(q, blocks.map(b => b.user_id)) } }, { body: false }),
   'DELETE /api/blocks/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_unblock($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
+  // 球友（#110 PR-A）：当面扫码 → 申请 → 对方确认 / 忽略；规则全在 api_buddy_* 里（pg/buddies 测），被忽略的申请对发起人仍显示为等待
+  'GET /api/buddies': (req, d, p) => act(req, d, p, async q => { const v = (await one(q, 'select api_buddies() as v')).v;   // 带上相关的人的球员卡（和 /api/invites 一样），前台画头像和名字
+    return { ...v, profiles: await cardsOf(q, [...v.buddies.map(x => x.user_id), ...v.incoming.map(x => x.from_user), ...v.outgoing.map(x => x.to_user)]) } }, { body: false }),
+  'POST /api/buddies/requests': (req, d, p) => act(req, d, p, async (q, b) => { if (!UUID.test(str(b.to_user) || '')) throw bad(); return (await one(q, 'select api_buddy_request($1, $2) as v', [b.to_user, str(b.source)])).v }),
+  'POST /api/buddies/requests/:id/accept': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'accept') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'POST /api/buddies/requests/:id/ignore': (req, d, p) => act(req, d, p, async (q, b, x) => ({ status: (await one(q, "select api_buddy_respond($1, 'ignore') as s", [x.id])).s }), { ids: ['id'], body: false }),
+  'DELETE /api/buddies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_buddy_remove($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   // 赛后读回（11-04 第 6 轮 6d）：我的多遇到 / 少遇到、近 7 天的赛后感受、我给的印象、我的没到场反馈、我的申诉。全部是我自己的数据（RLS）
   'GET /api/me/after': (req, d, p) => act(req, d, p, async q => {
     const prefs = (await q(`select target_id, pref, game_id, updated_at from player_prefs where user_id = nbq_uid() order by updated_at desc limit 500`)).rows;
@@ -312,6 +382,23 @@ const ROUTES = {
   'POST /api/me/badges/seen': (req, d, p) => act(req, d, p, async (q, b) => {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
+  // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  // 球拍产品库（选择列表）：不用登录，只给可选的（active）；改动不频繁，缓存 1 小时
+  'GET /api/rackets/catalog': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select id, brand, series from racket_catalog where status = 'active' order by sort, brand, series`)).rows);
+    return send(200, { catalog: rows }, { 'Cache-Control': 'public, max-age=3600' });
+  },
+  'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
+    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')))) throw bad();
+    const list = r.map(x => UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id } : { brand: x.brand ?? null, series: x.series });   // 选自产品库只转 id；自由文字只转品牌 + 系列
+    return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
+  // 我的 UTR（#101）：正式 / 自评；写入只走 api_set_utr（校验、频率、历史都在库里），PATCH /api/me 不再放行 utr
+  'GET /api/me/utr': (req, d, p) => act(req, d, p, async q => ({ utr: (await one(q, 'select api_my_utr() as v')).v }), { body: false }),
+  'PUT /api/me/utr': (req, d, p) => act(req, d, p, async (q, b) => {
+    if (typeof b.utr !== 'number' || typeof b.estimated !== 'boolean' || ('profile' in b && b.profile !== null && typeof b.profile !== 'string')) throw bad();
+    const body = { utr: b.utr, estimated: b.estimated }; if ('profile' in b) body.profile = b.profile;   // 只转发这三个字段
+    return { utr: (await one(q, 'select api_set_utr($1::jsonb) as v', [JSON.stringify(body)])).v } }),
   'PUT /api/me/clubs': (req, d, p) => act(req, d, p, async (q, b) => {
     const ids = b.venue_ids; if (!Array.isArray(ids) || ids.length > 3 || new Set(ids).size !== ids.length || !ids.every(v => UUID.test(str(v) || ''))) throw bad();
     await q('delete from user_clubs where user_id = nbq_uid()'); for (const v of ids) await q('insert into user_clubs(user_id, venue_id) values (nbq_uid(), $1)', [v]);
@@ -339,13 +426,13 @@ const ROUTES = {
     await q('select api_chat_notif_read($1)', [x.id]);   // 这个会话的新消息通知一起标已读（推送前发现已读就不推）
     return { ok: true } }, { ids: ['id'], body: false }),
   // ---- 第 3 步（续 3）：场边、账号注销 / 恢复、推送订阅（对应 api_spec §14、§2、§3）----
-  'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r),
+  'POST /api/sideline/posts': (req, d, p) => act(req, d, p, async (q, b) => (await one(q, 'select api_sb_post($1::jsonb) as r', [JSON.stringify(b)])).r, { idem: 'POST /api/sideline/posts' }),
   'DELETE /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_delete($1)', [x.id]); return { ok: true } }, { ids: ['id'], body: false }),
   'PATCH /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     if (typeof b.replies_open !== 'boolean') throw bad(); await q('select api_sb_replies_open($1, $2)', [x.id, b.replies_open]); return { replies_open: b.replies_open } }, { ids: ['id'] }),
   'POST /api/sideline/posts/:id/replies': (req, d, p) => act(req, d, p, async (q, b, x) => {
     if (b.to != null && !UUID.test(str(b.to) || '')) throw bad();
-    return { id: Number((await one(q, 'select api_sb_reply($1, $2, $3) as r', [x.id, str(b.body), b.to ?? null])).r) } }, { ids: ['id'] }),
+    return { id: Number((await one(q, 'select api_sb_reply($1, $2, $3) as r', [x.id, str(b.body), b.to ?? null])).r) } }, { ids: ['id'], idem: 'POST /api/sideline/posts/:id/replies' }),
   'DELETE /api/sideline/replies/:id': (req, d, p) => act(req, d, p, async (q, b, x) => { await q('select api_sb_reply_delete($1)', [x.id]); return { ok: true } }, { nums: ['id'], body: false }),
   'PUT /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_ball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
   'DELETE /api/sideline/posts/:id/ball': (req, d, p) => act(req, d, p, async (q, b, x) => ({ balls: (await one(q, 'select api_sb_unball($1) as n', [x.id])).n }), { ids: ['id'], body: false }),
@@ -389,6 +476,10 @@ const ROUTES = {
     const ids = (new URL(req.url).searchParams.get('ids') || '').split(',').filter(Boolean);
     if (!ids.length || ids.length > 50 || !ids.every(i => UUID.test(i))) throw bad();
     return { profiles: await cardsOf(q, ids) } }, { body: false }),
+  // 扫码 / 链接落地（#110）：按球员编号取卡片；必须登录、限频（api_card_by_no），内容和 GET /api/players/:id 同一份
+  'GET /api/players/no/:no': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const id = (await one(q, 'select api_card_by_no($1) as id', [x.no])).id, c = (await cardsOf(q, [id]))[id];
+    if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { nums: ['no'], body: false }),
   'GET /api/players/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const c = (await cardsOf(q, [x.id]))[x.id]; if (!c) throw Object.assign(new Error('not_found'), { code: 'P0001' }); return { player: c } }, { ids: ['id'], body: false }),
   // 新号码第一次登录后建资料：手机号取自登录令牌里的 phone（不信请求里写的）；同一个号码重复提交 = 返回已有资料
@@ -398,6 +489,7 @@ const ROUTES = {
     const phone = w.phone && '+' + w.phone.replace(/^\+/, ''); if (!/^\+614\d{8}$/.test(phone || '')) return send(422, { error: 'invalid', detail: 'phone' });
     const utr = Number(b.utr), nick = str(b.nickname), li = str(b.last_initial);
     if (w.uid) return send(200, { registered: true, user: await d.db.asUser(w.uid, async q => (await q(`select ${ME_SEL} from users where id = nbq_uid()`)).rows[0]) });
+    if ((await switchesOf(d, true)).register_paused) return send(403, { error: 'register_paused' });   // 暂停注册（#49）：老号码重复提交上面已返回；只拦新建
     if (!nick || nick.length < 1 || nick.length > 20) return send(422, { error: 'invalid', detail: 'nickname' });
     if (!(utr >= 1 && utr <= 16.5)) return send(422, { error: 'invalid', detail: 'utr' });
     if (li !== null && !/^[A-Za-z]$/.test(li)) return send(422, { error: 'invalid', detail: 'last_initial' });
@@ -420,12 +512,33 @@ const PATTERNS = Object.keys(ROUTES).filter(k => k.includes(':')).map(k => { con
 const matchPattern = (method, path) => { for (const t of PATTERNS) if (t.m === method) { const r = t.re.exec(path); if (r) return { h: ROUTES[t.key], params: Object.fromEntries(t.names.map((n, i) => [n, decodeURIComponent(r[i + 1])])), key: t.key } } return null };
 const pathExists = path => Object.keys(ROUTES).some(k => k.endsWith(' ' + path)) || PATTERNS.some(t => t.re.test(path));
 
+// 最低前端版本（ADR 0013，#63 第 3 件）：deps.minBuild = 环境变量 NBQ_MIN_BUILD（构建号或其前面的秒数），不设 = 不启用。
+//   启用后，请求头 X-NBQ-Build 的秒数低于它、或没带 → 426 client_outdated，前台显示「有新版本 · 点一下刷新」。
+//   不拦：健康检查 / 版本 / 页面报错上报（旧页面的报错也要收）/ 埋点（sendBeacon 带不了请求头）、Service Worker 自己续订推送（它不知道页面的构建号）。
+const BUILD_FREE = new Set(['GET /api/manifest', 'POST /api/session/redeem', 'POST /api/session/refresh', 'POST /api/session/logout', 'GET /api/health', 'HEAD /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions']);
+const buildSec = v => { const m = String(v || '').match(/^(\d{9,12})(?:-|$)/); return m ? +m[1] : 0 };
+export function outdated(key, header, minBuild) {
+  const min = buildSec(minBuild); if (!min || BUILD_FREE.has(key)) return false;
+  return buildSec(header) < min;
+}
+// 运行时开关（#49）：5 秒内存缓存，每个请求都读库太贵；读不到按全关处理（开关坏了不能把全站拦住）。fresh = true 跳过缓存（注册、前台读开关要看最新）
+const SW = { at: 0, v: {} };
+async function switchesOf(d, fresh) {
+  const now = Date.now(); if (!fresh && now - SW.at < (d.switchesTtlMs ?? 5000)) return SW.v;
+  try { SW.v = await d.db.asService(async q => (await q('select app_switches_get() as s')).rows[0].s) || {}; SW.at = now } catch (_) { SW.v = {}; SW.at = now }
+  return SW.v;
+}
+// 维护页开着时放行：读开关本身、版本、页面报错上报（前台要靠它们知道在维护、排查要靠它们）
+const MAINT_OK = new Set(['GET /api/manifest', 'GET /api/switches', 'GET /api/version', 'POST /api/client-errors']);
+
 export async function handleApi(request, deps) {
   const path = new URL(request.url).pathname.replace(/\/+$/, '');
   const key = request.method + ' ' + path;
+  if (outdated(key, request.headers.get('X-NBQ-Build'), deps && deps.minBuild)) return send(426, { error: 'client_outdated' });
   let h = ROUTES[key] || (request.method === 'HEAD' && ROUTES['GET ' + path]), params = {}, name = key;
   if (!h) { const m = matchPattern(request.method, path); if (m) { h = m.h; params = m.params; name = m.key } }
   if (!h) return pathExists(path) ? send(405, { error: 'method_not_allowed' }) : send(404, { error: 'not_found' });
+  if (!MAINT_OK.has(key) && (await switchesOf(deps)).maintenance) return send(503, { error: 'maintenance' }, { 'Retry-After': '300', 'Cache-Control': 'no-store' });
   try { return await h(request, deps, params) }
   catch (e) { const r = dbError(e); if (r) return r; console.error('api_error', name, e && (e.code || e.name)); return send(503, { error: 'db_unavailable' }) }   // 细节不外露（数据库地址、报错原文）；排查看日志
 }

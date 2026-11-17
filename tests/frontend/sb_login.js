@@ -29,7 +29,7 @@ const SB = 'https://abc.supabase.co';
     await typeCode('123456'); T(tag('没配置：任意 6 位码进填资料页，没有任何 supabase 请求'), await pg.$('#npName') !== null && reqs.length === 0, reqs);
 
     // ② 配置后：发码失败
-    await open(); await cfg(); R.otp = { s: 429, d: { error_code: 'over_sms_send_rate_limit' } };
+    await open(); await cfg(); await pg.evaluate(() => { window.AN_LOG = [] }); R.otp = { s: 429, d: { error_code: 'over_sms_send_rate_limit' } };
     await startLogin(); T(tag('发码太快：留在手机号页，有提示'), await pg.$('#otp') === null && await pg.$('#ph') !== null && /60 秒/.test(await pg.evaluate(() => document.body.innerText)));
     R.otp = { s: 200, d: {} }; await pg.click('[data-a="sendCode"]'); await pg.settle(400);
     const sent = reqs.filter(r => r.u.endsWith('/auth/v1/otp')).pop();
@@ -37,6 +37,16 @@ const SB = 'https://abc.supabase.co';
     // 验证码错
     R.verify = { s: 403, d: { error_code: 'otp_expired' } }; await typeCode('111111');
     T(tag('验证码错：留在验证码页、清空输入框、没登录'), await pg.$('#otp') !== null && (await pg.inputValue('#otp')) === '' && await pg.$('#npName') === null && await meName() === null);
+    // 登录漏斗埋点（#297）：发码失败 / 成功 / 重发 / 验证失败 / 放弃，都带固定枚举原因，不带手机号
+    const evs = async n => pg.evaluate(x => window.AN_LOG.filter(e => e.ev === x).map(e => e.props), n);
+    const sc = await evs('login_send_code'), rs = await evs('login_resend'), vf = await evs('login_verify');
+    T(tag('埋点：发码失败 ok:false reason:rate_limited n:1，成功 ok:true n:2'), sc.length === 2 && sc[0].ok === false && sc[0].reason === 'rate_limited' && sc[0].n === 1 && sc[1].ok === true && sc[1].n === 2 && !('reason' in sc[1]), sc);
+    T(tag('埋点：第 2 次发送记 login_resend{n:2}'), rs.length === 1 && rs[0].n === 2, rs);
+    T(tag('埋点：验证失败 ok:false reason:wrong_code，带 secs'), vf.length === 1 && vf[0].ok === false && vf[0].reason === 'wrong_code' && typeof vf[0].secs === 'number', vf);
+    T(tag('埋点：任何事件都不带手机号'), !JSON.stringify(await pg.evaluate(() => window.AN_LOG)).includes('412345678'));
+    await pg.evaluate(() => sbaClosePrompt()); await pg.settle(300);
+    const ab = await evs('login_abandon'); T(tag('埋点：停在验证码页关掉 = login_abandon{step:otp,n:2}'), ab.length === 1 && ab[0].step === 'otp' && ab[0].n === 2, ab);
+    await startLogin();   // 关掉了：重新开登录、发码，回到验证码页继续下面的步骤
     // 验证码对：新号码 → 填资料
     R.verify = OKV('u-new'); await typeCode('222222');
     T(tag('验证码对（新号码）：进填资料页'), await pg.$('#npName') !== null);

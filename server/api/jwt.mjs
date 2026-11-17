@@ -37,3 +37,46 @@ export function makeVerifier({ url, fetch: f = globalThis.fetch, now = () => Dat
     return { ok: true, sub: c.sub.toLowerCase(), claims: c };
   };
 }
+
+// ---- 自签令牌（登录交接，11-14）----
+// Supabase 的令牌只能由 Supabase 签发；Safari → 桌面图标的登录交接要接口层自己给新环境签一份。所以多一个签发方：
+//   iss = OWN_ISS、ES256，私钥在密钥 NBQ_SESSION_KEY（EC P-256 的 JWK，含 d）；sub 仍是 Supabase 的 auth id（接口按它找球友，其余不变）。
+//   没配密钥 = 不启用：makeSession 返回 null，交接接口 404，前台安静跳过。
+//   生成密钥（输出整行就是密钥的值，只放进 Cloudflare 的密钥里，不进仓库）：
+//     node -e "crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign']).then(k=>crypto.subtle.exportKey('jwk',k.privateKey)).then(j=>console.log(JSON.stringify(j)))"
+//   换 / 撤密钥 = 交接登录的人要重新登录一次：旧密钥签的令牌 401 → 前台按「登录失效」退出（并作废续期凭证）。临时漏配密钥同样，所以密钥设上之后别动。
+export const OWN_ISS = 'https://nanbanqiu.app/session';
+export const issOf = token => { try { return dec(String(token).split('.')[1]).iss || null } catch (_) { return null } };
+const b64u = bytes => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') };
+export function makeSession(key, { now = () => Date.now(), audience = 'authenticated' } = {}) {
+  let jwk; try { jwk = typeof key === 'string' ? JSON.parse(key) : key } catch (_) { return null }
+  if (!jwk || jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d || !jwk.x || !jwk.y) return null;
+  const kid = String(jwk.kid || 'nbq1'), P = { name: 'ECDSA', namedCurve: 'P-256' }, S = { name: 'ECDSA', hash: 'SHA-256' }, enc = new TextEncoder();
+  let keys = null;
+  const load = () => keys ||= Promise.all([
+    crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d }, P, false, ['sign']),
+    crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y }, P, false, ['verify'])]);
+  return {
+    // 签一个 ttl 秒有效的令牌；claims 至少要有 sub
+    async sign(claims, ttl = 3600) {
+      const [priv] = await load(), t = Math.floor(now() / 1000);
+      const h = b64u(enc.encode(JSON.stringify({ alg: 'ES256', typ: 'JWT', kid }))), p = b64u(enc.encode(JSON.stringify({ ...claims, iss: OWN_ISS, aud: audience, iat: t, exp: t + ttl })));
+      return h + '.' + p + '.' + b64u(new Uint8Array(await crypto.subtle.sign(S, priv, enc.encode(h + '.' + p))));
+    },
+    // 和 makeVerifier 的 verify 同样的返回：{ ok, sub, claims } 或 { ok:false, code }
+    async verify(token) {
+      const bad = c => ({ ok: false, code: c }), p = String(token || '').split('.'); if (p.length !== 3) return bad('malformed');
+      let h, c; try { h = dec(p[0]); c = dec(p[1]) } catch (_) { return bad('malformed') }
+      if (h.alg !== 'ES256') return bad('alg_not_allowed');
+      if (h.kid !== kid) return bad('unknown_key');
+      let ok = false; try { const [, pub] = await load(); ok = await crypto.subtle.verify(S, pub, b64(p[2]), enc.encode(p[0] + '.' + p[1])) } catch (_) { }
+      if (!ok) return bad('bad_signature');
+      const t = Math.floor(now() / 1000);
+      if (c.iss !== OWN_ISS) return bad('bad_issuer');
+      if (c.aud !== audience) return bad('bad_audience');
+      if (typeof c.exp !== 'number' || c.exp + 30 < t) return bad('expired');
+      if (!UUID.test(c.sub || '')) return bad('bad_subject');
+      return { ok: true, sub: c.sub.toLowerCase(), claims: c };
+    },
+  };
+}

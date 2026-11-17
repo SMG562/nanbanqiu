@@ -21,7 +21,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
 
   // ---- 导航 ----
   const tabs = await E(() => [...document.querySelectorAll('#tabs [data-tab]')].map(x => x.dataset.tab));
-  T('导航：发现球局 / 我的球局 / 场边', JSON.stringify(tabs) === '["disc","mine","side"]', tabs);
+  T('导航：发现球局 / 我的球局 / 场边 / 我的', JSON.stringify(tabs) === '["disc","mine","side","me"]', tabs);
   T('「场边」右上角带 24h', await E(() => { const b = document.querySelector('#tabs [data-tab="side"]'), s = b.querySelector('.h24'); if (!s) return false; const r = s.getBoundingClientRect(), t = b.getBoundingClientRect();
     return s.textContent === '24h' && r.bottom < t.top + t.height / 2 && r.left > t.left + 20 }));
   T('三个导航按钮高度、上边一样', await E(() => new Set([...document.querySelectorAll('#tabs [data-tab]')].map(b => { const r = b.getBoundingClientRect(); return r.top + ',' + r.height })).size === 1));
@@ -52,7 +52,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   await pg.setViewportSize({ width: 1440, height: 900 }); await W(400);
 
   // ---- 打开详情：右边滑出；关掉不留动画 ----
-  const first = await E(() => String(SBV.L.find(x => !x.mine && Date.now() - x.t < 864e5).id));
+  const first = await E(() => String(SBV.L.find(x => !x.mine && Date.now() - x.t < 864e5 && !(SBV.pend || []).includes(x)).id));
   await sh(`[data-s="home"] [data-ln="${first}"]`); await W(800);
   await pg.waitForFunction(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet'); return SBV.open && !s.getAnimations().some(a => a.playState === 'running') }, null, { timeout: 3000, polling: 50 }).catch(() => {});   // 量位置前等滑出动画走完
   const sd = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet').getBoundingClientRect(); return { open: String(SBV.open), cls: r.querySelector('.wb>div').className, l: Math.round(s.left), w: Math.round(s.width) } });
@@ -71,6 +71,14 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   await pg.click('#tabs [data-tab="side"]'); await W(400);
   T('再回场边：同一个实例，草稿、滚动位置都在', inst && await E(() => SBV === _sbv) && await sr('[data-in]').inputValue() === '草稿还在吗' && await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-sc="home"]').scrollTop) >= 590);
   await sr('[data-in]').fill('');
+  // 11-17 所有者要求：网页端输入框和手机一样——点一下弹出写动态界面，不在原地输入
+  const tapBox = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, b = r.querySelector('.bar .box').getBoundingClientRect(), o = r.querySelector('[data-open]'), g = getComputedStyle(r.querySelector('[data-in]')); const ob = o && o.getBoundingClientRect(); return { hasOpen: !!o, cover: !!ob && Math.abs(ob.width - b.width) < 1 && Math.abs(ob.height - b.height) < 1, ghost: parseFloat(g.width) <= 1 && g.pointerEvents === 'none' } });
+  T('网页端输入框：有点击层盖住整个输入框，真输入框是点不到的幽灵', tapBox.hasOpen && tapBox.cover && tapBox.ghost, tapBox);
+  await sr('[data-open]').click(); await W(600);
+  const tapped = await E(() => { const r = document.querySelector('#sbHost').shadowRoot; return { composing: /\bcomposing\b/.test(r.querySelector('.wb>div').className), inFocus: r.activeElement && r.activeElement.matches('[data-in]') } });
+  T('网页端点输入框 → 弹出写动态界面，不在原输入框里输入', tapped.composing && !tapped.inFocus, tapped);
+  await sh('[data-cx]'); await W(500);
+
 
   // ---- 没登录：第一次互动时登录，登录后接着做 ----
   const login = async (ph, name) => { await pg.fill('#ph', ph); await pg.locator('[data-a="sendCode"]').first().click(); await W(500); await pg.fill('#otp', '123456'); await W(400);

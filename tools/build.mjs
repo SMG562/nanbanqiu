@@ -28,6 +28,9 @@ export function assemble(name, root = ROOT) {
   const parts = [];
   let text = '', line = 1;
   const rels = readList(name, root);
+  // 拼接清单按 union 合并（.gitattributes）：两边都加同一行会合出重复行 → 同一段代码拼两遍；这里直接报错（#172）
+  const dup = rels.filter((r, i) => rels.indexOf(r) !== i);
+  if (dup.length) throw new Error(`src/${name}.list 里有重复的行：${[...new Set(dup)].join('、')}（多半是两个分支都加了同一行，删掉一行）`);
   for (const [i, rel] of rels.entries()) {
     const f = path.join(root, 'src', rel);
     if (!fs.existsSync(f)) throw new Error(`src/${name}.list 里的 ${rel} 不存在`);
@@ -89,4 +92,4 @@ function main() {
   process.exit(bad ? 1 : 0);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) main();

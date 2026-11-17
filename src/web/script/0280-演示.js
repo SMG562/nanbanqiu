@@ -4,7 +4,7 @@ function renderDemo(){$$('#whoSeg button').forEach(b=>b.classList.toggle('on',b.
 function ensureJasonPending(){if(!PARTS.some(p=>p.game_id==='g1'&&p.user_id==='jason'&&p.status!=='withdrawn'&&p.status!=='left')){partUpsert({game_id:'g1',user_id:'jason',role:'player',status:'pending',message:'你好，我平时 3.0–3.5，住 Malvern 很近，希望一起打！',created_at:Date.now()-12*6e4});NOTIFS.unshift({id:++NID,user_id:'han',kind:'request',game_id:'g1',from:'jason',at:Date.now()-12*6e4,read:false})}}
 function runDemo(d){closeModal();$('#demo').classList.remove('show');
   const toApp=()=>{UI.landing=null;history.replaceState(null,'','#/')};
-  if(d==='acct'){ME=USERS.jason;toApp();UI.tab='mine';UI.sel=null;acctDemo('suspended');render();setTimeout(()=>acctBlock(acctSt(ME),'info'),150);return}
+  if(d==='acct'){ME=USERS.jason;toApp();UI.tab='me';UI.sel=null;acctDemo('suspended');render();setTimeout(()=>acctBlock(acctSt(ME),'info'),150);return}
 if(d==='reset'){seed();toApp();render();toast('已重置');return}
   if(d==='soon'){setWho('jason');toApp();UI.tab='disc';UI.sel=null;render();if(!soonDemo())toast('没有可演示的球局');render();return}
   if(d==='pact'){setWho('jason');toApp();UI.tab='disc';const id=pactDemo();select(id);setTimeout(()=>{const b=document.querySelector('#colR [data-a="apply"]');b&&b.click()},450);return}
@@ -19,7 +19,7 @@ if(d==='reset'){seed();toApp();render();toast('已重置');return}
   if(d==='invite'){ME=USERS.jason;toApp();UI.tab='disc';UI.sel=null;render();const inv=INV_DEMO();setTimeout(()=>{notifyInv('jason','invite',inv,'han');openInvite(inv.id)},300);return}
   if(d==='series'){ME=USERS.han;toApp();UI.tab='disc';select((GAMES.find(g=>g.series_id==='S1'&&new Date(g.starts_at)>NOW)||GAMES.filter(g=>g.series_id==='S1').sort((x,y)=>new Date(y.starts_at)-new Date(x.starts_at))[0]).id);return}
   if(d==='duo'){ME=USERS.han;toApp();UI.tab='disc';UI.sel=null;render();setTimeout(()=>{openCreate();NG.type='doubles';NG.miss=1;drawCreate()},200);return}
-  if(d==='pals'){ME=USERS.han;toApp();UI.tab='mine';UI.sel=null;render();return}
+  if(d==='pals'){ME=USERS.han;toApp();UI.tab='me';UI.sel=null;render();return}
   if(d==='women'){ME=USERS.mia;toApp();UI.tab='disc';select('g20');return}
   if(d==='wlock'){ME=USERS.jason;toApp();UI.tab='disc';select('g20');return}
   if(d==='chat'){ME=USERS.jason;toApp();UI.tab='disc';UI.sel=null;render();setTimeout(()=>CX_INBOX(),150);return}

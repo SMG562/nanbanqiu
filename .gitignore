@@ -13,5 +13,12 @@ site/
 !icons/*.png
 .wrangler/
 
+# 生成文件（ADR 0011）：三个页面 HTML 由 src/ 拼出、_bundle.sql 由迁移拼出，不提交；
+# tests/run_all.mjs 和 tools/site.mjs（Pages 构建）开跑 / 开建时先现生成；本地手动：node tools/build.mjs && node tools/migrate_bundle.mjs
+/南伴球_PWA.html
+/南伴球_Web.html
+/南伴球_后台.html
+/server/migrations/_bundle.sql
+
 # 邮编库（8MB，tools/venues_seed.mjs 的输入，需要时现下载）
 tools/out/australian_postcodes.csv

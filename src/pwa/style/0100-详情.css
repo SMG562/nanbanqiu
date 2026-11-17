@@ -5,7 +5,7 @@
 .nb-row{height:50px;display:flex;align-items:center;justify-content:space-between}
 .navbtn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--ink)}
 .navbtn svg{width:18px;height:18px}
-.nb-brand{display:flex;align-items:center;gap:6px;font-weight:800;color:var(--g);font-size:16px}
+.nb-brand{border:0;background:none;padding:0;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:800;color:var(--g);font-size:16px}
 .nb-brand svg{width:22px;height:22px}
 .pscroll{position:absolute;inset:0;overflow-y:auto;padding:calc(var(--sb) + var(--wx) + 58px) 16px calc(150px + var(--hb))}
 .pass{background:#fff;border-radius:26px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -16px rgba(16,24,40,.18);overflow:hidden}
@@ -15,7 +15,7 @@
 .band-red{background:var(--redbg);color:var(--red)}.band-host{background:var(--gss);color:var(--g)}
 .pass-main{padding:22px 22px 20px}
 .pass-day{font-size:14px;font-weight:600;color:var(--mut)}
-.pass-time{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+.pass-time{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin-top:2px}   /* 11-09：窄屏 + 当地时间时换行，不出卡片 */
 .pass-time b{font-size:54px;font-weight:800;letter-spacing:-.035em;line-height:1}
 .pass-time span{font-size:20px;font-weight:600;color:var(--mut)}
 .pass-place{display:flex;align-items:center;gap:10px;margin-top:16px}
@@ -23,7 +23,7 @@
 .pass-place .pi svg{width:19px;height:19px}
 .pass-place b{display:block;font-size:17px;font-weight:700}
 .pass-place small{display:block;font-size:13px;color:var(--mut)}
-.pass-place .go{margin-left:auto;color:#C2C8C2}
+.pass-place .go{margin-left:auto;color:var(--dim)}
 .pass-meta{display:flex;margin-top:18px;border-radius:14px;background:var(--bg)}
 .pass-meta div{flex:1;text-align:center;padding:10px 4px}
 .pass-meta div+div{border-left:1px solid #E1E5E1}
@@ -38,7 +38,7 @@
 .person .av{width:48px;height:48px;font-size:17px;position:relative}
 .person .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
 .person .lv{font-size:10.5px;color:var(--g);font-weight:700;margin-top:-3px}
-.person .host{position:absolute;bottom:-3px;right:-5px;background:var(--lime);color:#243500;font-size:9px;font-weight:800;border-radius:99px;padding:1px 5px;border:2px solid #fff}
+.person .host{position:absolute;bottom:-3px;right:-5px;background:var(--lime);color:#243500;font-size:9px;font-weight:800;border-radius:999px;padding:1px 5px;border:2px solid #fff}
 .person.ph .nm{color:var(--mut);font-weight:500}
 .sec-t{font-size:13px;color:var(--mut);font-weight:700;margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center}
 .sec-t button{color:var(--g);font-weight:600;font-size:13.5px}

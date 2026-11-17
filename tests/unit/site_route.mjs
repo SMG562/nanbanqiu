@@ -30,7 +30,7 @@ T(`电脑分界 ${NARROW}：899 手机版、900 网页版`, (await goes(html, NA
 T('原地载入：地址栏不变（fetch 后 document.write，参数和 # 本来就在地址栏里）', /document\.write/.test(html) && /fetch\(a/.test(html));
 { const js = html.match(/<script>([\s\S]*?)<\/script>/)[1]; let to = null; const win = { innerWidth: 390, screen: { width: 390 }, matchMedia: () => ({ matches: true }), location: { search: '?n=3', hash: '#/g/W2m5', replace: u => { to = u } }, fetch: () => Promise.reject(0), document: {} }; win.window = win; vm.runInNewContext(js, win); await new Promise(r => setTimeout(r, 20));
   T('fetch 失败：退回跳转到该版本，参数和 # 带上', to === '/pwa.html?n=3#/g/W2m5', to) }
-T('页面带主屏幕图标和安装配置', /rel="manifest" href="\/manifest\.webmanifest"/.test(html) && /rel="apple-touch-icon" href="\/icons\/icon-180\.png"/.test(html));
+T('页面带主屏幕图标；安装配置由头部同步脚本写入（不写静态 link）', /document\.write\('<link rel="manifest"/.test(html) && !/<link rel="manifest"/.test(html.replace(/<script data-ho>[\s\S]*?<\/script>/, '')) && /rel="apple-touch-icon" href="\/icons\/icon-180\.png"/.test(html));
 r = await siteRoute(req('https://nanbanqiu.app/melbourne/', 'HEAD'));
 T('HEAD /melbourne/：200、没有正文', r.status === 200 && (await r.text()) === '');
 T('预览站根：不管（交给静态入口页）', (await siteRoute(req(`https://${PREVIEW_ROOT}/`))) === null && (await siteRoute(req(`https://${PREVIEW_ROOT}/?x=1`))) === null);
@@ -56,4 +56,13 @@ const fnDirs = []; const walk = (d, rel) => { for (const e of fs.readdirSync(d, 
 walk(path.join(ROOT, 'functions'), '');
 T('functions/ 下每个放了函数的目录（含嵌套）都在 _routes.json 里，自己或某个上级目录的 /…/*（新加函数忘了登记会 404）', fnDirs.length >= 3 && fnDirs.every(rel => { const parts = rel.split('/').filter(Boolean); return parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }), fnDirs.filter(rel => { const parts = rel.split('/').filter(Boolean); return !parts.some((_, k) => inc.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) }));
 T('嵌套检查有效：把 /admin/api/* 拿掉就会报', !(() => { const rel = '/admin/api', parts = rel.split('/').filter(Boolean), inc2 = inc.filter(x => x !== '/admin/api/*'); return parts.some((_, k) => inc2.includes('/' + parts.slice(0, k + 1).join('/') + '/*')) })());
+// #299：选排版壳一执行就把本机缓存的交接码同步写进安装配置（iOS 在页面加载时就读），和手机端页面头部是同一段
+{ const { HO_EARLY, chooserHTML } = await import('../../server/site_route.mjs'), pwaHead = fs.readFileSync(path.join(ROOT, 'src/pwa/page/0010-开头.html'), 'utf8');
+  T('壳和手机端页面头部用的是同一段（两处一致）', chooserHTML().includes('<script data-ho>' + HO_EARLY + '</script>') && pwaHead.includes('<script data-ho>' + HO_EARLY + '</script>') && ![pwaHead, chooserHTML()].some(x => /<link rel="manifest"/.test(x.replace(/<script data-ho>[\s\S]*?<\/script>/, ''))));
+  const run = (store, now = 1_800_000_000_000) => { let out = null;
+    vm.runInNewContext(HO_EARLY, { localStorage: { getItem: k => store[k] ?? null }, document: { write: h => { out = h } }, JSON, Date: { now: () => now } }); return (out.match(/^<link rel="manifest" href="([^"]*)">$/) || [])[1] };
+  const code = 'C'.repeat(43), ho = exp => JSON.stringify({ code, exp, uid: 'u' }), T0 = 1_800_000_000_000;
+  T('有登录 + 码没过期：同步换成带码的安装配置', run({ nbq_sb: '{}', nbq_ho: ho(T0 + 5 * 3600e3) }) === '/api/manifest?h=' + code);
+  T('没登录 / 码快过期 / 码格式不对 / 没有码 / 内容坏了：都不换，也不报错', [{ nbq_ho: ho(T0 + 5 * 3600e3) }, { nbq_sb: '{}', nbq_ho: ho(T0 + 60e3) }, { nbq_sb: '{}', nbq_ho: JSON.stringify({ code: 'x&y=1', exp: T0 + 9e7 }) }, { nbq_sb: '{}' }, { nbq_sb: '{}', nbq_ho: '{oops' }].every(st => run(st) === '/manifest.webmanifest'));
+  let w = null; vm.runInNewContext(HO_EARLY, { document: { write: h => { w = h } } }); T('没有 localStorage 的环境：不抛错，写默认那份', w === '<link rel="manifest" href="/manifest.webmanifest">') }
 console.log(`site_route: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

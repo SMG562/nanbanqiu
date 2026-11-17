@@ -719,11 +719,15 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('pwa_installed','安装','安装完成','os','client','active',null),
  ('pwa_first_launch','安装','第一次从主屏幕打开','os','client','active',null),
  ('a2hs_open','安装','打开「添加到主屏幕」引导','env','client','active',null),
+ ('a2hs_go','安装','引导第一屏点「放到桌面」','','client','active',null),
+ ('a2hs_back','安装','从添加步骤回到页面，看到「放好了吗」','','client','active',null),
  ('analytics_off','隐私','关闭使用数据（发完这一条后停止）','','client','active',null),
  ('analytics_on','隐私','重新打开使用数据','','client','active',null),
  ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/...)','client','active',null),
- ('login_send_code','登录','发送验证码（号码格式通过才发）','cc','client','active',null),
- ('login_verify','登录','提交验证码','ok','client','active',null),
+ ('login_send_code','登录','发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记）','ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送)','client','active',null),
+ ('login_resend','登录','重发验证码（第 2 次及以后的发送）','n','client','active',null),
+ ('login_verify','登录','提交验证码的结果','ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数)','client','active',null),
+ ('login_abandon','登录','关闭登录窗口时还停在手机号页 / 验证码页','step(phone/otp), n','client','active',null),
  ('login_success','登录','登录成功','is_new, trigger, entry','client','active',null),
  ('signup_complete','登录','新用户填完资料','ntrp, clubs_n, gender_given, avatar_kind','client','active',null),
  ('logout','登录','退出登录（之后换新 anon）','','client','active',null),
@@ -815,6 +819,13 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('gender_set','我的','保存性别（不记录值）','first, changed','client','active',null),
  ('club_add_open','我的','打开添加 Club','','client','active',null),
  ('home_clubs_save','我的','保存我的 Club','n','client','active',null),
+ ('utr_open','我的','打开我的 UTR 弹层（长按看时间那次不算）','mode(off/self), linked','client','active',null),
+ ('utr_invalid','我的','我的 UTR 当场校验没通过（不发请求、不记填的内容）','reason(empty/format/range/link)','client','active',null),
+ ('utr_save','我的','我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号）','mode(off/self), linked, change(up/down/same)','client','active',null),
+ ('racket_picker_open','我的','打开选拍弹层（添一把 / 换一把；从系列返回不算）','mode(add/swap), slot(1-3)','client','active',null),
+ ('racket_brand_pick','我的','选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）','brand','client','active',null),
+ ('racket_save','我的','球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库','action(add/swap/main/remove), source(catalog/other), n_after','client','active',null),
+ ('racket_invalid','我的','手写拍子名当场没通过校验（不发请求、不记文字）','reason(empty/long/link/at/digits/dup)','client','active',null),
  ('community_open','我的','打开微信约球群','','client','active',null),
  ('series_end','我的','停止每周发布','game_id','client','active',null),
  ('follow_open','打完之后','打开「TA 发了新球局」','game_id','client','active',null),
@@ -862,8 +873,8 @@ on conflict (event) do update set status='deprecated', replaced_by=excluded.repl
 -- 其余不在 spec 里的旧名：标记废弃（新库里不会有这些行；老库迁移时生效）
 update event_definitions set status='deprecated'
  where status='active' and event <> all (array[
-   'session_start', 'page_view', 'page_time', 'app_hide', 'app_show', 'pwa_install_prompt', 'pwa_installed', 'pwa_first_launch', 'a2hs_open',
-   'analytics_off', 'analytics_on', 'login_open', 'login_send_code', 'login_verify', 'login_success', 'signup_complete', 'logout', 'account_blocked', 'account_delete', 'account_restore', 'filter_open',
+   'session_start', 'page_view', 'page_time', 'app_hide', 'app_show', 'pwa_install_prompt', 'pwa_installed', 'pwa_first_launch', 'a2hs_open', 'a2hs_go', 'a2hs_back',
+   'analytics_off', 'analytics_on', 'login_open', 'login_send_code', 'login_resend', 'login_verify', 'login_abandon', 'login_success', 'signup_complete', 'logout', 'account_blocked', 'account_delete', 'account_restore', 'filter_open',
    'filter_reset', 'filter_utr_band', 'filter_type', 'filter_tag', 'filter_radius', 'day_select', 'view_mode', 'loc_suburb_pick', 'location_allow',
    'map_day', 'map_cluster_open', 'game_select', 'game_view', 'women_lock_view', 'game_create_start', 'game_create_submit', 'game_edit',
    'game_postpone', 'unfilled_action', 'game_cancel_open', 'game_cancel', 'game_apply_open', 'game_apply_submit', 'game_join_instant',
@@ -874,7 +885,8 @@ update event_definitions set status='deprecated'
    'impression_give', 'recap_done', 'noshow_report', 'noshow_undo', 'noshow_appeal', 'badge_view', 'badge_share', 'level_view', 'level_info_open',
    'notif_open', 'notif_settings_open', 'push_enable', 'email_settings_save', 'pact_view', 'pact_accept', 'soon_open', 'safety_open', 'contact_open',
    'report_open', 'report_submit', 'user_block', 'user_unblock', 'chat_open', 'chat_send', 'gender_open', 'gender_set', 'club_add_open',
-   'home_clubs_save', 'community_open', 'series_end', 'follow_open',
+   'home_clubs_save', 'utr_open', 'utr_invalid', 'utr_save', 'community_open', 'series_end', 'follow_open',
+   'racket_picker_open', 'racket_brand_pick', 'racket_save', 'racket_invalid',
    'sb_post_view', 'sb_post_submit', 'sb_reply_send', 'sb_ball', 'sb_photo_view', 'sb_topic_view', 'sb_court_view', 'sb_hide', 'sb_post_delete', 'sb_replies_toggle', 'sb_share', 'sb_album_open',
    'apply_expired', 'game_start_check', 'game_counted', 'recap_notify',
    'follow_notify', 'less_effect', 'noshow_confirm', 'badge_earned', 'level_up', 'notif_deliver', 'women_apply_blocked', 'account_status_change']);
@@ -2163,12 +2175,14 @@ returns table(device text, active_people bigint, signups bigint, games bigint, a
 $$;
 
 -- 添加到主屏幕（任意区间）：在手机浏览器里用过的球友 → 打开过引导 → 已添加 → 最近 7 天还从主屏幕打开（按人去重，每一步都是上一步里的人）
+-- 漏斗第 3 步原来看 users.installed_at，但没有任何地方写它（正式库 0 人）：改成「有从主屏幕打开过的会话」（或 installed_at 有值）
 create or replace function pwa_install_funnel(p_from timestamptz, p_to timestamptz)
-returns table(step int, name text, people bigint) language sql stable as $$
+returns table(step int, name text, people bigint) language sql stable security definer set search_path = public as $$
   with s1 as (select distinct user_id from sessions where device='mobile' and not coalesce(standalone,false) and user_id is not null
                and started_at >= p_from and started_at < p_to),
   s2 as (select * from s1 where user_id in (select user_id from events where event='a2hs_open' and occurred_at >= p_from and occurred_at < p_to)),
-  s3 as (select * from s2 where user_id in (select id from users where installed_at is not null)),
+  s3 as (select * from s2 where user_id in (select user_id from sessions where standalone and user_id is not null)
+                            or user_id in (select id from users where installed_at is not null)),
   s4 as (select * from s3 where user_id in (select user_id from sessions where standalone and started_at > now() - interval '7 days'))
   select 1, '在手机浏览器里用过', (select count(*) from s1) union all select 2, '打开过添加引导', (select count(*) from s2)
   union all select 3, '已添加到主屏幕', (select count(*) from s3) union all select 4, '最近 7 天还从主屏幕打开', (select count(*) from s4)
@@ -3015,6 +3029,12 @@ $$;
 -- ---------- 球局 ----------
 create or replace function api_pact_accept() returns void language plpgsql security definer set search_path = public as $$
 begin update users set pact_accepted_at = coalesce(pact_accepted_at, now()), pact_version = 1 where id = nbq_me(); end $$;
+
+-- 添加到主屏幕（11-15，迁移 20261118_a2hs_installed）：这个人有没有从主屏幕图标打开过（服务器记的 sessions.standalone）。只读、只看自己；
+--   前台身份不能直接读 sessions，所以走 SECURITY DEFINER。Safari 读到 true 就永久记「已添加」，不再提醒
+create or replace function api_me_installed() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from sessions where user_id = nbq_me() and standalone) $$;
+grant execute on function api_me_installed() to nbq_user, nbq_service;
 
 -- 徽章接服务器（11-04，迁移 20261104_badges_server）
 create or replace function api_badges_claim(p_codes text[]) returns void language plpgsql security definer set search_path = public as $$
@@ -4008,7 +4028,7 @@ create index if not exists users_signup_ip on users(signup_ip) where signup_ip i
 create table if not exists risk_events (
   id      bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
-  kind    text not null check (kind in ('women_probe','link_attempt','contact_lure','apply_withdraw','rate_hit')),
+  kind    text not null check (kind in ('women_probe','link_attempt','contact_lure','apply_withdraw','rate_hit','buddy_ignored')),   -- buddy_ignored：加球友申请被忽略，ref = 忽略的人（#110）
   ref     text,                                   -- 相关对象：球局 id / 对方 id / 错误码（不存内容）
   at      timestamptz not null default now()
 );
@@ -4160,6 +4180,8 @@ language sql stable security definer set search_path = public as $$
     select e.user_id, 'apply_churn', count(*) from ev e, w where w.code = 'apply_churn' and e.kind = 'apply_withdraw' and e.at > w.t group by 1
     union all
     select e.user_id, 'rate_hit', count(*) from ev e, w where w.code = 'rate_hit' and e.kind = 'rate_hit' and e.at > w.t group by 1
+    union all
+    select e.user_id, 'buddy_ignored', count(distinct e.ref) from ev e, w where w.code = 'buddy_ignored' and e.kind = 'buddy_ignored' and e.at > w.t group by 1
   )
   select v.user_id, v.c, v.v from v join users u on u.id = v.user_id where u.status <> 'deleted'
 $$;
@@ -4294,6 +4316,15 @@ begin
     'appeals', (select coalesce(jsonb_agg(to_jsonb(a) - 'user_id'), '[]') from noshow_appeals a where a.user_id = u),
     'reports_made', (select coalesce(jsonb_agg(jsonb_build_object('target_type', r.target_type, 'reason', r.reason, 'note', r.note, 'status', r.status, 'at', r.created_at)), '[]') from reports r where r.reporter_id = u),
     'blocked', (select coalesce(jsonb_agg(jsonb_build_object('player', o.nickname, 'at', b.created_at)), '[]') from blocks b join users o on o.id = b.blocked_id where b.blocker_id = u),
+    -- 球拍 / UTR / 球友（#71，11-10）：自己填的 UTR 主页编号和确认时间已在 profile 里（users 整行）；这里补改动历史、球拍、球友关系和申请
+    --   球友申请：我发出的被「忽略」时导出里不显示被忽略（和界面一致，发起人永远不知道）：24 小时内算「等待中」，过期算「已失效」
+    'utr_history', (select coalesce(jsonb_agg(jsonb_build_object('at', c.at, 'old_utr', c.old_utr, 'new_utr', c.new_utr, 'old_estimated', c.old_est, 'new_estimated', c.new_est) order by c.at), '[]') from utr_changes c where c.user_id = u),
+    'rackets', (select coalesce(jsonb_agg(jsonb_build_object('slot', r.slot, 'brand', r.brand, 'series', r.series, 'added_at', r.created_at, 'updated_at', r.updated_at) order by r.slot), '[]') from user_rackets r where r.user_id = u),
+    'buddies', (select coalesce(jsonb_agg(jsonb_build_object('player', o.nickname, 'since', b.created_at) order by b.created_at), '[]') from buddies b join users o on o.id = case when b.user_a = u then b.user_b else b.user_a end where u in (b.user_a, b.user_b)),
+    'buddy_requests', (select coalesce(jsonb_agg(jsonb_build_object('direction', case when r.from_user = u then 'sent' else 'received' end, 'player', o.nickname, 'source', r.source, 'created_at', r.created_at,
+                         'status', case when r.from_user = u and r.status = 'ignored' then (case when r.expires_at > now() then 'pending' else 'expired' end) else r.status end,
+                         'responded_at', case when r.from_user = u and r.status = 'ignored' then null else r.responded_at end) order by r.created_at), '[]')
+                  from buddy_requests r join users o on o.id = case when r.from_user = u then r.to_user else r.from_user end where u in (r.from_user, r.to_user)),
     -- 场边（第七批 S2c，表在 ㉕）：自己的发布（含后台隐藏的、过了 24 小时在相册里的；删了的不含）、回复、点过的网球、不感兴趣、发起的话题、浏览数
     --   不含：后台隐藏原因、照片识别标签和审核结果（和前台一样拿不到）；别人给我的网球只有数量（在发布里）
     'sideline', jsonb_build_object(
@@ -4340,7 +4371,7 @@ end $$;
 drop trigger if exists trg_users_opt_out_detach on users;
 create trigger trg_users_opt_out_detach after update of analytics_opt_out on users for each row execute function users_opt_out_detach();
 
--- ④ 注销满 30 天匿名化：补上性别、注册设备 / IP、退订 token、待发邮件里的邮箱、旧推送订阅、本人设的偏好（少遇到 / 多遇到，只有本人可见）
+-- ④ 注销满 30 天匿名化：补上性别、注册设备 / IP、退订 token、待发邮件里的邮箱、旧推送订阅、本人设的偏好（少遇到 / 多遇到，只有本人可见）、我的球拍（11-07 迁移 20261107_wipe_rackets）
 --   保留：球局记录、聊天（显示「已注销」）、给别人 / 收到的印象和好评（计入汇总，本来就不显示是谁给的）
 create or replace function job_anonymize_deleted(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$
 declare t0 timestamptz := clock_timestamp(); n int;
@@ -4355,6 +4386,9 @@ begin
   delete from push_subscriptions s using users u where u.id = s.user_id and u.anonymized_at = p_now;
   delete from player_prefs p using users u where u.id = p.user_id and u.anonymized_at = p_now;
   delete from gender_changes g using users u where u.id = g.user_id and u.anonymized_at = p_now;
+  delete from user_rackets r using users u where u.id = r.user_id and u.anonymized_at = p_now;   -- 我的球拍（#60 A2）：注销即删，不保留
+  delete from buddies b using users u where u.anonymized_at = p_now and u.id in (b.user_a, b.user_b);   -- 球友（#110）：注销即删，对方那边也随之消失
+  delete from buddy_requests r using users u where u.anonymized_at = p_now and u.id in (r.from_user, r.to_user);
   update email_outbox e set to_email = 'deleted', status = case when e.status = 'queued' then 'skipped' else e.status end,
          skip_reason = case when e.status = 'queued' then 'email_bad' else e.skip_reason end
     from users u where u.id = e.user_id and u.anonymized_at = p_now;
@@ -5664,6 +5698,7 @@ begin
   delete from risk_events where at < p_now - interval '90 days';
   update users set signup_ip = null where signup_ip is not null and created_at < p_now - interval '30 days';
   delete from area_demand where kind = 'city_waitlist' and (notified_at < p_now - interval '30 days' or created_at < p_now - interval '2 years');
+  perform racket_rollup(d - 1);   -- 我的球拍（#60 A5）：昨天结束时的持有人数快照
   return nbq_job_log('nightly', n, t0);
 end $$;
 
@@ -7072,11 +7107,743 @@ grant execute on function admin_login_begin(text), admin_login_finish(uuid, bool
   admin_session_check(text), admin_session_revoke(text), admin_attempt_check(inet), admin_attempt_note(inet) to nbq_admin_api;
 
 
+-- 我的球拍（#60 PR-A1，11-07，迁移 20261107_user_rackets）：每人最多 3 把，只记「品牌 + 系列」；可重复运行，纯新增，不改已有表和数据。
+--   · user_rackets：主键 (user_id, slot)，slot 1 = 主力；brand 为空 = 选了「其他」（系列 / 拍子名称自由输入）
+--   · 前台只能读自己的行（RLS）；写入只走 api_set_rackets(jsonb)：整组替换，校验不过 → invalid，原来的不丢（同一事务）
+--   · 将来球员卡上别人可见（PR-C），所以服务器校验一次到位：≤ 30 字、去控制字符和首尾空白、拒绝链接（http / www）、@、连续 6 位以上数字、同一把重复
+--   · 本期不改 public_profiles、不改 api_export_me（隐私欠账 #71）；注销时删球拍另做（A2）
+create table if not exists user_rackets (
+  user_id    uuid not null references users(id) on delete cascade,
+  slot       smallint not null check (slot between 1 and 3),
+  brand      text check (brand is null or (char_length(brand) between 1 and 30 and brand = btrim(brand))),
+  series     text not null check (char_length(series) between 1 and 30 and series = btrim(series)),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, slot)
+);
+create unique index if not exists user_rackets_same on user_rackets (user_id, lower(coalesce(brand, '')), lower(series));
+alter table user_rackets enable row level security;
+drop policy if exists svc_all on user_rackets; create policy svc_all on user_rackets to nbq_service using (true) with check (true);
+drop policy if exists own_read on user_rackets; create policy own_read on user_rackets for select to nbq_user using (user_id = nbq_uid());
+revoke all on user_rackets from public, anon, authenticated, nbq_user;
+grant select on user_rackets to nbq_user;
+grant all on user_rackets to nbq_service;
+
+-- 球拍文字清洗：去控制字符、连续空白并成一个、去首尾空白（含全角空格 / 不换行空格）；清完是空串 → null
+create or replace function nbq_racket_text(p text) returns text language sql immutable set search_path = public as $$
+  select nullif(btrim(regexp_replace(regexp_replace(p, '[[:cntrl:]]', '', 'g'), '[[:space:]' || chr(12288) || chr(160) || ']+', ' ', 'g'), ' '), '') $$;
+-- 不能出现在公开文字里的：链接、@、连续 6 位以上数字（手机号 / 微信号之类）
+create or replace function nbq_racket_bad(p text) returns boolean language sql immutable set search_path = public as $$
+  select p ~* '(http|www)' or p ~ '[@＠]' or p ~ '[0-9０-９]{6,}' $$;
+
+-- 整组替换：p_rackets = [{brand, series}, …]，数组顺序 = slot（第 1 个是主力）；返回保存后的 [{slot, brand, series}]
+create or replace function api_set_rackets(p_rackets jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); e jsonb; b text; s text; k text; bs text[] := '{}'; ss text[] := '{}'; ks text[] := '{}'; olds jsonb; out jsonb;
+begin
+  if p_rackets is null or jsonb_typeof(p_rackets) <> 'array' or jsonb_array_length(p_rackets) > 3 then perform nbq_err('invalid', 'rackets'); end if;
+  for e in select x from jsonb_array_elements(p_rackets) x loop
+    if jsonb_typeof(e) <> 'object' then perform nbq_err('invalid', 'rackets'); end if;
+    if coalesce(jsonb_typeof(e->'brand'), 'null') not in ('string', 'null') then perform nbq_err('invalid', 'brand'); end if;
+    if coalesce(jsonb_typeof(e->'series'), 'null') <> 'string' then perform nbq_err('invalid', 'series'); end if;
+    b := nbq_racket_text(e->>'brand'); s := nbq_racket_text(e->>'series');
+    if b is not null and (char_length(b) > 30 or nbq_racket_bad(b)) then perform nbq_err('invalid', 'brand'); end if;
+    if s is null or char_length(s) > 30 or nbq_racket_bad(s) then perform nbq_err('invalid', 'series'); end if;
+    k := lower(coalesce(b, '')) || chr(31) || lower(s);   -- 同一把：品牌 + 系列，不分大小写（chr(31) 是控制字符，清洗后不会出现在文字里）
+    if k = any (ks) then perform nbq_err('invalid', 'duplicate'); end if;
+    bs := bs || b; ss := ss || s; ks := ks || k;
+  end loop;
+  perform 1 from users where id = u for update;   -- 同一人并发保存时排队，避免两次整组替换互相撞主键
+  select coalesce(jsonb_object_agg(lower(coalesce(brand, '')) || chr(31) || lower(series), created_at), '{}') into olds from user_rackets where user_id = u;
+  delete from user_rackets where user_id = u;
+  insert into user_rackets (user_id, slot, brand, series, created_at)
+    select u, n.i, n.b, n.s, coalesce((olds->>n.k)::timestamptz, now()) from unnest(bs, ss, ks) with ordinality n(b, s, k, i);
+  select coalesce(jsonb_agg(jsonb_build_object('slot', slot, 'brand', brand, 'series', series) order by slot), '[]') into out from user_rackets where user_id = u;
+  return out;
+end $$;
+revoke execute on function api_set_rackets(jsonb), nbq_racket_text(text), nbq_racket_bad(text) from public, anon, authenticated;
+grant execute on function api_set_rackets(jsonb) to nbq_user;
+grant execute on function api_set_rackets(jsonb), nbq_racket_text(text), nbq_racket_bad(text) to nbq_service;
+
+-- 球友（#110 PR-A，11-08，迁移 20261108_buddies）：当面扫码加球友 —— 扫码的人发申请，被扫的人确认 / 忽略。可重复运行，纯新增，不改已有表和数据。
+--   · 关系只来自事实：一起打过（照旧实时算，不落表）+ 当面扫码确认（buddies 表）。没有远程「加好友」入口，那是前台的事（PR-B）
+--   · 没有「拒绝」：忽略不通知对方；发起人在 24 小时失效前一直看到「等待 TA 确认」（被忽略的也一样）→ buddy_requests 前台不能直接读，只走 api_buddies()
+--   · 防骚扰：同一人 30 天内被忽略 2 次 / 24 小时内已发 10 个 → buddy_limit（两种情况同一个错误码，不泄露「被忽略过」）；屏蔽双向生效；账号不是正常状态不能发
+--   · 两人互相扫了对方（对方已有一条待确认的给我）→ 直接成为球友
+--   · 运营（PR-A3）：申请记来源（qr / link）和确认方式（confirm / mutual）；后台统计 buddy_stats；风控 buddy_ignored；6 个埋点进字典；注销满 30 天删关系和申请
+--   · 本期不改：球友 = 一起打过的权限（约 / 私信，PR-A2）、api_export_me（并入 #71）
+--   · 迁移里还复制了三个已有对象（risk_events 约束、risk_values、job_anonymize_deleted），在下面 ↓ ↑ 标出的块里，schema.sql 里改在原处，两边一字不差（pg/buddies 核对）
+alter type notif_kind add value if not exists 'buddy_request';    -- 有人扫了你的码，等你确认
+alter type notif_kind add value if not exists 'buddy_accepted';   -- 对方确认了，你们成为球友
+
+create table if not exists buddy_requests (
+  id           uuid primary key default gen_random_uuid(),
+  from_user    uuid not null references users(id) on delete cascade,
+  to_user      uuid not null references users(id) on delete cascade,
+  status       text not null default 'pending' check (status in ('pending','accepted','ignored','expired')),
+  source       text not null default 'qr' check (source in ('qr','link','other')),   -- 从哪扫来的：qr 球员卡背面 / link 分享图、链接（监测截图外传后的远程申请）
+  accepted_via text check (accepted_via in ('confirm','mutual')),                   -- confirm 对方确认 / mutual 互相扫了
+  created_at   timestamptz not null default now(),
+  expires_at   timestamptz not null default now() + interval '24 hours',
+  responded_at timestamptz,
+  check (from_user <> to_user)
+);
+create unique index if not exists buddy_requests_one_pending on buddy_requests (from_user, to_user) where status = 'pending';
+create index if not exists buddy_requests_to on buddy_requests (to_user, created_at desc);
+alter table buddy_requests enable row level security;
+drop policy if exists svc_all on buddy_requests; create policy svc_all on buddy_requests to nbq_service using (true) with check (true);
+revoke all on buddy_requests from public, anon, authenticated, nbq_user;
+grant all on buddy_requests to nbq_service;
+
+create table if not exists buddies (
+  user_a     uuid not null references users(id) on delete cascade,   -- user_a < user_b：一对人只有一行
+  user_b     uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_a, user_b),
+  check (user_a < user_b)
+);
+create index if not exists buddies_b on buddies (user_b);
+alter table buddies enable row level security;
+drop policy if exists svc_all on buddies; create policy svc_all on buddies to nbq_service using (true) with check (true);
+drop policy if exists own_read on buddies; create policy own_read on buddies for select to nbq_user using (nbq_uid() in (user_a, user_b));
+revoke all on buddies from public, anon, authenticated, nbq_user;
+grant select on buddies to nbq_user;
+grant all on buddies to nbq_service;
+
+-- 风控：7 天内加球友申请被 ≥3 个不同的人忽略（远程拿截图乱扫、当面纠缠的信号）；后台 RISK_RULES 同一条
+insert into risk_rules (code, name, weight, threshold, window_days, enabled) values ('buddy_ignored', '加球友申请被多人忽略', 10, 3, 7, true)
+on conflict (code) do update set name = excluded.name, weight = excluded.weight, threshold = excluded.threshold, window_days = excluded.window_days, enabled = excluded.enabled;
+
+-- 埋点字典（#110）：前台两端发（PR-B 起），与 tests/spec/events_spec.md、后台 B1_EVENTS 逐字一致；业务数字以表为准（buddy_stats），埋点只看漏斗
+insert into event_definitions (event, category, description, props, source, status, replaced_by) values
+ ('buddy_scan_view','球友','扫码落地页看到「加球友」','target_uid, logged_in, source(qr/link/other)','client','active',null),
+ ('buddy_request_send','球友','加球友申请发出（含已是球友 / 失败）','target_uid, result(pending/buddies/fail), err, source(qr/link/other)','client','active',null),
+ ('buddy_request_open','球友','打开加球友确认页','request_id, via(push/notif/list)','client','active',null),
+ ('buddy_respond','球友','确认 / 忽略加球友申请','request_id, action(accept/ignore), wait_min','client','active',null),
+ ('buddy_remove','球友','删除球友','target_uid, played_together','client','active',null),
+ ('buddy_list_open','球友','打开我的球友','n_buddies, n_played','client','active',null)
+on conflict (event) do update set category = excluded.category, description = excluded.description, props = excluded.props, source = excluded.source, status = 'active', replaced_by = null;
+
+-- 扫码 / 球员卡链接落地（/p/{编号}）：按编号找人。原来前台只在已读进内存的人里找，扫陌生人的码打不开（#110 PR-B 发现）。
+--   必须登录；限频防按编号遍历（每小时 60 次、每天 300 次 → card_lookup_limit）；封禁 / 注销 / 有屏蔽关系 → not_found。
+--   只返回 id，卡片内容由接口层按 id 取（和 GET /api/players/:id 同一份，不多给任何列）
+insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
+ ('card_no_hour', 'card_no', '1 hour',   60,  false, 'card_lookup_limit', '按编号查球员卡（扫码 / 链接落地）：每小时 60 次，防遍历'),
+ ('card_no_day',  'card_no', '24 hours', 300, false, 'card_lookup_limit', '按编号查球员卡（扫码 / 链接落地）：每天 300 次')
+on conflict (rule) do update set grp = excluded.grp, win = excluded.win, max_hits = excluded.max_hits, per_key = excluded.per_key, code = excluded.code, note = excluded.note;
+create or replace function api_card_by_no(p_no bigint) returns uuid language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); t uuid;
+begin
+  perform nbq_rate(u::text, 'card_no');
+  select id into t from users where member_no = p_no and status not in ('banned','deleted');
+  if t is null or (t <> u and is_blocked(u, t)) then perform nbq_err('not_found'); end if;   -- 有屏蔽关系：当作找不到（被屏蔽的人不能靠扫码再找到你）
+  return t;
+end $$;
+
+-- 账号不是正常状态（暂停中 / 核实中 / 受限 / 封禁）不能加球友；暂停到期按正常
+create or replace function nbq_buddy_gate() returns uuid language plpgsql stable security definer set search_path = public as $$
+declare u uuid := nbq_me(); st text;
+begin
+  select case when status = 'suspended' and status_until <= now() then 'active' else status end into st from users where id = u;
+  if st is distinct from 'active' then perform nbq_err('account_' || coalesce(st, 'deleted')); end if;
+  return u;
+end $$;
+create or replace function nbq_buddy_link(a uuid, b uuid) returns void language sql security definer set search_path = public as $$
+  insert into buddies (user_a, user_b) values (least(a, b), greatest(a, b)) on conflict do nothing
+$$;
+
+-- 扫码后发申请：p_source = qr | link | other（空 = qr）；返回 {status: 'pending' | 'buddies', id?}
+create or replace function api_buddy_request(p_to uuid, p_source text default 'qr') returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_buddy_gate(); tu users; r buddy_requests; src text := coalesce(p_source, 'qr');
+begin
+  if src not in ('qr','link','other') then perform nbq_err('invalid', 'source'); end if;
+  if p_to = u then perform nbq_err('buddy_self'); end if;
+  select * into tu from users where id = p_to;
+  if not found or tu.status in ('banned','deleted') then perform nbq_err('not_found'); end if;
+  if is_blocked(u, p_to) then perform nbq_err('blocked'); end if;
+  perform 1 from users where id = least(u, p_to) for update; perform 1 from users where id = greatest(u, p_to) for update;   -- 同一对人并发扫码时排队（固定顺序上锁，不死锁）
+  if exists (select 1 from buddies where user_a = least(u, p_to) and user_b = greatest(u, p_to)) then return jsonb_build_object('status', 'buddies'); end if;
+  update buddy_requests set status = 'expired' where status = 'pending' and expires_at <= now() and from_user in (u, p_to) and to_user in (u, p_to);
+  -- 对方已经扫过我、还在等我确认 → 互相扫了，直接成为球友
+  select * into r from buddy_requests where from_user = p_to and to_user = u and status = 'pending' for update;
+  if found then
+    update buddy_requests set status = 'accepted', accepted_via = 'mutual', responded_at = now() where id = r.id;
+    perform nbq_buddy_link(u, p_to); perform nbq_notify(p_to, 'buddy_accepted', null, u);
+    return jsonb_build_object('status', 'buddies');
+  end if;
+  -- 24 小时内重复扫（包括已被忽略的）：返回原来那条，不重复提醒、不让发起人看出被忽略
+  select * into r from buddy_requests where from_user = u and to_user = p_to and status in ('pending','ignored') and expires_at > now() order by created_at desc limit 1;
+  if found then return jsonb_build_object('status', 'pending', 'id', r.id); end if;
+  if (select count(*) from buddy_requests where from_user = u and to_user = p_to and status = 'ignored' and responded_at > now() - interval '30 days') >= 2
+     or (select count(*) from buddy_requests where from_user = u and created_at > now() - interval '24 hours') >= 10 then perform nbq_err('buddy_limit'); end if;
+  insert into buddy_requests (from_user, to_user, source) values (u, p_to, src) returning * into r;
+  perform nbq_notify(p_to, 'buddy_request', null, u);
+  return jsonb_build_object('status', 'pending', 'id', r.id);
+end $$;
+
+-- 被扫的人确认 / 忽略：p_action = 'accept' | 'ignore'；返回 'buddies' | 'ignored'。已处理 / 已失效 → buddy_request_ended
+create or replace function api_buddy_respond(p_id uuid, p_action text) returns text language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_buddy_gate(); r buddy_requests;
+begin
+  if p_action is null or p_action not in ('accept','ignore') then perform nbq_err('invalid', 'action'); end if;
+  select * into r from buddy_requests where id = p_id and to_user = u for update;
+  if not found then perform nbq_err('not_found'); end if;
+  if r.status <> 'pending' or r.expires_at <= now() then perform nbq_err('buddy_request_ended'); end if;
+  if p_action = 'ignore' then   -- 不通知对方；记一条风险信号（7 天内被 ≥3 个不同的人忽略 → buddy_ignored）
+    update buddy_requests set status = 'ignored', responded_at = now() where id = r.id;
+    insert into risk_events (user_id, kind, ref) values (r.from_user, 'buddy_ignored', u::text);
+    return 'ignored';
+  end if;
+  if is_blocked(u, r.from_user) or (select status from users where id = r.from_user) in ('banned','deleted') then perform nbq_err('not_found'); end if;
+  update buddy_requests set status = 'accepted', accepted_via = 'confirm', responded_at = now() where id = r.id;
+  perform nbq_buddy_link(u, r.from_user); perform nbq_notify(r.from_user, 'buddy_accepted', null, u);
+  return 'buddies';
+end $$;
+
+-- 删除球友：不通知对方；一起打过的关系不受影响（那是事实）
+create or replace function api_buddy_remove(p_user uuid) returns void language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me();
+begin
+  delete from buddies where user_a = least(u, p_user) and user_b = greatest(u, p_user);
+end $$;
+
+-- 我的球友 + 申请：{buddies:[{user_id, since}], incoming:[{id, from_user, created_at, expires_at}], outgoing:[{id, to_user, created_at, expires_at}]}
+--   outgoing 里被忽略的也照样列出（24 小时失效前），只给 id / 对象 / 时间，不给状态
+create or replace function api_buddies() returns jsonb language sql stable security definer set search_path = public as $$
+  with me as (select nbq_me() as u),
+  b as (select case when x.user_a = me.u then x.user_b else x.user_a end as o, x.created_at from buddies x, me where me.u in (x.user_a, x.user_b))
+  select jsonb_build_object(
+    'buddies', coalesce((select jsonb_agg(jsonb_build_object('user_id', b.o, 'since', b.created_at) order by b.created_at desc)
+                 from b join users ou on ou.id = b.o, me where ou.status not in ('banned','deleted') and not is_blocked(me.u, b.o)), '[]'),
+    'incoming', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'from_user', r.from_user, 'created_at', r.created_at, 'expires_at', r.expires_at) order by r.created_at desc)
+                 from buddy_requests r join users ou on ou.id = r.from_user, me where r.to_user = me.u and r.status = 'pending' and r.expires_at > now()
+                   and ou.status not in ('banned','deleted') and not is_blocked(me.u, r.from_user)), '[]'),
+    'outgoing', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'to_user', r.to_user, 'created_at', r.created_at, 'expires_at', r.expires_at) order by r.created_at desc)
+                 from buddy_requests r join users ou on ou.id = r.to_user, me where r.from_user = me.u and r.status in ('pending','ignored') and r.expires_at > now()
+                   and ou.status not in ('banned','deleted') and not is_blocked(me.u, r.to_user)), '[]'))
+  from me
+$$;
+
+-- 后台统计（数据页 / 只读角色也能看）：申请按发出时间落在 [p_from, p_to)；p_cities 非空 = 只算发申请的人常用城市在这些城市里的（球友对：任一方在就算）
+--   业务数字以表为准，不靠埋点；被忽略的在这里照实统计（只有后台看得到），过期 = pending 且已过 24 小时
+create or replace function buddy_stats(p_from timestamptz, p_to timestamptz, p_cities text[] default null)
+returns table(requests bigint, senders bigint, receivers bigint, accepted_confirm bigint, accepted_mutual bigint, ignored bigint, expired bigint, pending bigint,
+              from_link bigint, accept_rate numeric, median_accept_min numeric, new_pairs bigint, total_pairs bigint)
+language sql stable security definer set search_path = public as $$
+  with r as (select x.*, case when x.status = 'pending' and x.expires_at <= now() then 'expired' else x.status end as st
+               from buddy_requests x join users u on u.id = x.from_user
+              where x.created_at >= p_from and x.created_at < p_to and (p_cities is null or u.home_city = any (p_cities))),
+  pr as (select b.created_at from buddies b
+          where p_cities is null or exists (select 1 from users u where u.id in (b.user_a, b.user_b) and u.home_city = any (p_cities)))
+  select count(*), count(distinct r.from_user), count(distinct r.to_user),
+         count(*) filter (where r.accepted_via = 'confirm'), count(*) filter (where r.accepted_via = 'mutual'),
+         count(*) filter (where r.st = 'ignored'), count(*) filter (where r.st = 'expired'), count(*) filter (where r.st = 'pending'),
+         count(*) filter (where r.source = 'link'),
+         round(count(*) filter (where r.st = 'accepted')::numeric / nullif(count(*) filter (where r.st <> 'pending'), 0), 3),
+         round((percentile_cont(0.5) within group (order by extract(epoch from r.responded_at - r.created_at) / 60) filter (where r.accepted_via = 'confirm'))::numeric, 1),
+         (select count(*) from pr where pr.created_at >= p_from and pr.created_at < p_to), (select count(*) from pr)
+    from r
+$$;
+
+revoke execute on function api_card_by_no(bigint), buddy_stats(timestamptz, timestamptz, text[]), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() from public, anon, authenticated;
+grant execute on function api_card_by_no(bigint), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_user;
+grant execute on function buddy_stats(timestamptz, timestamptz, text[]) to nbq_admin, nbq_viewer;
+grant execute on function api_card_by_no(bigint), nbq_buddy_gate(), nbq_buddy_link(uuid, uuid), api_buddy_request(uuid, text), api_buddy_respond(uuid, text), api_buddy_remove(uuid), api_buddies() to nbq_service;
+-- 球拍产品库（#60 A4，迁移 20261108_racket_catalog，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
+--   · racket_catalog：品牌 + 系列 + 别名；status active（可选）/ hidden（不再出现在选择列表，已选的人不受影响）/ merged（并到 merged_into）
+--   · user_rackets.catalog_id：选自产品库或自由文字自动匹配上的，记 id；匹配不上为空（后台「待归类」）。brand / series 仍存显示用的名字
+--     （产品库改名时由后台函数同步，M1）
+--   · api_set_rackets 新版：元素可以是 {catalog_id} 或 {brand, series}；自由文字按「不分大小写、品牌 + 系列 / 别名」自动归到产品库
+--   · 产品库只给 nbq_service（前台 GET /api/rackets/catalog 由接口层读）和后台角色（M1 再开）
+do $$ begin if to_regclass('public.user_rackets') is null then raise exception '先执行 20261107_user_rackets'; end if; end $$;
+create table if not exists racket_catalog (
+  id          uuid primary key default gen_random_uuid(),
+  brand       text not null check (char_length(brand) between 1 and 30 and brand = btrim(brand)),
+  series      text not null check (char_length(series) between 1 and 30 and series = btrim(series)),
+  aliases     text[] not null default '{}',     -- 其他写法（小写），自动匹配用；合并时被并掉的名字也记进来
+  status      text not null default 'active' check (status in ('active','hidden','merged')),
+  merged_into uuid references racket_catalog(id),
+  sort        int not null default 0,
+  created_by  uuid,                              -- 后台管理员 id；种子数据为空
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  check ((status = 'merged') = (merged_into is not null)),
+  check (merged_into is null or merged_into <> id)
+);
+create unique index if not exists racket_catalog_name on racket_catalog (lower(brand), lower(series));
+alter table racket_catalog enable row level security;
+drop policy if exists svc_all on racket_catalog; create policy svc_all on racket_catalog to nbq_service using (true) with check (true);
+revoke all on racket_catalog from public, anon, authenticated, nbq_user;
+grant all on racket_catalog to nbq_service;
+alter table user_rackets add column if not exists catalog_id uuid references racket_catalog(id);
+create index if not exists user_rackets_catalog on user_rackets (catalog_id) where catalog_id is not null;
+
+-- 种子：热门品牌和系列（顺序即排序）。已有的不动
+insert into racket_catalog (brand, series, sort)
+select b, s, row_number() over () * 10 from (values
+  ('Wilson','Pro Staff'),('Wilson','Blade'),('Wilson','Clash'),('Wilson','Ultra'),('Wilson','Burn'),('Wilson','Shift'),
+  ('Babolat','Pure Drive'),('Babolat','Pure Aero'),('Babolat','Pure Strike'),
+  ('Head','Speed'),('Head','Radical'),('Head','Gravity'),('Head','Prestige'),('Head','Extreme'),('Head','Boom'),
+  ('Yonex','EZONE'),('Yonex','VCORE'),('Yonex','Percept'),
+  ('Dunlop','CX'),('Dunlop','SX'),('Dunlop','FX'),
+  ('Prince','Phantom'),('Prince','Textreme'),
+  ('Tecnifibre','TF40'),('Tecnifibre','T-Fight')) v(b, s)
+on conflict do nothing;
+
+-- 自由文字 → 产品库：品牌 + 系列不分大小写；没写品牌时，「品牌 系列」整串或别名都算；合并掉的跟到 merged_into；优先可选的（active）
+create or replace function nbq_racket_match(p_brand text, p_series text) returns uuid language sql stable security definer set search_path = public as $$
+  select coalesce(c.merged_into, c.id) from racket_catalog c
+   where (p_brand is not null and lower(c.brand) = lower(p_brand) and (lower(c.series) = lower(p_series) or lower(p_series) = any (c.aliases)))
+      or (p_brand is null and (lower(c.brand || ' ' || c.series) = lower(p_series) or lower(p_series) = any (c.aliases)))
+   order by (c.status = 'active') desc, c.sort limit 1 $$;
+
+create or replace function api_set_rackets(p_rackets jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); e jsonb; b text; s text; k text; cid uuid; c racket_catalog; held uuid[];
+        bs text[] := '{}'; ss text[] := '{}'; ks text[] := '{}'; cs uuid[] := '{}'; olds jsonb; out jsonb;
+begin
+  if p_rackets is null or jsonb_typeof(p_rackets) <> 'array' or jsonb_array_length(p_rackets) > 3 then perform nbq_err('invalid', 'rackets'); end if;
+  select coalesce(array_agg(catalog_id) filter (where catalog_id is not null), '{}') into held from user_rackets where user_id = u;
+  for e in select x from jsonb_array_elements(p_rackets) x loop
+    if jsonb_typeof(e) <> 'object' then perform nbq_err('invalid', 'rackets'); end if;
+    cid := null;
+    if coalesce(jsonb_typeof(e->'catalog_id'), 'null') <> 'null' then
+      -- 选自产品库：名字以产品库为准；隐藏的只有本来就有的人能留着；合并掉的跟到新条目
+      if jsonb_typeof(e->'catalog_id') <> 'string' or (e->>'catalog_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then perform nbq_err('invalid', 'catalog_id'); end if;
+      select * into c from racket_catalog where id = (e->>'catalog_id')::uuid;
+      if c.id is not null and c.status = 'merged' then select * into c from racket_catalog where id = c.merged_into; end if;
+      if c.id is null or c.status = 'merged' or (c.status = 'hidden' and not c.id = any (held)) then perform nbq_err('invalid', 'catalog_id'); end if;
+      cid := c.id; b := c.brand; s := c.series;
+    else
+      if coalesce(jsonb_typeof(e->'brand'), 'null') not in ('string', 'null') then perform nbq_err('invalid', 'brand'); end if;
+      if coalesce(jsonb_typeof(e->'series'), 'null') <> 'string' then perform nbq_err('invalid', 'series'); end if;
+      b := nbq_racket_text(e->>'brand'); s := nbq_racket_text(e->>'series');
+      if b is not null and (char_length(b) > 30 or nbq_racket_bad(b)) then perform nbq_err('invalid', 'brand'); end if;
+      if s is null or char_length(s) > 30 or nbq_racket_bad(s) then perform nbq_err('invalid', 'series'); end if;
+      cid := nbq_racket_match(b, s);
+      if cid is not null then select brand, series into b, s from racket_catalog where id = cid; end if;   -- 归到产品库：显示用产品库的写法
+    end if;
+    k := lower(coalesce(b, '')) || chr(31) || lower(s);
+    if k = any (ks) then perform nbq_err('invalid', 'duplicate'); end if;
+    bs := bs || b; ss := ss || s; ks := ks || k; cs := cs || cid;
+  end loop;
+  perform 1 from users where id = u for update;
+  select coalesce(jsonb_object_agg(lower(coalesce(brand, '')) || chr(31) || lower(series), created_at), '{}') into olds from user_rackets where user_id = u;
+  delete from user_rackets where user_id = u;
+  insert into user_rackets (user_id, slot, brand, series, catalog_id, created_at)
+    select u, n.i, n.b, n.s, n.c, coalesce((olds->>n.k)::timestamptz, now()) from unnest(bs, ss, ks, cs) with ordinality n(b, s, k, c, i);
+  select coalesce(jsonb_agg(jsonb_build_object('slot', slot, 'brand', brand, 'series', series, 'catalog_id', catalog_id) order by slot), '[]') into out from user_rackets where user_id = u;
+  return out;
+end $$;
+revoke execute on function nbq_racket_match(text, text) from public, anon, authenticated, nbq_user;
+grant execute on function nbq_racket_match(text, text) to nbq_service;
+grant execute on function api_set_rackets(jsonb) to nbq_user, nbq_service;
+
+-- 已有的自由文字：补上能匹配的 catalog_id（不改名字，下次保存时再换成产品库的写法）
+update user_rackets r set catalog_id = nbq_racket_match(r.brand, r.series) where r.catalog_id is null and nbq_racket_match(r.brand, r.series) is not null;
+
+-- 球拍统计（#60 A5，迁移 20261108_racket_stats，所有者 11-07 已批准，ADR 0009）。可重复运行，只加不改。
+--   · racket_daily / racket_daily_total：每晚记一次「持有人数」快照（只存计数、不存用户），是趋势和「上升最快」的数据来源，长期保留
+--   · racket_rollup(day)：按当时的 user_rackets 记快照（不算已注销 / 已封禁的人）；同一天重跑覆盖
+--   · job_nightly：只加一行 perform racket_rollup(d - 1)，其余与 schema.sql 原样一致
+--   · admin_racket_stats / admin_racket_unmatched：后台「球拍」页用（只授权给后台角色；页面权限由后台接口层按 page.view 检查）。
+--     口径：持有 = 正常状态的用户现在包里有这把；上升 = 现在的持有人数 − p_days 天前（含）最近一次快照；现在持有 < 5 的不进上升榜
+do $$ begin if to_regclass('public.racket_catalog') is null then raise exception '先执行 20261108_racket_catalog'; end if; end $$;
+create table if not exists racket_daily (
+  day        date not null,
+  catalog_id uuid references racket_catalog(id),   -- 空 = 产品库外的自由文字（合在一起记）
+  holders    int not null default 0,
+  mains      int not null default 0
+);
+create unique index if not exists racket_daily_key on racket_daily (day, coalesce(catalog_id, '00000000-0000-0000-0000-000000000000'::uuid));
+create table if not exists racket_daily_total (
+  day        date primary key,
+  users_with int not null default 0,    -- 有至少一把的人
+  users_all  int not null default 0,    -- 正常状态的人（分母）
+  rows_all   int not null default 0,
+  rows_other int not null default 0     -- 产品库外的
+);
+alter table racket_daily enable row level security; alter table racket_daily_total enable row level security;
+drop policy if exists svc_all on racket_daily; create policy svc_all on racket_daily to nbq_service using (true) with check (true);
+drop policy if exists svc_all on racket_daily_total; create policy svc_all on racket_daily_total to nbq_service using (true) with check (true);
+revoke all on racket_daily, racket_daily_total from public, anon, authenticated, nbq_user;
+grant all on racket_daily, racket_daily_total to nbq_service;
+
+-- 正常状态的人的球拍（已注销 / 已封禁的不算）
+create or replace function nbq_racket_live() returns table (user_id uuid, slot smallint, catalog_id uuid, created_at timestamptz) language sql stable security definer set search_path = public as $$
+  select r.user_id, r.slot, r.catalog_id, r.created_at from user_rackets r join users u on u.id = r.user_id where u.status not in ('deleted', 'banned') $$;
+
+create or replace function racket_rollup(p_day date) returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  delete from racket_daily where day = p_day;
+  insert into racket_daily (day, catalog_id, holders, mains)
+    select p_day, catalog_id, count(distinct user_id), count(*) filter (where slot = 1) from nbq_racket_live() group by catalog_id;
+  get diagnostics n = row_count;
+  insert into racket_daily_total (day, users_with, users_all, rows_all, rows_other)
+    select p_day, (select count(distinct user_id) from nbq_racket_live()), (select count(*) from users where status not in ('deleted', 'banned')),
+           (select count(*) from nbq_racket_live()), (select count(*) from nbq_racket_live() where catalog_id is null)
+  on conflict (day) do update set users_with = excluded.users_with, users_all = excluded.users_all, rows_all = excluded.rows_all, rows_other = excluded.rows_other;
+  return n;
+end $$;
+
+-- job_nightly 的那一行加在上面「开放时通知我」那版里
+
+-- 后台概览：一次给齐（页面一次请求）
+create or replace function admin_racket_stats(p_days int default 7) returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare base date; tot jsonb; top jsonb; rising jsonb; brands jsonb; trend jsonb;
+begin
+  if p_days is null or p_days not between 1 and 90 then perform nbq_err('invalid', 'days'); end if;
+  select max(day) into base from racket_daily_total where day <= (now() at time zone 'Australia/Melbourne')::date - p_days;
+  select jsonb_build_object('users_with', count(distinct l.user_id), 'users_all', (select count(*) from users where status not in ('deleted', 'banned')),
+           'rows_all', count(*), 'rows_other', count(*) filter (where l.catalog_id is null)) into tot from nbq_racket_live() l;
+  select coalesce(jsonb_agg(x order by x.holders desc, x.mains desc, x.brand, x.series), '[]') into top from (
+    select c.id as catalog_id, c.brand, c.series, count(distinct l.user_id)::int as holders, count(*) filter (where l.slot = 1)::int as mains
+      from nbq_racket_live() l join racket_catalog c on c.id = l.catalog_id group by c.id order by 4 desc, 5 desc, 2, 3 limit 10) x;
+  select coalesce(jsonb_agg(x order by x.delta desc, x.holders desc), '[]') into rising from (
+    select c.id as catalog_id, c.brand, c.series, now_.holders, coalesce(d.holders, 0) as base, now_.holders - coalesce(d.holders, 0) as delta, now_.added
+      from (select catalog_id, count(distinct user_id)::int as holders, count(*) filter (where created_at > now() - make_interval(days => p_days))::int as added
+              from nbq_racket_live() where catalog_id is not null group by catalog_id) now_
+      join racket_catalog c on c.id = now_.catalog_id
+      left join racket_daily d on d.day = base and d.catalog_id = now_.catalog_id
+     where base is not null and now_.holders >= 5 and now_.holders - coalesce(d.holders, 0) > 0
+     order by 6 desc, 4 desc limit 10) x;
+  select coalesce(jsonb_agg(x order by x.holders desc), '[]') into brands from (
+    select coalesce(c.brand, '其他') as brand, count(distinct l.user_id)::int as holders from nbq_racket_live() l left join racket_catalog c on c.id = l.catalog_id group by 1) x;
+  select coalesce(jsonb_agg(jsonb_build_object('day', day, 'users_with', users_with, 'users_all', users_all) order by day), '[]') into trend
+    from racket_daily_total where day > (now() at time zone 'Australia/Melbourne')::date - 90;
+  return jsonb_build_object('total', tot, 'top', top, 'rising', rising, 'rising_base', base, 'days', p_days, 'brands', brands, 'trend', trend);
+end $$;
+-- 待归类：产品库外的自由文字，按「不分大小写、去多余空白」分组，只给文字和人数（不给是谁）
+create or replace function admin_racket_unmatched(p_limit int default 50) returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x.n desc, x.k), '[]') from (
+    select lower(coalesce(r.brand || ' ', '') || r.series) as k, min(coalesce(r.brand || ' ', '') || r.series) as text, count(distinct r.user_id)::int as n
+      from user_rackets r join users u on u.id = r.user_id where r.catalog_id is null and u.status not in ('deleted', 'banned')
+     group by 1 order by 3 desc, 1 limit least(greatest(coalesce(p_limit, 50), 1), 200)) x $$;
+
+revoke execute on function nbq_racket_live(), racket_rollup(date), admin_racket_stats(int), admin_racket_unmatched(int) from public, anon, authenticated, nbq_user;
+grant execute on function nbq_racket_live(), racket_rollup(date) to nbq_service;
+grant execute on function admin_racket_stats(int), admin_racket_unmatched(int) to nbq_admin, nbq_viewer, nbq_service;
+revoke execute on function job_nightly(timestamptz) from public, nbq_user, nbq_viewer;
+grant execute on function job_nightly(timestamptz) to nbq_service;
+
+-- 我的 UTR（#101，11-07 用户定的第二版）：个人页随时更新 UTR，两种：正式 / 自评（自评 = 已有的 utr_estimated）；正式可附 UTR 主页编号。
+--   · users 加 utr_profile（UTR 主页编号，只存数字；users 只许本人读，对外的 public_profiles 不加）和 utr_at（上次确认 UTR 的时间）
+--   · utr_changes：每次数值或类型变了记一行（给后台查虚报、将来同步比对）；只许本人读
+--   · 写入只走 api_set_utr(jsonb)：校验、频率（24 小时 5 次）、历史都在库里；PATCH /api/me 不再能改 utr / utr_estimated（收回列权限）
+--   · 注销匿名化时清掉 utr_profile 和历史（触发器，不改 job_anonymize_deleted，免得和其他迁移互相覆盖）
+--   可重复运行；只加不删（收回的是前台账号对两列的直接改权限，注册仍走 /api/me/register）。
+alter table users add column if not exists utr_profile text;
+alter table users add column if not exists utr_at timestamptz;
+alter table users drop constraint if exists users_utr_profile_check;
+alter table users add constraint users_utr_profile_check check (utr_profile is null or utr_profile ~ '^[0-9]{4,12}$');
+
+create table if not exists utr_changes (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references users(id) on delete cascade,
+  old_utr    numeric(4,2),
+  new_utr    numeric(4,2) not null,
+  old_est    boolean,
+  new_est    boolean not null,
+  at         timestamptz not null default now()
+);
+create index if not exists utr_changes_user on utr_changes (user_id, at desc);
+alter table utr_changes enable row level security;
+drop policy if exists svc_all on utr_changes; create policy svc_all on utr_changes to nbq_service using (true) with check (true);
+drop policy if exists own_read on utr_changes; create policy own_read on utr_changes for select to nbq_user using (user_id = nbq_uid());
+revoke all on utr_changes from public, anon, authenticated, nbq_user;
+grant select on utr_changes to nbq_user;
+grant all on utr_changes to nbq_service;
+
+revoke update (utr, utr_estimated) on users from nbq_user;
+
+insert into rate_rules(rule, grp, win, max_hits, per_key, code, note)
+values ('utr_day', 'utr', '24 hours', 5, false, 'rate_limited', '我的 UTR：数值或类型 24 小时内最多改 5 次（只改链接、原样再确认不计）')
+on conflict (rule) do nothing;
+
+-- p = {utr: 数字, estimated: true/false, profile?: 字符串 | null}；profile 不传 = 不动，null / 空串 = 清掉，
+--   可以是 UTR 主页链接（utrsports.net / universaltennis.com 的 /profiles/<数字>）或纯数字。
+-- 返回 {utr, estimated, profile, updated_at}
+create or replace function api_set_utr(p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); v numeric; e boolean; prof text; raw text; o users;
+begin
+  if p is null or jsonb_typeof(p) <> 'object' then perform nbq_err('invalid', 'utr'); end if;
+  if coalesce(jsonb_typeof(p->'utr'), '') <> 'number' then perform nbq_err('invalid', 'utr'); end if;
+  v := (p->>'utr')::numeric;
+  if v < 1 or v > 16.5 or v <> round(v, 2) then perform nbq_err('invalid', 'utr'); end if;
+  if coalesce(jsonb_typeof(p->'estimated'), '') <> 'boolean' then perform nbq_err('invalid', 'estimated'); end if;
+  e := (p->>'estimated')::boolean;
+  select * into o from users where id = u for update;
+  prof := o.utr_profile;
+  if p ? 'profile' then
+    if jsonb_typeof(p->'profile') not in ('string', 'null') then perform nbq_err('invalid', 'profile'); end if;
+    raw := nullif(btrim(p->>'profile'), '');
+    if raw is null then prof := null;
+    elsif raw ~ '^[0-9]{4,12}$' then prof := raw;
+    else
+      prof := substring(raw from '^(?:https?://)?(?:app\.|www\.)?(?:utrsports\.net|universaltennis\.com)/profiles/([0-9]{4,12})(?:[/?#].*)?$');
+      if prof is null then perform nbq_err('invalid', 'profile'); end if;
+    end if;
+  end if;
+  if v is distinct from o.utr or e is distinct from o.utr_estimated then
+    perform nbq_rate(u::text, 'utr');
+    insert into utr_changes(user_id, old_utr, new_utr, old_est, new_est) values (u, o.utr, v, o.utr_estimated, e);
+  end if;
+  update users set utr = v, utr_estimated = e, utr_profile = prof, utr_at = now() where id = u;
+  return jsonb_build_object('utr', v, 'estimated', e, 'profile', prof, 'updated_at', now());
+end $$;
+-- 读自己的：updated_at 没确认过就用注册时间
+create or replace function api_my_utr() returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('utr', utr, 'estimated', utr_estimated, 'profile', utr_profile, 'updated_at', coalesce(utr_at, created_at))
+    from users where id = nbq_me() $$;
+revoke execute on function api_set_utr(jsonb), api_my_utr() from public, anon, authenticated;
+grant execute on function api_set_utr(jsonb), api_my_utr() to nbq_user, nbq_service;
+
+-- 注销匿名化：清掉 UTR 主页编号和改动历史
+create or replace function users_utr_wipe() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.anonymized_at is not null and old.anonymized_at is null then
+    new.utr_profile := null;
+    delete from utr_changes where user_id = new.id;
+  end if;
+  return new;
+end $$;
+revoke execute on function users_utr_wipe() from public, anon, authenticated, nbq_user;
+drop trigger if exists trg_users_utr_wipe on users;
+create trigger trg_users_utr_wipe before update of anonymized_at on users for each row execute function users_utr_wipe();
+
+-- 我的 UTR（#101）后台只读：运营看 UTR 类型、是否关联主页、改动历史，用来发现虚报和多个账号关联同一个主页。可重复运行，只加不改。
+--   · users 新加的两列（utr_profile、utr_at）补给 nbq_admin 读：schema ④ 的批量授权只覆盖当时已有的列
+--   · utr_changes：nbq_admin 可读（行级安全 adm_read）；只读角色 nbq_viewer 不给（它只看统计，不看个人）
+--   · 限城市的管理员：接口查询都 join users，users 上的 adm_city 限制照样生效
+grant select (utr_profile, utr_at) on users to nbq_admin;
+grant select on utr_changes to nbq_admin;
+drop policy if exists adm_read on utr_changes; create policy adm_read on utr_changes for select to nbq_admin using (true);
+
+-- 后台接真数据 #27 第 4 步：补读权限 + 爽约申诉的后台处理（只加不改，可重复运行）。
+--   · admin_users 后加的列补给 nbq_admin 读：schema ④ 的按列授权只覆盖当时已有的列（id、email、name、role、last_login_at、disabled），
+--     「管理员」页要显示负责城市、停用时间和理由、创建时间。密码哈希、两步验证密钥、恢复码、失败次数照旧读不到
+grant select (created_at, created_by, password_changed_at, disabled_at, disabled_reason, cities) on admin_users to nbq_admin;
+
+-- 爽约申诉的后台处理（#195 ②）：球友对「确认爽约」申诉后（noshow_appeals.status = pending，期间不计入），运营核实后
+--   upheld = 申诉成立（这次爽约永久不计）· rejected = 申诉不成立（重新计入）。记处理人、时间、备注；只有 pending 能处理（别人刚处理过 → state_changed）。
+--   权限 report.handle（owner、运营），留痕 target = noshow:<球局>:<球友>；城市范围由接口在后台角色的行级安全下先查球友（库函数本身不看城市）。
+alter table noshow_appeals add column if not exists decided_by uuid references admin_users(id);
+alter table noshow_appeals add column if not exists decided_at timestamptz;
+alter table noshow_appeals add column if not exists admin_note text check (char_length(admin_note) <= 200);
+create or replace function admin_noshow_appeal(p_game uuid, p_user uuid, p_status text, p_note text default null) returns void language plpgsql security definer set search_path = public as $$
+declare adm uuid;
+begin
+  if p_status not in ('upheld','rejected') then perform nbq_err('invalid', 'status'); end if;
+  if not exists (select 1 from noshow_appeals where game_id = p_game and user_id = p_user) then perform nbq_err('not_found'); end if;
+  adm := nbq_admin_act('report.handle', 'noshow:' || p_game || ':' || p_user, p_note, jsonb_build_object('status', p_status));
+  update noshow_appeals set status = p_status, decided_by = adm, decided_at = now(), admin_note = nullif(btrim(coalesce(p_note, '')), '')
+   where game_id = p_game and user_id = p_user and status = 'pending';
+  if not found then perform nbq_err('state_changed'); end if;
+end $$;
+revoke execute on function admin_noshow_appeal(uuid, uuid, text, text) from public;
+grant execute on function admin_noshow_appeal(uuid, uuid, text, text) to nbq_admin;
+grant select on noshow_appeals, noshow_reports to nbq_admin;
+
+-- #49 PR①：最小运行时开关（暂停注册 / 维护页 / 停发短信）。默认全关 = 不改变现有行为；
+--   · app_switches：三行固定的开关；只有 owner 能切（权限 switch.set，必须填理由，留痕进 admin_audit_log）
+--   · app_switches_get()：公开读（后端 GET /api/switches 和每个请求的维护检查用）；admin_set_switch()：后台切换
+--   · 短信验证码是前台直接调 Supabase Auth 发的，不经后端：sms_paused 在这里只存状态，真正不发由 PR② 前台读到后拦
+create table if not exists app_switches (
+  key        text primary key check (key in ('register_paused','maintenance','sms_paused')),
+  is_on      boolean not null default false,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references admin_users(id)
+);
+insert into app_switches(key) values ('register_paused'),('maintenance'),('sms_paused') on conflict (key) do nothing;
+alter table app_switches enable row level security;
+drop policy if exists svc_all on app_switches; create policy svc_all on app_switches to nbq_service using (true) with check (true);
+drop policy if exists adm_read on app_switches; create policy adm_read on app_switches for select to nbq_admin using (true);
+revoke all on app_switches from public, anon, authenticated, nbq_viewer, nbq_user;
+grant select on app_switches to nbq_service, nbq_admin;
+insert into admin_perms(action, label, roles, need_reason) values
+ ('switch.set', '运行时开关：暂停注册 / 维护页 / 停发短信', '{owner}', true)
+on conflict (action) do update set label = excluded.label, roles = excluded.roles, need_reason = excluded.need_reason;
+create or replace function app_switches_get() returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_object_agg(key, is_on), '{}') from app_switches $$;
+create or replace function admin_set_switch(p_key text, p_on boolean, p_reason text) returns void language plpgsql security definer set search_path = public as $$
+declare adm uuid;
+begin
+  if p_key is null or p_on is null or p_key not in ('register_paused','maintenance','sms_paused') then perform nbq_err('invalid', 'switch'); end if;
+  adm := nbq_admin_act('switch.set', p_key, p_reason, jsonb_build_object('on', p_on));
+  update app_switches set is_on = p_on, updated_at = now(), updated_by = adm where key = p_key;
+end $$;
+revoke execute on function app_switches_get(), admin_set_switch(text, boolean, text) from public, nbq_user, nbq_viewer;
+grant execute on function app_switches_get() to nbq_service, nbq_admin;
+grant execute on function admin_set_switch(text, boolean, text) to nbq_admin;
+
+-- #276 PR①：写接口幂等（api_spec §0.2 第 3 条）。只建表和两个函数，不改任何接口的现有行为；接口层（act 里 opt-in 的 4 个路由）是 PR②。
+--   · idempotency_keys：一人一个 key 一行，保留 24 小时（每晚清掉 2 天前的）；只能经下面两个函数读写，前台身份碰不到表
+--   · idem_begin(key, route)：第一次 → 记下 key、返回 null，调用方接着做写操作，然后在同一个事务里调 idem_finish 存结果；
+--       同一个 key 再来 → 返回第一次存的结果（不再做一遍）；同一个 key 换了接口 → 409 idempotency_key_reused；超过 24 小时 → 当新的。
+--       同时来两次：第二次的 insert 等第一次的事务结束——第一次提交了就返回它的结果，第一次失败回滚了就由第二次来做
+create table if not exists idempotency_keys (
+  user_id    uuid not null references users(id) on delete cascade,
+  key        text not null check (key ~ '^[A-Za-z0-9_-]{16,64}$'),
+  route      text not null check (char_length(route) between 1 and 80),
+  response   jsonb,
+  created_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+create index if not exists idempotency_keys_at on idempotency_keys (created_at);
+alter table idempotency_keys enable row level security;
+drop policy if exists svc_all on idempotency_keys; create policy svc_all on idempotency_keys to nbq_service using (true) with check (true);
+revoke all on idempotency_keys from public, anon, authenticated, nbq_viewer, nbq_user;
+grant all on idempotency_keys to nbq_service;
+create or replace function idem_begin(p_key text, p_route text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); r idempotency_keys;
+begin
+  if p_key is null or p_key !~ '^[A-Za-z0-9_-]{16,64}$' then perform nbq_err('invalid', 'idempotency_key'); end if;
+  if p_route is null or char_length(p_route) not between 1 and 80 then perform nbq_err('invalid', 'route'); end if;
+  insert into idempotency_keys(user_id, key, route) values (u, p_key, p_route) on conflict do nothing;
+  if found then return null; end if;
+  select * into r from idempotency_keys where user_id = u and key = p_key for update;
+  if r.created_at < now() - interval '24 hours' then
+    update idempotency_keys set route = p_route, response = null, created_at = now() where user_id = u and key = p_key;
+    return null;
+  end if;
+  if r.route <> p_route or r.response is null then perform nbq_err('idempotency_key_reused'); end if;
+  return r.response;
+end $$;
+create or replace function idem_finish(p_key text, p_response jsonb) returns void language plpgsql security definer set search_path = public as $$
+begin
+  update idempotency_keys set response = coalesce(p_response, '{}'::jsonb) where user_id = nbq_me() and key = p_key and response is null;
+  if not found then perform nbq_err('state_changed'); end if;
+end $$;
+revoke execute on function idem_begin(text, text), idem_finish(text, jsonb) from public, anon, authenticated, nbq_viewer;
+grant execute on function idem_begin(text, text), idem_finish(text, jsonb) to nbq_user;
+
+-- 每晚：在上一版的基础上加「幂等 key 清理」（保留 24 小时，这里清 2 天前的，留一天余量）
+create or replace function job_nightly(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$
+declare t0 timestamptz := clock_timestamp(); d date := (select min((p_now at time zone tz)::date) from cities); n int := 0;
+begin
+  for i in 1..3 loop n := n + rollup_people(d - i); end loop;
+  perform job_anonymize_deleted(p_now);
+  perform job_retention(p_now);
+  delete from rate_hits where at < p_now - interval '31 days';
+  delete from risk_events where at < p_now - interval '90 days';
+  update users set signup_ip = null where signup_ip is not null and created_at < p_now - interval '30 days';
+  delete from area_demand where kind = 'city_waitlist' and (notified_at < p_now - interval '30 days' or created_at < p_now - interval '2 years');
+  delete from idempotency_keys where created_at < p_now - interval '2 days';
+  perform racket_rollup(d - 1);   -- 我的球拍（#60 A5）：昨天结束时的持有人数快照
+  return nbq_job_log('nightly', n, t0);
+end $$;
+
 -- 迁移记录（11-03）：每个迁移文件结尾保证记录表存在并记一行自己；/api/version 会报「库里执行到哪一版」，冒烟测试核对它等于代码里最新的迁移。
 create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now());
 alter table schema_migrations enable row level security;
 drop policy if exists svc_all on schema_migrations; create policy svc_all on schema_migrations to nbq_service using (true) with check (true);
 grant select, insert on schema_migrations to nbq_service;
+-- ---------- 登录交接（11-14）：Safari 登录后添加到主屏幕，从桌面图标打开不用再登录 ----------
+-- iPhone 上 Safari 和「添加到主屏幕」的 App 不共用存储。做法：登录后的页面向服务器要一个一次性交接码，写进安装配置的启动网址；
+--   桌面图标第一次打开时拿码换登录态（接口层自己签发的令牌，和 Supabase 的令牌并行，接口两种都认）。
+--   · login_handoffs：只存码的 sha256；24 小时内有效、只能用一次；每人每天最多 5 个
+--   · device_sessions：交接出来的登录（只存续期凭证的 sha256）；续期时看账号状态，封禁 / 已匿名化的续不了；退出登录删行；
+--       从交接那一刻起最多 90 天（expires_at，到期重新登录一次；凭证被偷也不会长期可用），180 天没用过的每晚清掉
+--   · 退出登录（两种登录都算）会把这个人还没用掉的码一并作废；换码按 IP 限次（每小时 30 次）
+--   两张表前台身份碰不到，只能经下面的函数读写；明文的码和凭证从不落库
+create table if not exists login_handoffs (
+  code_hash  text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+  user_id    uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  used_at    timestamptz
+);
+create index if not exists login_handoffs_user on login_handoffs (user_id, created_at);
+create table if not exists device_sessions (
+  refresh_hash text primary key check (refresh_hash ~ '^[0-9a-f]{64}$'),
+  user_id      uuid not null references users(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz not null default now(),
+  expires_at   timestamptz not null default now() + interval '90 days'
+);
+alter table device_sessions add column if not exists expires_at timestamptz not null default now() + interval '90 days';   -- 测试库先跑过没有这一列的版本
+create index if not exists device_sessions_user on device_sessions (user_id);
+alter table login_handoffs enable row level security; alter table device_sessions enable row level security;
+drop policy if exists svc_all on login_handoffs; create policy svc_all on login_handoffs to nbq_service using (true) with check (true);
+drop policy if exists svc_all on device_sessions; create policy svc_all on device_sessions to nbq_service using (true) with check (true);
+revoke all on login_handoffs, device_sessions from public, anon, authenticated, nbq_viewer, nbq_user;
+grant all on login_handoffs, device_sessions to nbq_service;
+
+-- 已登录的人要一个交接码（接口层生成随机码，这里只收它的 sha256）。封禁 / 注销中的账号不给；每人每天 5 个
+create or replace function api_handoff_new(p_code_hash text) returns timestamptz language plpgsql security definer set search_path = public as $$
+declare u uuid := nbq_me(); st text; exp timestamptz := now() + interval '24 hours';
+begin
+  if p_code_hash is null or p_code_hash !~ '^[0-9a-f]{64}$' then perform nbq_err('invalid', 'code'); end if;
+  select status::text into st from users where id = u;
+  if st in ('banned', 'deleted') then perform nbq_err('forbidden'); end if;
+  if (select count(*) from login_handoffs where user_id = u and created_at > now() - interval '24 hours') >= 5 then perform nbq_err('rate_limited'); end if;
+  insert into login_handoffs(code_hash, user_id, expires_at) values (p_code_hash, u, exp);
+  return exp;
+end $$;
+-- 用码换登录（接口层以服务身份调用）：码存在、没用过、没过期、账号没被封 → 作废这个码、记下新的续期凭证，返回签令牌要用的 {auth_id, phone}；否则返回 null（不说明原因）
+create or replace function session_handoff_redeem(p_code_hash text, p_refresh_hash text, p_ip text default null) returns jsonb language plpgsql security definer set search_path = public as $$
+declare h login_handoffs; x users;
+begin
+  perform nbq_rate('ip:' || coalesce(p_ip, '?'), 'handoff_ip', null);   -- 不用登录的接口：同一 IP 每小时 30 次（超了报 rate_limited）
+  if p_code_hash is null or p_refresh_hash is null or p_refresh_hash !~ '^[0-9a-f]{64}$' then return null; end if;
+  update login_handoffs set used_at = now() where code_hash = p_code_hash and used_at is null and expires_at > now() returning * into h;
+  if not found then return null; end if;
+  select * into x from users where id = h.user_id;
+  if not found or x.auth_id is null or x.status::text = 'banned' then return null; end if;
+  insert into device_sessions(refresh_hash, user_id) values (p_refresh_hash, x.id);
+  return jsonb_build_object('auth_id', x.auth_id, 'phone', ltrim(x.phone_e164, '+'));
+end $$;
+-- 续期：凭证还在、账号没被封 / 没匿名化 → 返回 {auth_id, phone}；否则 null（前台据此清掉登录）
+create or replace function session_refresh(p_refresh_hash text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare x users;
+begin
+  select u.* into x from device_sessions s join users u on u.id = s.user_id where s.refresh_hash = p_refresh_hash;
+  if not found or x.auth_id is null or x.status::text = 'banned' or (select expires_at from device_sessions where refresh_hash = p_refresh_hash) <= now() then
+    delete from device_sessions where refresh_hash = p_refresh_hash; return null;
+  end if;
+  update device_sessions set last_used_at = now() where refresh_hash = p_refresh_hash;
+  return jsonb_build_object('auth_id', x.auth_id, 'phone', ltrim(x.phone_e164, '+'));
+end $$;
+-- 退出交接出来的登录：作废凭证，并把这个人还没用掉的码一并作废（不然退出后 24 小时内，之前写进桌面图标的码还能换出登录）
+create or replace function session_logout(p_refresh_hash text) returns void language plpgsql security definer set search_path = public as $$
+declare u uuid;
+begin
+  delete from device_sessions where refresh_hash = p_refresh_hash returning user_id into u;
+  if u is not null then update login_handoffs set used_at = now() where user_id = u and used_at is null; end if;
+end $$;
+-- 已登录的人作废自己还没用掉的码（Supabase 登录的页面退出前调用）
+create or replace function api_handoff_revoke() returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update login_handoffs set used_at = now() where user_id = nbq_me() and used_at is null;
+  get diagnostics n = row_count; return n;
+end $$;
+insert into rate_rules(rule, grp, win, max_hits, per_key, code, note) values
+ ('handoff_ip', 'handoff_ip', '1 hour', 30, false, 'rate_limited', '登录交接换码：同一 IP 每小时 30 次')
+on conflict do nothing;
+-- 只有这一个 session_handoff_redeem（第 3 个参数 IP 可省）。这个迁移的早期版本在测试库建过一个 2 参数的重载，和它并存时「只传 2 个参数」会报函数不唯一；
+--   迁移里不放 drop（破坏性语句不进自动迁移），测试库由所有者手工执行一次：drop function if exists session_handoff_redeem(text, text);  正式库没建过，不用管
+revoke execute on function api_handoff_new(text), api_handoff_revoke(), session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) from public, anon, authenticated, nbq_viewer;
+grant execute on function api_handoff_new(text), api_handoff_revoke() to nbq_user;
+grant execute on function session_handoff_redeem(text, text, text), session_refresh(text), session_logout(text) to nbq_service;
+
+-- 每晚：在上一版的基础上加「交接码 / 交接登录清理」
+create or replace function job_nightly(p_now timestamptz default now()) returns int language plpgsql security definer set search_path = public as $$
+declare t0 timestamptz := clock_timestamp(); d date := (select min((p_now at time zone tz)::date) from cities); n int := 0;
+begin
+  for i in 1..3 loop n := n + rollup_people(d - i); end loop;
+  perform job_anonymize_deleted(p_now);
+  perform job_retention(p_now);
+  delete from rate_hits where at < p_now - interval '31 days';
+  delete from risk_events where at < p_now - interval '90 days';
+  update users set signup_ip = null where signup_ip is not null and created_at < p_now - interval '30 days';
+  delete from area_demand where kind = 'city_waitlist' and (notified_at < p_now - interval '30 days' or created_at < p_now - interval '2 years');
+  delete from idempotency_keys where created_at < p_now - interval '2 days';
+  delete from login_handoffs where created_at < p_now - interval '2 days';
+  delete from device_sessions where last_used_at < p_now - interval '180 days' or expires_at < p_now;
+  perform racket_rollup(d - 1);   -- 我的球拍（#60 A5）：昨天结束时的持有人数快照
+  return nbq_job_log('nightly', n, t0);
+end $$;
+
 insert into schema_migrations(version) values
   ('20261030_register_and_wechat'),
   ('20261102_apply_rate_loosen'),
@@ -7092,5 +7859,21 @@ insert into schema_migrations(version) values
   ('20261104_chat_notify'),
   ('20261104_late_join'),
   ('20261105_admin_api'),
-  ('20261106_admin_venue_geo')
+  ('20261106_admin_venue_geo'),
+  ('20261107_user_rackets'),
+  ('20261107_wipe_rackets'),
+  ('20261108_buddies'),
+  ('20261108_racket_catalog'),
+  ('20261108_racket_stats'),
+  ('20261109_racket_events'),
+  ('20261110_my_utr'),
+  ('20261111_utr_events'),
+  ('20261112_utr_admin'),
+  ('20261113_export_more'),
+  ('20261114_admin_step4'),
+  ('20261115_app_switches'),
+  ('20261116_idempotency_keys'),
+  ('20261117_login_handoff'),
+  ('20261118_a2hs_installed'),
+  ('20261119_login_funnel_events')
 on conflict do nothing;

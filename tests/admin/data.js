@@ -13,7 +13,7 @@ const ENUM = {
   game_status: enumOf('game_status'), part_status: enumOf('part_status'), game_type: enumOf('game_type'), invite_status: enumOf('invite_status'), impression_kind: enumOf('impression_kind'),
   decline: lastCheck(/check\s*\(\s*decline_reason\s+in\s*\(([^)]*)\)/gi).filter(x => !['week', 'rest'].includes(x)),
   feel: lastCheck(/feel text check \(feel in \(([^)]*)\)\)/g), pref: lastCheck(/pref\s+text not null check \(pref in \(([^)]*)\)\)/g),
-  user_status: lastCheck(/status\s+in\s*\(('active'[^)]*)\)/g), report_reason: lastCheck(/create table reports \([\s\S]*?reason\s+text not null check \(reason in \(([^)]*)\)\)/g),
+  user_status: lastCheck(/alter table users add column if not exists status text[^;]*?status\s+in\s*\(('active'[^)]*)\)/g), report_reason: lastCheck(/create table reports \([\s\S]*?reason\s+text not null check \(reason in \(([^)]*)\)\)/g),
 };
 let pass = 0, fail = 0;
 const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };

@@ -14,5 +14,5 @@ function renderLanding(){
   <div class="foot" style="max-width:1040px;padding:10px 24px 90px"><button data-a="safety">安全须知</button><button data-a="contact">联系我们 / 举报</button><button data-a="community">微信约球群</button><span>© 2026 南伴球</span></div></div>`;
   qr($('#lqr'),shareURL('https://nanbanqiu.app/g/'+c.share_code,'webqr'));
 }
-function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
+function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#1B2620',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#1B2620;width:100%;height:100%">${qrSVG(text)}</div>`}
 

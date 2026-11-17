@@ -1,0 +1,27 @@
+name: 提案（24 小时无异议自动生效）
+description: 想改流程 / 规则 / 工具 / 做法？写「默认方案」，24 小时没人反对就自动生效，不用等人批准
+title: '提案：'
+labels: ['提案']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **怎么走**：提交后机器人开始 24 小时倒计时。期间任何人回复以「反对」「不同意」「否决」「不做」「先别」「暂缓」开头即视为异议（转入讨论，重新打「提案」标签重新计时）；所有者回复「同意」立即生效。
+        **不会自动生效**：涉及正式库、密钥、隐私文案、删除 / 强推、部署、费用的提案，会标「需所有者」等所有者一句话。
+  - type: textarea
+    id: plan
+    attributes:
+      label: 默认方案
+      description: 不回复就按它做。写具体：改什么、谁做、做到什么算完
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes:
+      label: 一句理由
+    validations: { required: true }
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响面与回退
+      description: 动了哪些文件 / 流程；做错了怎么回退
+    validations: { required: true }

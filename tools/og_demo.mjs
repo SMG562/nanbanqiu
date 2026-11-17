@@ -28,7 +28,7 @@ export function stable(a, b2) {
   const same = (x, y) => JSON.stringify(x) === JSON.stringify(y), byG = new Map(b2.games.map(g => [g.code, g])), byU = new Map(b2.users.map(u => [u.no, u]));
   return { games: a.games.filter(g => same(g, byG.get(g.code))).sort((x, y) => x.code < y.code ? -1 : 1), users: a.users.filter(u => same(u, byU.get(u.no))).sort((x, y) => x.no - y.no) };
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) {
   const b = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
   const d = stable(await extract(b, DATES[0]), await extract(b, DATES[1])); await b.close();
   fs.writeFileSync(path.join(ROOT, 'server', 'og', 'demo_data.json'), JSON.stringify(d, null, 1) + '\n');

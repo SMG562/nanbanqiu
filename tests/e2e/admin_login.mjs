@@ -145,22 +145,26 @@ try {
   // ================= 7. 真模式铁律：点遍所有页面，一个模拟数字都没有 =================
   {
     const { ctx, pg, pe } = await open(); await loginAs(pg, 'a2@x.com');
+    // 已接真数据的页面：每接一页在这里加一个（11-12 起由 #27 第 4 步各块追加）；和页面里的 REAL_PAGES 必须一致
+    const REAL = ['account', 'review', 'venues', 'users', 'games', 'safety', 'admin', 'cities', 'switches',
+      'overview', 'cards', 'regions', 'traffic', 'growth', 'platform', 'env', 'life', 'after', 'grow', 'sb', 'stopic', 'ssched', 'sguide', 'events'];
+    T('7.0 页面登记的真数据页（REAL_PAGES）和这里的清单一致', JSON.stringify(Object.keys(await pg.evaluate(() => Object.fromEntries(Object.keys(REAL_PAGES).map(k => [k, 1])))).sort()) === JSON.stringify([...REAL].sort()), await pg.evaluate(() => Object.keys(REAL_PAGES)));
     const keys = await pg.evaluate(() => [...new Set([...PAGES.filter(p => p[0] !== 'h').map(p => p[0]), 'life', 'after', 'grow', 'sb', 'stopic', 'ssched', 'sguide', 'no_such_page'])]);
     const mock = await pg.evaluate(() => [...USERS.slice(0, 40).map(u => u.name), ...VENUES.slice(0, 30).map(v => v[1])].filter(x => x && x.length > 3));
     let bad = [], placeholder = 0;
     for (const k of keys) {
       await pg.evaluate(k => { S.page = k; render() }, k);
       const r = await pg.evaluate(() => ({ t: document.getElementById('page').innerText, all: document.getElementById('app').textContent, badge: document.querySelectorAll('#nav button i').length, feed: !!document.getElementById('feed') }));
-      if (k === 'account' || k === 'review' || k === 'venues' || k === 'users' || k === 'games') { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
+      if (REAL.includes(k)) { if (/还没接真数据/.test(r.t)) bad.push(k + ':已接真数据，不该是占位') }
       else if (/还没接真数据/.test(r.t)) placeholder++; else bad.push(k + ':不是占位');
       const leak = mock.filter(m => r.all.includes(m)); if (leak.length) bad.push(k + ':出现模拟数据 ' + leak.slice(0, 3));
       if (r.badge || r.feed) bad.push(k + ':有模拟的角标 / 动态');
     }
-    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除「我的账号」「待审核（只有举报）」「球场」「球友」「球局」都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - 5, bad);
+    T(`7.1 ${keys.length} 个页面（含没登记的 no_such_page）：除已接真数据的 ${REAL.length} 页都是占位，页面和侧栏里没有任何模拟球友 / 球场名、角标、动态`, !bad.length && placeholder === keys.length - REAL.length, bad);
     T('7.2 筛选条（日期范围、设备、导出 CSV）真模式下不显示', !(await vis(pg, '.filters')));
     // 从界面点：点导航里的占位页
-    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明球场审核在「球场」页、场边在后面的步骤', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /球场审核在「球场」页；场边举报在后面的步骤/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
-    T('7.4 占位页的导航项带「待接入」标记，「我的账号」「待审核」「球场」「球友」「球局」没有', await pg.evaluate(() => [...document.querySelectorAll('#nav [data-pg]')].every(b => ['account', 'review', 'venues', 'users', 'games'].includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon'))));
+    await pg.click('#nav [data-pg="review"]'); T('7.3 点导航「待审核」：是举报队列（没有数据时说「还没有举报」），并如实写明场边举报在下面、球场审核在「球场」页', await until(async () => /还没有举报/.test(await pg.evaluate(() => document.getElementById('page').innerText))) && /场边举报在下面一张卡片；球场审核在「球场」页/.test(await pg.evaluate(() => document.getElementById('page').innerText)));
+    T('7.4 占位页的导航项带「待接入」标记，已接真数据的没有', await pg.evaluate(REAL => [...document.querySelectorAll('#nav [data-pg]')].every(b => REAL.includes(b.dataset.pg) ? !b.querySelector('.soon') : !!b.querySelector('.soon')), REAL));
     T('7.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
@@ -222,17 +226,24 @@ try {
   // ================= 7d. 球友列表（#27 第 3 步，只读）：真数据 · 搜索 · 状态筛选 · 不露完整手机号 =================
   {
     const mkU = async (n, st = 'active', city = 'melb') => (await one(`insert into users(phone_e164,nickname,utr,gender,pact_accepted_at,home_city,status,status_since,status_until) values ($1,$2,5,'m',now(),$3,$4, case when $4 <> 'active' then now() end, case when $4 = 'suspended' then now() + interval '3 days' end) returning id`, ['+61499' + String(Math.floor(Math.random() * 1e6)).padStart(6, '0'), n, city, st])).id;
-    await mkU('列表甲'); await mkU('列表乙', 'banned'); await mkU('列表丙', 'suspended');
+    const LA = await mkU('列表甲'); await mkU('列表乙', 'banned'); const LC = await mkU('列表丙', 'suspended');
+    // 我的 UTR（#101）：丙是自评 ≈1.5 且关联了主页；甲近 7 天改了 3 次（进「需要留意」）
+    await su.query(`update users set utr = 1.5, utr_estimated = true, utr_profile = '1234567', utr_at = now() where id = $1`, [LC]);
+    for (const v of [5.1, 5.2, 5.3]) await su.query(`insert into utr_changes(user_id, old_utr, new_utr, old_est, new_est) values ($1, 5, $2, false, false)`, [LA, v]);
     const { ctx, pg, pe } = await open(); await loginAs(pg, 'a7@x.com');
     const page = () => pg.evaluate(() => document.getElementById('page').innerText);
+    // 球友列表那张卡片（11-07 起页面顶上多了 UTR 卡片，「需要留意」里也会出现昵称，筛选 / 搜索只看列表）
+    const list = () => pg.evaluate(() => { const c = [...document.querySelectorAll('#page .card')].find(x => (x.querySelector('.ch b') || {}).textContent === '球友'); return c ? c.innerText : '' });
     await pg.click('#nav [data-pg="users"]');
     T('7d.1 球友页读到真数据：三个人都在，手机号只显示「•••」加后四位', await until(async () => /列表甲/.test(await page())) && /列表乙/.test(await page()) && /列表丙/.test(await page()) && /••• \d{4}/.test(await page()) && !/\+61499/.test(await page()), await page());
     T('7d.2 页面没有演示数据（演示球友名不出现）', !/Jason W|Mia L|Daniel/.test(await page()), (await page()).slice(0, 200));
+    T('7d.2b UTR 卡片：概况 + 需要留意（甲近 7 天改了 3 次）', await until(async () => /近 7 天改了 3 次/.test(await page())) && /正式 \d+（\d+%）· 自评 \d+/.test(await page()), await page());
+    T('7d.2c 列表 UTR 列：自评显示 ≈1.5、关联主页带 ✓，不露主页编号', /UTR ≈1\.5 ✓/.test(await page()) && !/1234567/.test(await page()), await page());
     await pg.click('[data-up="st"][data-v="banned"]');
-    T('7d.3 点「封禁」筛选：只剩封禁的那位', await until(async () => /列表乙/.test(await page()) && !/列表甲/.test(await page())), await page());
-    await pg.click('[data-up="st"][data-v=""]'); await until(async () => /列表甲/.test(await page()));
+    T('7d.3 点「封禁」筛选：只剩封禁的那位', await until(async () => /列表乙/.test(await list()) && !/列表甲/.test(await list())), await list());
+    await pg.click('[data-up="st"][data-v=""]'); await until(async () => /列表甲/.test(await list()));
     await pg.fill('[data-upq]', '列表丙');
-    T('7d.4 搜昵称：只剩匹配的，输入框没有被重画丢焦点', await until(async () => /列表丙/.test(await page()) && !/列表甲/.test(await page())) && await pg.evaluate(() => document.activeElement && document.activeElement.hasAttribute('data-upq')), await page());
+    T('7d.4 搜昵称：只剩匹配的，输入框没有被重画丢焦点', await until(async () => /列表丙/.test(await list()) && !/列表甲/.test(await list())) && await pg.evaluate(() => document.activeElement && document.activeElement.hasAttribute('data-upq')), await page());
     T('7d.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 

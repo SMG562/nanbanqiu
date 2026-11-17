@@ -145,7 +145,8 @@ function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,s
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
 function ngPublish(){if(NG.edit){geSave();return}ngKeep();const f=NG;if(!f.venue_id){toast('选一个场地吧');return}if(dayAt(f.o,f.t)<=NOW){toast('这个时间已经过了');return}
-  if(NBQ_NET){nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o)});return}   // 真实模式：先调接口，读入后再显示结果页
+  if(NBQ_NET){const b=document.querySelector('[data-ng="publish"]');if(b){if(b.disabled)return;b.disabled=true;b.textContent='发布中…'}   // 11-14：发布要等服务器回来，这期间按钮要有反应（以前点了像没点）
+    nbqCreate(f).then(id=>{if(id)CREATE_DONE(id,f.o);else if(b&&b.isConnected){b.disabled=false;b.textContent='发布'}});return}   // 真实模式：先调接口，读入后再显示结果页
   const id=api.create({venue_id:f.venue_id,starts_at:dayAt(f.o,f.t).toISOString(),duration_min:f.dur,game_type:f.type,ntrp_min:f.mn,ntrp_max:f.mx,note:f.note.trim().slice(0,60)});
   const g=GAMES.find(x=>x.id===id);g.tags=[...f.tags];g.hide_done=!!f.hide;g.created_at=Date.now();g.join_mode=ugMode(f);if(f.type==='doubles')g.filled=3-f.miss;if(f.rep)makeSeries(id);CREATE_DONE(id,f.o)}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-ng]');if(!el||!NG||NG.o==null)return;e.stopPropagation();const a=el.dataset.ng,v=el.dataset.v,f=NG;ngKeep();
@@ -189,21 +190,31 @@ function capList(arr){LIST_HIDDEN={};const by={};arr.forEach(c=>{const d=dOff(c.
 
 /* ---------- 选球场：搜索 → 候选列表 → 找不到就添加新球场（共用于发起球局、约 TA 打球） ---------- */
 const autoShort=n=>String(n||'').replace(/\s+Lawn Tennis Club$/i,' LTC').replace(/\s+Tennis (Club|Centre|Center)$/i,' TC').trim().slice(0,18);
+// 距离：有真实位置（定位 / 手选区域 / 主 Club）才算；只有城市中心的默认值不算，免得把「离市中心多远」当成「离你多远」
+const vpHere=()=>LOC&&LOC.source&&LOC.source!=='default'&&LOC.lat!=null?LOC:null;
+const vpKm=v=>{const h=vpHere();return h?km(h,v):null};
+const vpFmt=d=>d<1?Math.max(10,Math.round(d*100)*10)+' m':d.toFixed(1)+' km';
+function vpLocate(done){const bad=m=>{toast(m);done(false)};if(!navigator.geolocation)return bad('无法获取位置');
+  navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return bad('你目前不在'+CITY.zh+'附近');
+    let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});LOC={...LOC,lat,lng,label:b.name,source:'gps',asked:true};nbqLocSave();done(true)},
+    ()=>bad('没获得位置权限，先按「'+LOC.label+'」附近排'),{timeout:8000,maximumAge:6e5})}
 function vpList(a,f,theirs=[]){const q=(f.q||'').trim().toLowerCase(),pool=Object.values(VEN).filter(v=>!v.custom||v.owner===ME.id);
   // 每一行只显示两样：左边球场名，右边所在的区
-  const row=v=>`<button class="vp-row${f.venue_id===v.id?' on':''}" data-${a}="pickVen" data-v="${v.id}"><span class="vp-t"><b>${esc(v.short)}</b></span><em>${esc(v.suburb)}</em></button>`;
+  const row=v=>`<button class="vp-row${f.venue_id===v.id?' on':''}" data-${a}="pickVen" data-v="${v.id}"><span class="vp-t"><b>${esc(v.short)}</b></span><em>${esc(v.suburb)}${vpKm(v)==null?'':' · '+vpFmt(vpKm(v))}</em></button>`;
+  const locRow=vpHere()&&LOC.source==='gps'?'':`<button class="vp-row vp-new" data-${a}="vpLocate"${f.locating?' disabled':''}><span class="vp-t"><b>${f.locating?'定位中…':'使用当前位置'}</b></span><em>${vpHere()?'现按 '+esc(LOC.label):'看离你最近的球场'}</em></button>`;
   const addRow=`<button class="vp-row vp-new" data-${a}="addVen"><span class="vp-t"><b>＋ 添加球场</b></span><em>${q?'没找到':'列表里没有'}</em></button>`;
-  if(q){const vs=pool.filter(v=>(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q)).sort((x,y)=>(y.short.toLowerCase().startsWith(q))-(x.short.toLowerCase().startsWith(q))||x.short.localeCompare(y.short)).slice(0,8);
+  if(q){const vs=pool.filter(v=>(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q)).sort((x,y)=>(y.short.toLowerCase().startsWith(q))-(x.short.toLowerCase().startsWith(q))||(vpKm(x)==null?x.short.localeCompare(y.short):vpKm(x)-vpKm(y))).slice(0,8);
     const ps=q.length>=2&&vs.length<3?placeSearch(q,vs):[];
-    return vs.map(row).join('')+(ps.length?`<div class="vp-sec">地图上的结果<span>Google 地图</span></div>`+ps.map(p=>`<button class="vp-row vp-map" data-${a}="pickPlace" data-v="${p.pid}"><span class="vp-t"><b>${esc(p.name)}</b></span><em>${esc(p.suburb)}</em></button>`).join(''):vs.length?'':`<div class="vp-none">没有找到「${esc(f.q.trim())}」</div>`)+addRow}
+    return vs.map(row).join('')+(ps.length?`<div class="vp-sec">地图上的结果<span>Google 地图</span></div>`+ps.map(p=>`<button class="vp-row vp-map" data-${a}="pickPlace" data-v="${p.pid}"><span class="vp-t"><b>${esc(p.name)}</b></span><em>${esc(p.suburb)}</em></button>`).join(''):vs.length?'':`<div class="vp-none">没找到，换个词</div>`)+addRow}
   if(f.letter){const vs=pool.filter(v=>v.short.toUpperCase().startsWith(f.letter)).sort((x,y)=>x.short.localeCompare(y.short));
     return `<button class="vp-back" data-${a}="vpLetter" data-v="">‹ ${f.letter}<span>${vs.length} 个球场</span></button>`+vs.map(row).join('')+addRow}
   // 常用：对方的 Club（约 TA 时）+ 我的 Club + 我最常去的；最近：最近选过的
   const often={};GAMES.forEach(g=>{if(PARTS.some(p=>p.game_id===g.id&&p.user_id===ME.id&&p.status==='approved'))often[g.venue_id]=(often[g.venue_id]||0)+1});
   const common=[...theirs,...(ME.home_club_ids||[]),...Object.entries(often).sort((x,y)=>y[1]-x[1]).map(x=>x[0])].filter((v,i,arr)=>VEN[v]&&arr.indexOf(v)===i).slice(0,5);
   const recent=VPR.recent.filter(v=>VEN[v]&&!common.includes(v)).slice(0,3);
+  const near=vpHere()?pool.filter(v=>!common.includes(v.id)&&!recent.includes(v.id)).sort((x,y)=>vpKm(x)-vpKm(y)).slice(0,5):[];
   const letters=[...new Set(pool.map(v=>v.short[0].toUpperCase()))].sort();
-  return (common.length?`<div class="vp-sec">常用</div>`+common.map(v=>row(VEN[v])).join(''):'')+(recent.length?`<div class="vp-sec">最近</div>`+recent.map(v=>row(VEN[v])).join(''):'')
+  return (common.length?`<div class="vp-sec">常用</div>`+common.map(v=>row(VEN[v])).join(''):'')+(near.length?`<div class="vp-sec">附近<span>${LOC.source==='gps'?'你的位置':esc(LOC.label)}</span></div>`+near.map(row).join(''):'')+locRow+(recent.length?`<div class="vp-sec">最近</div>`+recent.map(v=>row(VEN[v])).join(''):'')
     +`<div class="vp-sec">按首字母</div><div class="vp-az">${letters.map(l=>`<button data-${a}="vpLetter" data-v="${l}">${l}</button>`).join('')}</div>`+addRow}
 var VPR={recent:[]};
 /* 地图搜索：真实环境调用 Google Places Autocomplete（限澳大利亚、偏向当前城市 CITY、只要场所）——
@@ -234,6 +245,7 @@ function vpAct(f,act,el){const v=el.dataset.v;
   switch(act){
     case'pickVen':f.venue_id=v;f.q='';f.search=false;f.adding=null;f.letter=null;VPR.recent=[v,...VPR.recent.filter(x=>x!==v)].slice(0,5);return true;
     case'vpLetter':f.letter=v||null;return true;
+    case'vpLocate':{if(f.locating)return false;f.locating=true;const a=f===NG?'ng':'iv';vpLocate(()=>{f.locating=false;if(a==='ng'?NG===f:IVF===f){if(a==='ng'){ngKeep();drawCreate()}else{keepForm();drawInviteForm()}}});return true}
     case'auPick':{const s=SUBURBS.find(x=>x.name===v);if(s&&f.adding){f.adding.suburb=s.name;f.adding.pc=s.pc}return true}
     case'addVen':f.adding={name:(f.q||'').trim(),short:autoShort((f.q||'').trim()),suburb:'',surf:['hard']};return true;
     case'pickPlace':{const p=PLACES.find(x=>x.pid===v);if(!p)return false;const dup=placeDup(p);
@@ -272,7 +284,7 @@ function ticketHTML(c){const url=shareURL('https://nanbanqiu.app/g/'+(c.share_co
   return `<div class="ogT"><div class="t-main"><div class="t-top"><svg><use href="#logo-mark"/></svg><b>南伴球</b><span>${esc(CITY.zh)}网球约球</span></div>
     <div class="t-body"><div class="t-date">${xhsDate(c.start)}</div><div class="t-time">${hm(c.start)}</div><div class="t-place">${esc(c.v.short)}</div>
     <div class="t-meta">${TYPE[c.game_type]}<i></i>UTR ${lvl(c)}</div><div class="t-line"></div><div class="t-need"><em></em>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>
-    <div class="t-stub"><div class="t-qr">${qrSVG(url)}</div><b>扫码加入</b></div></div>`}
+    <div class="t-stub"><div class="t-qr" data-qr="${esc(url)}">${qrSVG(url)}</div><b>扫码加入</b></div></div>`}
 const xhsText=c=>`🎾 ${CITY.zh}约球 · ${xhsDate(c.start)} ${hm(c.start)}\n📍 ${c.v.name}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n\n扫图里的二维码就能加入，或打开 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'xhs')}\n\n#${CITY.tag} #${CITY.zh}约球 #网球搭子 #南伴球`;
 
 /* ---------- 地图：同一个球场有多局 → 点击后列出这个球场的所有球局 ---------- */

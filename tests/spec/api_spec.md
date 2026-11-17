@@ -18,7 +18,7 @@
 ### 0.2 写操作的三条规矩
 1. **带当前状态条件**：改申请 / 邀约 / 球局时，数据库函数里一律 `where status = <调用时看到的状态>`。影响 0 行 = 别人刚改过，返回 409 `state_changed`，前台重新读取后提示。
 2. **同时操作**：数据库已保证不超员、不死锁（schema ⑧）。收到 40P01（死锁）/ 40001（序列化冲突）时整笔重试一次，仍失败返回 503 `busy_retry`。
-3. **重复提交**：发起球局、申请、约人、发消息、举报带 `Idempotency-Key` 请求头（前台每次点击生成一个），同一个 key 24 小时内重复提交返回第一次的结果。
+3. **重复提交**（#276）：发起球局、发消息、场边发帖、场边回复这 4 个会新插一行的接口认 `Idempotency-Key` 请求头（16–64 位字母、数字、`_`、`-`；前台每次点击生成一个，同一次点击的重发沿用）：同一个人同一个 key 24 小时内再来，返回第一次的结果、不再做一遍；同一个 key 用到别的接口 → 409 `idempotency_key_reused`；不带 key 照旧。其余写接口靠唯一约束或状态条件挡住重复（申请 → `already_applied`、约人 → `invite_pending`、举报 → `report_duplicate`，盘点见 #63），不认这个头。
 
 ### 0.3 前置拦截（多数写接口都先过这三关，顺序固定）
 1. 登录：未登录 → 401 `login_required`
@@ -76,7 +76,7 @@
 - **每个城市一个网址**（R3，schema ㉒，10-22 定）：`nanbanqiu.app/<slug>`（melbourne / sydney / brisbane / perth / adelaide / canberra）；打开的网址决定页面上的城市，**不做城市切换**；不带城市（`nanbanqiu.app`）→ 墨尔本。前台两端的 `CITIES` 与 cities 表逐条相同（tests/static/cities_front.mjs）。
 - **分享链接保持短链接** `/g/码`、`/p/编号`：后端按球局 / 球员所在城市跳到 `/<slug>/g/码`（R3-2 server/routes.mjs）。
 - 打开还没开放的城市（如 `/sydney`）→ 页面盖一层「悉尼即将开放」+ 留邮箱「开放时通知我」+ 已开放城市的入口（R3-2）。
-  - POST /api/city-waitlist `{city, email}` → 后端以 nbq_service 调 `api_city_waitlist(city, email, ip)`：只收未开放 / 筹备中的城市（否则 422 `invalid` detail=city）；邮箱格式不对 → 422 `invalid` detail=email；同一城市同一邮箱只记一次（返回 false，页面照样显示「已登记」）；同一 IP 每小时 5 次 → 429 `rate_limited`。存在 area_demand（kind=city_waitlist）。
+  - POST /api/city-waitlist `{city, email}`（不用登录；`server/api/handler.mjs`，11-13 补路由，之前 404）→ 后端以 nbq_service 调 `api_city_waitlist(city, email, cf-connecting-ip)`，返回 200 `{ok:true, added}`；城市 key 不是 `^[a-z]{2,12}$` / 邮箱不是文字或超 200 字在接口层就 422；只收未开放 / 筹备中的城市（否则 422 `invalid` detail=city）；邮箱格式不对 → 422 `invalid` detail=email；同一城市同一邮箱只记一次（返回 false，页面照样显示「已登记」）；同一 IP 每小时 5 次 → 429 `rate_limited`。存在 area_demand（kind=city_waitlist）。
   - 城市开放后由运营发通知并填 notified_at（R4 后台）；通知后 30 天删除，没通知的最多保留 2 年。
 - **后端路由** `server/routes.mjs`（5g 接到托管平台）：`/` → 302 `/melbourne/`；`/g/码`、`/p/编号` → 302 到球局 / 球员常用城市（`route_city`，找不到按墨尔本）；`/<slug>` → 301 补斜杠、大写转小写；认不出的城市 → 302 `/melbourne/`；`/<slug>/…` 手机返回 PWA、电脑返回网页端，按城市替换 `<title>`、og 标题 / 描述、安装配置地址、canonical；`/<slug>/manifest.webmanifest` 每个城市一份（id / start_url / scope 都是 `/<slug>/`）；`/<slug>/community` → 城市的社群链接。/api、/admin、/icons、/privacy.html、/terms.html、/sw.js 不经过它。
 - **手机号按国家**：登录页的国家代码来自 `COUNTRIES`（= countries 表里已开放的国家，现在只有 +61），发验证码前按格式检查（0412 345 678、+61 412 345 678 都认）。原来的 +86 选项去掉了（后端从 5a-1 起就只收澳洲手机号）。
@@ -128,6 +128,10 @@
 | invite_self | 422 | 不能约自己 | 数据库 |
 | invite_closed | 403 | TA 暂时不接受邀约 | 数据库 |
 | invite_played_only | 403 | TA 只接受一起打过球的球友邀约 | 数据库 |
+| buddy_self | 422 | 这是你自己的码 | 数据库（#110） |
+| buddy_limit | 429 | 暂时无法发送，过段时间再试吧（30 天内被同一人忽略 2 次，或 24 小时内已发 10 个；同一个码，不泄露被忽略过） | 数据库（#110） |
+| buddy_request_ended | 409 | 这条申请已经处理过或失效了 | 数据库（#110） |
+| card_lookup_limit | 429 | 查得太频繁了，过一会儿再试 | 数据库 rate_rules card_no（#110） |
 | invite_daily_limit | 429 | 今天已经发出 3 个邀约了，明天再约吧 | 数据库 |
 | invite_new_limit | 429 | 今天已经约了 2 位新球友，明天再约吧 | 数据库 |
 | invite_declined_twice | 403 | 对方最近不太方便，过段时间再约吧 | 数据库 |
@@ -142,6 +146,7 @@
 | noshow_window_closed | 409 | 结束 48 小时后不能再反馈 | 数据库 |
 | not_in_game | 403 | 已不在这局 | 数据库 |
 | report_duplicate | 409 | 你已经举报过，我们正在处理 | 数据库 reports_one_open |
+| idempotency_key_reused | 409 | 这次操作已经提交过了，刷新看看 | 数据库 idem_begin（同一个 Idempotency-Key 用在了别的接口上；#276） |
 | report_note_required | 422 | 选「其他」时写一句说明 | 数据库 reports_source_chk |
 | message_link | 422 | 暂不支持发送链接 | 数据库 |
 | chat_closed | 409 | 这局的群聊已关闭 | 数据库 |
@@ -169,6 +174,9 @@
 | topic_ended | 409 | 这个话题已经结束了 | 数据库 api_sb_post（场边 §14，F1b 并入） |
 | sb_post_hourly_limit | 429 | 发得有点多，过一会儿再发吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | sb_post_daily_limit | 429 | 今天已经发了 20 条，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
+| client_outdated | 426 | 有新版本 · 点一下刷新 | 后端（环境变量 NBQ_MIN_BUILD 设了且请求头 X-NBQ-Build 低于它 / 没带；默认不启用，ADR 0013）；前台同时显示顶部新版本提示 |
+| register_paused | 403 | 暂时不接受新用户注册，请稍后再来 | 后端（运行时开关 register_paused 开，新号码注册；#49） |
+| maintenance | 503 | 系统维护中，请过几分钟再试 | 后端（运行时开关 maintenance 开，除开关读取与后台外的接口；带 Retry-After；#49） |
 | sb_topic_daily_limit | 429 | 今天已经发起了 3 个话题，明天再来吧 | 数据库 nbq_rate（场边 §14，F1b 并入） |
 | replies_closed | 409 | 作者关闭了回复 | 数据库 api_sb_reply（场边 §14，F1b 并入） |
 
@@ -177,6 +185,7 @@
 ## 2. 登录与账号
 
 ### POST /api/auth/otp/send `{phone}`
+> **现状（11-17 实查）：这条后端接口没有实现，前台直连 Supabase Auth（`/auth/v1/otp`、`/auth/v1/verify`，见 `src/shared/script/0490-Supabase登录.js`）；下面是当初的设计，上线前不按它做。登录漏斗埋点（#297）挂在前台拿到结果的地方。**
 - 检查：后端以 nbq_service 调 `auth_otp_send(phone, ip)`：按号码认出已开放的国家（`countries.phone_re`，澳洲 +61 4xx xxx xxx），认不出 → 422 `invalid`；锁定中 → 429 `otp_locked`；同一 IP 每小时 10 次 → 429 `rate_limited`；同一号码 60 秒 1 次 → 429 `otp_too_fast`、每天 5 次 → 429 `otp_daily_limit`
 - 写入：Supabase Auth 发短信验证码；`auth_otp_send` 返回 `{country, provider, sender, template}`，后端按这个国家的服务商和模板发
 - 事件：login_send_code（前端）
@@ -205,9 +214,12 @@
 
 ## 3. 我的资料
 
+### GET /api/me · 新增只读返回字段 `installed`（11-15，`api_me_installed()`，只加不改，ADR 0013）
+- `installed: boolean`：这个人有没有从主屏幕图标打开过（服务器记的 `sessions.standalone`）。前台读到 true 就永久记「已添加到桌面」；旧前台忽略。
+
 ### PATCH /api/me · 直接 update users（行级权限只允许改资料类的列）
-- 可改：nickname（1–20 字）、last_initial、utr（1.00–16.50）、utr_estimated、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
-- 不可改：status、level、member_no、手机号等 → 403 `forbidden`
+- 可改：nickname（1–20 字）、last_initial、avatar_kind / avatar_animal / avatar_color / seal_roll、card_theme、wechat_id、main_club_id、invite_from（all / played / none）、email、email_prefs、analytics_opt_out
+- 不可改：status、level、member_no、手机号、utr / utr_estimated（11-07 起只走 PUT /api/me/utr）等 → 403 `forbidden`
 - 频率：改昵称 30 天 2 次 → 429 `nickname_limit`（注册 24 小时内不计）
 - 昵称规则（前台 NICK_BAD 与数据库 nbq_nickname_problem 同一套）：不能有链接、联系方式（8 位以上数字、微信 / vx / WhatsApp 等说法）、「官方 / 南伴球 / 客服 / 管理员 / 系统 / admin」等字样、不可见字符、同一个字连续 5 次 → 422 `nickname_not_allowed`（detail = link / contact / impersonate / invisible / repeat）
 - 事件：card_customize / invite_setting / email_settings_save / analytics_off / analytics_on（前端，按改的内容）
@@ -225,6 +237,21 @@
 - 读：`{badges:[{code, earned_at, seen_at}]}`，只有自己的（RLS）
 - 写：`api_badges_claim` 只收白名单 12 个 code（first / ten / fifty / hundred / host10 / night / early / surface / explorer / streak / kudos / partner），已有的不改；`api_badge_seen` 只记一次 seen_at
 - 徽章规则在前台算，服务端只记录；codes 不是数组 / 超过 20 个 / code 不是文字 → 422 invalid
+
+### GET /api/me/rackets · PUT /api/me/rackets `{rackets[] ≤ 3}` · `api_set_rackets(p_rackets jsonb)`（#60）
+- 返回 `{rackets:[{slot, brand, series}]}`（GET 和 PUT 一样，按 slot 排）；接口层只转发 brand / series 两个字段，rackets 不是数组 / 超过 3 个 / 元素不是对象 / 字段类型不对 → 422 invalid
+- 读：`user_rackets` 只能读自己的（RLS）；前台不能直接写表，只能调这个函数
+- 写：`[{brand, series}, …]` 整组替换，数组顺序 = slot（1 = 主力），最多 3 把；brand 为空 / 省略 = 「其他」；返回 `[{slot, brand, series}]`
+- 清洗：去控制字符、连续空白并成一个、去首尾空白（含全角空格）；同一把（品牌 + 系列，不分大小写）重复 → 失败
+- 校验（将来球员卡公开，一次到位）：各 ≤ 30 字、系列必填、拒绝 http / www、@ / ＠、连续 6 位以上数字 → 422 invalid，detail = `rackets`（不是数组 / 超过 3 把 / 元素不是对象）· `brand` · `series` · `duplicate`；失败时原来的不丢
+- 产品库（#60 A4，ADR 0009）：`GET /api/rackets/catalog` 不用登录，`{catalog:[{id, brand, series}]}` 只给 active，缓存 1 小时。PUT 的元素可以是 `{catalog_id}`（只转 id；隐藏的只有本来就有的人能留、合并掉的跟到新条目，不合法 → 422 detail `catalog_id`）或 `{brand, series}`（按品牌 + 系列 / 整串 / 别名不分大小写自动归到产品库，名字换成产品库的写法）。返回和 GET 都带 `catalog_id`（自由文字归不上为 null）
+
+### GET /api/me/utr · PUT /api/me/utr `{utr, estimated, profile?}` · `api_set_utr(p jsonb)` / `api_my_utr()`（#101）
+- 返回 `{utr:{utr, estimated, profile, updated_at}}`（GET 和 PUT 一样）；updated_at 没确认过 = 注册时间；接口层只转发这三个字段，类型不对 → 422 invalid
+- 两种：正式（estimated = false）/ 自评（estimated = true，前台显示 ≈）；utr 1–16.5、最多两位小数，否则 422 invalid detail=`utr`；estimated 不是布尔 → detail=`estimated`
+- profile：不传 = 不动；null / 空串 = 清掉；纯数字（4–12 位）或 UTR 主页链接（utrsports.net / universaltennis.com 的 `/profiles/<数字>`）→ 只存数字；其他 → 422 invalid detail=`profile`
+- 数值或类型变了：记一行 `utr_changes`（只许本人读）+ 频率 24 小时 5 次 → 429 `rate_limited`；只改链接、原样再确认只刷新 updated_at，不计次数
+- 隐私：profile 只在 users（本人可读），public_profiles 不加；注销匿名化时清掉 profile 和历史（触发器 `trg_users_utr_wipe`）
 
 ### PUT /api/me/clubs `{venue_ids[] ≤ 3}` · PUT /api/me/suburb `{suburb, postcode}`
 - 写入：user_clubs（整组替换）· user_suburb_picks
@@ -366,6 +393,22 @@
 ### 定时任务：邀约失效（4g）
 - 每 15 分钟：pending / counter 且 48 小时到期或已过开打时间 → expired，通知等待回复的一方 invite_expired
 
+### 球友（#110 PR-A，迁移 20261108_buddies）：当面扫码加球友
+- 关系只有两种来源：一起打过（`nbq_played_together` 实时算，不落表）· 当面扫码 + 对方确认（`buddies`，`user_a < user_b` 一对一行）。没有远程申请入口（前台只在扫码落地页提供）
+- `GET /api/buddies` · `api_buddies()` → `{buddies:[{user_id, since}], incoming:[{id, from_user, created_at, expires_at}], outgoing:[{id, to_user, created_at, expires_at}], profiles:{id: 球员卡}}`（profiles 由接口层按这三组里的人取，和 /api/invites 一样）；去掉封禁 / 注销的人和有屏蔽关系的人；outgoing 含被忽略但未失效的（不给状态）
+- `POST /api/buddies/requests {to_user}` · `api_buddy_request(p_to)` → `{status:'pending', id}` 或 `{status:'buddies'}`。检查（顺序）：账号不是正常状态 403 `account_*`（暂停到期按正常）→ 扫自己 422 `buddy_self` → 对方不存在 / 封禁 / 注销 404 → 屏蔽 403 `blocked` → 已是球友 → buddies → 对方已在等我确认 → 直接成为球友（通知对方 buddy_accepted）→ 24 小时内已有一条（含被忽略的）→ 返回那条、不重复提醒 → 30 天内被同一人忽略 2 次或 24 小时内已发 10 个 429 `buddy_limit` → 新建，通知对方 buddy_request
+- `POST /api/buddies/requests/:id/accept | ignore` · `api_buddy_respond(p_id, 'accept'|'ignore')` → `{status:'buddies'|'ignored'}`；只有被扫的人能处理（别人 404）；已处理 / 超过 24 小时 409 `buddy_request_ended`；确认通知发起人 buddy_accepted，忽略不通知任何人
+- `DELETE /api/buddies/:uid` · `api_buddy_remove(p_user)`：删除，不通知；一起打过的关系不受影响
+- 表权限：`buddy_requests` 前台不能读写（防止看到 ignored）；`buddies` 只能读自己相关的行，写只走函数
+- 推送：buddy_request「X 想加你为球友 / 点开确认」、buddy_accepted「你和 X 成为球友了」，都属于 ANYTIME（当面扫码，立刻推）
+- 来源 `source`：`POST /api/buddies/requests {to_user, source?}`，qr（球员卡背面，默认）/ link（分享图、链接）/ other，别的值 422 invalid detail=`source`；确认方式 `accepted_via`：confirm / mutual（只在后台统计里用）
+- 风控：忽略时写 `risk_events(kind='buddy_ignored', user_id=发起人, ref=忽略的人)`；规则 buddy_ignored = 7 天内被 ≥3 个不同的人忽略，权重 10
+- 后台 `GET /admin/api/buddies/stats?from&to`（默认最近 30 天，跨度 ≤ 366 天，不合法 422）· `buddy_stats(p_from, p_to, p_cities)`：权限 page.view（只读角色只有汇总数字）；限城市的管理员只算自己城市；返回 requests / senders / receivers / accepted_confirm / accepted_mutual / ignored / expired（pending 且过了 24 小时）/ pending / from_link / accept_rate（成了 ÷ 已有结果，没有 = null）/ median_accept_min（只算对方确认的）/ new_pairs / total_pairs
+- 埋点（前台两端发，PR-B 起）：buddy_scan_view / buddy_request_send / buddy_request_open / buddy_respond / buddy_remove / buddy_list_open（见 events_spec.md）
+- 注销满 30 天匿名化时删除这个人的球友关系和申请（job_anonymize_deleted）
+- `GET /api/players/no/:no` · `api_card_by_no(p_no)`：扫码 / 链接落地按球员编号取卡片（原来只能在已读进内存的人里找，扫陌生人的码打不开）；必须登录；限频每小时 60、每天 300 次 → 429 `card_lookup_limit`；封禁 / 注销 / 有屏蔽关系看不到 → 404；返回 `{player}`，和 `GET /api/players/:id` 同一份卡片
+- 本期不做（PR-A2 起）：球友 = 一起打过的权限（约 / 私信）、api_export_me 带上球友（并入 #71）
+
 ---
 
 ## 7. 打完之后
@@ -445,6 +488,7 @@
 - 用 nbq_service 写入；关闭「使用数据」的用户由数据库丢弃；字段按 events_spec.md
 - **实现（第 5 轮，10-30 起）**：body `{v:2, events:[{ev, at, uid, anon, sid, device, build, env, os, city, scr, props}]}`，一批最多 100 条、整体不超过 96KB。没登录也能调（sendBeacon 带不了请求头）；带了有效令牌，且事件自称的 `uid` = 令牌对应的人，才记 `user_id`，其余按匿名；令牌坏了也记（匿名）。只收字典里 `source=client` 且 active 的事件名，字段不合格的整条丢弃，不返回错误细节。同时维护 `sessions`（首次建、之后累加 events_n / last_event_at；session_start 的落地页 / 来源参数补进去）；收到本人的 `login_success` 才写 `identity_links`。关了「使用数据」的人服务端直接不记。**还没做**：按 IP 限流（放 Workers 入口）。
 - **推送公钥** `GET /api/push/key` → `{key}`（环境变量 VAPID_PUBLIC，Pages / Workers 都要设；没配 404 `push_unavailable`，前台安静跳过）。
+- **运行时开关（#49）** `GET /api/switches`（不需要登录、不缓存）→ `{switches:{register_paused, maintenance, sms_paused}}`，默认全 false。`register_paused` 开 → 新号码 `POST /api/me/register` 返回 403 `register_paused`（已有资料的重复提交照旧）；`maintenance` 开 → 除 `/api/switches`、`/api/version`、`/api/client-errors` 外所有 `/api/*` 返回 503 `maintenance`（带 Retry-After）；后台接口不受影响（要靠它关）；`sms_paused` 只存状态，短信由前台直连 Supabase 发，由前台读到后不发。后台：`GET /admin/api/switches`、`POST /admin/api/switches/set {key, on, reason}`，权限 `switch.set`（仅 owner，必须填理由，留痕 target = 开关名）。
 - **发送程序版本** `GET /api/version`（不需要登录）→ `{sender:{version, at, heartbeat_age_s}}`：`version` = 部署时写进 Worker 的代码指纹（`node tools/worker_version.mjs`），Worker 每分钟写进心跳表 `ops_heartbeats`（名字 `sender@<指纹>`）；`heartbeat_age_s` = 距上次发送心跳的秒数。和仓库指纹对得上 = 线上是最新代码。
 
 ---
@@ -483,6 +527,16 @@
 - 私信只能在处理举报时看：`admin_report_messages(举报, 理由)` 只返回被举报的那段对话（聊天举报 = 那个对话；球员卡举报 = 两人的私信），举报前 7 天到举报后 1 天。
 
 ### 10.3 接口 → 函数
+- **已实现的写法（11-12 起）**：对象 id 放在 JSON 里，不放路径（路由表是「方法 路径」精确匹配）；球友一律用会员编号 `no`，不暴露内部 id。下面是最初的规划写法，实现以 `server/admin/api.mjs` 的 ROUTES 为准。
+- 已实现 · 球友（#27 第 4 步）：GET /users/detail?no= · POST /users/status `{no,status,reason_code,reason,days?}` · POST /users/reset `{no,what,reason}` · POST /users/gender `{no,action,reason}` · POST /users/phone `{no,reason}`（编号→id 在后台角色的行级安全下查：限城市的管理员查不到别的城市 → 404）
+- 已实现 · 风险（#27 第 4 步）：GET /risk?view=open|watching|done · POST /risk/handle `{id,status,note?,watch_days?}` · GET /rules · POST /rules/set `{kind: risk|rate, rule, patch, reason}`（rate 的时间窗用秒 win_s）
+- 已实现 · 场边举报（#27 第 4 步）：GET /sideline/reports（按内容合并）· POST /sideline/hide `{kind: post|reply, id, hide, reason}`（隐藏时同事务把该内容的未处理举报标成已处理）· POST /sideline/dismiss `{kind,id}`；GET /reports 不再含场边举报。限城市：库函数按举报人城市判断举报、按发布城市判断内容，跨城时整笔 403 回滚
+- 已实现 · 管理员（#27 第 4 步）：GET /admins（owner）· POST /admins/update `{id, role?, disable?, reason}` · POST /admins/cities `{id, cities|null, reason}` · GET /audit?action=&before=（owner、运营；action 不带点 = 按类别）。新增管理员仍用 tools/admin_create.mjs（需迁移 20261114_admin_step4 补列读权限）
+- 已实现 · 城市（#27 第 4 步）：GET /cities（page.view）· POST /cities/status · POST /cities/set `{city, patch:{community_url|hashtag|center_label}, reason}`（city.manage）· POST /cities/waitlist（→ emails）· POST /cities/waitlist/done（city.waitlist）
+- 已实现 · 统计（#27 第 4 步）：GET /stats?fns=a,b&from=&to=&city=（page.view；fns 只能是 server/admin/api.mjs 里 STATS 白名单的名字，每批 ≤ 12；每个查询独立保存点；去掉内部 uuid；personal 的只读角色拿不到）
+- 已实现 · 场边配置（#27 第 4 步，sideline.config）：GET /sideline/config（草稿 + 最近 20 版 + 待放出话题）· POST /sideline/config/set `{part, value, base}` · /config/discard `{base}` · /config/publish `{note, base}` · /config/rollback `{version, base, note?}` · POST /sideline/topics/release `{topic}`；base 不是最新 → 409 admin_config_stale；内容不合格 → 422
+- 已实现 · 爽约申诉（#195）：GET /appeals?view=pending|done · POST /appeals/handle `{game: 分享码, no, status: upheld|rejected, note?}` → `admin_noshow_appeal`（report.handle；迁移 20261114_admin_step4）
+- 已实现 · 导出（#27 第 4 步）：POST /export `{dataset, with_ids, reason?, from?, to?}`（dataset = STATS 白名单名字；先 admin_export 留痕：不带 ID = data.export，带 ID = data.export_ids 只有 owner + 理由；不带 ID 时去掉编号 / 昵称 / 作者 / 内容列；限城市的管理员不能导出）
 - POST /admin/api/users/:id/status `{status, reason_code, reason, days?, note?}` → `admin_user_status`（暂停 1 / 3 / 7 / 30 / 90 / 180 天；连带处理同 §3.11；发 account_status 通知；写 user_status_log）
 - POST /admin/api/users/:id/reset `{what: nickname | avatar, reason}` → `admin_user_reset` · POST /admin/api/users/:id/gender `{action: clear | unlock, reason}` → `admin_user_gender`
 - POST /admin/api/users/:id/phone `{reason}` → `admin_reveal_phone`（owner）
@@ -679,3 +733,14 @@
 - 每次成功的操作记 admin_audit_log（action = sideline.config，target = draft:<块> / discard / publish / rollback:<版本> / 话题 id；发布记说明和改了哪几块）。
 - 「雨停了」暂不做（10-27）：话题和特别安排都在，不上线。
 
+## 登录交接（11-14）：Safari 登录 → 添加到主屏幕 → 桌面图标不用再登录
+iPhone 的 Safari 和桌面图标不共用存储。登录后的页面要一个一次性交接码，写进安装配置的启动网址；桌面图标第一次打开时拿码换登录。接口层自己签发令牌（ES256，密钥 `NBQ_SESSION_KEY`，iss = `https://nanbanqiu.app/session`，sub 仍是 Supabase 的 auth id），和 Supabase 的令牌并行，接口两种都认。没配密钥 = 整套不启用（404 `handoff_unavailable`）。
+- `POST /api/session/handoff`（要登录）→ `{code, expires_at}`。码 43 位随机、24 小时有效、只能用一次、库里只存 sha256；每人每天 5 个（429 `rate_limited`）；封禁 / 注销中 403。
+- `POST /api/session/redeem {code}`（不用登录）→ `{access_token, refresh_token, expires_in, user:{id, phone}}`；码不对 / 用过 / 过期 / 账号被封一律 401 `handoff_invalid`，不说明原因。
+- `POST /api/session/refresh {refresh_token}` → 新令牌（凭证不变）；凭证不在 / 账号被封 401 `session_revoked`（同时删掉这份登录）。
+- `POST /api/session/logout {refresh_token}` → 作废凭证，并把这个人还没用掉的码一并作废；总是 200。
+- `POST /api/session/handoff/check {code}`（要登录）→ `{ok}`：这个码是不是我的、没用过、还剩 1 小时以上；只读。Safari 每次打开页面核对一次本机缓存的码（#299）。
+- `POST /api/session/handoff/revoke`（要登录）→ `{ok, revoked}`：作废自己还没用掉的码（Supabase 登录的页面退出前调）；没启用也是 200。
+- 期限与限次：交接出来的登录从交接那一刻起最多 90 天（到期 401 `session_revoked`，重新登录一次）；换码同一 IP 每小时 30 次（429 `rate_limited`）。
+- `GET /api/manifest?h=<码>` → 站点的 manifest，只是 `start_url` 多一个 `h`；不查库，码格式不对 404。
+- 测试：`pg/api_handoff`（安全性质）· `unit/sb_auth`（前台登录模块）· `frontend/handoff`（什么时候要码 / 换码）。真机才能确认的：iPhone 是否把带码的启动网址记进桌面图标。

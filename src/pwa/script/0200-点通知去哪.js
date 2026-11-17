@@ -4,6 +4,7 @@ const commHTML=()=>'';
 
 /* ---------- 发现 ---------- */
 function renderDisc(){
+  nbqIntroSync($('#introHost'),UI.tab==='disc');
   const lvT=F.levels.size?'UTR '+[...F.levels].sort().map(i=>UB[i][2]).join(' / '):'全部水平';
   $('#chips').innerHTML=`<button class="chip" data-a="loc"><svg><use href="#i-pin"/></svg>${esc(LOC.label)} · ${F.radius} km</button>
     <button class="chip${F.levels.size?' on':''}" data-a="filter">${lvT}</button>
@@ -57,7 +58,7 @@ function renderMap(items){
     const c=l[0];return `<div class="pin ${pk(l)}${sel?' sel':''}" data-pin="${c.id}"><i></i>${hm(c.start)}<span>${lvl(c)}</span></div>`};
   if(window.L){
     if(!MAP.lf){MAP.lf=L.map(el,{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lng],12);
-      L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(MAP.lf);
+      (()=>{const tl=L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4wk5_1_309fd2f059d35610107a84a1',{maxZoom:19,attribution:'© OpenStreetMap © CARTO'});tileRetry(tl);tl.addTo(MAP.lf)})();
       L.control.attribution({position:'topleft',prefix:false}).addAttribution('© OpenStreetMap © CARTO').addTo(MAP.lf);MAP.layer=L.layerGroup().addTo(MAP.lf)}
     MAP.layer.clearLayers();MAP.mk={};
     L.marker([LOC.lat,LOC.lng],{icon:L.divIcon({className:'pinwrap',html:'<div class="medot"></div>',iconSize:[0,0]}),interactive:false}).addTo(MAP.layer);
@@ -100,7 +101,7 @@ const loginCTA=t=>`<div class="empty"><svg class="lg-solo" width="56" height="56
 /* ---------- 通知 ---------- */
 function pushCardHTML(){if(PUSH.enabled)return'';
   // 先让人看到「会收到什么」（App 图标上的红点），再告诉 TA 一步怎么做
-  const t=ENV==='wechat'?['换到浏览器，才收得到提醒','微信里收不到申请和通过的通知','怎么换','i-share']:ENV==='safari'?['有人申请，马上知道','放到主屏幕，像 App 一样收提醒','放到主屏幕','i-plus']:['有人申请，马上知道','申请、通过、开打前都会提醒你','开启提醒','i-bell'];
+  const t=ENV==='wechat'?['换到浏览器，才收得到提醒','微信里收不到申请和通过的通知','怎么换','i-share']:ENV==='safari'?[pnV2()&&!iosPushOk()?'所有球局，一眼看到':'有人申请，马上知道',a2n('放到主屏幕，像 App 一样收提醒',pnV2()&&!iosPushOk()?'比下载 App 更简单，放到桌面，附近的球局一眼看到':'比下载 App 更简单，放到桌面就能收提醒'),a2n('放到主屏幕','放到桌面'),'i-plus']:['有人申请，马上知道','申请、通过、开打前都会提醒你','开启提醒','i-bell'];
   return `<div class="pushcard"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${t[1]}</p></div><button class="pc-go" data-a="enablePush"><svg><use href="#${t[3]}"/></svg>${t[2]}</button></div>`}
 function renderNotif(){
   if(!ME){$('#notifBody').innerHTML=authView({out:()=>`<div class="pad">${loginCTA('登录后接收通知')}</div>`});return}

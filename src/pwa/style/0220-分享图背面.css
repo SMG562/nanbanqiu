@@ -1,1 +1,4 @@
-.sheet.tall .cxsheet{min-height:70vh}
+/* 聊天弹层的高度只由弹层（= 可视区）决定：弹层是 flex 列（拖动条 / cxsheet），cxsheet 占满剩余，里面再是 标题 / 消息区（唯一能滚的）/ 输入栏。
+   不用 vh：iOS 键盘弹出时 vh 不变（只缩小 visualViewport），原来的 min-height:70vh 比键盘上方的可视区还高，把输入栏挤出弹层，要手动滚才看得到（11-16 真机，根因）。 */
+.sheet.tall:has(>.cxsheet){display:flex;flex-direction:column;overflow:hidden}
+.sheet.tall>.cxsheet{flex:1;min-height:0;height:auto}

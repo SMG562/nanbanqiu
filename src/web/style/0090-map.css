@@ -8,7 +8,7 @@
 .pin span{font-weight:600;color:var(--mut)}
 .pin.mine{background:var(--g);color:#fff}.pin.mine span{color:rgba(255,255,255,.8)}.pin.mine i{background:var(--lime)}
 .pin.pend{background:#FFF4D6}.pin.pend i{background:#E0A526}
-.pin.full{background:#ECEFEC;color:#7A827B}.pin.full i{background:#B5BCB6}
+.pin.full{background:#ECEFEC;color:var(--mut)}.pin.full i{background:#B5BCB6}
 .pin.sel{z-index:9;transform:translate(-50%,calc(-100% - 6px)) scale(1.12);box-shadow:0 0 0 2px var(--ink),0 6px 18px rgba(16,24,40,.25)}
 .mapleg{position:absolute;left:12px;bottom:12px;z-index:45;display:flex;gap:12px;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:10px;box-shadow:var(--sh);font-size:12px;color:var(--mut)}
 .mapleg span{display:flex;align-items:center;gap:5px}.mapleg i{width:9px;height:9px;border-radius:3px}

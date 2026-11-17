@@ -37,6 +37,7 @@ DEV.addEventListener('click',e=>{
     case'locAllow':requestLocation();break;
     case'commClose':UI.comm=false;render();toast('可在「我的 → 微信约球群」再次找到');break;
     case'community':openCommunity();break;
+    case'settings':openSettings();break;
     case'safety':openSafety();break;
     case'contact':openContact();break;
     case'myCard':need(()=>openCard(ME.id));break;
@@ -73,6 +74,8 @@ DEV.addEventListener('click',e=>{
     case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'editClubs':openClubs();break;
+    case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）
+    case'utOpen':case'utMode':case'utEst':case'utSave':utAct(a);break;   // 我的 UTR（0499）
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;
     case'enablePush':enablePush();break;
@@ -82,7 +85,11 @@ DEV.addEventListener('click',e=>{
     case'wxguide':closeSheet();openWxGuide();break;
     case'wxclose':$('#wxg').hidden=true;break;
     case'a2hs':openA2HS();break;
+    case'a2hsDone':a2hsPut('nbq_a2hs_ok',String(Date.now()));closeSheet();toast('好的，以后从桌面的南伴球图标打开');render();break;
     case'a2hsGo':if(A2HS_EV){const ev=A2HS_EV;ev.prompt();ev.userChoice.then(r=>{A2HS_EV=null;closeSheet();if(r&&r.outcome==='accepted')toast('已添加到主屏幕')},()=>{})}break;
+    case'a2hsNext':a2hsNav(1);break;
+    case'a2hsBack':a2hsNav(-1);break;
+    case'a2hsStep':a2hsStep(+a.dataset.i);break;
     case'a2hsLink':copy(location.href.split('#')[0],'链接已复制，到 Safari 粘贴打开');break;
     case'logout':sbaLogout();ME=null;toast('已退出登录');render();break;
     case'create':closeDetail();openCreate();break;

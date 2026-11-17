@@ -8,17 +8,17 @@ const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
 // 印色名单（nbqColor 要用）：和页面里同一份，从源码取
 const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
 const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqIdemMake,nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic,nbqUpdNeeded}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
 T('两端都拼进了接口调用模块，且在登录模块之后', ['pwa', 'web'].every(e => { const l = fs.readFileSync(path.join(DIR, `src/${e}.list`), 'utf8').split('\n'); const a = l.indexOf('shared/script/0490-Supabase登录.js'), b = l.indexOf('shared/script/0495-接口调用.js'); return a >= 0 && b > a }));
 
 // 假 fetch：routes = { 'GET /api/me': {s,d,h} | 'net' }
-const mk = (routes, tok = 'AT') => { const calls = []; let lost = 0;
+const mk = (routes, tok = 'AT', io = {}) => { const calls = []; let lost = 0;
   const fetch = async (u, o) => { calls.push({ u, o }); const k = o.method + ' ' + u.replace(/^https:\/\/x\.app/, '').split('?')[0]; const r = routes[k]; if (r === 'net') throw new Error('offline'); if (!r) return { ok: false, status: 404, json: async () => ({ error: 'not_found' }), headers: { get: () => null } };
     return { ok: r.s < 300, status: r.s, json: async () => { if (r.d === undefined) throw new Error('no json'); return r.d }, headers: { get: n => (r.h || {})[n] ?? null } } };
-  return { net: X.nbqNetMake({ fetch, base: 'https://x.app/', token: async () => tok, onAuthLost: () => { lost++ } }), calls, lost: () => lost } };
+  return { net: X.nbqNetMake({ fetch, base: 'https://x.app/', token: async () => tok, onAuthLost: () => { lost++ }, ...io }), calls, lost: () => lost } };
 
 let e = mk({ 'GET /api/me': { s: 200, d: { registered: false } } });
 let r = await e.net.get('/api/me');
@@ -152,5 +152,61 @@ T('推送公钥 base64url → 字节', Array.from(X.nbqKeyBytes('AQID')).join() 
   T('聊天：没有消息的会话没有占位；没给发送人时，未读 = 对方发的，已读 = 我发的', X.nbqThreadLast(gm, 'me') === null && X.nbqThreadLast({ ...dm, last_sender: null }, 'me').from === 'u2' && X.nbqThreadLast({ ...dm, last_sender: null, unread: false }, 'me').from === 'me');
   const m = X.nbqFromMsg({ id: 12, sender_id: 'u2', body: 'hi', created_at: '2026-11-01T01:00:00Z' }, 't1');
   T('聊天：消息字段对上前台（from / text / at 毫秒 / id 数字）', m.tid === 't1' && m.from === 'u2' && m.text === 'hi' && m.at === Date.parse('2026-11-01T01:00:00Z') && m.id === 12, m); }
+
+// ---- 新版本提示 / 最低前端版本（#63 第 3 件，ADR 0013）：前台带 X-NBQ-Build，服务端 NBQ_MIN_BUILD 低于它回 426 client_outdated ----
+{ const B = '1763017920-a9356c8';
+  let e = mk({ 'GET /api/me': { s: 200, d: {} } }, 'AT', { build: B }); await e.net.get('/api/me'); await e.net.get('/api/venues', null, { anon: true });
+  T('有构建号：每个请求（含匿名）都带 X-NBQ-Build', e.calls.length === 2 && e.calls.every(c => c.o.headers['X-NBQ-Build'] === B), e.calls.map(c => c.o.headers));
+  e = mk({ 'GET /api/me': { s: 200, d: {} } }); await e.net.get('/api/me');
+  T('没有构建号（本地 / 测试拼的页面）：不带这个头', !('X-NBQ-Build' in e.calls[0].o.headers));
+  let od = 0; e = mk({ 'POST /api/games': { s: 426, d: { error: 'client_outdated' } } }, 'AT', { build: B, onOutdated: () => { od++ } });
+  let r = await e.net.post('/api/games', {});
+  T('426 client_outdated：返回码原样给调用处，并通知页面显示新版本提示（不当成登录失效）', !r.ok && r.status === 426 && r.code === 'client_outdated' && od === 1 && e.lost() === 0, { r, od });
+  od = 0; e = mk({ 'POST /api/games': { s: 409, d: { error: 'game_full' } } }, 'AT', { build: B, onOutdated: () => { od++ } }); await e.net.post('/api/games', {});
+  T('别的错误不触发新版本提示', od === 0);
+  T('nbqUpdNeeded：构建号不同 → 提示；相同 / 本页没有 / 远端没有或不是字符串 → 不提示',
+    X.nbqUpdNeeded(B, '1763099999-bbbbbbb') && !X.nbqUpdNeeded(B, B) && !X.nbqUpdNeeded('', '1763099999-bbbbbbb') && !X.nbqUpdNeeded(B, '') && !X.nbqUpdNeeded(B, undefined) && !X.nbqUpdNeeded(B, 123));
+  const H = await import(path.join(DIR, 'server/api/handler.mjs'));
+  T('outdated：没启用（不设 / 空 / 乱写）→ 一律放行', !H.outdated('GET /api/me', '', null) && !H.outdated('GET /api/me', '', '') && !H.outdated('GET /api/me', '', 'abc'));
+  T('outdated：启用后，低于最低版本或没带头 / 头乱写 → 拦；等于、高于 → 放行（按前面的秒数比，提交号不参与）',
+    H.outdated('GET /api/me', '1763017919-zzzzzzz', B) && H.outdated('GET /api/me', null, B) && H.outdated('GET /api/me', 'abc', B)
+    && !H.outdated('GET /api/me', B, B) && !H.outdated('GET /api/me', '1763017920-0000000', B) && !H.outdated('GET /api/me', '1763099999-0000000', '1763017920'));
+  T('outdated：健康检查 / 版本 / 报错上报 / 埋点 / SW 续订推送 不拦', ['GET /api/health', 'GET /api/version', 'POST /api/client-errors', 'POST /api/events', 'POST /api/push/subscriptions'].every(k => !H.outdated(k, null, B)));
+  const req = (p, h) => new Request('https://x.app' + p, { headers: h || {} });
+  let res = await H.handleApi(req('/api/me', { 'X-NBQ-Build': '1700000000-old0000' }), { minBuild: B });
+  T('handleApi：旧前台 → 426 {error:client_outdated}，不碰数据库', res.status === 426 && (await res.json()).error === 'client_outdated');
+  res = await H.handleApi(req('/api/health'), { minBuild: B });
+  T('handleApi：健康检查不受最低版本影响', res.status === 200);
+  res = await H.handleApi(req('/api/nope'), {});
+  T('handleApi：没启用时照旧（未知路径 404）', res.status === 404);
+  T('api_spec §1 登记了 client_outdated（426）', /^\| client_outdated \| 426 \|/m.test(fs.readFileSync(path.join(DIR, 'tests/spec/api_spec.md'), 'utf8'))); }
+
+// ---------- 重复提交（#276 PR③）：Idempotency-Key ----------
+e = mk({ 'POST /api/games': { s: 200, d: { id: 'g1' } } }); await e.net.post('/api/games', { a: 1 }, { idem: 'k-0000000000000001' }); await e.net.post('/api/games', { a: 1 });
+T('带 idem → 请求头 Idempotency-Key；不带 → 没有这个头（opt-in）', e.calls[0].o.headers['Idempotency-Key'] === 'k-0000000000000001' && !('Idempotency-Key' in e.calls[1].o.headers), e.calls.map(c => c.o.headers));
+{ let n = 0; const I = X.nbqIdemMake(() => 'key-' + String(++n).padStart(16, '0'));
+  const k1 = I.key('create', { a: 1 });
+  T('同一个操作、同样的内容，上次没有明确结果（断网）→ 沿用同一个 key', (I.done('create', { ok: false, status: 0, code: 'network' }), I.key('create', { a: 1 })) === k1);
+  T('服务器 5xx（不知道写没写进去）→ 也沿用', (I.done('create', { ok: false, status: 503 }), I.key('create', { a: 1 })) === k1);
+  const k2 = I.key('create', { a: 2 }); T('内容改了（换了时间 / 场地）→ 新 key', k2 !== k1);
+  I.done('create', { ok: true, status: 200 }); T('成功后 → 下次换新 key（再发一局是新的一局）', I.key('create', { a: 2 }) !== k2);
+  const k3 = I.key('create', { a: 3 }); I.done('create', { ok: false, status: 422, code: 'invalid' });
+  T('4xx（服务器明确拒了）→ 下次换新 key', I.key('create', { a: 3 }) !== k3);
+  const m1 = I.key('msg1', { body: 'hi' }), m2 = I.key('msg2', { body: 'hi' }); T('不同的操作槽（不同会话）各用各的 key', m1 !== m2);
+  { let t = 0, m = 0; const J = X.nbqIdemMake(() => 'kk-' + String(++m).padStart(16, '0'), () => t);
+    const a = J.key('msgT', { body: '我到了' }); J.done('msgT', { ok: false, status: 0 }); t = 9 * 60e3;
+    T('断网后 10 分钟内再发同样的话 → 沿用', J.key('msgT', { body: '我到了' }) === a);
+    t = 11 * 60e3; T('超过 10 分钟再发同样的话 → 新 key（是新的一条，不能错拿旧结果；独立复核发现）', J.key('msgT', { body: '我到了' }) !== a) }
+  T('默认生成的 key 符合服务端格式（16–64 位字母数字 _ -）', /^[A-Za-z0-9_-]{16,64}$/.test(X.nbqIdemMake().key('x', {})), X.nbqIdemMake().key('x', {})) }
+
+// 超时（11-13 上线前审查）：弱网下请求一直不回 → 到点放弃、按断网报（不然「处理中」的锁一直不放，按钮点了没反应）；正常返回的不受影响、定时器要清掉
+{ const tm = { n: 0, set: (f, ms) => { tm.n++; return setTimeout(f, ms) }, clear: t => { tm.n--; clearTimeout(t) } };
+  const hang = X.nbqNetMake({ fetch: () => new Promise(() => { }), base: '', token: async () => 'AT', timeout: 30, timer: tm });
+  const t0 = Date.now(), rr = await hang.post('/api/games', {});
+  T('请求一直不回：到点放弃，按断网报（status 0 / network）', rr.ok === false && rr.status === 0 && rr.code === 'network' && Date.now() - t0 < 2000, rr);
+  const okNet = mk({ 'GET /api/me': { s: 200, d: { registered: false } } }, 'AT', { timeout: 30, timer: tm }), r2 = await okNet.net.get('/api/me');
+  T('正常返回：不受超时影响，定时器已清掉', r2.ok === true && tm.n === 0, [r2, tm.n]);
+  const off = X.nbqNetMake({ fetch: async () => ({ ok: true, status: 200, json: async () => ({}), headers: { get: () => null } }), base: '', token: async () => 'AT', timeout: 0, timer: tm });
+  T('timeout = 0：不设超时', (await off.get('/api/me')).ok === true && tm.n === 0) }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

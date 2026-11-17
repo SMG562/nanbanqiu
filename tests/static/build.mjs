@@ -2,8 +2,9 @@
 //   ① 现在仓库里的 HTML = 重新拼出来的，逐字节相同（只改了 src 没重新拼、或直接改了 HTML，都会报出来）
 //   ② src 里每个文件都写进了 list；list 里的文件都存在；每个文件以换行结尾
 //   ③ 两端共用的代码只有一份：shared/ 下的文件两份 list 都用到；pwa/ 只在 PWA、web/ 只在网页端
+//   ⑤ ADR 0011：这三个 HTML 和 _bundle.sql 不进 git（.gitignore 里有、没被跟踪），免得又回到「每个 PR 都冲突」
 //   ④ 自检：在临时副本里改一个字 / 加一个没登记的文件，核对必须失败（防止核对本身失效）
-import fs from 'fs'; import os from 'os'; import path from 'path'; import { execFileSync } from 'child_process'; import { fileURLToPath, pathToFileURL } from 'url';
+import fs from 'fs'; import os from 'os'; import path from 'path'; import { execFileSync } from 'child_process'; import { fileURLToPath, pathToFileURL } from 'url'; import { cleanGitEnv } from '../lib/git_env.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url)), DIR = process.argv[2] || process.env.NBQ_DIR || path.join(HERE, '..', '..');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 600) : '')) };
 const B = await import(pathToFileURL(path.resolve(DIR, 'tools', 'build.mjs')).href);
@@ -16,6 +17,13 @@ for (const [k, file] of Object.entries(B.TARGETS)) {
   let i = 0; const a = cur.split('\n'), b = got.text.split('\n'); while (i < a.length && a[i] === b[i]) i++;
   T(`${file} = src 拼出来的（逐字节）`, cur === got.text, cur === got.text ? undefined : `第 ${i + 1} 行起不同；改 src 后跑 node tools/build.mjs`);
   T(`${file}：list 里没有重复的文件`, new Set(lists[k]).size === lists[k].length);
+}
+if (fs.existsSync(path.join(DIR, '.git'))) {
+  const GEN = [...Object.values(B.TARGETS), 'server/migrations/_bundle.sql'];
+  const tracked = execFileSync('git', ['-c', 'core.quotePath=false', 'ls-files', '--', ...GEN], { cwd: DIR, encoding: 'utf8', env: cleanGitEnv(process.env) }).split('\n').filter(Boolean);
+  T('生成文件没有被 git 跟踪（ADR 0011）', !tracked.length, tracked);
+  const ign = fs.readFileSync(path.join(DIR, '.gitignore'), 'utf8').split('\n');
+  T('生成文件都在 .gitignore 里', GEN.every(f => ign.includes('/' + f)), GEN.filter(f => !ign.includes('/' + f)));
 }
 T('src 里的文件都写进了 list', B.orphans(DIR).length === 0, B.orphans(DIR));
 if (lists.pwa && lists.web) {
@@ -44,6 +52,9 @@ try {
   const d2 = copy(); const h = path.join(d2, B.TARGETS.web);
   fs.writeFileSync(h, fs.readFileSync(h, 'utf8').replace('</body>', '<!-- x --></body>')); T('自检：直接改 HTML → 失败', check(d2) === 1);
   const d3 = copy(); fs.writeFileSync(path.join(d3, 'src', 'shared', 'script', '9999-新文件.js'), '//\n'); T('自检：新文件没写进 list → 失败', check(d3) === 1);
+  const d7 = copy(); const lp = path.join(d7, 'src', 'pwa.list'); fs.appendFileSync(lp, lists.pwa[3] + '\n');
+  let m7 = ''; try { execFileSync('node', [path.join(d7, 'tools', 'build.mjs'), '--check'], { stdio: 'pipe' }) } catch (e) { m7 = String(e.stderr || e.message) }
+  T('自检：清单有重复行（union 合并两边都加了同一行）→ build 当场报错、点出是哪一行', /重复的行/.test(m7) && m7.includes(lists.pwa[3]), m7.slice(0, 300));
   // E3：后台同样受保护
   T('后台由 src/admin 拼出（list 里有文件）', (lists.admin || []).length >= 10 && lists.admin.every(r => r.startsWith('admin/')), lists.admin && lists.admin.slice(0, 3));
   const d4 = copy(); const ha = path.join(d4, B.TARGETS.admin);

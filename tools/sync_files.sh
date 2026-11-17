@@ -5,6 +5,7 @@
 # 11-03 复现：同一个暂存文件刚被 cp 覆盖后立刻 commit_files，电脑上可能拿到上一版内容（读暂存目录有延迟）。所以本脚本最后等几秒；核对不一致就再写一次。
 set -e
 # .github 不同步：受保护目录写不进电脑（11-04 起自动排除，清单可以直接贴给 device_commit_files）
+# CLAUDE.md 也不同步（11-11）：电脑文件夹里那份只放指路桩。会话会把它和仓库里的 CLAUDE.md 都当指令读，两份并存 = 每轮多读一份且版本不一致（电脑上曾是 10.6KB 的旧版）
 cd "$(dirname "$0")/.."
 REF="${1:-HEAD~1}"; OUT=/mnt/user-data/outputs/sync; DEV="/Users/hanliu/Documents/南伴球"
 mkdir -p "$OUT"
@@ -20,8 +21,8 @@ fs=[x for x in sys.stdin.read().split('\n') if x]
 print(json.dumps([{'devicePath':'$DEV/'+x,'stagedPath':'$OUT/'+x} for x in fs],ensure_ascii=False))"
   sleep 3; exit 0
 fi
-git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' | while IFS= read -r -d '' f; do mkdir -p "$OUT/$(dirname "$f")"; cp "$f" "$OUT/$f"; done
-git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' | python3 -c "
+git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' ':!CLAUDE.md' | while IFS= read -r -d '' f; do mkdir -p "$OUT/$(dirname "$f")"; cp "$f" "$OUT/$f"; done
+git diff --name-only -z --diff-filter=AM "$REF" HEAD -- . ':!.github' ':!CLAUDE.md' | python3 -c "
 import sys,json
 fs=[x for x in sys.stdin.buffer.read().decode().split('\0') if x]
 print(json.dumps([{'devicePath':'$DEV/'+x,'stagedPath':'$OUT/'+x} for x in fs],ensure_ascii=False))"

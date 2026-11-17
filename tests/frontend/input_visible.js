@@ -16,6 +16,7 @@ const FLOWS = [
   ['新用户资料', `openNewProfile()`],
   ['位置 / 区域搜索', `openSuburbPicker()`],
   ['邮件提醒设置', `emSettings()`],
+  ['我的球拍 · 其他（拍子名称）', `RK.i=0;RK.mode='add';RK.brand='Wilson';RK.step='other';rkDraw()`],
   ['婉拒申请（说一句）', `SOFT_OPEN(softNoHTML(GAMES.find(g=>g.host_id===ME.id)?GAMES.find(g=>g.host_id===ME.id).id:GAMES[0].id,'han'))`],
 ];
 (async () => {
@@ -58,6 +59,18 @@ const FLOWS = [
   const dr2 = await pg.evaluate(() => { openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value="abc"></div>'); const i = document.getElementById('dd'); i.value = 'abcdef'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value="abc"></div>'); const keep = document.getElementById('dd').value; i.value = 'zzz'; openSheet('<div class="x1"><b>草稿测试</b><input id="dd" data-keep value=""></div>'); const cleared = document.getElementById('dd').value; openSheet('<div class="x1"><b>草稿测试</b><input id="de" value=""></div>'); document.getElementById('de').value='发出去了'; openSheet('<div class="x1"><b>草稿测试</b><input id="de" value=""></div>'); return { keep, cleared, plain: document.getElementById('de').value } });
   T('同屏重画：写了 data-keep 且没改默认值 → 保留；故意清空 → 不盖回；没写 data-keep（如聊天发送后清空）→ 一律不恢复', dr2.keep === 'abcdef' && dr2.cleared === '' && dr2.plain === '', dr2);
   T('检查到的输入框数量合理（防止检查失效）', total >= 14, total);
-  T('无脚本错误', errs.length === 0, errs); await b.close();
+  T('无脚本错误', errs.length === 0, errs);
+  // （标记和真实聊天一致：外面包 .cxsheet；之前少了这层，测不到 70vh 把输入栏挤出去）聊天弹层 + 键盘：可视区矮到 300 时，输入栏也必须在外壳可见区内（11-16 真机：消息区最小高度把输入栏挤出去）
+  for (const h of [470, 300]) {
+    const c3 = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }), p3 = await c3.newPage();
+    await p3.route('https://nanbanqiu.test/**', r => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) }));
+    await p3.route('https://cdnjs.cloudflare.com/**', r => r.abort()); await p3.route('https://basemaps.cartocdn.com/**', r => r.abort());
+    await p3.goto('https://nanbanqiu.test/'); await p3.waitForTimeout(700);
+    await p3.evaluate(() => { let m = ''; for (let i = 0; i < 14; i++)m += `<div class="cx-m"><p>消息 ${i}</p></div>`; openSheet(`<div class="cxsheet"><div class="cx-th"><div class="cx-hd"><div><b>标题</b><small>2 人</small></div></div><div class="cx-msgs">${m}</div><div class="cx-quick"><button>我到了</button></div><div class="cx-in"><input id="cxIn" placeholder="开始聊天"><button>发送</button></div><div class="cx-foot">说明</div></div></div>`, true) }); await p3.waitForTimeout(500);
+    await p3.setViewportSize({ width: 390, height: h }); await p3.focus('#cxIn'); await p3.waitForTimeout(800);
+    const r = await p3.evaluate(() => { const q = e => document.querySelector(e).getBoundingClientRect(), sh = document.querySelector('.sheet'); return { dev: Math.round(q('.device').bottom), inp: Math.round(q('.cx-in').bottom), top: Math.round(q('.cx-in').top), hd: Math.round(q('.cx-hd').top), over: sh.scrollHeight - sh.clientHeight, sc: sh.scrollTop } });
+    T(`聊天弹层 + 键盘（可视区 ${h}）：不需要滚动（标题和输入栏同时可见），输入栏在外壳内`, r.over <= 1 && r.sc === 0 && r.inp <= r.dev && r.hd > 0, r); await c3.close();
+  }
+  await b.close();
   console.log(`input_visible: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })();

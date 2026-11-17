@@ -8,24 +8,29 @@
 function pushState(){
   if(typeof ENV!=='undefined'&&ENV==='wechat')return'wechat';
   if(PUSH&&PUSH.enabled)return'on';
-  if(typeof ENV!=='undefined'&&ENV==='safari')return'need_install';   // 在浏览器标签里：iPhone 上只有「添加到主屏幕」后的 App 能收推送
+  if(typeof ENV!=='undefined'&&ENV==='safari')return typeof a2hsAdded==='function'&&a2hsAdded()?'installed':'need_install';   // installed：用户说已经添加到主屏幕（这里是浏览器标签，开不了推送，也不再提醒）   // 在浏览器标签里：iPhone 上只有「添加到主屏幕」后的 App 能收推送
   if(!('Notification'in window)||!('PushManager'in window))return'unsupported';
   if(Notification.permission==='denied')return'denied';
   return'ask'}
+// 新引导（开关 NBQ_A2HS2_ON）的统一说法：按钮和标题用「放到桌面」，只有引用 iOS 菜单原文时才写「添加到主屏幕」；开关关时一个字都不变
+const a2n=(o,n)=>(typeof NBQ_A2HS2_ON!=='undefined'&&NBQ_A2HS2_ON)?n:o;
+// iOS 16.4 以下的 iPhone 收不到网页推送：新引导（开关 NBQ_A2HS2_ON）的入口不承诺「马上提醒」。版本从 UA 读，读不到按支持处理
+function iosPushOk(ua){ua=ua===undefined?(navigator.userAgent||''):ua;const m=/(?:iPhone|iPad|iPod).*? OS (\d+)_(\d+)/.exec(ua);return!m||+m[1]>16||(+m[1]===16&&+m[2]>=4)}
 const PN_TXT={game:['有人申请，第一时间知道','不开着南伴球，也会提醒你'],invite:['对方回复，不错过','接受、回复或换时间，都会提醒你']};
 const PN_BTN={ask:['开启提醒','enablePush','i-bell'],need_install:['放到主屏幕','a2hs','i-plus'],denied:['怎么开','pushDenied','i-bell'],wechat:['怎么换','wxguide','i-share']};
 function pushNudgeHTML(why){
   if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME)return'';   // 电脑端不推送（11-03 你定的），只有手机端引导
-  const st=pushState();if(st==='on'||st==='unsupported')return'';
-  const t=PN_TXT[why]||PN_TXT.game,b=PN_BTN[st];
-  const sub=st==='need_install'?'放到主屏幕后，才能像 App 一样收提醒':st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
+  const st=pushState();if(st==='on'||st==='unsupported'||st==='installed'||(st==='need_install'&&typeof a2hsRecent==='function'&&a2hsRecent()))return'';
+  const t=(PN_TXT[why]||PN_TXT.game).slice(),b=PN_BTN[st].slice();if(st==='need_install')b[0]=a2n(b[0],'放到桌面');   // 文案开关在用到时才取：NBQ_A2HS2_ON 在后面的 pwa/0265 才定义，加载时取会撞上还没初始化的 const
+  const oldIos=st==='need_install'&&pnV2()&&!iosPushOk();if(oldIos)t[0]='所有球局，一眼看到';
+  const sub=st==='need_install'?a2n('放到主屏幕后，才能像 App 一样收提醒',oldIos?'放到桌面，附近的球局一眼看到':'放到桌面，有人回复你马上知道'):st==='denied'?'通知权限被关了，去系统设置里打开':st==='wechat'?'微信里收不到提醒，换到浏览器':t[1];
   return `<div class="pushcard pnudge" data-pn="${why}"><span class="pc-ic"><svg viewBox="0 0 100 100"><use href="#logo"/></svg><i>1</i></span><div><b>${t[0]}</b><p>${sub}</p></div><button class="pc-go" data-a="${b[1]}" data-pf="${why}"><svg><use href="#${b[2]}"/></svg>${b[0]}</button></div>`}
 // 记下是从哪个引导点进来的（push_enable 埋点带 from）
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-pf]');if(b)window.PUSH_FROM=b.dataset.pf},true);
 // 被拒绝后：不再弹系统窗口，指引去系统设置
 function openPushDenied(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   const steps=ios?['打开 iPhone 的「设置」','点「通知」，找到「南伴球」','打开「允许通知」']:['长按桌面上的南伴球图标，点「应用信息」','点「通知」','打开「允许通知」'];
-  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：</p></div>
+  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">${pnV2()?'关着通知，球友同意或回复你时，要打开南伴球才看得到。系统不允许网页再次弹窗，请在手机设置里打开：':'有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：'}</p></div>
   <ol class="pdsteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
   <button class="btn btn-p" data-a="pushRecheck">我已打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function pushRecheck(){
@@ -52,13 +57,91 @@ async function nbqPushHeal(){
  * iPhone 上，浏览器（Safari）和「添加到主屏幕」的 App 不共用登录和设置：在 Safari 里登录再添加到主屏幕，要重新登录一次。
  * 所以「要登录」的那一刻，先建议添加到主屏幕、从桌面图标打开后再登录——只登一次，也才能收到提醒。
  * 不强迫：可以选「先在浏览器里用」，同一次打开里不再问。只对真实环境的 iPhone Safari 生效（演示、安卓、已是主屏幕 App 的都不变）。 */
+/* ===================== 登录交接：Safari 登录 → 添加到主屏幕 → 桌面图标不用再登录（11-14） =====================
+ * iPhone 把安装配置（manifest）里的启动网址记进桌面图标。所以在 iPhone 的浏览器标签里登录后，向服务器要一个一次性交接码，
+ * 把页面的安装配置换成带码的那份（/api/manifest?h=码）；桌面图标第一次打开时带着码，登录模块拿去换登录（0490 sbaHandoff）。
+ * 码缓存在本机（nbq_ho），快过期才重新要（每人每天 5 个）；退出登录时清掉并把安装配置换回原样。服务器没启用（404）就什么都不做。 */
+const hoHref=()=>{const l=document.querySelector('link[rel="manifest"]');return l&&l.getAttribute('href')||''};
+const HO_AT_LOAD=hoHref();   // 页面打开那一刻安装配置指向哪一份：iOS 读到的多半就是它
+let HO_CHECKED=false;   // 缓存的码这次打开已向服务器核对过
+let HO_BUSY=false,HO_READY=/^\/api\/manifest\?h=/.test(hoHref()),HO_OFF=false;   // HO_READY：页面头部可能已经同步换好了（#299，本机缓存着没过期的码）   // HO_OFF：服务器没启用（要码回 404），这次打开不再试
+function hoLink(code){let l=document.querySelector('link[rel="manifest"]');if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l)}
+  l.setAttribute('href',code?'/api/manifest?h='+encodeURIComponent(code):'/manifest.webmanifest');HO_READY=!!code}
+// 退出登录：本机的码清掉、安装配置换回原样，并让服务器把这个人还没用掉的码作废（之前写进桌面图标的也跟着失效）。要在清掉登录之前调（请求带的是当前登录）
+function hoClear(){HO_CLEARED=true;let had=false;try{had=localStorage.getItem('nbq_ho')!==null;localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);
+  if(had&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&ME)NBQ_NET.post('/api/session/handoff/revoke').catch(()=>{})}
+let HO_CLEARED=false;   // 这个页面里退出过登录：加载时带的码已经撤了，之后再登录不算「码作废换新」，不走 hoStaleReload
+let HO_P=null;   // 同一时刻只跑一份（启动时登录恢复和读入各触发一次，不能核对两次、要两个码）
+function hoPrep(){return HO_P||(HO_P=hoPrep0().finally(()=>{HO_P=null}))}
+async function hoPrep0(){
+  if(typeof NBQ_NET==='undefined'||!NBQ_NET||!ME||typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||typeof ENV==='undefined'||ENV!=='safari')return false;
+  if(typeof a2hsKind!=='function'||!/^ios_/.test(a2hsKind()))return false;   // 安卓的浏览器和桌面图标本来就共用登录
+  const me=ME.id;let c=null;try{c=JSON.parse(localStorage.getItem('nbq_ho')||'null')}catch(_){}
+  let good=!!(c&&c.uid===me&&typeof c.code==='string'&&c.exp-Date.now()>3600e3);
+  // 缓存的码每次打开页面向服务器核对一次：桌面图标把它用掉（或别处退出把它作废）之后，这里缓存的还是同一个码，再添加一次图标就登录不上。没连上就先照用
+  if(good&&!HO_CHECKED){const k=await NBQ_NET.post('/api/session/handoff/check',{code:c.code});if(!ME||ME.id!==me)return false;
+    if(k.ok){HO_CHECKED=true;if(k.data.ok!==true)good=false}}
+  if(!good){
+    try{localStorage.removeItem('nbq_ho')}catch(_){}if(HO_READY)hoLink(null);   // 作废的码先撤下来：换不到新码时也不能把坏的留在安装配置里
+    if(HO_BUSY||HO_OFF)return false;HO_BUSY=true;let r;try{r=await NBQ_NET.post('/api/session/handoff')}finally{HO_BUSY=false}
+    if(r.status===404)HO_OFF=true;
+    if(!r.ok||!r.data.code||!ME||ME.id!==me)return false;
+    c={code:r.data.code,exp:Date.parse(r.data.expires_at)||Date.now()+864e5,uid:me};HO_CHECKED=true;try{localStorage.setItem('nbq_ho',JSON.stringify(c))}catch(_){}}
+  // 先确认带码的安装配置真的取得到、启动网址里确实带着码，再换；取不到（接口 404 / 抖动）就保持原样——换成坏的会把「添加到主屏幕」弄坏
+  if(hoHref()==='/api/manifest?h='+encodeURIComponent(c.code)){HO_READY=true;return true}   // 页面一打开就同步写好了（或上次已换好）：不用再探测
+  try{const r=await fetch('/api/manifest?h='+encodeURIComponent(c.code),{cache:'no-store'});if(!r.ok)return false;const m=await r.json();if(!m||typeof m.start_url!=='string'||m.start_url.indexOf('h='+c.code)<0)return false}catch(_){return false}
+  if(!ME||ME.id!==me)return false;
+  hoLink(c.code);return true}
+// 用户打开「添加到主屏幕」步骤页的那一刻最要紧：iOS 用的是页面打开时读到的安装配置（HO_AT_LOAD）。它如果不是现在有效的这一份
+//   （刚登录还没缓存过码、或缓存的码刚被核对出已作废换了新的），就刷新一次——刷新后页面头部会同步写好——并自动回到步骤页。同一个标签页只刷新一次，不会循环
+function hoGuide(){hoPrep().then(ok=>{if(!ok||!HO_READY)return;
+  if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return}
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return;sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_a2hs_go','1')}catch(_){return}
+  location.reload()}).catch(()=>{})}
+// 刚登录完、还停在验证码页（用户没动手）：iPhone Safari 第一次登录，页面打开时的安装配置不带码，iOS 之后不会再读——所以趁这一下就刷新一次，
+//   让用户不用「关标签页重开」也能直接添加到主屏幕。藏在「登录中」本来就有的等待里：要码最多等 1.5 秒（超时 / 要不到就不刷新，退回原来的行为）；
+//   落点和登录态不变，刷新后补一句「欢迎回来」并回到刚才的标签页（hoBack）。接着要做别的事（AUTH.next）的登录不刷新，那条路由 hoGuide 兜底。同一个标签页只刷新一次
+async function hoLoginReload(msg){
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false}catch(_){return false}
+  const ok=await Promise.race([hoPrep(),new Promise(r=>setTimeout(()=>r(false),1500))]).catch(()=>false);
+  if(!ok||!HO_READY||hoHref()===HO_AT_LOAD)return false;
+  try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({at:Date.now(),tab:typeof UI!=='undefined'&&UI.tab||'',msg:msg||'欢迎回来'}))}catch(_){return false}
+  location.reload();return true}
+// 打开页面时本机缓存的码已被核对出作废（桌面图标把它用掉了、或别处退出作废）→ 已换了新码，但 iOS 读的是页面打开那一刻写进安装配置的旧码：
+//   这时直接用 Safari 自带分享添加，图标里是旧码，打开必然「没能自动登录」（11-15 真机）。所以刚打开就静默刷新一次，让加载时读到的就是新码。只在「加载时带的是码、现在换了」时刷新；同一个标签页只刷新一次
+function hoStaleReload(){
+  if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return false}   // 刷新后必然相等：清掉「已刷新」标记，这个标签页之后再有变化还能再刷（不会循环：刷新后加载时带的就是现在这份）
+  if(!/^\/api\/manifest\?h=/.test(HO_AT_LOAD)||!HO_READY||HO_CLEARED)return false;
+  if(typeof AUTH!=='undefined'&&AUTH&&AUTH.next)return false;   // 登录后还有事要接着做：刷新会丢
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
+  if(document.querySelector('.cxsheet,.cx-web .cx-r'))return false;   // 正在看聊天（#304）
+  {const e=document.activeElement;if(e&&(/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)||e.isContentEditable))return false}   // 输入框有焦点：不打断打字（#304）
+  try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false;sessionStorage.setItem('nbq_ho_rl','1')}catch(_){return false}
+  location.reload();return true}
+function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
+  if(!b||!(Date.now()-b.at<6e4))return;   // 刷新后没能进到已登录（新号码 / 出错）残留的标记：过一分钟就不再补「欢迎回来」（#304）
+  if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast(b.msg||'欢迎回来')}
+function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
   openAuth=function(next,why){
     let seen=false;try{seen=sessionStorage.getItem('nbq_a2hs_first')==='1'}catch(_){}
-    if(!seen&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
+    if(!seen&&!(typeof a2hsAdded==='function'&&a2hsAdded())&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
       PN_AUTH={next,why};
+      if(typeof a2hsV2==='function'&&a2hsV2()){openA2HS(true);return}   // 新引导的「为什么」屏，下面留「先在浏览器里用」（authAnyway）；hoGuide 和 a2hs_open 埋点都在 openA2HS 里
       openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
       <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
     return _oa.call(this,next,why)}}}
+// 主屏幕 App 里登录完（没有接着要做的事）：一步开通知。只问一次；系统弹窗只在用户点了「开启通知」之后出现
+function pnAfterLogin(){if(typeof AN_BUILD==='undefined'||AN_BUILD!=='pwa'||!ME||typeof ENV==='undefined'||ENV!=='pwa'||pushState()!=='ask')return;
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI.detail))return;   // 正在看别的：不打断
+  try{if(localStorage.getItem('nbq_push_asked')==='1')return;localStorage.setItem('nbq_push_asked','1')}catch(_){return}
+  window.PUSH_FROM='login';
+  if(pnV2()){openSheet(`<div class="a2v"><h2 class="a2v-t sm">有人回复，马上知道</h2><p class="a2v-s">不用一直开着南伴球，球友的回复会像这样出现在手机上。</p>${pnSampleHTML()}<p class="a2v-s tight">想关随时能在手机设置里关。</p></div>
+  <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`);return}
+  openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-bell"/></svg></div><div class="sh-t">开启通知</div><p class="sh-s">有人申请、同意或回复你时，第一时间告诉你。</p></div>
+  <button class="btn btn-p" data-a="enablePush">开启通知</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">以后再说</button>`)}
+// 新风格（开关 NBQ_A2HS2_ON，脚本在 pwa/0265；调用时才读，不在加载期碰后面才定义的 const）
+function pnV2(){try{return typeof NBQ_A2HS2_ON!=='undefined'&&!!NBQ_A2HS2_ON}catch(_){return false}}
+function pnSampleHTML(){return `<div class="a2v-card pn-sample"><img src="/icons/icon-180.png" alt=""><div><b>南伴球</b><span>Sam 同意了一起打球，周六 9:00 见</span></div></div>`}
 function authAnyway(){try{sessionStorage.setItem('nbq_a2hs_first','1')}catch(_){}const p=PN_AUTH||{};PN_AUTH=null;openAuth(p.next,p.why)}

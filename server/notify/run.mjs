@@ -12,7 +12,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 export const errWhy = e => !e ? 'unknown' : /^[0-9A-Z]{5}$/.test(String(e.code || '')) ? `${e.code} ${String(e.message || '').slice(0, 160)}` : (e.code || e.name || 'error');
 
 export async function runNotify(env, { connect = connectFromEnv(env), fetch: f = fetch, passes = 4, gapMs = 15000, log = console, now = () => Date.now() } = {}) {
-  const out = { passes: 0, delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0, sent: 0, skipped: 0, failed: 0 };
+  const out = { passes: 0, delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0, errors: 0, sent: 0, skipped: 0, failed: 0 };
   if (!connect) return { ...out, skipped_all: 'db_not_configured' };
   const pool = { connect: async () => { const c = await connect(); c.release = () => c.end().catch(() => { }); return c } };
   let push = null, mail = null;
@@ -21,7 +21,7 @@ export async function runNotify(env, { connect = connectFromEnv(env), fetch: f =
   if (!push && !mail) return { ...out, skipped_all: 'push_and_mail_not_configured' };
   if (push) for (let i = 0; i < passes; i++) {
     if (i) await sleep(gapMs);
-    try { const s = await dispatch(pool, { push, now: now(), version: env.NBQ_VERSION }); out.passes++; for (const k of ['delivered', 'deferred', 'stale', 'merged', 'emailQueued']) out[k] += s[k] || 0 }
+    try { const s = await dispatch(pool, { push, now: now(), version: env.NBQ_VERSION }); out.passes++; for (const k of ['delivered', 'deferred', 'stale', 'merged', 'emailQueued', 'errors']) out[k] += s[k] || 0 }
     catch (e) { log.error?.('dispatch_error', errWhy(e)); break }          // 下一分钟再来；细节不外露
   }
   if (mail) try { const s = await flushEmail(pool, { mail, now: now(), baseUrl: env.BASE_URL || 'https://nanbanqiu.app' }); for (const k of ['sent', 'skipped', 'failed']) out[k] += s[k] || 0 }

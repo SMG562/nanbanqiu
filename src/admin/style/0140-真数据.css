@@ -1,0 +1,3 @@
+/* 真数据页（#27 第 4 步起）共用的小样式；类名带用途，不和演示页的类混用 */
+.lnk{color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;text-align:left}
+.lnk:hover{text-decoration-color:currentColor}

@@ -1,0 +1,20 @@
+{
+ "说明": "11-06 migration_audit 建立前已合并、已在库里执行过的迁移：不查内容（当时没有这条规矩），只靠「已合并的迁移不许改」保护。新迁移一律不要加进这个列表——要放行某条语句，用 -- audit-allow: <原因>。改这个文件要所有者审（CODEOWNERS）。",
+ "files": [
+  "20261030_register_and_wechat.sql",
+  "20261102_apply_rate_loosen.sql",
+  "20261102_game_rate_loosen.sql",
+  "20261102_no_night_quiet.sql",
+  "20261103_avatar_coral_to_paper.sql",
+  "20261103_avatar_default_paper.sql",
+  "20261103_game_rate_calendar_day.sql",
+  "20261103_mail_default_off.sql",
+  "20261103_my_push_diag.sql",
+  "20261103_schema_migrations.sql",
+  "20261104_badges_server.sql",
+  "20261104_chat_notify.sql",
+  "20261104_late_join.sql",
+  "20261105_admin_api.sql",
+  "20261106_admin_venue_geo.sql"
+ ]
+}

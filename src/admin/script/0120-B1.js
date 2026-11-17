@@ -16,11 +16,15 @@ const B1_EVENTS=[   // 与 events_spec.md v2 逐条一致（名称、分类、�
  ["pwa_installed", "安装", "安装完成", "os", "client"],
  ["pwa_first_launch", "安装", "第一次从主屏幕打开", "os", "client"],
  ["a2hs_open", "安装", "打开「添加到主屏幕」引导", "env", "client"],
+ ["a2hs_go", "安装", "引导第一屏点「放到桌面」", "", "client"],
+ ["a2hs_back", "安装", "从添加步骤回到页面，看到「放好了吗」", "", "client"],
  ["analytics_off", "隐私", "关闭使用数据（发完这一条后停止）", "", "client"],
  ["analytics_on", "隐私", "重新打开使用数据", "", "client"],
  ["login_open", "登录", "打开登录（含被动触发）", "trigger(apply/create/invite/chat/manual/sideline/...)", "client"],
- ["login_send_code", "登录", "发送验证码（号码格式通过才发）", "cc", "client"],
- ["login_verify", "登录", "提交验证码", "ok", "client"],
+ ["login_send_code", "登录", "发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记）", "ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送)", "client"],
+ ["login_resend", "登录", "重发验证码（第 2 次及以后的发送）", "n", "client"],
+ ["login_verify", "登录", "提交验证码的结果", "ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数)", "client"],
+ ["login_abandon", "登录", "关闭登录窗口时还停在手机号页 / 验证码页", "step(phone/otp), n", "client"],
  ["login_success", "登录", "登录成功", "is_new, trigger, entry", "client"],
  ["signup_complete", "登录", "新用户填完资料", "ntrp, clubs_n, gender_given, avatar_kind", "client"],
  ["logout", "登录", "退出登录（之后换新 anon）", "", "client"],
@@ -82,6 +86,12 @@ const B1_EVENTS=[   // 与 events_spec.md v2 逐条一致（名称、分类、�
  ["invite_counter_send", "邀约", "提议新时间", "invite_id", "client"],
  ["invite_withdraw", "邀约", "撤回邀约 / 撤回新时间", "invite_id, what(invite/counter)", "client"],
  ["invite_setting", "邀约", "「谁可以约我」", "value(all/played/none)", "client"],
+ ["buddy_scan_view", "球友", "扫码落地页看到「加球友」", "target_uid, logged_in, source(qr/link/other)", "client"],
+ ["buddy_request_send", "球友", "加球友申请发出（含已是球友 / 失败）", "target_uid, result(pending/buddies/fail), err, source(qr/link/other)", "client"],
+ ["buddy_request_open", "球友", "打开加球友确认页", "request_id, via(push/notif/list)", "client"],
+ ["buddy_respond", "球友", "确认 / 忽略加球友申请", "request_id, action(accept/ignore), wait_min", "client"],
+ ["buddy_remove", "球友", "删除球友", "target_uid, played_together", "client"],
+ ["buddy_list_open", "球友", "打开我的球友", "n_buddies, n_played", "client"],
  ["recap_open", "打完之后", "打开赛后卡片", "game_id, via(notif/detail)", "client"],
  ["feel_set", "打完之后", "这局感受", "game_id, value(hard/ok/easy)", "client"],
  ["impression_give", "打完之后", "留个好印象（含撤回）", "target_uid, tag, on, bulk", "client"],
@@ -112,6 +122,13 @@ const B1_EVENTS=[   // 与 events_spec.md v2 逐条一致（名称、分类、�
  ["gender_set", "我的", "保存性别（不记录值）", "first, changed", "client"],
  ["club_add_open", "我的", "打开添加 Club", "", "client"],
  ["home_clubs_save", "我的", "保存我的 Club", "n", "client"],
+ ["utr_open", "我的", "打开我的 UTR 弹层（长按看时间那次不算）", "mode(off/self), linked", "client"],
+ ["utr_invalid", "我的", "我的 UTR 当场校验没通过（不发请求、不记填的内容）", "reason(empty/format/range/link)", "client"],
+ ["utr_save", "我的", "我的 UTR 保存成功（以服务器返回为准，失败不记；不记数值和主页编号）", "mode(off/self), linked, change(up/down/same)", "client"],
+ ["racket_picker_open", "我的", "打开选拍弹层（添一把 / 换一把；从系列返回不算）", "mode(add/swap), slot(1-3)", "client"],
+ ["racket_brand_pick", "我的", "选拍时点了品牌（品牌名来自产品库或兜底列表；点「其他品牌」记 other；不记手写文字）", "brand", "client"],
+ ["racket_save", "我的", "球拍保存成功（以服务器返回为准，失败不记）；source：添 / 换时看是点选（catalog）还是手写（other），设为主力 / 移除时看那把有没有归到产品库", "action(add/swap/main/remove), source(catalog/other), n_after", "client"],
+ ["racket_invalid", "我的", "手写拍子名当场没通过校验（不发请求、不记文字）", "reason(empty/long/link/at/digits/dup)", "client"],
  ["community_open", "我的", "打开微信约球群", "", "client"],
  ["series_end", "我的", "停止每周发布", "game_id", "client"],
  ["follow_open", "打完之后", "打开「TA 发了新球局」", "game_id", "client"],
@@ -426,7 +443,7 @@ function drawNav(){b1sync();const rv=S.pending+S.reports.filter(r=>r.status==='o
 /* ---------- 渲染 ---------- */
 function b1wrap(root){root.querySelectorAll('table').forEach(t=>{const p=t.parentElement;if(!p||p.classList.contains('tw')||p.style.overflowX==='auto')return;const w=document.createElement('div');w.className='tw';p.insertBefore(w,t);w.appendChild(t)})}
 function render(){b1sync();drawNav();$('#pt').textContent=TITLES[S.page];
-  const P={regions:pageRegions7,games:pageGames,env:pageEnv,users:pageUsers3,venues:pageVenues8,platform:pagePlatform,traffic:pageTraffic,safety:pageSafety6,overview:pageOverview,cards:pageCards6,growth:pageGrowth,review:pageReview,events:pageEvents,admin:pageAdmin,cities:pageCities,life:pageLife,after:pageAfter,grow:pageGrow,sb:pageSb,stopic:pageSbTopic,ssched:pageSbSched,sguide:pageSbGuide}[S.page]||pageOverview;
+  const P={regions:pageRegions7,games:pageGames,env:pageEnv,users:pageUsers3,venues:pageVenues8,platform:pagePlatform,traffic:pageTraffic,safety:pageSafety6,overview:pageOverview,cards:pageCards6,growth:pageGrowth,review:pageReview,events:pageEvents,admin:pageAdmin,cities:pageCities,switches:()=>'<p class="cap" style="padding:24px">运行时开关只在真数据模式（用管理员账号登录后台）里可用，演示模式不显示。</p>',life:pageLife,after:pageAfter,grow:pageGrow,sb:pageSb,stopic:pageSbTopic,ssched:pageSbSched,sguide:pageSbGuide}[S.page]||pageOverview;
   SEED=20261002+S.range*7+(S.plat==='pwa'?3:S.plat==='web'?5:0);$('#page').innerHTML=P();b1wrap($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));if(typeof cardSrcDecorate==='function')cardSrcDecorate($('#page'));
   const one=S.range===1,days=one?HIST.slice(-14):inRange(),lab=(x,i,a)=>`${md(x.d)} 周${WD[x.d.getDay()]}${one&&i===a.length-1?'（今天，截至现在）':''}`,m=METRICS.find(x=>x[0]===S.metric)||METRICS[0];
   if($('#trend'))lineChart($('#trend'),days.map((x,i,a)=>[md(x.d),x[m[0]]*PFm(m[0]),lab(x,i,a)]),m[1],v=>fmt(v),one);

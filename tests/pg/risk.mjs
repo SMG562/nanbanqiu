@@ -1,4 +1,4 @@
-// 第五批 5a-2：滥用识别（schema ⑮）。18 条风险规则逐条用真实表的数据触发、差一点不触发；风险分 / 提醒的重算、处理后不重复打扰、
+// 第五批 5a-2：滥用识别（schema ⑮）。19 条风险规则逐条用真实表的数据触发、差一点不触发；风险分 / 提醒的重算、处理后不重复打扰、
 // 观察期满回到待处理；新信号的记录（留联系方式、撤回、被拒操作）；昵称规则（数据库与前台 NICK_BAD 同一套）；后台规则表与数据库一致；权限与清理。
 import { createRequire } from 'module'; import path from 'path'; import fs from 'fs'; import vm from 'vm'; import { fileURLToPath } from 'url';
 import { startCluster, loadSchema } from './cluster.mjs';
@@ -36,11 +36,11 @@ try {
 
   // ---------- 规则表：后台与数据库逐条相同 ----------
   const rules = (await q(`select code,name,weight,threshold::float t,window_days from risk_rules where enabled order by code`)).rows;
-  T('启用的规则 18 条', rules.length === 18, rules.map(r => r.code));
+  T('启用的规则 19 条', rules.length === 19, rules.map(r => r.code));
   T('后台 RISK_RULES 与数据库逐条相同（代码、名称、权重、阈值、时间窗）', Array.isArray(ADMIN_RULES) && JSON.stringify(ADMIN_RULES.map(r => [r[0], r[1], r[2], r[3], r[4]]).sort()) === JSON.stringify(rules.map(r => [r.code, r.name, r.weight, r.t, r.window_days]).sort()),
     { 后台: ADMIN_RULES?.map(r => r.join('|')), 数据库: rules.map(r => [r.code, r.name, r.weight, r.t, r.window_days].join('|')) });
 
-  // ---------- 18 条规则逐条：够阈值触发，差一点不触发 ----------
+  // ---------- 19 条规则逐条：够阈值触发，差一点不触发 ----------
   const H = await user();
   // 确认爽约 2 次
   const ns = await user(), ns1 = await user();
@@ -84,12 +84,14 @@ try {
   const f1 = await user('2 hours', { ip: '10.0.0.9' }), f2 = await user('3 hours', { ip: '10.0.0.9' });
   // 新号留联系方式给 2 个人；同一个人两次只算 1
   const cl = await user('2 days'), cl1 = await user('2 days'); await ev(cl, 'contact_lure', 2); await ev(cl1, 'contact_lure', 2, '1 hour', 'same');
+  // 加球友被 3 个不同的人忽略（7 天内）；同一个人忽略 3 次只算 1；8 天前的不算（#110）
+  const bi = await user(), bi1 = await user(), bi2 = await user(); await ev(bi, 'buddy_ignored', 3); await ev(bi1, 'buddy_ignored', 3, '1 hour', 'same'); await ev(bi2, 'buddy_ignored', 3, '8 days');
   const quiet = await user();
 
   const want = [['确认爽约', ns, 'no_show', ns1], ['24 小时内退出', ll, 'late_leave', ll1], ['发起人临时取消', hc, 'host_late_cancel', hc1], ['被不同的人举报', rp, 'reported', rp1],
     ['违反球友约定', pv, 'pact_violation', pv1], ['被多人屏蔽', bb, 'blocked_by', bb1], ['被多人标少遇到', lm, 'less_marked', null], ['邀约被同一人婉拒', iv, 'invite_declined', iv1],
     ['被婉拒后仍高频申请', ds, 'declined_streak', null], ['试女生局', wp, 'women_probe', null], ['男改女', gf, 'gender_flip', gf1], ['新账号私信很多人', db, 'dm_burst', db1],
-    ['发链接', lk, 'link_spam', null], ['同一设备', d2, 'same_device', null], ['同一网络', i1, 'same_ip', f1], ['留联系方式', cl, 'contact_lure', cl1], ['反复撤回', ac, 'apply_churn', null], ['频率限制', rh, 'rate_hit', rh1]];
+    ['发链接', lk, 'link_spam', null], ['同一设备', d2, 'same_device', null], ['同一网络', i1, 'same_ip', f1], ['留联系方式', cl, 'contact_lure', cl1], ['反复撤回', ac, 'apply_churn', null], ['频率限制', rh, 'rate_hit', rh1], ['加球友被多人忽略', bi, 'buddy_ignored', bi1], ['加球友被忽略（8 天前）', bi, 'buddy_ignored', bi2]];
   for (const [n, u, code, ctrl] of want) {
     const got = await codes(u);
     T(`规则 ${code}（${n}）：够阈值触发`, got.includes(code), got);
@@ -159,7 +161,7 @@ try {
   r = await call(P, `update users set nickname='客服小王' where id=$1`, [P]); T('前台改成不允许的昵称 → nickname_not_allowed（detail = 原因）', !r.ok && r.err === 'nickname_not_allowed' && r.detail === 'impersonate', r);
   r = await call(P, `update users set nickname='小王' where id=$1`, [P]); T('正常昵称可以改', r.ok, r);
   r = await q(`update users set nickname='南伴球客服' where id=$1`, [P]).then(() => ({ ok: true }), e => ({ ok: false, err: e.message })); T('后台改不受限制', r.ok, r);
-  r = await call(P, `update users set utr=6 where id=$1`, [P]); T('昵称没变时改别的资料不检查', r.ok, r);
+  r = await call(P, `update users set card_theme='clay' where id=$1`, [P]); T('昵称没变时改别的资料不检查', r.ok, r);
 
   // ---------- 权限 ----------
   r = await call(N, `select count(*) from risk_events`); T('前台看不到风险信号', !r.ok && /permission denied/.test(r.err), r);

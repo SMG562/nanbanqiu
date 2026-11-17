@@ -6,7 +6,7 @@ import { runNotify } from '../server/notify/run.mjs';
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runNotify(env).then(s => { if (s.delivered + s.sent + s.failed + s.stale) console.log('notify', JSON.stringify(s)) }, e => console.error('notify_error', e && (e.code || e.name))));
+    ctx.waitUntil(runNotify(env).then(s => { if (s.delivered + s.sent + s.failed + s.stale + (s.errors || 0)) console.log('notify', JSON.stringify(s)) }, e => console.error('notify_error', e && (e.code || e.name))));
   },
   async fetch() { return new Response('not found', { status: 404 }) },     // 不对外提供任何页面
 };

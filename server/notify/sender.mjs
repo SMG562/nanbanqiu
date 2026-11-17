@@ -7,6 +7,8 @@
 import { priority, quietUntil, staleReason, pickChannels, emailPlan, pushText, emailSubject, EMAIL_RANK, EMAIL_MERGE_MS, EMAIL_DAILY_CAP, MERGE_REQ_MS, localDay } from './rules.mjs';
 
 const ts = t => new Date(t).toISOString();
+// 暂时性的数据库错误（重试就会好）：40001 序列化冲突 · 40P01 死锁 · 55P03 等锁超时 · 57014 语句超时 / 被取消 · 57P0x 服务器关闭 · 08xxx 连接 · 53xxx 资源不足
+const TRANSIENT = /^(40001|40P01|55P03|57014|57P\d\d|08\w{3}|53\w{3})$/;
 // 应用页地址：现在 nanbanqiu.app 由预览站项目提供，根网址是入口页，应用在 /pwa.html、/web.html；以后根网址直接是应用时改这里
 const PUSH_URL = { mobile: '/melbourne/', desktop: '/melbourne/' };   // 统一网址（11-04）；旧推送里的 /pwa.html 由中间件跳转
 
@@ -64,22 +66,24 @@ async function queueEmail(db, n, ctx, plan, now) {
 
 // 处理到期的通知
 export async function dispatch(pool, { push, now = Date.now(), limit = 200, version = null } = {}) {
-  const db = await pool.connect(); const stats = { delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0 };
+  const db = await pool.connect(); const stats = { delivered: 0, deferred: 0, stale: 0, merged: 0, emailQueued: 0, errors: 0 };
   try {
     await db.query('begin'); await db.query('set local role nbq_service');
     const due = (await db.query(`select * from notifications where pushed_at is null and coalesce(send_after, created_at) <= $1 order by created_at, id limit $2 for update skip locked`, [ts(now), limit])).rows;
     const digest = new Map();   // 8 点同时到期的不紧急提醒：同一人合成一条
     const done = (n, at) => db.query(`update notifications set pushed_at=$2 where id=$1`, [n.id, ts(at)]);   // 这条处理完了（不管去了哪）
-    for (const n of due) {
+    // 一条一条处理，各自包在保存点里：某一条出错（数据异常之类）只跳过它自己——记 none / error、算处理完——
+    //   不让它把整批回滚：整批回滚的话，排在前面已经推出去的下一分钟会重推，排在后面的永远发不出去（11-13）。连接本身坏了时回滚保存点会再抛，整批下一轮重来
+    const handle = async n => {
       const ctx = await loadCtx(db, n);
       // ⑤ 夜间顺延
       if (priority(n, ctx.game, now) > 0) {
         const q = quietUntil(now, ctx.quiet);
-        if (q > now) { await db.query(`update notifications set send_after=$2, deferred=true where id=$1`, [n.id, ts(q)]); stats.deferred++; continue }
+        if (q > now) { await db.query(`update notifications set send_after=$2, deferred=true where id=$1`, [n.id, ts(q)]); stats.deferred++; return }
       }
       // ⑥ 过时的不提醒（收件箱照常保留）
       const st = staleReason(n, ctx, now);
-      if (st) { await deliver(db, n.id, 'none', 'stale:' + st, null, now); await done(n, now); stats.stale++; continue }
+      if (st) { await deliver(db, n.id, 'none', 'stale:' + st, null, now); await done(n, now); stats.stale++; return }
       // ⑦ 同一局的申请 10 分钟内只推一次
       if (n.kind === 'request') {
         const recent = (await db.query(`select 1 from notifications x join notification_deliveries d on d.notification_id=x.id
@@ -87,11 +91,11 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200, vers
         if (recent) {   // 不再推，但并进还没发出的那封申请邮件（「又有 2 位球友申请…」）
           await deliver(db, n.id, 'none', 'merged', null, now); await done(n, now); stats.merged++;
           await db.query(`update email_outbox set notification_ids = array_append(notification_ids, $2::bigint) where merge_key=$1 and status='queued'`, [`${n.user_id}:${n.game_id}:request`, n.id]);
-          continue
+          return
         }
       }
       // ⑤ 8 点合成一条：同一人这一轮里第二条起记为合并
-      if (n.deferred) { const k = n.user_id; if (digest.has(k)) { digest.get(k).push(n); await deliver(db, n.id, 'none', 'merged', null, now); await done(n, now); stats.merged++; continue } digest.set(k, [n]) }
+      if (n.deferred) { const k = n.user_id; if (digest.has(k)) { digest.get(k).push(n); await deliver(db, n.id, 'none', 'merged', null, now); await done(n, now); stats.merged++; return } digest.set(k, [n]) }
       // ②③④ 选设备并发出；推送失败按顺序换下一个
       let chans = pickChannels(n, ctx.devices, now), first = null;
       const payload = pushText(n, ctx);
@@ -106,6 +110,16 @@ export async function dispatch(pool, { push, now = Date.now(), limit = 200, vers
       else if (!first) await deliver(db, n.id, 'none', 'no_push', null, now);
       await done(n, now);
       stats.delivered++;
+        };
+    for (const n of due) {
+      await db.query('savepoint nbq_n');
+      try { await handle(n); await db.query('release savepoint nbq_n') }
+      catch (e) {
+        await db.query('rollback to savepoint nbq_n');
+        if (TRANSIENT.test(String(e && e.code || ''))) throw e;   // 死锁 / 序列化冲突 / 超时 / 连接类：不是这条通知的问题，整批回滚、下一轮重来（吞掉的话这条就永远不推了）
+        console.error('notify_row_error', String(n.id), n.kind, String(e && (e.code || e.name) || 'error'));   // 只记编号、种类、错误代码
+        await deliver(db, n.id, 'none', 'error', null, now); await done(n, now); stats.errors++;
+      }
     }
     await db.query(`insert into ops_heartbeats(name, at) values ('sender', $1) on conflict (name) do update set at = excluded.at`, [ts(now)]);   // 5d：发送程序心跳
     if (version) await db.query(`insert into ops_heartbeats(name, at) values ($1, $2) on conflict (name) do update set at = excluded.at`, ['sender@' + String(version).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40), ts(now)]);   // 线上跑的是哪一版代码（tools/worker_version.mjs 的指纹），/api/version 读它

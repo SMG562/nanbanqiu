@@ -9,10 +9,14 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.settle(800);
   await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho('jason', true) }); await pg.settle(300);
+  // 冻结会自己冒动画的两个定时器（#344 / #245：「没有挂着没结束的动画」偶发红，main 上同样，重跑一红一绿）。取证（失败时列出在跑的动画）：
+  // 在跑的是输入框提示语轮换（SPAN.hint，每隔几秒换一条、348ms 的动画）；实时流每 5.6 秒冒一条新动态也会撞上，两个一起冻。
+  // 光设 SBV.every=1e9 只影响下一次排期，已排好的那次还会响：实时流读 el.matches(':hover')，让它恒为真就整个跳过；提示轮换读 SBV.hintAt（「刚换过不久就不换」），让它恒在未来。
+  await pg.evaluate(() => { const m = Element.prototype.matches; Element.prototype.matches = function (q) { return q === ':hover' ? true : m.call(this, q) } });   // 场边实例点「场边」tab 才创建，SBV 此刻还是 null，先只补这一半
   const E = (f, a) => pg.evaluate(f, a), W = ms => pg.settle(ms);
   const R = s => E(s => { const r = document.querySelector('#sbHost').shadowRoot; return r.querySelector(s) }, s);
   const q = f => E(new Function(`const r=document.querySelector('#sbHost').shadowRoot;return (${f})(r)`));
-  await pg.click('#tabbar [data-tab="side"]'); await W(500);
+  await pg.click('#tabbar [data-tab="side"]'); await pg.evaluate(() => { SBV.every = 1e9; Object.defineProperty(SBV, 'hintAt', { get: () => Date.now() + 1e9, set() { } }) }); await W(500);
 
   const st = () => q(`r=>{const el=r.querySelector('.compose'),b=r.querySelector('.bar .box').getBoundingClientRect(),i=r.querySelector('[data-in]'),a=r.activeElement;
     return {composeOn:el.getBoundingClientRect().top<innerHeight-60,focusIn:a===i||(!!a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)),qing:!!r.querySelector('.qing')||r.querySelector('.view.home').parentElement.classList.contains('qing'),
@@ -28,13 +32,31 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   T('点击层盖住整个输入框；真输入框是点不到的 1px 幽灵；灰着的发送键不吃点击', cover.sameBox && cover.ghostNoPointer && cover.ghostTiny && cover.sendNoPointer, cover);
 
   const pos = await q(`r=>{const f=x=>{const b=r.querySelector(x).getBoundingClientRect();return [b.left,b.top,b.width,b.height].map(v=>Math.round(v*10)/10)};return {box:f('.bar .box'),where:f('[data-place]'),cam:f('[data-cam]'),send:f('[data-send]')}}`);
-  T('球场标签 / 相机 / 发送键靠右排好，位置和改动前一模一样（量过坐标）', JSON.stringify(pos) === JSON.stringify({ box: [12, 714, 366, 50], where: [225.1, 723, 61.9, 32], cam: [293, 723, 34, 32], send: [333, 719, 40, 40] }), pos);
+  T('球场标签 / 相机 / 发送键靠右排好，位置和改动前一模一样（量过坐标）', JSON.stringify(pos) === JSON.stringify({ box: [12, 726, 366, 50], where: [225.1, 735, 61.9, 32], cam: [293, 735, 34, 32], send: [333, 731, 40, 40] }), pos);
 
   // ---- 点提示文字区域 → 进写页，话题（当前提示的话题）带过去，首页输入框仍没焦点 ----
   const hintBefore = await q(`r=>r.querySelector('[data-hint]').textContent`);
   await clickAt('.bar .box', 0.25); await W(700);
   let s1 = await st();
   T('点输入框中间 → 进写动态页', s1.composeOn, s1);
+  // 11-17 #335：说明文字曾是绝对定位、没底色，键盘升起（页面变矮）后压在输入区上；现在和工具条同属一个有底色的底栏
+  { await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    const o = await q(`r=>{const n=r.querySelector('.compose .cnote').getBoundingClientRect(),t=r.querySelector('.compose .ctool').getBoundingClientRect(),x=r.querySelector('.compose [data-ctext]').getBoundingClientRect(),bar=r.querySelector('.compose .cbot'),bg=getComputedStyle(bar).backgroundColor;return {nb:Math.round(n.bottom),tt:Math.round(t.top),nt:Math.round(n.top),barTop:Math.round(bar.getBoundingClientRect().top),bg,inBar:!!n.width&&bar.contains(r.querySelector('.compose .cnote'))}}`);
+    T('写动态页：说明文字在工具条上方、不与它重叠；底栏有底色（矮屏 / 键盘弹出时不透出输入区）', o.inBar && o.nb <= o.tt + 1 && o.nt >= o.barTop && !/rgba\(0, 0, 0, 0\)|transparent/.test(o.bg), o);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(500) }
+  // 11-17 #335：键盘开着点「加个话题 / 发布设置 / 球场」，弹层不许在「键盘上方那一小块」里先滑入再落位（先冲到最高点）。
+  // 沙盒没有真键盘：把视口缩到 470 高 = 键盘升起（.device.kb），再放回 844 = 键盘收起。
+  for (const [name, btn, sel] of [['话题', '.compose [data-ctp]', '.csh'], ['发布设置', '.compose [data-cset]', '.csh'], ['球场', '.compose [data-cpl]', '.pick']]) {
+    await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.focus()}`); await W(100);
+    await pg.evaluate(`window.__s=[];const r=document.querySelector('#sbHost').shadowRoot;window.__t=setInterval(()=>{const e=r.querySelector('${sel}'),p=r.querySelector('${sel === '.csh' ? '.csh-p' : '.pick'}');window.__s.push({on:e.classList.contains('on'),top:Math.round(p.getBoundingClientRect().top),kb:document.querySelector('.device').classList.contains('kb')})},20)`);
+    await q(`r=>{r.querySelector('${btn}').click()}`); await W(150);
+    const early = await E(() => window.__s.slice(-1)[0]);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(900);
+    const smp = await E(() => { clearInterval(window.__t); return window.__s }), on = smp.filter(x => x.on), fin = smp.slice(-1)[0];
+    T(`键盘开着点「${name}」：键盘收完之前弹层不滑入`, early && !early.on, early);
+    T(`键盘开着点「${name}」：弹层只在键盘收起后才出现、位置一路不高于最终位置（不冲顶）`, on.length > 0 && on.every(x => !x.kb) && on.every(x => x.top >= fin.top - 2), { fin, bad: on.filter(x => x.kb || x.top < fin.top - 2).slice(0, 3) });
+    await q(`r=>{const b=r.querySelector('${sel === '.csh' ? '.csh-b' : '[data-pkx]'}');b&&b.click()}`); await W(700) }
   T('首页输入框全程没拿到焦点、没出话题条（不会弹键盘）', !s1.focusIn && !s1.qing && s1.qtpH === 0, s1);
   T('不带话题的提示：写页没有话题，用通用提示语', s1.topic === '加个话题' && !!hintBefore, { hintBefore, s1 });
   await close(); let s2 = await st();
@@ -54,7 +76,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   for (let i = 0; i < 5; i++) { await clickAt('.bar .box', 0.3); await W(120); await close() }
   const s3 = await st(), sy = await E(() => ({ y: scrollY, x: scrollX, d: document.querySelector('.device').getBoundingClientRect().top }));
   T('来回开关 5 次：输入框原位、页面没被带起来', !s3.composeOn && s3.boxTop === s0.boxTop && sy.y === 0 && sy.x === 0 && sy.d === 0, { s3, sy });
-  const ghost = await q(`r=>({v:r.querySelector('[data-in]').value,anims:r.getAnimations?r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).length:0})`);
+  const ghost = await q(`r=>({v:r.querySelector('[data-in]').value,anims:r.getAnimations?r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).length:0,what:r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).map(a=>{const t=a.effect.target;return (t&&(t.tagName+'.'+t.className))+'|'+(a.animationName||'')+'|'+Math.round(a.effect.getTiming().duration)+'|'+Math.round(a.currentTime)})})`);
   T('没有残留文字、没有挂着没结束的动画', ghost.v === '' && ghost.anims === 0, ghost);
 
   // ---- 提示带话题（#宝藏球场 这类）：点输入框 → 进写页，话题已选好，首页不出话题条 ----

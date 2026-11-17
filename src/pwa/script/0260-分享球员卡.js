@@ -1,7 +1,7 @@
 function doSaveCard(uid){const src=$('#sheet').querySelector('.shot');if(!src)return;
   const tmp=document.createElement('div');tmp.style.cssText='position:fixed;left:-9999px;top:0';tmp.innerHTML=shareShot(uid);document.body.appendChild(tmp);
   const el=tmp.firstElementChild;
-  if(window.html2canvas)html2canvas(el,{backgroundColor:null,scale:3}).then(cv=>{const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`nanbanqiu-${fmtNo(U(uid).no)}.png`;a.click();tmp.remove();toast('分享图已保存')}).catch(()=>{tmp.remove();toast('保存失败，请截图保存')});
+  if(window.html2canvas)nbqShot(el,3).then(bl=>{tmp.remove();if(bl){imgSave(bl,`nanbanqiu-${fmtNo(U(uid).no)}.png`)}else toast('保存失败'+(window.SC_ERR?'（'+SC_ERR+'）':'')+'，请截图保存')});
   else{tmp.remove();toast('需要联网加载保存组件，也可以直接截图')}}
 function openBlock(uid){const u=U(uid);openSheet(`<div class="sh-t">屏蔽 ${esc(u.name)}？</div><p class="sh-s" style="margin-bottom:12px">屏蔽后：</p>
   <ul class="tips"><li><i>🙈</i><div>TA 看不到你发起的球局<small>包括通过分享链接打开</small></div></li><li><i>✋</i><div>TA 无法申请加入你的球局<small>TA 当前的待确认申请会自动婉拒</small></div></li><li><i>👀</i><div>你也不会再看到 TA 发起的球局</div></li><li><i>🔕</i><div>对方不会收到任何通知</div></li></ul>
@@ -23,7 +23,7 @@ function openContact(){openSheet(`<div class="sh-t">联系我们</div><p class="
   <a href="mailto:club@nanbanqiu.app?subject=${encodeURIComponent('Club 合作')}"><span style="font-size:22px">🏟</span><span><b>Club / 球场合作</b><small>场地优惠、活动合作 · club@nanbanqiu.app</small></span></a></div>
   <p class="fine">举报时请写上对方昵称、球局时间和经过，可附截图</p>`)}
 function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">${esc(CITY.zh)}的华人球友都在这里约球、聊球、组队<br>长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div><p class="fine">有想法也欢迎在群里告诉我们 🙌</p></div>`);qr($('#cqr'),'https://nanbanqiu.app/'+CITY.slug+'/community')}
-function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#101828',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#101828;width:100%;height:100%">${qrSVG(text)}</div>`}
+function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#1B2620',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#1B2620;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
 function openLocSheet(){LOC.asked=true;nbqLocSave();
@@ -65,7 +65,7 @@ let AUTH={next:null,phone:'',cc:'+61',t:0},NP={ntrp:3.0,clubs:[]};
 function openAuth(next,why){AUTH.next=next;
   openSheet(`<div class="sh-t">用手机号继续</div><p class="sh-s">${why||'30 秒创建账号，以后打开链接自动登录'}</p>
   <div class="phone"><select class="inp" id="cc">${COUNTRIES.map(k=>`<option>${k.dial}</option>`).join('')}</select><input class="inp" id="ph" inputmode="tel" autocomplete="tel" placeholder="0412 345 678"></div>
-  <div style="height:12px"></div><button class="btn btn-p" data-a="sendCode">获取验证码</button><p class="fine">演示：任意手机号和 6 位验证码<br>继续即表示同意${legalLinks()}</p>`);setTimeout(()=>$('#ph')&&$('#ph').focus(),350)}
+  <div style="height:12px"></div><button class="btn btn-p" data-a="sendCode">获取验证码</button><p class="fine">${typeof SBA!=='undefined'&&SBA.on()?'目前仅支持澳洲手机号（04 开头）<br>':'演示：任意手机号和 6 位验证码<br>'}继续即表示同意${legalLinks()}</p>`);setTimeout(()=>$('#ph')&&$('#ph').focus(),350)}
 function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="height:auto;margin-bottom:6px">‹ 修改手机号</button><div class="sh-t">输入验证码</div><p class="sh-s">已发送至 ${esc(AUTH.cc)} ${esc(AUTH.phone)}</p>
   <input class="inp otp num" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······"><div class="fine" id="resend">60 秒后可重新发送</div>`);
   let n=60;clearInterval(AUTH.t);AUTH.t=setInterval(()=>{n--;const r=$('#resend');if(!r){clearInterval(AUTH.t);return}r.innerHTML=n>0?n+' 秒后可重新发送':'<b style="color:var(--g)" data-a="sendCode">重新发送</b>';if(n<=0)clearInterval(AUTH.t)},1000);
@@ -92,7 +92,7 @@ function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.nt
   <div style="height:16px"></div><button class="btn btn-p" data-a="doApply" data-g="${id}">发送申请</button>`)}
 function openApplied(id){const c=api.get(id);
   const card=ENV==='wechat'?`<button class="btn btn-p" data-a="wxguide">在浏览器打开，接收通知</button><p class="fine" style="margin:6px 0 4px">微信内无法推送通知</p>`
-    :ENV==='safari'?`<button class="btn btn-p" data-a="a2hs">添加到主屏幕，接收通知</button>`:PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
+    :ENV==='safari'?(a2hsAdded()?`<p class="fine" style="margin:6px 0 4px">从桌面的南伴球图标打开，就能收到回复提醒</p>`:`<button class="btn btn-p" data-a="a2hs">${a2n('添加到主屏幕，接收通知',iosPushOk()?'放到桌面，不错过回复':'放到桌面，所有球局一眼看到')}</button>`):PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-check"/></svg></div><div class="sh-t">申请已发送</div><p class="sh-s">${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</p></div>${card}${emAskHTML(false)}<div style="height:8px"></div><button class="btn btn-s" data-a="close">好的</button>`)}
 function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
   openSheet(`<div class="sh-t">${appr?'取消参加？':'撤回申请？'}</div><p class="sh-s">${appr?`${esc(c.host.name)} 会收到通知，名额会重新开放。${ugLeaveTxt(c)}`:'撤回后可以重新申请。'}</p>
@@ -100,9 +100,11 @@ function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
 function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
   openSheet(`<div class="sh-t">取消这个球局？</div><p class="sh-s">${n?`${n} 位球友会收到通知。`:'还没有球友加入。'}</p>
   <button class="btn btn-d" data-a="doCancelGame" data-g="${id}">取消球局</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">保留</button>`)}
-let CL=[];const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
-function clubRows(){return Object.values(VEN).sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
-function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
+let CL=[],CLQ='';const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
+function clubRows(){const q=CLQ.trim().toLowerCase(),vs=Object.values(VEN).filter(v=>!q||(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q));if(q&&!vs.length)return '<div class="vp-none">没找到，换个词</div>';return vs.sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
+document.addEventListener('input',e=>{if(e.target.id==='clQ'){CLQ=e.target.value;const l=document.getElementById('clList');if(l)l.innerHTML=clubRows()}});
+function openClubs(){CL=[...myClubIds()];CLQ='';openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
+  <div class="vp" style="margin:0 0 8px"><div class="vp-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="clQ" placeholder="搜索 Club 名称或区域" autocomplete="off" spellcheck="false"></div></div>
   <div id="clList">${clubRows()}</div>
   <div style="position:sticky;bottom:calc(-18px - var(--hb));margin:12px -20px calc(-18px - var(--hb));padding:12px 20px calc(18px + var(--hb));background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,true)}
 
@@ -110,10 +112,10 @@ function openClubs(){CL=[...myClubIds()];openSheet(`<div class="sh-t">我的 Clu
 const shareText=c=>`🎾 南伴球｜${relDay(c.start)} ${hm(c.start)} ${c.v.short}\n${TYPE[c.game_type]} · UTR ${lvl(c)} · ${c.spots>0?'缺 '+c.spots+' 位':'已满'}\n👉 ${shareURL('https://nanbanqiu.app/g/'+c.share_code,'text')}`;
 // 链接卡片的标题 / 描述：和服务端 server/og/card.mjs 同一套文案（tests/frontend/og_parity 逐个核对）
 const ogTitle=c=>`${relDay(c.start)} ${hm(c.start)} · ${c.v.short} · ${c.spots>0?`缺${c.spots}位球友 · UTR ${lvl(c)}`:'已满员'}`;
-const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)} · 南伴球`;
-// 缩略图 = 链接卡片上真实显示的那张（服务端 og:image = /icons/icon-512.png），预览和真实卡片一致
+const ogDesc=c=>`${TYPE[c.game_type]}｜发起人 ${c.host.name} UTR ${f1(c.host.ntrp)}`;
+// 缩略图 = 链接卡片上真实显示的那张（服务端 og:image = /icons/og-share.jpg（300×300、7KB：微信对缩略图有体积限制，原 512 图 190KB 加载不出）），预览和真实卡片一致
 const thumbHTML=c=>`<div class="thumb"><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div>`;
-const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxbub">${relDay(c.start)}有人一起打吗？👇</div></div><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${esc(ogDesc(c))}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
+const wxPreviewHTML=c=>{const h=c.host;return `<div class="wxchat"><div class="wxmsg">${av(h)}<div class="wxcard"><b>${esc(ogTitle(c))}</b><div class="r"><p>${esc(ogDesc(c))}</p><div class="th">${thumbHTML(c)}</div></div><div class="src">南伴球</div></div></div></div>`};
 const ogAHTML=c=>`<div class="ogW">${ticketHTML(c)}</div>`;
 const ogLHTML=c=>`<div class="ogL"><div class="l"><svg viewBox="0 0 100 100"><use href="#ball"/></svg><b>南伴球<small>${esc(CITY.zh)}网球约球</small></b></div><div class="r"><div class="t">${WD[c.start.getDay()]} · ${hm(c.start)} · ${relDay(c.start)}</div><div class="p">${esc(c.v.short)}</div><div class="v">${esc(c.v.name)} · ${TYPE[c.game_type]} · UTR ${lvl(c)}</div><div class="n"><i></i>${c.spots>0?`缺 ${c.spots} 位球友`:'已满员'}</div></div></div>`;
 // 分享球局：「发到微信群」= 系统分享面板 → 选「微信」→「发送给朋友」，对方收到的是链接卡片（标题 / 描述 / 缩略图来自服务端 og 标签，预览图就是它的样子）；
@@ -123,46 +125,54 @@ function setOg(c){const m=(p,v)=>{let e=document.querySelector(`meta[property="$
 function wxShare(id){const c=api.get(id);setOg(c);
   if(ENV==='wechat'){closeSheet();openWxShareGuide();return}
   const fb=()=>copy(shareText(c),'已复制，去微信群粘贴');
-  if(navigator.share)navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()});else fb()}
+  // iOS 分享面板把「当前页面标题」交给微信（不认 share() 的 title 参数）：分享前临时换成球局标题，结束后还原
+  const t0=window.__wxT0||(window.__wxT0=document.title),back=()=>{document.title=t0;window.__wxT0=0};document.title=ogTitle(c);
+  // 标签页标题要先生效（Safari 读的是它，不是 document.title 的瞬时值）：等 350ms 再弹面板，仍在点击后的有效时间内
+  if(navigator.share)setTimeout(()=>navigator.share({title:ogTitle(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'wx')}).catch(e=>{if(!e||e.name!=='AbortError')fb()}).finally(back),350);else{back();fb()}}
 function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
   <h3>发给微信好友或群</h3><p class="lead">点右上角 <em>···</em>，选「发送给朋友」或「分享到群聊」</p><button class="btn" data-a="wxclose">知道了</button>`}
 function openShare(id){const c=api.get(id);
-  openSheet(`<div class="sh-t">分享球局</div><p class="sh-s">发到微信群，更快找到球友</p>${wxPreviewHTML(c)}
+  openSheet(`<div class="sh-t">分享球局</div>${wxPreviewHTML(c)}
   <div class="sgrid"><button data-a="wxShare" data-g="${id}"><span class="si" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></span>发到微信群</button>
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
   <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
-  <p class="sh-tip">点「发到微信群」→ 选「微信」→「发送给朋友」<br>对方收到的就是上面这张卡片</p>${pushNudgeHTML('game')}
-  <p class="sh-tip sh-note">对方首次点开，微信可能提示「未备案」，点「继续」即可</p>
+  ${pushNudgeHTML('game')}
   <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
 const XHSP={};
 function xhsPre(id){const el=document.querySelector('.xhs-pv .ogW');if(!el||!window.html2canvas||XHSP[id])return;
-  html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl},'image/png')).catch(()=>{})}
+  nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl})}
 function xhsGo(id){const text=xhsText(api.get(id));
   try{navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{})}catch(e){}
   const nm='nanbanqiu-'+id+'.png',go=bl=>{
     if(!bl){toast('文案已复制，截图保存海报后发布即可');return}
     const f=new File([bl],nm,{type:'image/png'});
-    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f]}).then(()=>toast('文案已复制 · 图片已交给系统，保存后打开小红书发布'),e=>{if(!e||e.name!=='AbortError'){imgSave(bl,nm);toast('文案已复制 · 长按图片保存后发布')}});
     else{imgSave(bl,nm);toast('文案已复制 · 保存图片后打开小红书发布')}};
   if(XHSP[id])go(XHSP[id]);
   else{const el=document.querySelector('.xhs-pv .ogW');
-    if(el&&window.html2canvas)html2canvas(el,{scale:2,backgroundColor:null}).then(cv=>cv.toBlob(bl=>{if(bl)XHSP[id]=bl;go(bl)},'image/png')).catch(()=>go(null));else go(null)}}
+    if(el&&window.html2canvas)nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl;go(bl)});else go(null)}}
 function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" data-a="share" data-g="${id}" style="height:auto;margin-bottom:8px">‹ 返回</button><div class="sh-t">发到小红书</div><p class="sh-s">图片上带二维码，小红书上的球友扫码就能加入</p><div class="xhs-pv">${ogAHTML(c)}</div>
   <button class="btn btn-p xhs-go" data-sx="xhsCopy" data-g="${id}">分享到小红书</button><p class="xhs-tip">文案会自动复制；在弹出的面板里选「小红书」，图片已带上，粘贴文案发布即可</p>`);setTimeout(()=>xhsPre(id),350)}
 
 /* 微信 / 主屏幕 / 推送 */
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
-  <h3>用 Safari 打开</h3><p class="lead">微信里会弹「未备案」提示，也收不到通知。换到 Safari，<em>不再有提示</em>，有人申请时<em>第一时间</em>通知你</p>
+  <h3>用 Safari 打开</h3><p class="lead">${a2n('微信里收不到通知。换到 Safari，<em>不再弹提示</em>，有人申请时<em>第一时间</em>通知你','微信里收不到提醒。换到 Safari，把南伴球放到桌面，<em>所有球局</em>和<em>回复</em>都不错过')}</p>
   <div class="ntf"><svg class="ic"><use href="#logo"/></svg><div><b>南伴球<small>现在</small></b><span>Grace 申请加入你周六 9:00 的球局</span></div></div>
-  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li><li><i>3</i><div>点底部的分享 <span class="kbd">⬆︎</span>（看不到就点地址栏的菜单），选「添加到主屏幕」</div></li></ol>
+  <ol><li><i>1</i><div>点击右上角 <span class="kbd">···</span></div></li><li><i>2</i><div>选择「在 Safari 中打开」<small>Android 选「在浏览器打开」</small></div></li></ol><p class="lead" style="margin-top:10px">${a2n('打开后按提示添加到主屏幕，在桌面图标里登录一次即可','打开后按提示放到桌面，从图标打开会自动登录')}</p>
   <button class="btn" data-a="wxclose">知道了</button>`}
 // 添加到主屏幕（10-29 重做）：按浏览器给最直白的步骤，每一步配和真实界面一致的图标；没有演示按钮
 // iOS Safari：底部工具栏的分享（新版 Safari 工具栏收起时，在地址栏的 ≡ / ⋯ 菜单里）→ 添加到主屏幕 → 添加
 // iOS 其他浏览器 / App 内置浏览器：先换到 Safari（复制链接）；安卓 Chrome：能一键就一键（beforeinstallprompt），否则 ⋮ 菜单
 let A2HS_EV=null;
+// 不反复提醒（11-14 真机反馈）：iPhone 上链接总是在 Safari 里打开，Safari 不知道桌面上已经有图标——只能记住用户自己说的「我已添加」（nbq_a2hs_ok），
+//   之后在这个浏览器里不再出现「添加到主屏幕」的卡片和登录前的建议；看过步骤的 7 天内（nbq_a2hs_at），顺带出现的小卡片也不再出现，只留「申请已发送」后那一个按钮
+const a2hsGet=k=>{try{return localStorage.getItem(k)}catch(_){return null}},a2hsPut=(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}};
+const A2HS_OK_DAYS=45;   // 「我已添加」是用户自己说的，点错了也不该永远不提醒：45 天后失效（新引导 14 天，见 a2hsAdded）
+const a2hsAdded=()=>{if(typeof ME!=='undefined'&&ME&&ME.installed===true)return true;   // 服务器说这个人从桌面图标打开过（/api/me.installed）：永久算已添加，不用 14 天
+  const t=+a2hsGet('nbq_a2hs_ok')||0,d=(typeof NBQ_A2HS2_ON!=='undefined'&&NBQ_A2HS2_ON)?14:A2HS_OK_DAYS;return t>0&&Date.now()-t<d*864e5},a2hsRecent=()=>Date.now()-(+a2hsGet('nbq_a2hs_at')||0)<7*864e5;
 function a2hsKind(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   if(/MicroMessenger|xhsdiscover|XiaoHongShu|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(ua)||(ios&&!/Safari/.test(ua)))return'inapp';
   if(ios)return/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo/.test(ua)?'ios_other':'ios_safari';
@@ -180,14 +190,16 @@ function a2hsSteps(k){
   return a2s(1,'点屏幕底部的「分享」','看不到？点地址栏的 <span class="a2i">'+A2G.menu+'</span> 或 <span class="a2i">'+A2G.dots+'</span>，再选「分享」','share')
     +a2s(2,'向上滑，点「添加到主屏幕」','在分享菜单里往上滑一点就能看到','plus')
     +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
-function openA2HS(){const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+function openA2HS(gate){a2hsPut('nbq_a2hs_at',String(Date.now()));if(typeof hoGuide==='function')hoGuide();
+  if(typeof a2hsV2==='function'&&a2hsV2()){a2hsScreen(a2hsKind()==='ios_safari'?'why':'open',gate===true);return}   // 新引导（开关 NBQ_A2HS2_ON，script/0265）；安卓仍走下面
+  const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
   let top='',main='';
   if(k==='inapp'||k==='ios_other'){
     top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;
     main=`<p class="a2h">然后在 Safari 里：</p><div class="a2steps">${a2hsSteps('ios_safari')}</div>`}
   else if(k==='android'&&A2HS_EV)main=`<button class="btn btn-p" data-a="a2hsGo">添加到主屏幕</button><p class="a2foot">点上面的按钮，再点「安装」/「添加」即可</p>`;
   else main=`<div class="a2steps">${a2hsSteps(k)}</div>`;
-  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':'建议先添加到主屏幕，再从桌面图标打开，在里面登录、允许位置和通知——iPhone 的网页和桌面图标不共用登录，在 Safari 里做过的要在桌面 App 里重做一次，只此一次（需要 iOS 16.4 或更新）'}</p><button class="btn btn-s" data-a="close" style="margin-top:6px">知道了</button>`)}
+  openSheet(head+top+main+`<p class="a2foot">${k==='android'?'添加后从桌面图标打开，再按提示允许通知':(typeof HO_READY!=='undefined'&&HO_READY?'添加后从桌面图标打开，会自动登录，再允许通知即可（需要 iOS 16.4 或更新）':'添加后从桌面图标打开，登录一次、允许通知，之后都不用再登录（需要 iOS 16.4 或更新）')}</p><button class="btn btn-s" data-a="a2hsDone" style="margin-top:6px">我已添加</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function enablePush(){if(ENV==='wechat'){closeSheet();openWxGuide();return}if(ENV==='safari'){openA2HS();return}
   const done=()=>{if(NBQ_NET){const ok='Notification'in window&&Notification.permission==='granted';closeSheet();if(ok)nbqPushSub().then(r=>{toast(r?'通知已开启':'已允许通知，但推送没开成功（'+NBQ_PUSH_WHY+'）');render()});else{toast('没有开启通知，可以在系统设置里打开');render()}return}PUSH.enabled=true;closeSheet();toast('通知已开启');render()};
   if('Notification'in window&&Notification.permission!=='denied'){try{Notification.requestPermission().then(done,done)}catch(e){done()}}else done()}

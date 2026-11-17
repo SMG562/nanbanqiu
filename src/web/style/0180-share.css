@@ -21,7 +21,7 @@
 .ogA .a-time{font-size:12.5px;color:#888;letter-spacing:.08em;font-weight:600}
 .ogA .a-place{font-size:32px;font-weight:800;letter-spacing:-.02em;margin:6px 0 2px;line-height:1.05}
 .ogA .a-venue{color:#555;font-size:13.5px}
-.ogA .a-tag{display:inline-block;margin-top:10px;background:var(--gss);color:var(--g);font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:99px}
+.ogA .a-tag{display:inline-block;margin-top:10px;background:var(--gss);color:var(--g);font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:999px}
 .ogA .a-line{height:1px;background:#eee;margin:14px 0}
 .ogA .a-need{font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px}
 .ogA .a-need i{width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 4px #F1FAD2}
@@ -31,7 +31,7 @@
 .dn{position:fixed;right:20px;top:calc(var(--nav) + 12px);z-index:150;width:360px;background:rgba(250,250,250,.97);backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;gap:10px;box-shadow:0 16px 40px -10px rgba(0,0,0,.3);transform:translateX(120%);transition:transform .4s cubic-bezier(.2,.9,.25,1.05);cursor:pointer}
 .dn.show{transform:none}
 .dn svg{width:36px;height:36px;border-radius:9px;flex:none}
-.dn .h{display:flex;justify-content:space-between;font-size:12px;color:#777}
+.dn .h{display:flex;justify-content:space-between;font-size:12px;color:var(--mut)}
 .dn b{display:block;font-size:14px;font-weight:600}
 .dn p{font-size:13px;color:#333}
 
