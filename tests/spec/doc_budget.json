@@ -12,7 +12,10 @@
   "业务规则.md": 17500,
   "docs/constitution.md": 3072,
   "docs/README.md": 2048,
-  "docs/adr/README.md": 3072
+  "docs/adr/README.md": 3072,
+  "docs/design/README.md": 3072,
+  "docs/design/前端风格.md": 10240,
+  "docs/design/角色与场景.md": 12288
  },
  "counts": {
   "tools 脚本数": {
