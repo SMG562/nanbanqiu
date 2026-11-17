@@ -622,9 +622,15 @@
 
 本批只做到数据库和接口；场边错误码在第八批 F1b 并入了 §1 和两端的 API_ERR（tests/static/api_err.mjs 只对照 §1）。
 
-### 14.1 读
-- 都是直接查表，行级权限决定能看到什么（schema ㉕ sb_post_public / sb_post_readable）：没登录也能看 24 小时内公开的；屏蔽双方互相看不到；点了不感兴趣的看不到；停用、封禁、注销的人发的看不到；自己的一直看得到（相册），删了就没了。
-- 前台拿不到：后台隐藏原因、照片识别标签、审核人。
+### 14.1 读（#369 PR-A，11-18 加；三个读接口都在 `server/api/handler.mjs`，只加不改，不需要库迁移）
+规则仍由库里的行级权限决定（schema ㉕ `sb_post_public` / `sb_post_readable` / `sb_reply_read`），接口只拼查询、分页、整理返回：没登录也能看 24 小时内公开的；屏蔽双方互相看不到；点了不感兴趣的看不到；停用、封禁、注销的人发的看不到；后台隐藏的、本人删除的、还没到公开时间的看不到；自己的（没删的）一直看得到，删了就没了。前台拿不到：后台隐藏原因（`hidden_reason`）、照片识别标签、审核人。
+- **GET /api/sideline/feed**（参数都可选，不传就用默认值，**别传空串**，空串 422：`city`=melb、`topic`、`before`、`limit`=20；不用登录；带令牌则以本人身份，屏蔽 / 不感兴趣才生效）：本城（默认 melb）24 小时内公开的动态，按公开时间倒序。`topic` 可选（话题 id）；`limit` 1–50，默认 20，超过按 50。**游标分页**：返回 `next`（最后一条的游标，没有下一页为 `null`），下一页带 `before=<next>`；游标 = 公开时间（微秒）+ id，同一时间的两条也不丢不重；游标格式不对 → 422 `invalid`。
+  - 返回 `{ posts, next, topics, profiles }`。`posts[]`：`id, user_id, city, body, topic_id, floor, venue_id, photo_count, photos, tone, replies_open, publish_at, balls, replies, mine, my_ball`。**`photo_count` 与 `photos` 从第一天就在（一期恒为 0 / `[]`），二期加照片不改形状**。`topics`：`{id: {id, title, kind}}`（只含这页用到的；已下线的话题查不到，前台用配置里的名字兜底）；`profiles`：`{user_id: {id, member_no, nickname, last_initial, avatar_*, seal_roll, card_theme, level, gone}}`（和 `public_profiles` 一致，不含手机 / 微信 / 性别）。
+  - 参数格式不对（city 不是 2–12 位小写字母、topic 不是话题 id 格式、limit 不是数字）→ 422 `invalid`；带了无效令牌 → 401（不悄悄当匿名）。
+- **GET /api/sideline/posts/:id**（不用登录）：帖子详情 + 回复。返回 `{ post, replies, topics, profiles }`；`post` 同上再加 `status`（`visible` / `hidden`，只有作者能看到 `hidden` 的）与 `public`（是否还在公开期，作者看过期的自己的帖时为 `false`）。`replies[]`（按时间正序，最多 200）：`id`（数字）、`user_id`、`to_user`、`body`、`created_at`、`mine`、`hidden`；已删除的回复不返回，后台隐藏的只有回复作者本人看得到，被屏蔽的人的回复看不到。**看不到的（过期的别人的 / 被屏蔽 / 不感兴趣 / 隐藏 / 已删 / 停用账号）和不存在的一样返回 404 `not_found`**；id 不是 uuid 也是 404。
+- **GET /api/sideline/mine**（参数 `before`、`limit`=30 同上可选；要登录，没登录 401）：我发过的，按公开时间倒序、同样的游标分页（`limit` 默认 30，最大 50）。包含已过 24 小时只剩自己看得到的、被后台隐藏的、还没到公开时间的；已删除的没有。返回 `{ posts, next, topics, profiles }`，`posts[]` 多 `status` 与 `public`。
+- 话题列表不另开接口：前台读 `GET /api/sideline/config`（后台发布的最新版配置里的 `topics`）。
+- 浏览统计上报（`POST /api/sideline/views`）一期不接；读接口本身不计浏览。
 
 ### 14.2 POST /api/sideline/posts · `api_sb_post(p)` → `{id, topic_id, floor, new_topic, publish_at}`
 - p：`{body ≤ 60, topic_id | topic_title, venue_id, city, photos: [{key, w, h}] ≤ 3, tone: ''|warm|film|dawn, later, replies_open}`
