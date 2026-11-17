@@ -45,4 +45,24 @@ const g=await pg.evaluate(async()=>{const d=document.querySelector('#d0'),t=d.qu
   d.querySelector('[data-more]').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,composed:true,view:window}));await new Promise(r=>setTimeout(r,400));
   const a=ids();return {grid,n0,held,after:a.includes('990101'),dup:a.filter((v,i)=>a.indexOf(v)!==i),pend:(SBV.pend||[]).length}});
 ok(!g.err&&!g.held&&g.after&&g.dup.length===0&&g.pend===0,'网格：攒着的不提前画出；点胶囊后放进来、无重复、攒着清空',g);
+// 球场页（#344 PR3）：同规则。页面现在没有 UI 入口（t7 标过死代码），用合成的 data-home2 点击打开；
+// 别人的新帖攒进 SBV.cpend、只亮球场页自己的胶囊，已显示的行 y 坐标不变；点胶囊才放进来、回顶、收起、无重复。（话题墙 S.wall 没有任何入口，没法打开，不测）
+// 实时流是固定顺序（INCOMING）：从源文件里读出来，挑「接下来 12 条里到得最多」的那个球场打开，不靠运气等
+const fs=require('fs'),src=fs.readFileSync(__dirname+'/../../src/shared/side/0040-数据.js','utf8'),INC=new Function('return '+src.slice(src.indexOf('INCOMING=[')+9,src.indexOf('\n];',src.indexOf('INCOMING=['))+2))();
+const cr=await pg.evaluate(async INC=>{const d=document.querySelector('#d0');
+  // 球场页滑进来后盖住了鼠标位置，实时流的「鼠标在上面就不冒新动态」会一直拦着；这里只在测试页里让 :hover 判断恒为否
+  const mm=Element.prototype.matches;Element.prototype.matches=function(q){return q===':hover'?false:mm.call(this,q)};
+  const cnt={};for(let i=0;i<12;i++){const e=INC[(SBV.qi+i)%INC.length];if(e.w&&!e.ball&&!e.reply&&!e.area)cnt[e.w]=(cnt[e.w]||0)+1}const name=Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0][0];
+  const bt=document.createElement('button');bt.dataset.home2=name;d.append(bt);bt.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,composed:true,view:window}));d.classList.add('incourt');await new Promise(r=>setTimeout(r,900));
+  const snap=()=>{const sc=d.querySelector('.court .scroll'),sr=sc.getBoundingClientRect(),all=[...d.querySelectorAll('[data-s="court"] [data-ln]')];
+    const rows=all.filter(e=>{const r=e.getBoundingClientRect();return r.bottom>sr.top&&r.top<sr.bottom}).slice(0,4).map(e=>[e.dataset.ln,Math.round(e.getBoundingClientRect().top*10)/10]);
+    const p=d.querySelector('[data-cmore]');return {rows,ids:all.map(e=>e.dataset.ln),pend:(SBV.cpend||[]).length,pill:p&&p.classList.contains('show')?p.textContent:''}};
+  const a=snap();SBV.every=300;for(let i=0;i<300&&(SBV.cpend||[]).length<=a.pend;i++)await new Promise(r=>setTimeout(r,100));const c=snap();SBV.every=5600;
+  const k=c.pend;d.querySelector('[data-cmore]').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,composed:true,view:window}));await new Promise(r=>setTimeout(r,400));
+  const z=snap(),sc=d.querySelector('.court .scroll');return {name,a,c,z,st:sc.scrollTop,home:(SBV.pend||[]).length}},INC);
+ok(cr.c.pend>cr.a.pend&&/新动态/.test(cr.c.pill),'球场页：来了新动态，只亮球场页自己的胶囊',cr.c.pill);
+ok(cr.a.rows.length>0&&JSON.stringify(cr.a.rows)===JSON.stringify(cr.c.rows)&&cr.c.ids.length===cr.a.ids.length,'球场页：已显示的行 y 坐标不变、行数不变',{前:cr.a.rows,后:cr.c.rows});
+ok(cr.c.pill.includes(String(cr.c.pend)),'球场页：胶囊数 = 攒着的条数',`${cr.c.pill} / ${cr.c.pend}`);
+ok(cr.z.ids.length===cr.a.ids.length+cr.c.pend&&cr.z.pend===0&&!cr.z.pill&&cr.st===0,'球场页：点胶囊放进来、攒着清空、胶囊收起、回顶',{前:cr.a.ids.length,攒:cr.c.pend,后:cr.z.ids.length,pill:cr.z.pill,st:cr.st});
+ok(cr.z.ids.filter((v,i)=>cr.z.ids.indexOf(v)!==i).length===0,'球场页：点胶囊后没有重复');
 await done(b,errs,'T11')})();

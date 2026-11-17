@@ -42,6 +42,10 @@ function App(el,init){
   // 攒着的新动态（S.pend）：已经在 S.L 里，但还没画进列表。任何重画都要把它们排除、胶囊数跟着当前筛选走，否则重画会提前画出来、回顶后又放一次（重复）
   const held=x=>!!S.pend&&S.pend.includes(x);
   const pillSync=()=>{const n=(S.pend||[]).filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).length,m=$('[data-more]');S.qn=n;if(!m)return;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show')};
+  // 球场页 / 话题墙同规则（#344 PR3）：别人的新动态先攒在各自页面的列表（S.cpend / S.wpend，不混进首页的 S.pend），只亮自己的胶囊；点胶囊才放进来
+  const heldC=x=>!!S.cpend&&S.cpend.includes(x),heldW=x=>!!S.wpend&&S.wpend.includes(x);
+  const pill2=(sel,q,ok)=>{const n=(q||[]).filter(x=>S.L.includes(x)&&ok(x)).length,m=$(sel);if(!m)return n;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show');return n};
+  const cpillSync=()=>pill2('[data-cmore]',S.cpend,x=>x.w===S.court&&!x.area),wpillSync=()=>pill2('[data-wmore]',S.wpend,x=>x.topic===S.wall);
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
     const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
@@ -106,7 +110,7 @@ function App(el,init){
     $('[data-att]').innerHTML=S.photo?`<span class="att">${PIC('sunset','band')}</span>`:'';
     hint.style.display=inp.value?'none':'block';
     sendB.disabled=!(inp.value.trim()||S.photo)};
-  const courtRows=()=>S.L.filter(x=>x.w===S.court&&!x.area&&Date.now()-x.t<3*H).sort((a,b)=>b.t-a.t);
+  const courtRows=()=>S.L.filter(x=>x.w===S.court&&!x.area&&!heldC(x)&&Date.now()-x.t<3*H).sort((a,b)=>b.t-a.t);
   const drawCourt=()=>{const c=COURTS[S.court];if(!c)return;const L=courtRows(),v=$('.court');
     const mine=S.homes&&S.homes.includes(S.court);
     v.innerHTML=`<div class="cnav"><button class="ib" data-back>${ic('back')}</button></div>${desk?`<div class="dnav"><button class="backto" data-back>${ic('back')}<span>关闭</span></button></div>`:''}
@@ -115,7 +119,8 @@ function App(el,init){
       <div class="mod"><div class="mh"><span class="dot"></span><b>刚刚发生</b><small data-ccnt>近 3 小时 · ${L.length} 条</small></div>
         <div data-s="court">${L.map(x=>LH(x,{court:1})).join('')||'<div class="empty">近 3 小时还没有动态</div>'}</div></div>
       </div>
-      <div class="bar"><div class="box"><span class="hint" style="right:60px">在 ${esc(S.court)} 发一条…</span><input maxlength="${CFG.settings.post_max_len}" data-cin><button class="send" data-csend disabled>${ic('up')}</button></div></div>`;
+      <div class="bar"><div class="box"><span class="hint" style="right:60px">在 ${esc(S.court)} 发一条…</span><input maxlength="${CFG.settings.post_max_len}" data-cin><button class="send" data-csend disabled>${ic('up')}</button></div></div><button class="more" data-cmore></button>`;
+    cpillSync();
     const ci=v.querySelector('[data-cin]'),cs=v.querySelector('[data-csend]'),ch=v.querySelector('.hint');
     ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!cs.disabled)cs.click()}};
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
@@ -241,14 +246,14 @@ function App(el,init){
       const o=nc.querySelector('.n');o.innerHTML=`<span class="roll"><b>${n-1}</b><b>${n}</b></span>`;old.replaceWith(nc);
       o.firstChild.animate([{transform:'translateY(0)'},{transform:'translateY(-50%)'}],{duration:560,delay:900,easing:'cubic-bezier(.3,1.3,.5,1)',fill:'forwards'}).onfinish=()=>{o.innerHTML=`<b>${n}</b>`};
       const nt=nc.querySelector('.stk i:last-child');if(nt&&x.pic)nt.animate([{transform:'translateY(-30px) rotate(20deg) scale(.6)',opacity:0},{transform:'rotate(8deg)',opacity:1}],{duration:700,delay:700,easing:'cubic-bezier(.3,1.4,.5,1)',fill:'backwards'})}
-    if(S.wall===x.topic){drawWall();const t=$(`.wall [data-ln="${x.id}"]`);if(t)t.classList.add('nw')}};
+    if(S.wall===x.topic){if(x.mine){drawWall();const t=$(`.wall [data-ln="${x.id}"]`);if(t)t.classList.add('nw')}else{(S.wpend=S.wpend||[]).push(x);wpillSync()}}};
   // 话题墙：一栋楼
-  const drawWall=()=>{const T=S.T[S.wall];if(!T)return;const P=S.L.filter(x=>x.topic===S.wall&&Date.now()-x.t<24*H).sort((a,b)=>b.floor-a.floor),v=$('.wall'),old=v.querySelector('.scroll'),top=old?old.scrollTop:0;
+  const drawWall=()=>{const T=S.T[S.wall];if(!T)return;const P=S.L.filter(x=>x.topic===S.wall&&!heldW(x)&&Date.now()-x.t<24*H).sort((a,b)=>b.floor-a.floor),v=$('.wall'),old=v.querySelector('.scroll'),top=old?old.scrollTop:0;
     v.innerHTML=`<div class="cnav"><button class="ib" data-wback>${ic('back')}</button><button class="ib" data-wshare title="分享这个话题">${ic('share')}</button></div>
       <div class="scroll" style="padding-top:0"><div class="wh"><div class="k">${T.k}</div><h3>#${esc(T.t)}</h3><p>${esc(T.q)}</p><div class="ws"><span class="dot"></span><b>${T.n}</b> 张 · 最新在前</div></div>
       <div class="wg">${P.map(x=>`<div class="wt${x.ed?' ed tx2':x.pic?'':' tx2'}"${x.ed?'':` data-ln="${x.id}"`}${x.pic?` style="aspect-ratio:${PM[x.pic]?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.ed?'No.1 · 场边出题':'No.'+x.floor}</span></div>`).join('')}</div></div>
-      <button class="wfab" data-wgo>${ic('cam')}我也发一张</button>`;
-    v.querySelector('.scroll').scrollTop=top};
+      <button class="wfab" data-wgo>${ic('cam')}我也发一张</button><button class="more" data-wmore></button>`;
+    v.querySelector('.scroll').scrollTop=top;wpillSync()};
   const render=()=>{drawHome();drawComposer();if(S.court)drawCourt();if(S.open)drawSheet();if(S.view)drawViewer();if(S.wall)drawWall();if(S.album)drawAlbum();if(S.cmp)drawCompose();if(S.share)drawShare();state()};
 
   // 滚动状态：手指在屏幕上，或 250ms 内还在滚（惯性）
@@ -258,6 +263,11 @@ function App(el,init){
     if(S.f&&S.f.k==='topic'&&S.vw==='grid')drawHome();
     else if(q&&q.length)q.filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).sort((a,b)=>a.t-b.t).forEach(x=>prep(LH(x)));
     const m=$('[data-more]');if(m)m.classList.remove('show')};
+  // 球场页 / 话题墙的胶囊：点了才放进来，直接放、不做增高动画，回顶、收起
+  const flushCourt=()=>{const q=S.cpend;S.cpend=null;const cl=$('[data-s="court"]');
+    if(cl&&q&&q.length){cl.querySelector('.empty')?.remove();q.filter(x=>S.L.includes(x)&&x.w===S.court&&!x.area).sort((a,b)=>a.t-b.t).forEach(x=>cl.insertAdjacentHTML('afterbegin',LH(x,{court:1})));$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}
+    const m=$('[data-cmore]');if(m)m.classList.remove('show');const c=$('.court .scroll');if(c)c.scrollTop=0};
+  const flushWall=()=>{S.wpend=null;drawWall();const w=$('.wall .scroll');if(w)w.scrollTop=0};
   // 新的一句
   const insertPost0=(x,mine)=>{S.L.unshift(x);setCnt();
     if(desk)setTimeout(drawRail,50);
@@ -266,7 +276,9 @@ function App(el,init){
     if(!mine&&pass(x)&&fOk(x)){(S.pend=S.pend||[]).push(x);pillSync()}
     else if(S.f&&S.f.k==='topic'&&S.vw==='grid'){if(fOk(x))setTimeout(drawHome,30)}
     else if(pass(x)&&fOk(x))birth(prep(LH(x)),{k:S.k,typing:!mine});
-    if(S.court&&S.court===x.w&&!x.area){const cl=$('[data-s="court"]');if(cl){cl.querySelector('.empty')?.remove();cl.insertAdjacentHTML('afterbegin',LH(x,{court:1}));birth(cl.firstElementChild.querySelector('.ln'),{k:S.k,typing:!mine});$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}}};
+    if(S.court&&S.court===x.w&&!x.area){const cl=$('[data-s="court"]');if(cl){
+      if(mine){cl.querySelector('.empty')?.remove();cl.insertAdjacentHTML('afterbegin',LH(x,{court:1}));birth(cl.firstElementChild.querySelector('.ln'),{k:S.k,typing:false});$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}
+      else{(S.cpend=S.cpend||[]).push(x);cpillSync()}}}};
   // 新的回应
   const insertPost=(x,mine)=>{if(mine)S.lastMine=x;if(x.topic&&!x.floor)x.floor=++S.T[x.topic].n;insertPost0(x,mine);if(x.topic)refreshTopic(x)};
   const addReply=(id,text,f={})=>{const x=find(id);if(!x)return;const r={x:text,t:Date.now(),id:++S.rid,...f};x.r.push(r);
@@ -374,13 +386,13 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
     if('close' in d){S.view=null;state();return}
         if(d.court){if(COURTS[d.court])setF(S.f&&S.f.k==='court'&&S.f.v===d.court?null:{k:'court',v:d.court});return}
-    if('back' in d){S.court=null;state();return}
+    if('back' in d){S.court=null;S.cpend=null;state();return}
     if(d.near){S.near=d.near==='1';drawHome();return}
     if('shut' in d){shut();return}
     if('menu' in d){const x=find(S.open),u=U(x);
@@ -410,6 +422,8 @@ function App(el,init){
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
     if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
     if('more' in d){flushNew();sc.scrollTop=0;return}
+    if('cmore' in d){flushCourt();return}
+    if('wmore' in d){flushWall();return}
     if('send' in d){if(!S.gok){need('post',()=>again(t));return}const v=inp.value.trim(),lk=S.loc,tp=el.classList.contains('qing')?S.qtp:null;
       {const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);sc.scrollTop=0;const tk=tkind(tp);
       insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);subEv(S.lastMine.id,S.photo?1:0,tk,lk,false,'bar');
@@ -444,7 +458,7 @@ function App(el,init){
     if('mine' in d){S.mineOnly=!S.mineOnly;S.f=null;t.classList.toggle('on',S.mineOnly);if(desk)drawRail();swap();return}
     if(d.myc!==undefined){S.filt=d.myc||null;S.open=null;state();drawHome();sc.scrollTop=0;return}
     if(d.cmt){openSheet(d.cmt);setTimeout(()=>{const r=$('.sheet [data-rh]'),c=$('.sh-sc');if(r&&c)c.scrollTo({top:r.offsetTop-12,behavior:'smooth'})},380);return}
-    if(d.home2){S.court=S.home=d.home2;drawCourt();track('sb_court_view',{venue:d.home2,via:'page'});return}
+    if(d.home2){S.court=S.home=d.home2;S.cpend=null;drawCourt();track('sb_court_view',{venue:d.home2,via:'page'});return}
     if('bell' in d){S.bell&&S.bell();return}
     if('me' in d){S.album=true;drawAlbum();state();return}
     if('aback' in d){S.album=false;state();return}
@@ -456,7 +470,7 @@ function App(el,init){
     if(d.topic){if(t.closest('.sheet,.tpc,.wg')){setF({k:'topic',v:d.topic});return}setF(S.f&&S.f.k==='topic'&&S.f.v===d.topic?null:{k:'topic',v:d.topic});return}
     if('fx' in d){setF(null);return}
     if(d.vw){if(S.vw===d.vw)return;S.vw=d.vw;el.querySelectorAll('[data-vw]').forEach(b=>b.classList.toggle('on',b===t));swap(null,true);return}
-    if('wback' in d){S.wall=null;state();return}
+    if('wback' in d){S.wall=null;S.wpend=null;state();return}
     if('wshare' in d){S.share='wall';drawShare();state();return}
     if('wgo' in d){openCompose({topic:S.wall});return}
     if(d.jie){openCompose({topic:d.jie});return}
