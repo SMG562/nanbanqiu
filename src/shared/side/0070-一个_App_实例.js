@@ -66,11 +66,23 @@ function App(el,init){
       <p class="rf">点一个球场或话题，左边只看它；再点一次回到全部。</p>`};
   const prep=h=>{const ref=list.querySelector(':scope>.it,:scope>.slot'),t=document.createElement('div');t.innerHTML=h;const n=t.firstElementChild;ref?list.insertBefore(n,ref):list.append(n);return n.querySelector('.ln')};
   // 球场：只回答「这条和哪块场有关」
-  const locGroups=()=>{const seen=new Set(),G=[];const take=(ks,g,l,n)=>{let a=ks.filter(k=>k&&COURTS[k]&&!seen.has(k));if(n)a=a.slice(0,n);a.forEach(k=>seen.add(k));if(a.length)G.push({g,l,a})};
+  // 球场数据（#335 B2）：app 页里有全局 VEN / LOC → 真实球场 + 真实距离；独立原型页没有 → 退回演示球场
+  const real=()=>typeof VEN!=='undefined'&&typeof LOC!=='undefined'&&Object.keys(VEN).length>0;
+  const hereOK=()=>real()&&!!LOC.source&&LOC.source!=='default'&&LOC.lat!=null;
+  const meV=()=>typeof ME!=='undefined'&&ME?ME:{home_club_ids:[]};
+  const pool=()=>Object.values(VEN).filter(v=>!v.custom||v.owner===meV().id);
+  // 真实球场用「简称」当键（帖子 / 提示 / 标签直接显示键，不能是内部编号）；和演示球场或别的球场重名时加区名
+  const courtOf=v=>{let k=v.short;if(COURTS[k]&&COURTS[k].vid!==v.id)k=v.short+' · '+v.suburb;if(!COURTS[k])COURTS[k]={n:v.short,area:v.suburb,f:[],games:'',v:1,vid:v.id};if(hereOK())KM[k]=km(LOC,v);return k};
+  const locSub=(k,g)=>g==='here'?'你在这里':COURTS[k].v?[COURTS[k].area,KM[k]!=null&&hereOK()?fkm(KM[k]):''].filter(Boolean).join(' · '):fkm(KM[k]);
+  const locGroups=cur=>{const seen=new Set(),G=[];const take=(ks,g,l,n)=>{let a=ks.filter(k=>k&&COURTS[k]&&!seen.has(k));if(n)a=a.slice(0,n);a.forEach(k=>seen.add(k));if(a.length)G.push({g,l,a})};
+    if(real()){take((meV().home_club_ids||[]).filter(i=>VEN[i]).map(i=>courtOf(VEN[i])),'mine','我的球场');
+      if(hereOK())take(pool().sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,5).map(courtOf),'near','附近');take([cur],'cur','已选');return G}
     take([S.at],'here','你在这里');take(S.homes||[],'mine','我的球场');take(Object.keys(KM).sort((a,b)=>KM[a]-KM[b]),'near','附近',3);return G};
-  const locSub=(k,g)=>g==='here'?'你在这里':fkm(KM[k]);
-  const lpHTML=()=>`<div class="lp-h">这条和哪块场有关？</div>${locGroups().map(G=>`<div class="lp-l">${G.l}</div>${G.a.map(k=>`<button class="lq${G.g==='here'?' here':''}${S.loc===k?' on':''}" data-lq="${esc(k)}"><span class="dt"></span><b>${esc(COURTS[k].n)}</b><small>${G.g==='here'?'':fkm(KM[k])}</small>${ic('check','ck')}</button>`).join('')}`).join('')}
-    <button class="lq no${!S.loc?' on':''}" data-lq="none" style="margin-top:6px"><span class="dt"></span><b>不选</b><small>和球场无关</small>${ic('check','ck')}</button>
+  const found=q=>{q=q.trim().toLowerCase();return real()?pool().filter(v=>(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q)).sort((a,b)=>hereOK()?km(LOC,a)-km(LOC,b):a.short.localeCompare(b.short)).slice(0,10).map(courtOf):Object.keys(COURTS).filter(k=>(k+' '+COURTS[k].n).toLowerCase().includes(q))};
+  const locBtn=cls=>{if(real()&&LOC.source!=='gps'&&typeof vpLocate==='function'){const t=hereOK()?'现按 '+esc(LOC.label):'看离你最近的球场';return cls==='pi'?`<button class="pi" data-clocate><span class="pin2">${ic('pin')}</span><div><b>使用当前位置</b><small>${t}</small></div></button>`:`<button class="${cls}" data-clocate><span class="dt"></span><b>使用当前位置</b><small>${t}</small></button>`}return''};
+  const locRefresh=()=>{const lp=$('[data-lp]');if(S.lpOn&&lp)lp.innerHTML=lpHTML();const b=$('.pick .pk-b');if(S.cmp&&S.cmp.pick&&b)b.innerHTML=pkBody(S.cmp,($('.pick [data-cq]')||{}).value||'')};
+  const lpHTML=()=>`<div class="lp-h">这条和哪块场有关？</div>${locGroups(S.loc).map(G=>`<div class="lp-l">${G.l}</div>${G.a.map(k=>`<button class="lq${G.g==='here'?' here':''}${S.loc===k?' on':''}" data-lq="${esc(k)}"><span class="dt"></span><b>${esc(COURTS[k].n)}</b><small>${G.g==='here'?'':locSub(k,G.g)}</small>${ic('check','ck')}</button>`).join('')}`).join('')}
+    ${locBtn('lq no')}<button class="lq no${!S.loc?' on':''}" data-lq="none" style="margin-top:6px"><span class="dt"></span><b>不选</b><small>和球场无关</small>${ic('check','ck')}</button>
     <p class="lp-f">选了球场，这条也会出现在那块场的动态里。只显示球场名字，不显示你在哪。</p>`;
   const openLp=()=>{const lp=$('[data-lp]');if(!lp)return;lp.innerHTML=lpHTML();S.lpOn=true;lp.classList.add('on');$('[data-place]').classList.add('open')};
   const closeLp=()=>{const lp=$('[data-lp]');S.lpOn=false;if(lp)lp.classList.remove('on');const pl=$('[data-place]');if(pl)pl.classList.remove('open')};
@@ -133,11 +145,12 @@ function App(el,init){
     if(F.length)return `<div class="sts"${hide}>${F.map(f=>`<button class="st" data-fill="${esc(f)}">${esc(f)}<i>…</i></button>`).join('')}</div>`;
     if(C.topic)return '';
     return `<div class="sts"${hide}><div class="tsg">${sugTopics(C).map(id=>`<button data-tp="${id}"><b>#${esc(S.T[id].t)}</b><span>${esc(S.T[id].ask)}</span></button>`).join('')}<button class="more" data-ctp>看看别的话题${ic('chev','cv')}</button></div></div>`};
-  const pickHTML=C=>{const row=(k,g)=>`<button class="pi${g==='here'?' here':''}${C.loc===k?' on':''}" data-loc="${esc(k)}"><span class="pin2">${ic('pin')}</span><div><b>${esc(COURTS[k].n)}</b><small>${g==='here'?'你在这里':(g==='mine'?'我的球场 · ':'')+fkm(KM[k])}</small></div>${ic('check')}</button>`;
-    return `<div class="pk-h"><span style="width:28px"></span><b>这条和哪块场有关？</b><button data-pkx>完成</button></div><div class="pk-s">${ic('search')}<span>搜索球场</span></div>
-      <div class="pk-b">${locGroups().map(G=>`<div class="pk-l">${G.l}</div><div class="pk-g">${G.a.map(k=>row(k,G.g)).join('')}</div>`).join('')}
+  const pkBody=(C,q)=>{const row=(k,g)=>`<button class="pi${g==='here'?' here':''}${C.loc===k?' on':''}" data-loc="${esc(k)}"><span class="pin2">${ic('pin')}</span><div><b>${esc(COURTS[k].n)}</b><small>${g==='here'?'你在这里':(g==='mine'?'我的球场 · ':'')+locSub(k,g)}</small></div>${ic('check')}</button>`;
+    if(q.trim()){const a=found(q);return a.length?`<div class="pk-g" style="margin-top:12px">${a.map(k=>row(k,'')).join('')}</div>`:'<p class="pk-f">没找到，换个词</p>'}
+    const lb=locBtn('pi');return `${lb?`<div class="pk-g" style="margin-top:12px">${lb}</div>`:''}${locGroups(C.loc).map(G=>`<div class="pk-l">${G.l}</div><div class="pk-g">${G.a.map(k=>row(k,G.g)).join('')}</div>`).join('')}
       <div class="pk-g" style="margin-top:18px"><button class="pi${!C.loc?' on':''}" data-loc="none"><span class="pin2">${ic('nopin')}</span><div><b>不选</b><small>这条和球场无关</small></div>${ic('check')}</button></div>
-      <p class="pk-f">选了球场，这条也会出现在那块场的动态里。<br>只显示球场名字，不显示你在哪，也不记录行踪。</p></div>`};
+      <p class="pk-f">选了球场，这条也会出现在那块场的动态里。<br>只显示球场名字，不显示你在哪，也不记录行踪。</p>`};
+  const pickHTML=C=>`<div class="pk-h"><span style="width:28px"></span><b>这条和哪块场有关？</b><button data-pkx>完成</button></div><label class="pk-s">${ic('search')}<input data-cq placeholder="搜索球场" autocomplete="off"></label><div class="pk-b">${pkBody(C,'')}</div>`;
   const TONES=[['','原片'],['warm','暖阳'],['film','胶片'],['dawn','清晨']];
   const shHTML=k=>{const C=S.cmp,pic=C.pics[0];
     if(k==='topic')return `<p class="csh-t">选个话题</p><label class="tq"><span>#</span><input data-tq maxlength="${CFG.settings.name_max}" placeholder="搜一个，没有就新建"></label><div class="tl">${tRows('')}</div>`;
@@ -358,7 +371,7 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
@@ -389,13 +402,14 @@ function App(el,init){
     if('qtx' in d){S.qtp=null;drawQ();return}
     if('qx' in d){const q=S.qhq||{};const v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc});return}
     if('place' in d){S.lpOn?closeLp():openLp();return}
+    if('clocate' in d){vpLocate(locRefresh);return}
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
     if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
     if('more' in d){sc.scrollTo({top:0,behavior:'smooth'});settle();return}
     if('send' in d){if(!S.gok){need('post',()=>again(t));return}const v=inp.value.trim(),lk=S.loc,tp=el.classList.contains('qing')?S.qtp:null;
       {const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);sc.scrollTop=0;const tk=tkind(tp);
-      insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?KM[lk]:null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);subEv(S.lastMine.id,S.photo?1:0,tk,lk,false,'bar');
+      insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);subEv(S.lastMine.id,S.photo?1:0,tk,lk,false,'bar');
       S.photo=false;inp.value='';drawComposer();qClose();inp.blur();S.qtp=null;showUndo(tp?`已发布 · No.${S.T[tp].n}`:'已发布');return}
     if('csend' in d){if(!S.gok){need('post',()=>again(t));return}const ci=$('[data-cin]'),v=ci.value.trim();if(!v)return;{const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);insertPost({id:++UID,t:Date.now(),x:v,w:S.court,km:1.2,b:0,r:[],mine:true,views:0},true);subEv(S.lastMine.id,0,'none',S.court,false,'court');ci.value='';ci.oninput();toast('已发布到 '+S.court);return}
     if('rsend' in d){if(!S.gok){need('reply',()=>again(t));return}const ri=$('[data-rin]'),v=ri.value.trim(),x=find(S.open);if(!v||!x)return;{const c=x.closed&&!x.mine?'replies_closed':SB_LINK.test(v)?'message_link':sbRate(S,'sb_reply');if(c){say(c);return}}flyArrow(t);addReply(S.open,v,{me:1,to:S.rto||undefined});track('sb_reply_send',{post_id:x.id,own_post:!!x.mine,to_someone:!!S.rto});ri.value='';ri.oninput();clearRto();return}
@@ -418,7 +432,7 @@ function App(el,init){
       {const nt=C.topic&&S.T[C.topic]&&S.T[C.topic].fresh,c=SB_LINK.test(C.text)?'message_link':(nt&&sbRate(S,'sb_topic',true))||sbRate(S,'sb_post',true);if(c){say(c);return}sbRate(S,'sb_post');if(nt){sbRate(S,'sb_topic');S.T[C.topic].fresh=0}}
       const lk=C.loc;S.cmp=null;state();const pid=++UID;subEv(pid,C.pics.length,tk,lk,C.later,'compose');
       if(C.later){toast('好的，2 小时后公开');return}
-      sc.scrollTop=0;setTimeout(()=>insertPost(norm([{id:pid,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?KM[lk]:null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep}])[0],true),420);
+      sc.scrollTop=0;setTimeout(()=>insertPost(norm([{id:pid,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep}])[0],true),420);
       inp.value='';drawComposer();setTimeout(()=>showUndo(C.topic?`已发布 · No.${S.T[C.topic].n}`:'已发布'),480);return}
     if(d.user){const u=UREG[d.user];if(!u)return;$('.acts .g').innerHTML=`<div class="uc">${av(u,56)}<b>${esc(u.n)}</b><p>${u.me?'这是你':`水平 ${u.lv} · 常在 ${esc(u.area)} 一带 · 打过 ${u.g} 场球局`}</p><small>场边没有私信。想一起打，可以在「球局」里约。</small></div>${u.me?'':`<button data-act="block" data-un="${esc(u.n)}">屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button><button class="warn" data-act="report">举报</button>`}`;el.classList.add('acting');return}
     if(d.rto!==undefined&&t.matches('.rr')){if(!d.rto)return;if(S.rto===d.rto){clearRto();return}setRto(d.rto,t);return}
@@ -477,7 +491,7 @@ function App(el,init){
   let hi=0;const showHint=o=>{S.hq=o;S.hintAt=Date.now();if(hint.textContent===o.t)return;hint.classList.add('out');setTimeout(()=>{hint.textContent=S.hq.t;hint.classList.remove('out')},300)};
   S.hq=hintsFor()[0];hint.textContent=S.hq.t;S.rehint=()=>{hi=0;showHint(hintsFor()[0])};
   setInterval(()=>{if(inp.value||AE()===inp||S.lpOn||S.cmp||Date.now()-(S.hintAt||0)<CFG.settings.hint_hold*1000-200||!el.getClientRects().length)return;const L=hintsFor();showHint(L[++hi%L.length])},CFG.settings.hint_every*1000);
-  el.addEventListener('input',e=>{if(e.target.matches('[data-tq]')){const tl=$('.csh-p .tl');if(tl)tl.innerHTML=tRows(e.target.value.trim().replace(/^#+/,''))}});
+  el.addEventListener('input',e=>{if(e.target.matches('[data-cq]')){const b=$('.pick .pk-b');if(b&&S.cmp)b.innerHTML=pkBody(S.cmp,e.target.value)}if(e.target.matches('[data-tq]')){const tl=$('.csh-p .tl');if(tl)tl.innerHTML=tRows(e.target.value.trim().replace(/^#+/,''))}});
   el.addEventListener('click',e=>{if(S.lpOn&&!e.target.closest('.lp,[data-place]'))closeLp()},true);
   if(S.lpDemo)setTimeout(openLp,900);
   if(S.qDemo)setTimeout(()=>{S.hq=HQ(S.T.ootd.ask,'ootd');hint.textContent=S.hq.t;S.qhq=S.hq;S.qtp='ootd';drawQ();el.classList.add('qing');inp.value='第一次穿网球裙上场，有点紧张';drawComposer()},700);
