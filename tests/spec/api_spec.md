@@ -185,6 +185,7 @@
 ## 2. 登录与账号
 
 ### POST /api/auth/otp/send `{phone}`
+> **现状（11-17 实查）：这条后端接口没有实现，前台直连 Supabase Auth（`/auth/v1/otp`、`/auth/v1/verify`，见 `src/shared/script/0490-Supabase登录.js`）；下面是当初的设计，上线前不按它做。登录漏斗埋点（#297）挂在前台拿到结果的地方。**
 - 检查：后端以 nbq_service 调 `auth_otp_send(phone, ip)`：按号码认出已开放的国家（`countries.phone_re`，澳洲 +61 4xx xxx xxx），认不出 → 422 `invalid`；锁定中 → 429 `otp_locked`；同一 IP 每小时 10 次 → 429 `rate_limited`；同一号码 60 秒 1 次 → 429 `otp_too_fast`、每天 5 次 → 429 `otp_daily_limit`
 - 写入：Supabase Auth 发短信验证码；`auth_otp_send` 返回 `{country, provider, sender, template}`，后端按这个国家的服务商和模板发
 - 事件：login_send_code（前端）
