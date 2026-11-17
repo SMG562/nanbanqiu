@@ -144,8 +144,8 @@ jobs:
           git checkout origin/nbq-target -- server/migrations
           if git -c core.quotepath=off status --porcelain | grep -v '^.. server/migrations/'; then echo "::error::检出了迁移目录以外的文件，停止"; exit 1; fi
           # 只认「分支里新增」的迁移文件；改了 main 上已有的迁移 = 不许（迁移只往前）
-          git diff --name-status origin/main...origin/nbq-target -- server/migrations | grep -v '^A' | grep -v '_bundle.sql' && { echo "::error::分支改动或删除了 main 上已有的迁移文件，正式库不自动执行"; exit 1; } || true
-          git diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt || true
+          git -c core.quotepath=off diff --name-status origin/main...origin/nbq-target -- server/migrations | grep -v '^A' | grep -v '_bundle.sql' && { echo "::error::分支改动或删除了 main 上已有的迁移文件，正式库不自动执行"; exit 1; } || true
+          git -c core.quotepath=off diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt || true
           [ -s /tmp/files.txt ] || { echo "::error::分支里没有新增的迁移文件，没什么可执行的"; exit 1; }
           while read -r f; do [ -f "server/migrations/$f" ] && [ ! -L "server/migrations/$f" ] && [ "$(wc -c < "server/migrations/$f")" -lt 100000 ] || { echo "::error::$f 不是普通文件或超过 100KB，请所有者手动执行"; exit 1; }; done < /tmp/files.txt
           digest=$(while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/files.txt | sha256sum | cut -d' ' -f1)
@@ -190,7 +190,7 @@ jobs:
           git fetch -q origin "+refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }
           [ "$(git rev-parse origin/nbq-target)" = "$FULL" ] || { echo "::error::批准期间分支头变了（不是 ${FULL:0:7}），已停止；请重新运行并重看计划"; exit 1; }
           git checkout origin/nbq-target -- server/migrations
-          git diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt
+          git -c core.quotepath=off diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt
           now=$(while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/files.txt | sha256sum | cut -d' ' -f1)
           [ "$now" = "$DIGEST" ] || { echo "::error::文件指纹和 plan 看过的不一致，已停止"; exit 1; }
           node tools/migration_audit.mjs
