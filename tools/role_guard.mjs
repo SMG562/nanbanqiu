@@ -94,6 +94,7 @@ function readTail(file, max = 4 << 20) {                                        
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'), TG = await import('./lib/token_guard.mjs');
+    if (input.hook_event_name === 'SessionStart') { process.stdout.write(TG.START_NOTE + '\n'); process.exit(0) }
     if (input.hook_event_name === 'PreToolUse') { const d = TG.preDecision(input); if (d) process.stdout.write(JSON.stringify(d) + '\n'); process.exit(0) }   // 11-17：省 token 护栏（手写轮询 / gh pr view）
     const text = typeof input.last_assistant_message === 'string' ? input.last_assistant_message : input.transcript_path ? lastTurnText(readTail(input.transcript_path)) : '';
     const login = ghLogin(), reason = decide({ login, text, stopHookActive: !!input.stop_hook_active, coOwners: login === OWNER_LOGIN ? [] : coOwnerList() });
