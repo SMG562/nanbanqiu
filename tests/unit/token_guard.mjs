@@ -26,4 +26,16 @@ T('钩子：垃圾输入 → 退出 0 无输出', (r => r.status === 0 && !r.std
 // 查重
 const items = [{ tag: '开着 #281', text: 'ci_wait 提示 修复 fix-ci-wait' }, { tag: 'main abc1234', text: '头像上传' }];
 T('--dup 按关键词命中（不分大小写、短词忽略）', O.dupHits(['CI_WAIT'], items).length === 1 && O.dupHits(['x'], items).length === 0 && O.dupHits(['头像'], items)[0].tag.startsWith('main'));
+// 用量统计（自动出 §十 第 1 步的数）+ 按上下文大小提醒
+const R = await import(pathToFileURL(path.join(DIR, 'tools/lib/token_report.mjs')));
+const u = (id, read) => JSON.stringify({ type: 'assistant', uuid: id, message: { id, content: [{ type: 'text', text: id === 'a3' ? '要我现在开始吗？' : '好' }], usage: { input_tokens: 1, cache_read_input_tokens: read, cache_creation_input_tokens: 0, output_tokens: 10 } } });
+const hu = k => JSON.stringify({ type: 'user', origin: k ? { kind: k } : undefined, message: { role: 'user', content: 'x' } });
+const rep = R.analyze([hu('human'), u('a1', 100000), u('a1', 100000), hu('task-notification'), u('a2', 200000), hu('human'), u('a3', 160000)].join('\n'));
+T('统计：流式重复按 id 去重；人 / 通知回合分开；收尾提问计数', rep.calls === 3 && rep.human === 2 && rep.notif === 1 && rep.asks === 1 && rep.read === 460000 && rep.notifRead === 200000 && rep.ctxNow === 160001, rep);
+T('摘要 ≤5 行、不含对话内容', R.summary(rep).split('\n').length <= 5 && !/要我现在/.test(R.summary(rep)));
+T('上下文 > 150K 就提醒（哪怕文件不大），并带自动统计', (h => h.length === 1 && /自动统计/.test(h[0][1]))(G.stopNudges({ bytes: 1000, edits: [], ctx: 160000, report: 'r' })) && G.stopNudges({ bytes: 1000, edits: [], ctx: 100000 }).length === 0);
+// 防漂移：护栏已接线、经验文档点名了它（改了一边忘另一边会红）
+const st = JSON.parse(fs.readFileSync(path.join(DIR, '.claude/settings.json'), 'utf8')), sk = fs.readFileSync(path.join(DIR, '.claude/skills/collaborator-pitfalls/SKILL.md'), 'utf8');
+T('settings.json 接了 PreToolUse（手写轮询拦截）和 Stop', !!(st.hooks.PreToolUse && JSON.stringify(st.hooks.PreToolUse).includes('role_guard.mjs')) && JSON.stringify(st.hooks.Stop).includes('role_guard.mjs'));
+T('技能 §十 点名 token_report.mjs 与 NBQ_CTX_K', /token_report\.mjs/.test(sk) && /NBQ_CTX_K|150K/.test(sk));
 console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
