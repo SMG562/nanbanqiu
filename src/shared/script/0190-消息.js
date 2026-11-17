@@ -49,7 +49,7 @@ function chatBtnHTML(uid){if(!canDM(uid))return'';const t=dmThread(uid),n=t?cxUn
 function chatGameBtn(c,st){if(!ME||!['approved','host'].includes(st)||c.appr.length<2)return'';const t=gameThread(c.id),n=t?cxUnread(t):0;
   return `<button class="${SX_BTN.s} cxgame" data-cx="game" data-g="${c.id}">💬 球局聊天${n?` · ${n} 条未读`:''}</button>`}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-cx]');if(!el)return;e.stopPropagation();const a=el.dataset.cx,d=el.dataset;
-  if(!ME&&a!=='inbox'){toast('请先登录');return}
+  if(!ME&&a!=='inbox'){openAuth(()=>{if(document.contains(el))el.click()},'登录后才能聊天');return}
   switch(a){
     case'inbox':CXCUR=null;CX_INBOX();break;
     case'open':openThread(d.t);break;

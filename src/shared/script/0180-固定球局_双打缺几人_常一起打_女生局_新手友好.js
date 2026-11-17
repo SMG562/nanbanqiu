@@ -5,7 +5,7 @@
     case'cardLink':copy(profileUrl(U(d.u),'link'),'球员卡链接已复制，可以发给朋友');break;
     case'cardShare':{const u=U(d.u);if(navigator.share)navigator.share({title:`${cardName(u)} 的南伴球球员卡`,url:profileUrl(u)}).catch(()=>{});else copy(profileUrl(u),'球员卡链接已复制');break}
     case'endSeries':{const s=seriesOf(G());s.active=false;toast('已停止 · 这一场照常进行');INV_RENDER();break}
-    case'gender':if(!ME){toast('请先登录');return}GSTEP=null;openGender(null);break;
+    case'gender':if(!ME){openAuth(()=>{GSTEP=null;openGender(null)},'登录后才能设置性别');return}GSTEP=null;openGender(null);break;
     case'pickG':if(d.v===ME.gender)return;if(gPick(d.v))break;GSTEP=d.v;openGender();break;
     case'gBack':GSTEP=null;openGender();break;
     case'gConfirm':{setGender(d.v);GSTEP=null;INV_CLOSE();INV_RENDER();toast('已保存');const n=GNEXT;GNEXT=null;if(n&&womenOK(ME))setTimeout(n,250);break}
