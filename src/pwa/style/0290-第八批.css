@@ -5,4 +5,4 @@
 .tbell svg{width:23px;height:23px}
 .tbell .badge{top:2px;left:auto;right:0}
 /* 场边通知（F2）：场边的人用场边的字母头像 */
-.av.sbav{display:grid;place-items:center;color:#141516;font-weight:600;font-size:17px;border-radius:50%}
+.av.sbav{display:grid;place-items:center;color:var(--ink);font-weight:600;font-size:17px;border-radius:50%}

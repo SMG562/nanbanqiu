@@ -5,4 +5,4 @@
 #sbHost{display:block;height:100%}
 .is-side .foot,.is-side .commpill{display:none}
 /* 场边通知：场边的人用场边的字母头像 */
-.av.sbav{display:grid;place-items:center;color:#141516;font-weight:600;font-size:15px;border-radius:50%}
+.av.sbav{display:grid;place-items:center;color:var(--ink);font-weight:600;font-size:15px;border-radius:50%}
