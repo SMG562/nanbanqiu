@@ -5,6 +5,7 @@
 # 通过：一行「✅ 命令（用时）」+ 输出的最后一行（通常是「N passed, 0 failed」）。
 # 失败：「❌ 命令 退出码 N（用时）」+ 最多 N 行（默认 30）报错行（带行号）；一行都没匹配到就给最后 N 行；
 #       末尾给完整日志路径，需要更多再 `sed -n 'a,bp' 日志`，不要整份读。
+# 注意：命中行原样回给会话；命令输出里若有密钥 / 令牌，它们也会进会话（日志文件权限 600，留在临时目录，需要时自己删）。
 # 退出码原样透传（超时 = 124），所以可以直接接在 && 链里。不改被运行命令的任何行为。
 LINES_MAX=30; TMO=0
 while [ $# -gt 0 ]; do
@@ -16,6 +17,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "$LINES_MAX$TMO" in *[!0-9]*) echo "q.sh：--lines / --timeout 要填数字"; exit 2;; esac
+[ "$LINES_MAX" -ge 1 ] 2>/dev/null || LINES_MAX=1   # --lines=0 / 空值：至少给 1 行，不能只剩一行路径
 [ $# -gt 0 ] || { echo "用法：bash tests/lib/q.sh [--lines=N] [--timeout=秒] [--] <命令 参数…>"; exit 2; }
 LOG=$(mktemp "${TMPDIR:-/tmp}/nbq-q.XXXXXX") || { echo "q.sh：建不了日志文件"; exit 2; }
 CMD="$*"; [ "${#CMD}" -gt 70 ] && CMD="${CMD:0:67}..."

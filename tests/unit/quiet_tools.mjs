@@ -16,6 +16,8 @@ const logm = r.stdout.match(/：(\/\S+nbq-q\.\S+)）/); T('失败：给出完整
 if (logm) fs.rmSync(logm[1], { force: true });
 r = run([Q, '--lines=3', 'bash', '-c', 'for i in 1 2 3 4 5 6; do echo "Error $i"; done; exit 1']);
 T('--lines=3：最多 3 行报错', r.stdout.split('\n').filter(l => /^\d+:Error/.test(l)).length === 3, r.stdout);
+r = run([Q, '--lines=0', 'bash', '-c', 'echo "Error boom"; exit 1']);
+T('--lines=0 → 至少给 1 行报错（复核 #331）', /1:Error boom/.test(r.stdout) && r.status === 1, r.stdout);
 r = run([Q, 'bash', '-c', 'for i in 1 2 3; do echo "plain line $i"; done; exit 2']);
 T('失败但没有任何报错关键词 → 退回给最后几行（不让会话两眼一抹黑）', /plain line 3/.test(r.stdout) && r.status === 2, r.stdout);
 r = run([Q, '--timeout=1', 'sleep', '5']);
@@ -52,6 +54,10 @@ exit 0
   T('brief：不含慢的全量段落（分支 / 同改文件 / 之后合并的 PR）', !/分支：|同改的文件|之后合并的 PR|之后 main 上的代码提交/.test(B.stdout), B.stdout);
   const F = spawnSync('bash', [path.join(repo, 'tools/handoff_check.sh')], { encoding: 'utf8', env, cwd: repo });
   T('不带 --brief：仍是全量输出（含「之后 main 上的代码提交」和完整身份说明）', /之后 main 上的代码提交/.test(F.stdout) && /对话里的人就是 tester 本人/.test(F.stdout) && F.stdout.split('\n').length > lines.length, F.stdout.slice(0, 300));
+  // gh 全部失败（没登录 / 被拦）：brief 必须明说「不可信」，不能让「无」冒充事实（复核 #331）
+  const bin2 = path.join(d, 'bin2'); fs.mkdirSync(bin2); fs.writeFileSync(path.join(bin2, 'gh'), '#!/usr/bin/env bash\nexit 1\n', { mode: 0o755 });
+  const G = spawnSync('bash', [path.join(repo, 'tools/handoff_check.sh'), '--brief'], { encoding: 'utf8', env: { ...process.env, PATH: bin2 + ':' + process.env.PATH }, cwd: repo });
+  T('brief：gh 失败 → 明说「读不到 / 不可信」', /gh 读不到/.test(G.stdout) && /不可信/.test(G.stdout), G.stdout);
   fs.rmSync(d, { recursive: true, force: true }); }
 
 console.log(`\nquiet_tools: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

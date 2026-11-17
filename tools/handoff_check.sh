@@ -14,6 +14,7 @@ last=$(git log -1 --format=%H origin/main -- "$F"); when=$(git log -1 --format=%
 # 11-12：协作者的会话常落后 main（新脚本 / 护栏没拉到）。规矩文件、脚本、钩子落后了就先拉
 bh=$(git rev-list --count HEAD..origin/main -- tools .githooks CLAUDE.md docs 2>/dev/null); [ "${bh:-0}" -gt 0 ] && echo "⚠ 本地落后 origin/main：tools/ .githooks/ CLAUDE.md docs/ 有 $bh 个新提交（新脚本、护栏、规矩你还没拿到）——先 bash tools/sync_main.sh（在 main 上用 git pull --ff-only），再开工"
 if [ "$BRIEF" = 1 ]; then
+  [ "$me" = "?" ] && echo "⚠ gh 读不到（没登录 / 被拦）：下面的「无」都不可信，先修好 gh 再看（不带 --brief 的全量版同样依赖 gh）"
   echo "── 没合并的 PR："; $R api "repos/$REPO/pulls?state=open" --jq '.[]|"  #\(.number)\(if .draft then " [草稿]" else "" end) \(.head.ref)：\(.title)"' 2>/dev/null | head -n 5 | grep . || echo "  无"
   nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft==false and (.user.login|test("dependabot")|not))]|group_by(.user.login)|map("\(.[0].user.login) \(length)")|join("、")' 2>/dev/null); echo "── 在制品（非草稿，每人上限 2）：${nd:-无}"
   echo "── 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status=="completed" and .conclusion!="success" and .conclusion!="skipped")|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.conclusion)"' 2>/dev/null | head -n 3 | grep . || echo "  无"
