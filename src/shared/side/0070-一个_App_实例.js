@@ -41,7 +41,7 @@ function App(el,init){
     return `<div class="it itm"><div class="mh3">大家在聊</div><div class="hs3">${t.map(([k,n])=>`<button class="ht3" data-topic="${k}"><b>#${esc(S.T[k].t)}</b><small>今天 ${n} 条</small></button>`).join('')}</div></div>`};
   // 攒着的新动态（S.pend）：已经在 S.L 里，但还没画进列表。任何重画都要把它们排除、胶囊数跟着当前筛选走，否则重画会提前画出来、回顶后又放一次（重复）
   const held=x=>!!S.pend&&S.pend.includes(x);
-  const pillSync=()=>{const n=(S.pend||[]).filter(x=>pass(x)&&fOk(x)).length,m=$('[data-more]');S.qn=n;if(!m)return;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show')};
+  const pillSync=()=>{const n=(S.pend||[]).filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).length,m=$('[data-more]');S.qn=n;if(!m)return;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show')};
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
     const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
@@ -254,7 +254,7 @@ function App(el,init){
   // 滚动状态：手指在屏幕上，或 250ms 内还在滚（惯性）
   const busy=()=>S.touch||Date.now()-(S.sct||0)<250;
   // 把攒着的新动态放进列表（只在回到顶部、停稳之后；最新一条带出现动画，其余直接放）
-  const flushNew=()=>{S.pend&&S.pend.length&&(()=>{const q=S.pend;S.pend=null;S.qn=0;q.forEach((x,i)=>{if(pass(x)&&fOk(x)){const r=prep(LH(x));if(i===q.length-1)birth(r,{k:S.k,typing:true})}})})();
+  const flushNew=()=>{S.pend&&S.pend.length&&(()=>{const q=S.pend;S.pend=null;S.qn=0;q.forEach((x,i)=>{if(S.L.includes(x)&&pass(x)&&fOk(x)){const r=prep(LH(x));if(i===q.length-1)birth(r,{k:S.k,typing:true})}})})();
     $('[data-more]').classList.remove('show');if(S.pdraw){S.pdraw=0;drawHome()}};
   const settle=()=>{clearTimeout(S.ft);S.ft=setTimeout(()=>{if(!busy()&&sc.scrollTop<=80&&(S.pend||S.pdraw))flushNew();else if(busy())settle()},280)};
   // 新的一句

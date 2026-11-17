@@ -17,10 +17,22 @@ await pg.evaluate(()=>{document.querySelector('#d0 [data-sc="home"]').scrollTop=
 s=await snap();
 ok(s.dup.length===0,'回到顶部放进来之后：列表里没有重复的动态',s.dup);
 ok(s.pill==='','放进来之后胶囊收起',s.pill);
-// B：攒着时打开「只看我的球场」筛选：胶囊数跟着筛选走
-ok(await hold(),'再攒一轮');
-await pg.evaluate(()=>document.querySelector('#d0 [data-mine]').click());await W(700);
-s=await snap();const shown=/\d+/.test(s.pill)?+s.pill.match(/\d+/)[0]:0;
-const exp2=await pg.evaluate(()=>(SBV.pend||[]).filter(x=>SBV.homes.includes(x.w)&&!x.area).length);
-ok(shown===exp2,'打开「只看我的球场」：胶囊数 = 攒着的里属于我的球场的条数',{shown,exp2,pend:s.pend.length});
+// B：胶囊数跟着筛选走。全部在一次同步执行里完成（不被定时器 / 回顶放入打断），攒着的人为造 2 条：一条属于我的球场（Kooyong），一条不属于（Hawthorn）
+const B=await pg.evaluate(()=>{const d=document.querySelector('#d0'),pill=()=>{const p=d.querySelector('[data-more]');return p.classList.contains('show')?p.textContent:''};
+  SBV.api.setHome('Kooyong,Glen Iris');const base=SBV.L.find(x=>x.w&&!x.area&&!x.mine&&!x.topic);
+  const mk=(id,w)=>({...base,id,w,t:Date.now(),b:0,r:[],mine:false,area:false});const a=mk(990001,'Kooyong'),c=mk(990002,'Hawthorn');
+  SBV.L.unshift(a,c);SBV.pend=[a,c];SBV.api.setHome('Kooyong,Glen Iris');
+  const p0=pill(),inList0=[...d.querySelectorAll('[data-s="home"] [data-ln]')].map(e=>e.dataset.ln).filter(i=>i==='990001'||i==='990002');
+  d.querySelector('[data-mine]').click();const p1=pill();d.querySelector('[data-mine]').click();const p2=pill();
+  return {p0,p1,p2,inList0}});
+ok(B.p0.includes('2')&&B.inList0.length===0,'攒着 2 条（1 条属于我的球场）：胶囊写 2，且都没画进列表',B);
+ok(B.p1.includes('1'),'打开「只看我的球场」：胶囊数变成 1（只数属于我的球场的）',B.p1);
+ok(B.p2.includes('2'),'关掉筛选：胶囊数回到 2',B.p2);
+await W(1500);const E=await snap();ok(E.dup.length===0,'之后回顶放入：没有重复',E.dup);
+// C：攒着的被撤回 / 删掉后，不数、不放
+const C=await pg.evaluate(()=>{const d=document.querySelector('#d0'),pill=()=>{const p=d.querySelector('[data-more]');return p.classList.contains('show')?p.textContent:''};
+  const base=SBV.L.find(x=>x.w&&!x.area&&!x.mine&&!x.topic),mk=(id)=>({...base,id,t:Date.now(),b:0,r:[],mine:false,area:false}),a=mk(990011),c=mk(990012);
+  d.querySelector('[data-sc="home"]').scrollTop=900;SBV.L.unshift(a,c);SBV.pend=[a,c];SBV.api.setHome('Kooyong,Glen Iris');const p0=pill();
+  SBV.L=SBV.L.filter(y=>y!==c);SBV.api.setHome('Kooyong,Glen Iris');return {p0,p1:pill()}});
+ok(C.p0.includes('2')&&C.p1.includes('1'),'攒着的有一条被删掉后：胶囊数少 1',C);
 await done(b,errs,'T9')})();
