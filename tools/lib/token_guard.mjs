@@ -90,3 +90,5 @@ export function postLedger(input, { dir = os.tmpdir(), run = spawnSync, now = Da
   } catch { }
   return null;
 }
+// 开会话时自动注入的常驻规矩（不放 CLAUDE.md，不占规则预算；每个会话、每个人拉到仓库就得到同一份；协作者 #346）
+export const START_NOTE = '省 token 常驻规矩：①授权前置——被点名的任务按交接一路做到合并，只在红线 / 单向门才停，不以「要我开始吗/是否继续」收尾；②等复核或等 CI 的 PR：推完就结束本轮，不订阅、不设兜底唤醒；③一件事一个会话，合并或交接后换新会话；④查状态只用 pr_state.sh / ci_wait.sh / pr_merge.sh --check。';
