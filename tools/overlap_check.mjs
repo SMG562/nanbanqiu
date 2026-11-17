@@ -3,6 +3,7 @@
 //   node tools/overlap_check.mjs                 本分支（相对 origin/main）改的文件：哪些有别的开着的 PR 也在改、哪些是热点
 //   node tools/overlap_check.mjs a.js dir/       指定文件 / 目录前缀（还没开工、只是打算改它们时用）
 //   node tools/overlap_check.mjs --prs           开着的 PR 两两之间同改了哪些文件（handoff_check 会带上）
+//   node tools/overlap_check.mjs --dup 关键词…    动手前查「这件事有人做过 / 在做吗」：开着的 PR、近 14 天已合并的 PR、近 30 天 main 提交里按关键词找（new_branch.sh 自动跑，11-17）
 //   node tools/overlap_check.mjs --hot [天] [次]   热点文件：近 N 天（默认 14）被提交 ≥ 次（默认 15）的文件
 // 只读：不改任何东西；gh 读不到时只报热点。
 import { execFileSync } from 'node:child_process'; import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
@@ -15,6 +16,8 @@ export const pairwise = prFiles => { const ks = Object.keys(prFiles), out = [];
   for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) { const s = new Set(prFiles[ks[j]]), files = prFiles[ks[i]].filter(f => s.has(f)); if (files.length) out.push({ a: ks[i], b: ks[j], files }) }
   return out };
 export const touches = (files, targets) => files.filter(f => targets.some(t => f === t || (t.endsWith('/') && f.startsWith(t))));
+// 关键词（≥ 2 个字符，任一命中即算；不分大小写）→ 标题 / 分支名里命中的条目。items: [{ tag, text }]
+export const dupHits = (kws, items) => { const ks = kws.map(k => k.toLowerCase()).filter(k => k.length >= (/^[\x00-\x7f]+$/.test(k) ? 4 : 2)); return ks.length ? items.filter(i => ks.some(k => i.text.toLowerCase().includes(k))) : [] };
 const sh = (...a) => execFileSync(a[0], a.slice(1), { encoding: 'utf8', maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'pipe'] });
 const gh = (...a) => JSON.parse(sh('gh', 'api', ...a));
 const hot = (days, min) => hotFiles(sh('git', '-c', 'core.quotepath=false', 'log', `--since=${days}.days`, '--name-only', '--pretty=format:', 'origin/main'), min);
@@ -23,6 +26,11 @@ function openPRs(R) { const ps = gh('--paginate', `repos/${R}/pulls?state=open&p
 function main() {
   const A = process.argv.slice(2), R = process.env.GITHUB_REPOSITORY || 'SMG562/nanbanqiu';
   if (A[0] === '--hot') { const d = +A[1] || 14, m = +A[2] || 15, h = hot(d, m); console.log(`热点文件（近 ${d} 天提交 ≥ ${m} 次）：`); h.forEach(([f, n]) => console.log(`  ${String(n).padStart(3)}  ${f}`)); if (!h.length) console.log('  无'); return }
+  if (A[0] === '--dup') { const kws = A.slice(1).flatMap(k => k.split(/[-_/\s]+/)).filter(Boolean); if (!kws.length) { console.log('用法：--dup 关键词…'); return }
+    const items = []; try { for (const p of gh('--paginate', `repos/${R}/pulls?state=open&per_page=100`)) items.push({ tag: `开着 #${p.number}${p.draft ? '[草稿]' : ''}`, text: `${p.title} ${p.head.ref}` });
+      for (const p of gh(`repos/${R}/pulls?state=closed&sort=updated&direction=desc&per_page=50`)) if (p.merged_at && Date.now() - Date.parse(p.merged_at) < 14 * 864e5) items.push({ tag: `已合并 #${p.number}`, text: `${p.title} ${p.head.ref}` }) } catch { console.log('（gh 读不到 PR，只查 main 提交）') }
+    try { for (const l of sh('git', 'log', '--since=30.days', '--format=%h %s', 'origin/main').split('\n').filter(Boolean)) items.push({ tag: `main ${l.slice(0, 7)}`, text: l.slice(8) }) } catch { }
+    const hits = dupHits(kws, items).slice(0, 12); if (!hits.length) console.log(`✅ 没查到和「${kws.join(' ')}」相关的开着 / 近期已合并的工作`); else { console.log(`⚠️ 动手前先看这些——可能已经有人做了 / 在做（别只信台账；确认不重复再开工）：`); hits.forEach(h => console.log(`  ${h.tag}：${h.text.slice(0, 90)}`)) } return }
   let prs; try { prs = openPRs(R) } catch { prs = null }
   if (A[0] === '--prs') { if (!prs) { console.log('  读不到开着的 PR（gh 未登录？）'); return }
     const pw = pairwise(Object.fromEntries(Object.entries(prs).map(([n, p]) => [n, p.files.filter(f => !/\.md$/.test(f) && !SKIP.test(f) && !AUTO.test(f))]))); if (!pw.length) console.log('  无（开着的 PR 之间没有同改的代码文件）');
