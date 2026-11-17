@@ -88,6 +88,37 @@ const USER = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr:
     T('①c 刷新后已登录、回到原标签页、提示「账号已创建」', st.me && st.tab === 'me' && /账号已创建/.test(st.toast), st);
     T('①c 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
 
+  // ①d #304 的三条加固：不打断、残留标记、保存失败的提示不被刷新吞掉
+  { const rec = () => { try { sessionStorage.setItem('__ld', String((+sessionStorage.getItem('__ld') || 0) + 1)) } catch (_) { } };
+    // 新号码：常去球场没存成（mock 里 /api/me/clubs 回 404）→ 不刷新，提示留在屏幕上
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: rec, newUser: true });
+    await s.pg.evaluate(() => go('me')); await s.login(); await s.pg.waitForFunction(() => typeof NP !== 'undefined' && !!document.querySelector('[data-a="npDone"]'), null, { timeout: 10000 }).catch(() => { });
+    await s.pg.evaluate(v => { NP.clubs = [v]; nbqNpDone('Sam') }, V1); await s.pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME, null, { timeout: 15000 }).catch(() => { }); await s.pg.settle(1500);
+    T('①d 常去球场没存成：不刷新（提示不被吞掉），已登录', await s.pg.evaluate(() => sessionStorage.getItem('__ld') === '1' && !!ME), await s.pg.evaluate(() => sessionStorage.getItem('__ld')));
+    T('①d 没有页面报错', !s.errs.length, s.errs); await s.ctx.close();
+    // 加载时带码、之后换了新码（hoStaleReload 的各道保护）
+    s = await open(IOS, 'https://nanbanqiu.app/', { init: rec }); await s.login();
+    await s.pg.waitForFunction(() => /\/api\/manifest\?h=/.test(document.querySelector('link[rel="manifest"]').getAttribute('href')), null, { timeout: 8000 }).catch(() => { });
+    await s.pg.reload(); await s.pg.waitForFunction(() => typeof nbqApply === 'function' && !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(800);
+    const arm = () => s.pg.evaluate(() => { sessionStorage.removeItem('nbq_ho_rl'); HO_READY = true; HO_CLEARED = false; hoLink('N'.repeat(43)); AUTH.next = null; document.querySelectorAll('.cxsheet,#__in').forEach(e => e.remove()); if (document.activeElement) document.activeElement.blur() });
+    const ld0 = await s.pg.evaluate(() => sessionStorage.getItem('__ld'));
+    await arm(); T('①d 前提：加载时带码、现在换了新码', await s.pg.evaluate(() => /^\/api\/manifest\?h=/.test(HO_AT_LOAD) && hoHref() !== HO_AT_LOAD));
+    await s.pg.evaluate(() => { AUTH.next = () => { } });
+    T('①d 登录后还有事要接着做（AUTH.next）：不刷新', await s.pg.evaluate(() => hoStaleReload() === false && sessionStorage.getItem('nbq_ho_rl') === null));
+    await arm(); await s.pg.evaluate(() => { const d = document.createElement('div'); d.className = 'cxsheet'; document.body.appendChild(d) });
+    T('①d 正在看聊天：不刷新', await s.pg.evaluate(() => hoStaleReload() === false && sessionStorage.getItem('nbq_ho_rl') === null));
+    await arm(); await s.pg.evaluate(() => { const i = document.createElement('input'); i.id = '__in'; document.body.appendChild(i); i.focus() });
+    T('①d 输入框有焦点：不刷新', await s.pg.evaluate(() => hoStaleReload() === false && sessionStorage.getItem('nbq_ho_rl') === null));
+    await arm();   // 对照：什么都没有时会刷新（证明上面三条是被保护挡住，不是前提不成立）
+    await Promise.all([s.pg.waitForNavigation({ timeout: 8000 }).catch(() => { }), s.pg.evaluate(() => hoStaleReload()).catch(() => { })]); await s.pg.settle(800);
+    T('①d 对照：没有任何保护触发时刷新一次', await s.pg.evaluate(() => sessionStorage.getItem('__ld')) === String(+ld0 + 1), [ld0]);
+    // nbq_ho_back 残留：过期的不再补「欢迎回来」，新的照常
+    const bk = ago => s.pg.evaluate(a => { const t = []; window.toast = m => t.push(m); sessionStorage.setItem('nbq_ho_back', JSON.stringify({ at: Date.now() - a, tab: '', msg: '欢迎回来' })); hoBack(); return { t, left: sessionStorage.getItem('nbq_ho_back') } }, ago);
+    const old = await bk(36e5), fresh = await bk(0);   // 用页面自己的时钟算（页面里的 Date.now 不一定等于测试进程的）
+    T('①d 过期的残留标记：不补「欢迎回来」，标记清掉', old.t.length === 0 && old.left === null, old);
+    T('①d 刚刷新完的标记：照常补「欢迎回来」', fresh.t.length === 1 && fresh.t[0] === '欢迎回来' && fresh.left === null, fresh);
+    T('①d 没有页面报错', !s.errs.length, s.errs); await s.ctx.close() }
+
   // ② 桌面图标第一次打开
   s = await open(IOS, 'https://nanbanqiu.app/melbourne/?source=pwa&h=' + CODE);
   await s.pg.waitForFunction(() => !!ME, null, { timeout: 10000 }).catch(() => { }); await s.pg.settle(500);
