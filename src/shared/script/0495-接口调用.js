@@ -279,10 +279,11 @@ async function nbqNpDone(n){
   if(btn){if(btn.disabled)return;btn.disabled=true}
   const reg=await NBQ_NET.post('/api/me/register',{nickname:n,last_initial:last||null,utr:NP.ntrp,utr_estimated:!!NP.est,adult:true});
   if(!reg.ok)return err(apiErrText(reg.code));
-  if(NP.clubs&&NP.clubs.length){const c=await NBQ_NET.put('/api/me/clubs',{venue_ids:[...NP.clubs].slice(0,3)});if(!c.ok)toast(apiErrText(c.code))}
-  if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok)toast(apiErrText(g.code))}
+  let warn=false;   // 常去球场 / 性别没存成：提示要让用户看见，刷新会把它吞掉（#304），所以这种情况不刷新
+  if(NP.clubs&&NP.clubs.length){const c=await NBQ_NET.put('/api/me/clubs',{venue_ids:[...NP.clubs].slice(0,3)});if(!c.ok){warn=true;toast(apiErrText(c.code))}}
+  if(NP.gender==='f'||NP.gender==='m'){const g=await NBQ_NET.patch('/api/me',{gender:NP.gender});if(!g.ok){warn=true;toast(apiErrText(g.code))}}
   const e=await nbqEnter();if(e.st==='gone')return err('');if(e.st!=='ok')return err(apiErrText(e.code||'unknown'));
-  if(!AUTH.next&&typeof hoLoginReload==='function'&&await hoLoginReload('账号已创建'))return;   // 新号码也一样：填完资料趁这一下刷新一次（#299）
+  if(!warn&&!AUTH.next&&typeof hoLoginReload==='function'&&await hoLoginReload('账号已创建'))return;   // 新号码也一样：填完资料趁这一下刷新一次（#299）
   toast('账号已创建');const nx=AUTH.next;AUTH.next=null;NP={ntrp:3.0,clubs:[]};typeof closeSheet==='function'?closeSheet():closeModal();render();if(nx)setTimeout(nx,380);else if(typeof pnAfterLogin==='function')setTimeout(pnAfterLogin,600)}
 
 /* ---- 球局写操作（4b）：先调接口，成功后重新读入「我的球局 + 公开球局」，以服务器为准；失败提示错误码并同步一次 ---- */

@@ -105,7 +105,7 @@ async function hoLoginReload(msg){
   try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false}catch(_){return false}
   const ok=await Promise.race([hoPrep(),new Promise(r=>setTimeout(()=>r(false),1500))]).catch(()=>false);
   if(!ok||!HO_READY||hoHref()===HO_AT_LOAD)return false;
-  try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({tab:typeof UI!=='undefined'&&UI.tab||'',msg:msg||'欢迎回来'}))}catch(_){return false}
+  try{sessionStorage.setItem('nbq_ho_rl','1');sessionStorage.setItem('nbq_ho_back',JSON.stringify({at:Date.now(),tab:typeof UI!=='undefined'&&UI.tab||'',msg:msg||'欢迎回来'}))}catch(_){return false}
   location.reload();return true}
 // 打开页面时本机缓存的码已被核对出作废（桌面图标把它用掉了、或别处退出作废）→ 已换了新码，但 iOS 读的是页面打开那一刻写进安装配置的旧码：
 //   这时直接用 Safari 自带分享添加，图标里是旧码，打开必然「没能自动登录」（11-15 真机）。所以刚打开就静默刷新一次，让加载时读到的就是新码。只在「加载时带的是码、现在换了」时刷新；同一个标签页只刷新一次
@@ -113,11 +113,14 @@ function hoStaleReload(){
   if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return false}   // 刷新后必然相等：清掉「已刷新」标记，这个标签页之后再有变化还能再刷（不会循环：刷新后加载时带的就是现在这份）
   if(!/^\/api\/manifest\?h=/.test(HO_AT_LOAD)||!HO_READY||HO_CLEARED)return false;
   if(typeof AUTH!=='undefined'&&AUTH&&AUTH.next)return false;   // 登录后还有事要接着做：刷新会丢
-  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;
+  if(document.querySelector('.cxsheet,.cx-web .cx-r'))return false;   // 正在看聊天（#304）
+  {const e=document.activeElement;if(e&&(/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)||e.isContentEditable))return false}   // 输入框有焦点：不打断打字（#304）   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
   try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false;sessionStorage.setItem('nbq_ho_rl','1')}catch(_){return false}
   location.reload();return true}
 function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
-  if(!b)return;if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast(b.msg||'欢迎回来')}
+  if(!b||!(Date.now()-b.at<6e4))return;   // 刷新后没能进到已登录（新号码 / 出错）残留的标记：过一分钟就不再补「欢迎回来」（#304）
+  if(b.tab&&typeof go==='function'&&typeof UI!=='undefined'&&UI.tab!==b.tab)go(b.tab);toast(b.msg||'欢迎回来')}
 function hoResume(){try{if(sessionStorage.getItem('nbq_a2hs_go')!=='1')return;sessionStorage.removeItem('nbq_a2hs_go')}catch(_){return}if(typeof openA2HS==='function')openA2HS()}
 let PN_AUTH=null;
 {if(typeof AN_BUILD!=='undefined'&&AN_BUILD==='pwa'&&typeof openAuth==='function'){const _oa=openAuth;
