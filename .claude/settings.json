@@ -79,7 +79,7 @@
         ]
       },
       {
-        "matcher": "Read|.*subscribe_pr_activity.*|.*send_later.*|ScheduleWakeup|CronCreate|.*create_trigger.*",
+        "matcher": "Read|.*subscribe_pr_activity.*|.*send_later.*|ScheduleWakeup|CronCreate",
         "hooks": [
           {
             "type": "command",
