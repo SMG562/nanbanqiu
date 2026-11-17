@@ -53,5 +53,5 @@ jobs:
           files=$(git diff --name-only "$BEFORE" "$SHA" -- .claude CLAUDE.md 'tools/lib/token_*.mjs' | head -5 | sed 's/^/- /')
           [ -n "$files" ] || exit 0
           subj=$(git log --format='%s' "$BEFORE..$SHA" | head -3 | cut -c1-80 | sed 's/^/- /')
-          body=$(printf '【规则自动同步 %s】@MDD1102 主干规则文件有变化；你开工时 Claude 会自动提示 `git pull`，不用另外读这条。\n改了：\n%s\n提交：\n%s\n只读上面文件的 diff 即可。' "${SHA:0:7}" "$files" "$subj")
+          body=$(printf '【规则自动同步 %s】@MDD1102 主干规则文件有变化；你开工时 Claude 会自动提示 git pull，不用另外读这条。\n改了：\n%s\n提交：\n%s\n只读上面文件的 diff 即可。' "${SHA:0:7}" "$files" "$subj")
           gh api -X POST "repos/$GITHUB_REPOSITORY/issues/216/comments" -f body="$body" >/dev/null
