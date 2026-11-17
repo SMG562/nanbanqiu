@@ -80,8 +80,6 @@ document.addEventListener('click',e=>{
     case'doCancelGame':if(NBQ_NET){nbqCancel(g).then(d=>{if(d){closeModal();toast('球局已取消，已通知球友');render()}});break}api.cancelGame(g);closeModal();toast('球局已取消，已通知球友');render();break;
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
-    case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
-    case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'openLanding':UI.landing=api.get(g).share_code;history.replaceState(null,'','#/g/'+UI.landing);render();scrollTo(0,0);break;
     case'enablePush':enablePush();break;
     case'editClubs':openClubs();break;

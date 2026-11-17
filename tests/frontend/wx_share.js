@@ -22,7 +22,7 @@ const FAKE = '2026-10-14T13:10:00+11:00';
       const id = 'g1';
       const o = await pg.evaluate(id => { openShare(id); const c = api.get(id); const tiles = [...document.querySelectorAll('.sgrid button')].map(b => b.dataset.a);
         return { tiles, card: document.querySelector('.wxcard b').textContent, desc: document.querySelector('.wxcard p').textContent, th: !!document.querySelector('.wxcard .thumb svg use[href="#logo"]'), bub: !!document.querySelector('.wxbub'), lnk: !!document.querySelector('[data-a="copyText"]'), title: ogTitle(c), d: ogDesc(c) } }, id);
-      T('手机端分享面板：4 个入口（微信群在第一个）+ 复制文案链接', JSON.stringify(o.tiles) === '["wxShare","sysShare","poster","copyLink"]' && o.lnk, o);
+      T('手机端分享面板：只有 2 个入口（微信群、小红书），没有复制链接 / 复制文案', JSON.stringify(o.tiles) === '["wxShare","poster"]' && !o.lnk, o);
       T('预览卡片 = 真实卡片：同一个标题 / 描述，缩略图是品牌 logo；只有这一张卡片（没有不会发出的气泡）', o.card === o.title && o.desc === o.d && o.th && !o.bub, o);
       const xt = await pg.evaluate(() => Object.keys(USERS || {}).slice(0, 40).map(u => scText(u, 'xhs').title.length));
       T('小红书球员卡标题 ≤ 20 字（超了小红书会截断）', xt.length > 0 && xt.every(n => n <= 20), xt);
