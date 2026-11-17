@@ -32,6 +32,8 @@ export const FILES = {
   'icons/icon-192.png': 'icons/icon-192.png',
   'icons/icon-512.png': 'icons/icon-512.png',
   'icons/icon-maskable-512.png': 'icons/icon-maskable-512.png',
+  // 推送通知的状态栏徽章（sw.js 的 badge；Android 只认透明度，所以是透明底的白色剪影；11-17 补，之前一直 404）
+  'icons/badge-72.png': 'icons/badge-72.png',
   // 链接卡片缩略图（og:image；300×300、7KB：微信对缩略图有体积限制）
   'icons/og-share.jpg': 'icons/og-share.jpg',
 };

@@ -17,6 +17,7 @@ const IGNORE = /(\.(md|png|webp|jpe?g|svg|zip)|^\.gitignore)$|^(marketing|icons|
 // 顺序无关：一个文件匹配多条就取并集
 export const RULES = [
   // 前台
+  [/^(sw\.js|manifest\.webmanifest|tools\/site\.mjs|functions\/.*\.js|server\/og\/|icons\/)/, ['unit/static_refs']],   // 静态资源 404 守卫（C1）
   [/^vendor\//, ['frontend/vendor_load', 'frontend/csp', 'frontend/site', 'unit/vendor_local']],   // 第三方库本站托管（L5）
   [/^src\/(shared|pwa|web)\/side\/|^src\/(pwa|web)\/side\//, ['side', 'e2e/sb', 'visual/']],
   [/^src\/shared\/script\/0490/, ['unit/sb_auth', 'sb_login', 'frontend/real_data', 'frontend/real_write', 'frontend/handoff']],
