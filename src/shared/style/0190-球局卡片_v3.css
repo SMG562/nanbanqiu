@@ -1,6 +1,6 @@
 .pass .pp-h{align-items:center;margin-bottom:14px}
 .pass .pp-h b{font-size:14px}
-.pass .pp-h span{font-size:12px;font-weight:700;color:var(--g);background:var(--gss);border-radius:99px;padding:3px 10px}
+.pass .pp-h span{font-size:12px;font-weight:700;color:var(--g);background:var(--gss);border-radius:999px;padding:3px 10px}
 .pass .person.ph .av{background:#fff;border:1.5px dashed #CDD3CD;box-shadow:none}
 
 .ugn{font-size:12.5px;line-height:1.5;color:#7A5300;background:#FFF8E6;border-radius:10px;padding:8px 11px;margin:0 0 10px}

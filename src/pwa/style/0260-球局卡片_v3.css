@@ -1,4 +1,4 @@
-.pass .pass-band{display:inline-flex;margin:22px 22px 0;padding:5px 12px 5px 10px;border-radius:99px;font-size:12.5px;gap:6px;letter-spacing:.01em}
+.pass .pass-band{display:inline-flex;margin:22px 22px 0;padding:5px 12px 5px 10px;border-radius:999px;font-size:12.5px;gap:6px;letter-spacing:.01em}
 .pass .pass-band svg{width:14px;height:14px}
 .pass .pass-band+.pass-main{padding-top:12px}
 .pass .pass-main{padding:24px 22px 0}

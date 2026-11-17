@@ -1,7 +1,7 @@
 .iv-lv{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#F4F7F5}
 .iv-lv b{font-size:14px;font-weight:800;color:#1F2A23;white-space:nowrap}.iv-lv span{font-size:12.5px;color:#8A928A}
 .ntq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.ntq button{height:30px;padding:0 11px;border-radius:99px;border:1px solid #E1E6E1;background:#fff;font:inherit;font-size:12.5px;color:#4A544D;cursor:pointer}
+.ntq button{height:30px;padding:0 11px;border-radius:999px;border:1px solid #E1E6E1;background:#fff;font:inherit;font-size:12.5px;color:#4A544D;cursor:pointer}
 .ntq button.on{border-color:#176B4D;background:#EEF6F1;color:#176B4D;font-weight:600}
 .vp-row em{font-size:12px!important;color:#8A928A}
 .vp-sec{padding:9px 12px 5px;font-size:11.5px;font-weight:600;color:#8A928A;background:#FAFBFA;border-bottom:1px solid #F0F2F0}

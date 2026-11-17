@@ -5,7 +5,7 @@
 .comm p{font-size:12.5px;color:var(--ink2);margin:4px 0 12px;line-height:1.55}
 .comm .x{position:absolute;right:10px;top:10px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--mut);font-size:18px}
 .comm .x:hover{background:var(--bg)}
-.commpill{position:fixed;right:20px;bottom:20px;z-index:70;height:34px;padding:0 12px 0 9px;border-radius:99px;background:#fff;color:var(--ink2);border:1px solid var(--line);font-weight:600;font-size:12.5px;display:none;align-items:center;gap:6px;box-shadow:0 4px 14px -6px rgba(16,24,40,.18);cursor:pointer;font-family:inherit}.commpill:hover{color:var(--ink)}
+.commpill{position:fixed;right:20px;bottom:20px;z-index:70;height:34px;padding:0 12px 0 9px;border-radius:999px;background:#fff;color:var(--ink2);border:1px solid var(--line);font-weight:600;font-size:12.5px;display:none;align-items:center;gap:6px;box-shadow:0 4px 14px -6px rgba(16,24,40,.18);cursor:pointer;font-family:inherit}.commpill:hover{color:var(--ink)}
 .commpill.show{display:flex}
 .commpill svg{width:17px;height:17px;color:#07C160}
 
