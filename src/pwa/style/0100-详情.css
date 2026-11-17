@@ -38,7 +38,7 @@
 .person .av{width:48px;height:48px;font-size:17px;position:relative}
 .person .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
 .person .lv{font-size:10.5px;color:var(--g);font-weight:700;margin-top:-3px}
-.person .host{position:absolute;bottom:-3px;right:-5px;background:var(--lime);color:#243500;font-size:9px;font-weight:800;border-radius:99px;padding:1px 5px;border:2px solid #fff}
+.person .host{position:absolute;bottom:-3px;right:-5px;background:var(--lime);color:#243500;font-size:9px;font-weight:800;border-radius:999px;padding:1px 5px;border:2px solid #fff}
 .person.ph .nm{color:var(--mut);font-weight:500}
 .sec-t{font-size:13px;color:var(--mut);font-weight:700;margin:22px 4px 10px;display:flex;justify-content:space-between;align-items:center}
 .sec-t button{color:var(--g);font-weight:600;font-size:13.5px}
