@@ -69,6 +69,7 @@ DEV.addEventListener('click',e=>{
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
+    case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
     case'wxShare':wxShare(g);break;
     case'editClubs':openClubs();break;
     case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）

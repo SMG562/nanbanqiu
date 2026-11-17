@@ -61,6 +61,7 @@
   "a:saveClubs": "write:e2e_fullstack",
   "a:wxclose": "baseline",
   "a:wxShare": "baseline",
+  "a:sysShare": "baseline",
   "a:poster": "baseline",
   "sx:xhsCopy": "baseline",
   "a:a2hsLink": "baseline",

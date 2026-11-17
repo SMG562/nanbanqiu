@@ -134,6 +134,7 @@ function openWxShareGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg cla
 function openShare(id){const c=api.get(id);
   openSheet(`<div class="sh-t">分享球局</div>${wxPreviewHTML(c)}
   <div class="sgrid"><button data-a="wxShare" data-g="${id}"><span class="si" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></span>发到微信群</button>
+  <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
   <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button></div>
   ${pushNudgeHTML('game')}`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
