@@ -3,6 +3,10 @@ name: staging-migrate
 #   · 自动（主要）：迁移文件合并进 main 后，按这次 push 的提交执行 → 测试库始终跟着 main。
 #   · 手动（少数情况）：没合并的分支必须用真机看库结构变化时，输入 ref = 分支名。
 #   两种都要 staging 环境的审批人批准后才执行。
+#   · 正式库（11-17，所有者批准）：手动运行，target = production + ref + sha。先由 plan 作业（无密钥、无审批）算出「分支里新增的迁移」，
+#     过 migration_audit / staging_migrate_check，把 SQL 全文和 sha256 写进运行页；所有者看过后在 production-migrate 环境批准一次，
+#     apply 作业只执行 plan 看过的那几个文件（重算指纹，不一致就停），要求这些迁移已在测试库记录过，最后自动触发 db-parity（只读）。
+#     被检查拦下的迁移（角色 / 权限 / 动态 SQL 等）仍只能所有者手动执行。
 # 安全边界（所有者定的要求）：
 #   · 只在 main 上运行。真正的边界是 staging 环境的「只允许 main」+ 审批人（不能自己批自己）；下面的 GITHUB_REF 检查写在
 #     工作流文件里，从别的分支触发时会用那个分支的文件、可以被删掉，只算提示（#95 复核第 3 条）。工作流文件和检查脚本都来自 main。
@@ -24,11 +28,20 @@ on:
         description: '要执行迁移的分支名（不填 = main）'
         required: false
         default: main
+      target:
+        description: 'staging = 测试库（默认）；production = 正式库（先出「计划」页让所有者看 SQL，批准后才执行，执行完自动跑 db-parity）'
+        type: choice
+        options: [staging, production]
+        default: staging
+      sha:
+        description: 'target = production 时必填：分支头提交号（至少 7 位），和分支现在的头不一致就停'
+        required: false
 permissions:
   contents: read
 concurrency: { group: staging-migrate, cancel-in-progress: false }   # 同一时间只跑一个，不并发改测试库
 jobs:
   migrate:
+    if: github.event_name == 'push' || inputs.target != 'production'   # 正式库走下面的 plan → apply
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging   # NBQ_DB_URL_STAGING 在这个环境里；运行前需要所有者批准，只允许 main
@@ -103,3 +116,115 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           echo "执行 ${#ran[@]} 个"
+
+  # ---------- 正式库：plan（无密钥、无审批，只读代码）→ apply（production-migrate 环境，所有者批准） ----------
+  plan:
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      full_sha: ${{ steps.p.outputs.full_sha }}
+      digest: ${{ steps.p.outputs.digest }}
+      n: ${{ steps.p.outputs.n }}
+    steps:
+      - name: 只在 main 上运行，参数只许常见字符
+        env: { REF: "${{ inputs.ref }}", SHA: "${{ inputs.sha }}" }
+        run: |
+          [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::只能从 main 运行（现在是 $GITHUB_REF）"; exit 1; }
+          printf '%s' "$REF" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' && ! printf '%s' "$REF" | grep -q '\.\.' || { echo "::error::分支名不合法（正式库必须写 ref）"; exit 1; }
+          printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{7,40}$' || { echo "::error::正式库必须填 sha（7–40 位小写十六进制）"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { ref: main, fetch-depth: 0, persist-credentials: false }
+      - name: 取分支头，核对提交号，只留迁移目录
+        id: p
+        env: { REF: "${{ inputs.ref }}", SHA: "${{ inputs.sha }}" }
+        run: |
+          git fetch -q origin "+refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }
+          full=$(git rev-parse origin/nbq-target); case "$full" in "$SHA"*) ;; *) echo "::error::分支 $REF 现在的头是 ${full:0:7}，和填的 sha $SHA 不一致，已停止"; exit 1;; esac
+          git checkout origin/nbq-target -- server/migrations
+          if git -c core.quotepath=off status --porcelain | grep -v '^.. server/migrations/'; then echo "::error::检出了迁移目录以外的文件，停止"; exit 1; fi
+          # 只认「分支里新增」的迁移文件；改了 main 上已有的迁移 = 不许（迁移只往前）
+          git diff --name-status origin/main...origin/nbq-target -- server/migrations | grep -v '^A' | grep -v '_bundle.sql' && { echo "::error::分支改动或删除了 main 上已有的迁移文件，正式库不自动执行"; exit 1; } || true
+          git diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt || true
+          [ -s /tmp/files.txt ] || { echo "::error::分支里没有新增的迁移文件，没什么可执行的"; exit 1; }
+          while read -r f; do [ -f "server/migrations/$f" ] && [ ! -L "server/migrations/$f" ] && [ "$(wc -c < "server/migrations/$f")" -lt 100000 ] || { echo "::error::$f 不是普通文件或超过 100KB，请所有者手动执行"; exit 1; }; done < /tmp/files.txt
+          digest=$(while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/files.txt | sha256sum | cut -d' ' -f1)
+          { echo "full_sha=$full"; echo "digest=$digest"; echo "n=$(wc -l < /tmp/files.txt)"; } >> "$GITHUB_OUTPUT"
+      - name: 迁移检查（main 上的 migration_audit + staging_migrate_check）
+        run: |
+          node tools/migration_audit.mjs
+          sed 's|^|server/migrations/|' /tmp/files.txt | xargs node tools/staging_migrate_check.mjs \
+            || { echo "::error::上面这些迁移超出了「改表结构」，不自动执行；请所有者看过后手动执行"; exit 1; }
+      - name: 计划写进运行页（批准前请看这里）
+        env: { REF: "${{ inputs.ref }}", FULL: "${{ steps.p.outputs.full_sha }}", DIGEST: "${{ steps.p.outputs.digest }}" }
+        run: |
+          {
+            echo "## 正式库迁移计划：$REF @ ${FULL:0:7}"
+            echo "**批准前请看：下面每个文件的 SQL 全文。批准 = 在正式库执行这些文件（只执行这几个，指纹 \`${DIGEST:0:12}\`）。**"
+            echo
+            while read -r f; do
+              echo "### $f"; echo '```'; sha256sum "server/migrations/$f"; echo '```'
+              echo '```sql'; cat "server/migrations/$f"; echo; echo '```'
+            done < /tmp/files.txt
+            echo "已过：migration_audit（向后兼容）、staging_migrate_check（无角色 / 权限 / 外联 / 动态 SQL）。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "计划 $(wc -l < /tmp/files.txt) 个迁移，等待所有者在 production-migrate 环境批准"
+
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-migrate   # 所有者是审批人、只允许 main；NBQ_DB_URL_PROD（可写）和 NBQ_DB_URL_STAGING（核对用）放在这个环境里
+    permissions:
+      contents: read
+      actions: write   # 只用来在最后触发 db-parity（只读核对）
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { ref: main, fetch-depth: 0, persist-credentials: false }
+      - name: 缺 Secret 就明说
+        env: { P: "${{ secrets.NBQ_DB_URL_PROD }}", S: "${{ secrets.NBQ_DB_URL_STAGING }}" }
+        run: '[ -n "$P" ] && [ -n "$S" ] || { echo "::error::production-migrate 环境里还没有 NBQ_DB_URL_PROD / NBQ_DB_URL_STAGING"; exit 1; }'
+      - name: 取 plan 看过的那个提交的迁移，重算指纹
+        env: { FULL: "${{ needs.plan.outputs.full_sha }}", DIGEST: "${{ needs.plan.outputs.digest }}", REF: "${{ inputs.ref }}" }
+        run: |
+          git fetch -q origin "+refs/heads/$REF:refs/remotes/origin/nbq-target" || { echo "::error::找不到分支 $REF"; exit 1; }
+          [ "$(git rev-parse origin/nbq-target)" = "$FULL" ] || { echo "::error::批准期间分支头变了（不是 ${FULL:0:7}），已停止；请重新运行并重看计划"; exit 1; }
+          git checkout origin/nbq-target -- server/migrations
+          git diff --name-only --diff-filter=A origin/main...origin/nbq-target -- server/migrations | sed 's|^server/migrations/||' | grep -E '^2026[0-9]{4}_[a-z0-9_]+\.sql$' | sort > /tmp/files.txt
+          now=$(while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/files.txt | sha256sum | cut -d' ' -f1)
+          [ "$now" = "$DIGEST" ] || { echo "::error::文件指纹和 plan 看过的不一致，已停止"; exit 1; }
+          node tools/migration_audit.mjs
+          sed 's|^|server/migrations/|' /tmp/files.txt | xargs node tools/staging_migrate_check.mjs
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: 要求这些迁移已在测试库记录过，列出正式库还没执行的
+        env: { PROD: "${{ secrets.NBQ_DB_URL_PROD }}", STG: "${{ secrets.NBQ_DB_URL_STAGING }}" }
+        run: |
+          q() { psql "$1" -X -v ON_ERROR_STOP=1 -qAt -c "$2"; }
+          q "$STG" "select version from schema_migrations" > /tmp/stg.txt || { echo "::error::读测试库 schema_migrations 失败"; exit 1; }
+          if [ "$(q "$PROD" "select to_regclass('public.schema_migrations') is not null")" = t ]; then q "$PROD" "select version from schema_migrations" > /tmp/prod.txt || { echo "::error::读正式库 schema_migrations 失败"; exit 1; }; else : > /tmp/prod.txt; fi
+          { grep 'schema_migrations' /tmp/files.txt || true; grep -v 'schema_migrations' /tmp/files.txt || true; } | while read -r f; do
+            grep -qxF "${f%.sql}" /tmp/prod.txt || echo "$f"; done > /tmp/todo.txt
+          while read -r f; do grep -qxF "${f%.sql}" /tmp/stg.txt || { echo "::error::$f 还没在测试库记录过：先在测试库跑（staging-migrate，ref=分支），再跑正式库"; exit 1; }; done < /tmp/todo.txt
+          echo "正式库要执行 $(wc -l < /tmp/todo.txt) 个：$(tr '\n' ' ' < /tmp/todo.txt)"
+      - name: 执行到正式库
+        env: { PROD: "${{ secrets.NBQ_DB_URL_PROD }}", REF: "${{ inputs.ref }}", FULL: "${{ needs.plan.outputs.full_sha }}", ACTOR: "${{ github.triggering_actor }}" }
+        run: |
+          q() { psql "$PROD" -X -v ON_ERROR_STOP=1 -qAt "$@"; }
+          ran=()
+          while read -r f; do
+            echo "▶ $f"
+            q -1 -c "-- prod-migrate: $f"$'\n'"$(cat "server/migrations/$f")" > /tmp/psql.log 2>&1 \
+              || { tail -n 20 /tmp/psql.log; echo "::error::$f 在正式库执行失败，本文件已整体回滚，停在这里（之前的文件已生效）"; exit 1; }
+            ran+=("${f%.sql}")
+          done < /tmp/todo.txt
+          {
+            echo "## 正式库迁移已执行：$REF @ ${FULL:0:7}（批准人 / 触发：$ACTOR）"
+            echo "**本次执行（${#ran[@]}）**：${ran[*]:-无（都已记录过）}"
+            echo '```'; while read -r f; do sha256sum "server/migrations/$f"; done < /tmp/todo.txt; echo '```'
+            echo '### 正式库 schema_migrations 最近 5 条'; echo '```'
+            q -c "select version || '  ' || to_char(applied_at at time zone 'Australia/Melbourne', 'YYYY-MM-DD HH24:MI') from schema_migrations order by applied_at desc, version desc limit 5"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: 自动触发 db-parity（只读核对测试库和正式库一致）
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh workflow run db-parity.yml --repo "$GITHUB_REPOSITORY" --ref main -f confirm=production
