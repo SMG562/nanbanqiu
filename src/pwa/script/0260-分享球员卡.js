@@ -92,7 +92,7 @@ function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.nt
   <div style="height:16px"></div><button class="btn btn-p" data-a="doApply" data-g="${id}">发送申请</button>`)}
 function openApplied(id){const c=api.get(id);
   const card=ENV==='wechat'?`<button class="btn btn-p" data-a="wxguide">在浏览器打开，接收通知</button><p class="fine" style="margin:6px 0 4px">微信内无法推送通知</p>`
-    :ENV==='safari'?(a2hsAdded()?`<p class="fine" style="margin:6px 0 4px">从桌面的南伴球图标打开，就能收到回复提醒</p>`:`<button class="btn btn-p" data-a="a2hs">${a2n('添加到主屏幕，接收通知','放到桌面，不错过回复')}</button>`):PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
+    :ENV==='safari'?(a2hsAdded()?`<p class="fine" style="margin:6px 0 4px">从桌面的南伴球图标打开，就能收到回复提醒</p>`:`<button class="btn btn-p" data-a="a2hs">${a2n('添加到主屏幕，接收通知',iosPushOk()?'放到桌面，不错过回复':'放到桌面，所有球局一眼看到')}</button>`):PUSH.enabled?'':`<button class="btn btn-p" data-a="enablePush">开启通知</button>`;
   openSheet(`<div class="center"><div class="bigic" style="background:var(--gs);color:var(--g)"><svg><use href="#i-check"/></svg></div><div class="sh-t">申请已发送</div><p class="sh-s">${esc(c.host.name)} 确认后${NOTIFY_WHERE()}</p></div>${card}${emAskHTML(false)}<div style="height:8px"></div><button class="btn btn-s" data-a="close">好的</button>`)}
 function openLeave(id){const c=api.get(id),appr=c.mine==='approved';
   openSheet(`<div class="sh-t">${appr?'取消参加？':'撤回申请？'}</div><p class="sh-s">${appr?`${esc(c.host.name)} 会收到通知，名额会重新开放。${ugLeaveTxt(c)}`:'撤回后可以重新申请。'}</p>
