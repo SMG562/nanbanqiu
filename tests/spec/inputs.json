@@ -8,6 +8,7 @@
 "emSet":{"enter":"done","覆盖":"input_visible"},
 "emkIn":{"enter":"done","覆盖":"input_visible"},
 "fSub":{"enter":"done","覆盖":"input_visible"},
+"clQ":{"enter":"done","覆盖":"page"},
 "ivNote":{"enter":"done","覆盖":"input_visible"},
 "ngNote":{"enter":"done","覆盖":"input_visible"},
 "npLast":{"enter":"done","覆盖":"input_visible"},

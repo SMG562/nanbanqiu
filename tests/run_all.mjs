@@ -162,6 +162,7 @@ add('frontend', 'frontend/late_join', ['node', '-r', PRELOAD, path.join(HERE, 'f
 add('frontend', 'frontend/intro', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro.js')], { pass: [/intro: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条（11-08）
 add('frontend', 'frontend/layout_tz', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/layout_tz.js')], { pass: [/layout_tz: \d+ passed, 0 failed/], timeout: 400 });   // 排版守卫：非墨尔本时区 × 窄屏，卡片文字不压住（11-09 逃逸）
 add('frontend', 'frontend/side_court_pick', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_court_pick.js')], { pass: [/side_court_pick: \d+ passed, 0 failed/], timeout: 300 });   // 场边选球场接真实球场（#335 B2）：附近 + 距离、搜索、无结果、无权限、刷新后还在、键盘升起
+add('frontend', 'frontend/club_search', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/club_search.js')], { pass: [/club_search: \d+ passed, 0 failed/], timeout: 300 });   // Home Club 列表加搜索（#335 C）：仍按字母序、不显示距离
 add('frontend', 'frontend/venue_pick', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/venue_pick.js')], { pass: [/venue_pick: \d+ passed, 0 failed/], timeout: 300 });   // 通用选球场（#335 B1）：附近 + 距离、无结果、无定位权限、刷新后还在
 add('frontend', 'frontend/invite_form', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/invite_form.js')], { pass: [/invite_form: \d+ passed, 0 failed/], timeout: 300 });   // 约 TA 表单：滚动不跳、发送条固定、说一句快捷短语
 add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/input_visible.js')], { pass: [/input_visible: \d+ passed, 0 failed/], timeout: 300 });   // 键盘弹出时每个弹层输入框都看得见、点得到
