@@ -153,7 +153,13 @@ function App(el,init){
     if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:[...q].length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
       h=sbGeneric(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
     return h+(q?'':`<button class="pi${!C.topic?' on':''}" data-tp="" style="margin-top:8px"><span class="pin2">–</span><div><b>不加话题</b></div>${ic('check')}</button>`)};
-  const openSh=k=>{S.cmp.sh=k;$('.csh-p').innerHTML=shHTML(k);requestAnimationFrame(()=>$('.csh').classList.add('on'))};
+  // 弹层 / 选球场从底部滑入前，先让键盘收完：键盘还在时页面被缩成「键盘上方那一小块」（.device.kb），弹层在小块里滑入会顶到最上面，键盘收起后再落回底部（11-17 真机）
+  const kbDown=cb=>{const dev=document.querySelector('.device'),a=el.getRootNode().activeElement;
+    if(a&&/^(INPUT|TEXTAREA)$/.test(a.tagName))a.blur();
+    if(!dev||!dev.classList.contains('kb')){cb();return}
+    let done=false;const go=()=>{if(done)return;done=true;mo.disconnect();clearTimeout(t);requestAnimationFrame(()=>requestAnimationFrame(cb))};
+    const mo=new MutationObserver(()=>{if(!dev.classList.contains('kb'))go()}),t=setTimeout(go,600);mo.observe(dev,{attributes:true,attributeFilter:['class']})};
+  const openSh=k=>{S.cmp.sh=k;$('.csh-p').innerHTML=shHTML(k);kbDown(()=>{if(S.cmp&&S.cmp.sh===k)$('.csh').classList.add('on')})};
   const closeSh=()=>{const was=S.cmp.sh;S.cmp.sh=null;$('.csh').classList.remove('on');setTimeout(()=>{drawCompose();if(was==='topic')topicIn()},380)};
   const topicIn=()=>{const h=$('.compose .ctop'),st=$('.compose .sts');if(h)h.animate([{opacity:0,transform:'translateY(-4px)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.8,.3,1)'});
     if(st)[...st.children].forEach((n,i)=>n.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:260,delay:60+i*45,easing:'cubic-bezier(.2,.8,.3,1)',fill:'backwards'}))};
@@ -401,7 +407,7 @@ function App(el,init){
     if('cx' in d){S.cmp=null;state();return}
     if(d.pk){const C=S.cmp,i=C.pics.indexOf(d.pk);if(i>=0)C.pics.splice(i,1);else if(C.pics.length<3)C.pics.push(d.pk);else{toast('最多三张');return}drawCompose();return}
     if(d.tone){S.cmp.tone=d.tone==='none'?'':d.tone;el.querySelectorAll('.ph1 .tn').forEach(pv=>pv.className='tn'+(S.cmp.tone?' t-'+S.cmp.tone:''));el.querySelectorAll('[data-tone]').forEach(b=>b.classList.toggle('on',b===t));return}
-    if('cpl' in d){S.cmp.pick=true;$('.pick').classList.add('on');return}
+    if('cpl' in d){S.cmp.pick=true;kbDown(()=>{if(S.cmp&&S.cmp.pick)$('.pick').classList.add('on')});return}
     if(d.loc!==undefined){S.cmp.loc=d.loc==='none'?'':d.loc;setLoc(S.cmp.loc);el.querySelectorAll('[data-loc]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{S.cmp.pick=false;$('.pick').classList.remove('on');setTimeout(drawCompose,450)},260);return}
     if('pkx' in d){S.cmp.pick=false;$('.pick').classList.remove('on');setTimeout(drawCompose,450);return}
     if(d.tg){const C=S.cmp;C[d.tg]=!C[d.tg];t.querySelector('.tg').classList.toggle('on',C[d.tg]);return}
