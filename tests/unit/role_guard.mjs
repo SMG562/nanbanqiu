@@ -101,7 +101,7 @@ g('checkout', '-qb', 'feat'); fs.writeFileSync(path.join(gr, '.github/CO_OWNERS'
 T('③ 名单只认 origin/main：分支上加的人不算', JSON.stringify(G.coOwnerList({ env: {}, cwd: gr })) === JSON.stringify(['alice']), G.coOwnerList({ env: {}, cwd: gr }));
 
 // ---- 命令行：按钩子的方式跑 ----
-const run = (input, login, co = '') => spawnSync(process.execPath, [path.join(DIR, 'tools/role_guard.mjs')], { input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', env: { ...process.env, NBQ_GH_LOGIN: login, NBQ_CO_OWNERS: co }, timeout: 20000 });   // 名单固定，和仓库里真实的 CO_OWNERS 隔离
+const run = (input, login, co = '') => spawnSync(process.execPath, [path.join(DIR, 'tools/role_guard.mjs')], { input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', env: { ...process.env, NBQ_SESSION_KB: "99999999", NBQ_EDIT_MIN: "9999", NBQ_GH_LOGIN: login, NBQ_CO_OWNERS: co }, timeout: 20000 });   // 名单固定，和仓库里真实的 CO_OWNERS 隔离
 const tf = path.join(tmp, 't.jsonl'); fs.writeFileSync(tf, J([{ type: 'user', message: { content: '汇报一下' } }, { type: 'assistant', message: { content: [{ type: 'text', text: BAD }] } }]));
 let r = run({ transcript_path: tf, stop_hook_active: false }, 'MDD1102');
 let out = (() => { try { return JSON.parse(r.stdout) } catch (_) { return null } })();

@@ -1,0 +1,29 @@
+// tools/lib/token_guard.mjs（省 token 自动护栏）+ overlap_check --dup 的纯函数。反例来自 11-11~17 的真实重复劳动。
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { spawnSync } from 'node:child_process'; import { pathToFileURL } from 'node:url';
+const DIR = process.argv[2] || path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+const G = await import(pathToFileURL(path.join(DIR, 'tools/lib/token_guard.mjs'))), O = await import(pathToFileURL(path.join(DIR, 'tools/overlap_check.mjs')));
+let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? 'PASS ' : 'FAIL ') + n + (!ok && x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')) };
+// 手写轮询 / gh pr view 拦；正规脚本放行
+T('gh pr view 拦', !!G.pollingBlock('gh pr view 314 --json state'));
+T('手写 until 轮询拦', !!G.pollingBlock('until gh api repos/a/b/pulls/1 --jq .merged; do sleep 20; done'));
+T('while sleep gh run 拦', !!G.pollingBlock('while true; do gh run list; sleep 30; done'));
+T('ci_wait.sh / pr_state.sh / pr_merge.sh 放行', !G.pollingBlock('bash tools/ci_wait.sh 314') && !G.pollingBlock('bash tools/pr_state.sh 314 status') && !G.pollingBlock('bash tools/pr_merge.sh --check 314'));
+T('普通 gh api / git 命令放行', !G.pollingBlock('gh api repos/SMG562/nanbanqiu/pulls/314') && !G.pollingBlock('git status && git log -3'));
+T('非 Bash 工具不管；Bash 命中给 deny', G.preDecision({ tool_name: 'Read', tool_input: {} }) === null && G.preDecision({ tool_name: 'Bash', tool_input: { command: 'gh pr view 1' } }).hookSpecificOutput.permissionDecision === 'deny');
+// 同一文件反复改
+const ev = (f, n) => Array.from({ length: n }, () => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit', input: { file_path: f } }] } })).join('\n');
+const jl = ev('/x/a.css', 4) + '\n' + ev('/x/b.js', 2) + '\nnot json "tool_use"\n';
+T('同一文件 ≥4 次才算；坏行不崩', JSON.stringify(G.repeatedEdits(jl)) === JSON.stringify([['/x/a.css', 4]]), G.repeatedEdits(jl));
+T('提醒：长会话 / 反复改各一条，done 的不再出', G.stopNudges({ bytes: 5e6, edits: [['/x/a.css', 4]] }).length === 2 && G.stopNudges({ bytes: 5e6, edits: [['/x/a.css', 4]], done: new Set(['long', 'edits']) }).length === 0 && G.stopNudges({ bytes: 1000, edits: [] }).length === 0);
+// Stop：只出一次
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-')), tr = path.join(tmp, 't.jsonl'); fs.writeFileSync(tr, jl);
+const i = { transcript_path: tr, session_id: 's1' };
+T('第一次 Stop 提醒、第二次放行', /反复|同一文件/.test(G.stopReason(i, { dir: tmp }) || '') && G.stopReason(i, { dir: tmp }) === null);
+// 命令行按钩子方式：PreToolUse deny；坏输入不崩不拦
+const run = j => spawnSync('node', [path.join(DIR, 'tools/role_guard.mjs')], { input: j, encoding: 'utf8' });
+T('钩子：PreToolUse gh pr view → deny JSON', /"deny"/.test(run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'gh pr view 3' } })).stdout));
+T('钩子：垃圾输入 → 退出 0 无输出', (r => r.status === 0 && !r.stdout)(run('{bad')));
+// 查重
+const items = [{ tag: '开着 #281', text: 'ci_wait 提示 修复 fix-ci-wait' }, { tag: 'main abc1234', text: '头像上传' }];
+T('--dup 按关键词命中（不分大小写、短词忽略）', O.dupHits(['CI_WAIT'], items).length === 1 && O.dupHits(['x'], items).length === 0 && O.dupHits(['头像'], items)[0].tag.startsWith('main'));
+console.log(`token_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
