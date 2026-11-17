@@ -1,6 +1,6 @@
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { execFileSync } from 'node:child_process'; import { cleanGitEnv } from '../lib/git_env.mjs';
 // 协作看板（tools/collab_board.mjs，11-11）：「球在谁手里」的判定、复核留言解析、提醒去重和标签。纯函数，不碰网络。
-import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, dbFacts, runMergeDrift, dbFiles, ownerActPost, ownerActKey, OWNER_REMIND_H, OWNER_REMIND_MAX, OWNER, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL } from '../../tools/collab_board.mjs';
+import { runState, coOwns, mainNotices, mainKey, MAIN_WINDOW_H, SYNC_LOOP, syncsOf, syncText, stuckKey, stuckText, STUCK_MIN, flapOf, flapText, classify, dbFacts, runMergeDrift, dbFiles, ownerActPost, ownerActKey, OWNER_REMIND_H, OWNER_REMIND_MAX, OWNER, reviewState, pingKey, pingText, idleText, already, labelsFor, ownerKey, render, isoWeek, BALL, depsOf, depKey, depText, depNotices } from '../../tools/collab_board.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const NOW = Date.parse('2026-11-11T10:00:00Z'), SHA = 'abcdef1234567890';
 const base = (o = {}) => ({ number: 7, title: 't', author: 'MDD1102', draft: false, sha: SHA, mergeable: 'clean', behind: 0, updated: '2026-11-11T09:00:00Z', level: 'self', ci: { tests: 'ok', fast: 'ok' }, review: 'none', ...o });
@@ -176,4 +176,14 @@ const okF = ['schema.sql', 'server/migrations/20261118_x.sql'], mk2 = (fetch, ru
 T('dbFacts：没改库结构文件 → 不调脚本、不算改了', (r => r.changed === false && r.parity === null)(mk2(() => { throw new Error('不该取') }, () => { throw new Error('不该跑') }, ['src/a.js'])));
 T('dbFacts：取不到 PR 提交 → 不确定，带原因', (r => r.changed && r.parity === null && /git fetch 失败/.test(r.why))(mk2(() => false, () => ({ status: 0 }))));
 T('dbFacts：脚本结论 0 / 1 / 其他 → true / false / null（其他带原因）', mk2(() => true, () => ({ status: 0 })).parity === true && mk2(() => true, () => ({ status: 1 })).parity === false && (r => r.parity === null && r.why === '坏了')(mk2(() => true, () => ({ status: null, why: '坏了' }))));
+// 11-18（#363）：依赖链通知。#358 写「依赖 PR：#357（本分支含其提交…）」，#357 合并后要自动叫 #358 的作者往下走
+T('depsOf：取「依赖 PR：」那一行的 #号（真实 #358 写法）', JSON.stringify(depsOf('## 范围与回退\n- 依赖 PR：#357（本分支含其提交，所以 base 暂指向 #357 分支；#357 合并后改基到 main）\n- 其他：#999')) === '[357]');
+T('depsOf：「依赖 PR：无」/ 没写 / 空 → 没有依赖；多个去重', depsOf('- 依赖 PR：无').length === 0 && depsOf('没有这一行').length === 0 && depsOf(null).length === 0 && JSON.stringify(depsOf('依赖 PR: #1、#2、#1')) === '[1,2]');
+{ const pr = (o = {}) => ({ number: 358, author: 'MDD1102', deps: [357], comments: [], ...o });
+  const hit = depNotices([pr()], new Set([357]));
+  T('依赖已合并 → 在这个 PR 上 @ 作者一次，写明 sync_main / Files changed / ready 三步', hit.length === 1 && hit[0].number === 358 && /@MDD1102 #357 已合并/.test(hit[0].body) && /sync_main\.sh/.test(hit[0].body) && /pr_state\.sh 358 ready/.test(hit[0].body) && hit[0].body.includes(`<!-- ${depKey(357)} -->`), hit);
+  T('依赖还没合并 → 不发', depNotices([pr()], new Set()).length === 0);
+  T('已经发过（标记在评论里）→ 不重复发', depNotices([pr({ comments: [{ body: depText(pr(), 357) }] })], new Set([357])).length === 0);
+  T('草稿也发（草稿正是在等依赖的那个）；所有者自己的 PR、机器人的 PR 不发', depNotices([pr({ draft: true })], new Set([357])).length === 1 && depNotices([pr({ author: OWNER }), pr({ author: 'dependabot[bot]' })], new Set([357])).length === 0);
+  T('依赖写成自己（写错号）→ 不发', depNotices([pr({ deps: [358] })], new Set([358])).length === 0); }
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
