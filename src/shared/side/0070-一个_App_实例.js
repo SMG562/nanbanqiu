@@ -39,13 +39,16 @@ function App(el,init){
     return `<div class="it itm"><div class="mh3"><span class="dot"></span>此刻热闹的球场</div><div class="hs3">${top.map(([k,n])=>`<button class="hc2" data-court="${k}"><b>${S.homes.includes(k)?'<i class="mdot"></i>':''}${esc(COURTS[k].n)}</b><small>今天 ${n} 条</small></button>`).join('')}</div></div>`};
   const talkHTML=()=>{const t=Object.entries(DAYN().Tn).sort((a,b)=>b[1]-a[1]);if(!t.length)return '';
     return `<div class="it itm"><div class="mh3">大家在聊</div><div class="hs3">${t.map(([k,n])=>`<button class="ht3" data-topic="${k}"><b>#${esc(S.T[k].t)}</b><small>今天 ${n} 条</small></button>`).join('')}</div></div>`};
+  // 攒着的新动态（S.pend）：已经在 S.L 里，但还没画进列表。任何重画都要把它们排除、胶囊数跟着当前筛选走，否则重画会提前画出来、回顶后又放一次（重复）
+  const held=x=>!!S.pend&&S.pend.includes(x);
+  const pillSync=()=>{const n=(S.pend||[]).filter(x=>pass(x)&&fOk(x)).length,m=$('[data-more]');S.qn=n;if(!m)return;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show')};
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
-    const L=S.L.filter(x=>pass(x)&&fOk(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
+    const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
     if(fil&&!rows.length)rows.push(`<div class="empty">${mine?'你的球场今天还很安静':'这里今天还很安静'}</div>`);
     list.innerHTML=fbarHTML(L.length)+rows.join('');
     const mt=$('[data-mine]');if(mt){mt.classList.toggle('on',mine);mt.style.display=S.homes.length?'':'none'}
-    if(desk)drawRail()};
+    pillSync();if(desk)drawRail()};
   const swap=(after,keep)=>{el.querySelectorAll('.xfade').forEach(n=>n.remove());const c=sc.cloneNode(true),top=sc.scrollTop;c.classList.add('xfade');c.removeAttribute('data-sc');c.querySelectorAll('.typing,.fxb,.fxsh,.ring,.bsh,.xfade').forEach(n=>n.remove());
     c.style.top=sc.offsetTop+'px';c.style.height=sc.offsetHeight+'px';sc.after(c);c.scrollTop=top;
     drawHome();if(!keep)sc.scrollTop=0;
@@ -261,7 +264,7 @@ function App(el,init){
     else if(pass(x)&&fOk(x)){
       // 别人的新动态：正在读（滚动位置 > 80）或手指还在屏幕上 / 惯性滚动中 → 先攒着、只亮「↑ N 条新动态」，不碰页面；回到顶部且停稳后再一起放进来。
       // （旧做法是插进去再用 scrollTop 硬补偿，一次跳几百像素，iOS 上会打断惯性滚动 = 卡顿）
-      if(!mine&&(sc.scrollTop>80||busy())){(S.pend=S.pend||[]).push(x);S.qn=S.pend.length;const m=$('[data-more]');m.textContent=`↑ ${S.qn} 条新动态`;m.classList.add('show')}
+      if(!mine&&(sc.scrollTop>80||busy())){(S.pend=S.pend||[]).push(x);pillSync()}
       else birth(prep(LH(x)),{k:S.k,typing:!mine})}
     if(S.court&&S.court===x.w&&!x.area){const cl=$('[data-s="court"]');if(cl){cl.querySelector('.empty')?.remove();cl.insertAdjacentHTML('afterbegin',LH(x,{court:1}));birth(cl.firstElementChild.querySelector('.ln'),{k:S.k,typing:!mine});$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}}};
   // 新的回应
