@@ -724,8 +724,10 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('analytics_off','隐私','关闭使用数据（发完这一条后停止）','','client','active',null),
  ('analytics_on','隐私','重新打开使用数据','','client','active',null),
  ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/...)','client','active',null),
- ('login_send_code','登录','发送验证码（号码格式通过才发）','cc','client','active',null),
- ('login_verify','登录','提交验证码','ok','client','active',null),
+ ('login_send_code','登录','发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记）','ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送)','client','active',null),
+ ('login_resend','登录','重发验证码（第 2 次及以后的发送）','n','client','active',null),
+ ('login_verify','登录','提交验证码的结果','ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数)','client','active',null),
+ ('login_abandon','登录','关闭登录窗口时还停在手机号页 / 验证码页','step(phone/otp), n','client','active',null),
  ('login_success','登录','登录成功','is_new, trigger, entry','client','active',null),
  ('signup_complete','登录','新用户填完资料','ntrp, clubs_n, gender_given, avatar_kind','client','active',null),
  ('logout','登录','退出登录（之后换新 anon）','','client','active',null),
@@ -872,7 +874,7 @@ on conflict (event) do update set status='deprecated', replaced_by=excluded.repl
 update event_definitions set status='deprecated'
  where status='active' and event <> all (array[
    'session_start', 'page_view', 'page_time', 'app_hide', 'app_show', 'pwa_install_prompt', 'pwa_installed', 'pwa_first_launch', 'a2hs_open', 'a2hs_go', 'a2hs_back',
-   'analytics_off', 'analytics_on', 'login_open', 'login_send_code', 'login_verify', 'login_success', 'signup_complete', 'logout', 'account_blocked', 'account_delete', 'account_restore', 'filter_open',
+   'analytics_off', 'analytics_on', 'login_open', 'login_send_code', 'login_resend', 'login_verify', 'login_abandon', 'login_success', 'signup_complete', 'logout', 'account_blocked', 'account_delete', 'account_restore', 'filter_open',
    'filter_reset', 'filter_utr_band', 'filter_type', 'filter_tag', 'filter_radius', 'day_select', 'view_mode', 'loc_suburb_pick', 'location_allow',
    'map_day', 'map_cluster_open', 'game_select', 'game_view', 'women_lock_view', 'game_create_start', 'game_create_submit', 'game_edit',
    'game_postpone', 'unfilled_action', 'game_cancel_open', 'game_cancel', 'game_apply_open', 'game_apply_submit', 'game_join_instant',
@@ -7872,5 +7874,6 @@ insert into schema_migrations(version) values
   ('20261115_app_switches'),
   ('20261116_idempotency_keys'),
   ('20261117_login_handoff'),
-  ('20261118_a2hs_installed')
+  ('20261118_a2hs_installed'),
+  ('20261119_login_funnel_events')
 on conflict do nothing;
