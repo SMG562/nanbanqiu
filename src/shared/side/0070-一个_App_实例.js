@@ -252,20 +252,20 @@ function App(el,init){
   const render=()=>{drawHome();drawComposer();if(S.court)drawCourt();if(S.open)drawSheet();if(S.view)drawViewer();if(S.wall)drawWall();if(S.album)drawAlbum();if(S.cmp)drawCompose();if(S.share)drawShare();state()};
 
   // 滚动状态：手指在屏幕上，或 250ms 内还在滚（惯性）
-  const busy=()=>S.touch||Date.now()-(S.sct||0)<250;
-  // 把攒着的新动态放进列表（只在回到顶部、停稳之后；最新一条带出现动画，其余直接放）
-  const flushNew=()=>{S.pend&&S.pend.length&&(()=>{const q=S.pend;S.pend=null;S.qn=0;q.forEach((x,i)=>{if(S.L.includes(x)&&pass(x)&&fOk(x)){const r=prep(LH(x));if(i===q.length-1)birth(r,{k:S.k,typing:true})}})})();
-    $('[data-more]').classList.remove('show');if(S.pdraw){S.pdraw=0;drawHome()}};
-  const settle=()=>{clearTimeout(S.ft);S.ft=setTimeout(()=>{if(!busy()&&sc.scrollTop<=80&&(S.pend||S.pdraw))flushNew();else if(busy())settle()},280)};
+  // 把攒着的新动态放进列表：只在用户点了「↑ N 条新动态」胶囊时（#344：新动态一律先攒着，不自己冒出来）。
+  // 直接放、没有让高度增长的出现动画；网格视图整块重画（drawHome 不再排除它们）。
+  const flushNew=()=>{const q=S.pend;S.pend=null;S.qn=0;
+    if(S.f&&S.f.k==='topic'&&S.vw==='grid')drawHome();
+    else if(q&&q.length)q.filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).sort((a,b)=>a.t-b.t).forEach(x=>prep(LH(x)));
+    const m=$('[data-more]');if(m)m.classList.remove('show')};
   // 新的一句
   const insertPost0=(x,mine)=>{S.L.unshift(x);setCnt();
     if(desk)setTimeout(drawRail,50);
-    if(S.f&&S.f.k==='topic'&&S.vw==='grid'){if(fOk(x)){if(!mine&&busy())S.pdraw=1;else setTimeout(drawHome,30)}}
-    else if(pass(x)&&fOk(x)){
-      // 别人的新动态：正在读（滚动位置 > 80）或手指还在屏幕上 / 惯性滚动中 → 先攒着、只亮「↑ N 条新动态」，不碰页面；回到顶部且停稳后再一起放进来。
-      // （旧做法是插进去再用 scrollTop 硬补偿，一次跳几百像素，iOS 上会打断惯性滚动 = 卡顿）
-      if(!mine&&(sc.scrollTop>80||busy())){(S.pend=S.pend||[]).push(x);pillSync()}
-      else birth(prep(LH(x)),{k:S.k,typing:!mine})}
+    // 别人的新动态（列表 / 网格都一样）：不论用户在不在顶部，一律先攒着、只亮「↑ N 条新动态」，不碰页面；点胶囊才放进来（#344）。
+    // 自己刚发的照旧立刻出现。
+    if(!mine&&pass(x)&&fOk(x)){(S.pend=S.pend||[]).push(x);pillSync()}
+    else if(S.f&&S.f.k==='topic'&&S.vw==='grid'){if(fOk(x))setTimeout(drawHome,30)}
+    else if(pass(x)&&fOk(x))birth(prep(LH(x)),{k:S.k,typing:!mine});
     if(S.court&&S.court===x.w&&!x.area){const cl=$('[data-s="court"]');if(cl){cl.querySelector('.empty')?.remove();cl.insertAdjacentHTML('afterbegin',LH(x,{court:1}));birth(cl.firstElementChild.querySelector('.ln'),{k:S.k,typing:!mine});$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}}};
   // 新的回应
   const insertPost=(x,mine)=>{if(mine)S.lastMine=x;if(x.topic&&!x.floor)x.floor=++S.T[x.topic].n;insertPost0(x,mine);if(x.topic)refreshTopic(x)};
@@ -409,7 +409,7 @@ function App(el,init){
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
     if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
-    if('more' in d){sc.scrollTo({top:0,behavior:'smooth'});settle();return}
+    if('more' in d){flushNew();sc.scrollTop=0;return}
     if('send' in d){if(!S.gok){need('post',()=>again(t));return}const v=inp.value.trim(),lk=S.loc,tp=el.classList.contains('qing')?S.qtp:null;
       {const c=SB_LINK.test(v)?'message_link':sbRate(S,'sb_post');if(c){say(c);return}}flyArrow(t);sc.scrollTop=0;const tk=tkind(tp);
       insertPost({id:++UID,t:Date.now(),x:v||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pic:S.photo?'sunset':null,topic:tp||undefined,mine:true,views:0},true);subEv(S.lastMine.id,S.photo?1:0,tk,lk,false,'bar');
@@ -514,9 +514,7 @@ function App(el,init){
         if(row){c.scrollTo({top:Math.max(0,row.offsetTop-c.clientHeight/3),behavior:'smooth'});row.animate([{background:'rgba(198,234,61,.35)'},{background:'transparent'}],{duration:1600,easing:'ease-out'})}},380);return true},
     others:{ball:(id,n,on)=>otherBall(id,n,on),reply:(id,text,f)=>addReply(id,text,f||{})},
     album:()=>{S.open=null;S.court=null;S.wall=null;S.album=true;drawAlbum();state();track('sb_album_open',{})},badge:n=>{const b=$('[data-bn]');if(b){b.hidden=!n;b.textContent=n||''}},setHome:h=>{S.homes=h?h.split(','):[];S.home=S.homes[0]||null;S.filt=null;drawHome();S.open=null;if(S.court)drawCourt();state()}};
-  sc.addEventListener('scroll',()=>{el.classList.toggle('cond',sc.scrollTop>14);S.sct=Date.now();if(S.pend||S.pdraw)settle()},{passive:true});
-  sc.addEventListener('touchstart',()=>{S.touch=1},{passive:true});
-  sc.addEventListener('touchend',()=>{S.touch=0;if(S.pend||S.pdraw)settle()},{passive:true});sc.addEventListener('touchcancel',()=>{S.touch=0;if(S.pend||S.pdraw)settle()},{passive:true});
+  sc.addEventListener('scroll',()=>{el.classList.toggle('cond',sc.scrollTop>14);},{passive:true});
   setInterval(setCnt,30000);
   return S;
 }
