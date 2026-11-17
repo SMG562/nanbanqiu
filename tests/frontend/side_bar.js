@@ -35,6 +35,11 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   await clickAt('.bar .box', 0.25); await W(700);
   let s1 = await st();
   T('点输入框中间 → 进写动态页', s1.composeOn, s1);
+  // 11-17 #335：说明文字曾是绝对定位、没底色，键盘升起（页面变矮）后压在输入区上；现在和工具条同属一个有底色的底栏
+  { await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    const o = await q(`r=>{const n=r.querySelector('.compose .cnote').getBoundingClientRect(),t=r.querySelector('.compose .ctool').getBoundingClientRect(),x=r.querySelector('.compose [data-ctext]').getBoundingClientRect(),bar=r.querySelector('.compose .cbot'),bg=getComputedStyle(bar).backgroundColor;return {nb:Math.round(n.bottom),tt:Math.round(t.top),nt:Math.round(n.top),barTop:Math.round(bar.getBoundingClientRect().top),bg,inBar:!!n.width&&bar.contains(r.querySelector('.compose .cnote'))}}`);
+    T('写动态页：说明文字在工具条上方、不与它重叠；底栏有底色（矮屏 / 键盘弹出时不透出输入区）', o.inBar && o.nb <= o.tt + 1 && o.nt >= o.barTop && !/rgba\(0, 0, 0, 0\)|transparent/.test(o.bg), o);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(500) }
   T('首页输入框全程没拿到焦点、没出话题条（不会弹键盘）', !s1.focusIn && !s1.qing && s1.qtpH === 0, s1);
   T('不带话题的提示：写页没有话题，用通用提示语', s1.topic === '加个话题' && !!hintBefore, { hintBefore, s1 });
   await close(); let s2 = await st();
