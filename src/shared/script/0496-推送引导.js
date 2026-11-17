@@ -113,9 +113,9 @@ function hoStaleReload(){
   if(hoHref()===HO_AT_LOAD){try{sessionStorage.removeItem('nbq_ho_rl')}catch(_){}return false}   // 刷新后必然相等：清掉「已刷新」标记，这个标签页之后再有变化还能再刷（不会循环：刷新后加载时带的就是现在这份）
   if(!/^\/api\/manifest\?h=/.test(HO_AT_LOAD)||!HO_READY||HO_CLEARED)return false;
   if(typeof AUTH!=='undefined'&&AUTH&&AUTH.next)return false;   // 登录后还有事要接着做：刷新会丢
-  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;
+  if(document.querySelector('#sheet.show,.sheet.show')||(typeof UI!=='undefined'&&UI&&UI.detail))return false;   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
   if(document.querySelector('.cxsheet,.cx-web .cx-r'))return false;   // 正在看聊天（#304）
-  {const e=document.activeElement;if(e&&(/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)||e.isContentEditable))return false}   // 输入框有焦点：不打断打字（#304）   // 正在看别的 / 填别的：不打断（hoGuide 兜底）
+  {const e=document.activeElement;if(e&&(/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)||e.isContentEditable))return false}   // 输入框有焦点：不打断打字（#304）
   try{if(sessionStorage.getItem('nbq_ho_rl')==='1')return false;sessionStorage.setItem('nbq_ho_rl','1')}catch(_){return false}
   location.reload();return true}
 function hoBack(){let b=null;try{b=JSON.parse(sessionStorage.getItem('nbq_ho_back')||'null');sessionStorage.removeItem('nbq_ho_back')}catch(_){}
