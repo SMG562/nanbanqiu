@@ -35,6 +35,24 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   await clickAt('.bar .box', 0.25); await W(700);
   let s1 = await st();
   T('点输入框中间 → 进写动态页', s1.composeOn, s1);
+  // 11-17 #335：说明文字曾是绝对定位、没底色，键盘升起（页面变矮）后压在输入区上；现在和工具条同属一个有底色的底栏
+  { await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    const o = await q(`r=>{const n=r.querySelector('.compose .cnote').getBoundingClientRect(),t=r.querySelector('.compose .ctool').getBoundingClientRect(),x=r.querySelector('.compose [data-ctext]').getBoundingClientRect(),bar=r.querySelector('.compose .cbot'),bg=getComputedStyle(bar).backgroundColor;return {nb:Math.round(n.bottom),tt:Math.round(t.top),nt:Math.round(n.top),barTop:Math.round(bar.getBoundingClientRect().top),bg,inBar:!!n.width&&bar.contains(r.querySelector('.compose .cnote'))}}`);
+    T('写动态页：说明文字在工具条上方、不与它重叠；底栏有底色（矮屏 / 键盘弹出时不透出输入区）', o.inBar && o.nb <= o.tt + 1 && o.nt >= o.barTop && !/rgba\(0, 0, 0, 0\)|transparent/.test(o.bg), o);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(500) }
+  // 11-17 #335：键盘开着点「加个话题 / 发布设置 / 球场」，弹层不许在「键盘上方那一小块」里先滑入再落位（先冲到最高点）。
+  // 沙盒没有真键盘：把视口缩到 470 高 = 键盘升起（.device.kb），再放回 844 = 键盘收起。
+  for (const [name, btn, sel] of [['话题', '.compose [data-ctp]', '.csh'], ['发布设置', '.compose [data-cset]', '.csh'], ['球场', '.compose [data-cpl]', '.pick']]) {
+    await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.focus()}`); await W(100);
+    await pg.evaluate(`window.__s=[];const r=document.querySelector('#sbHost').shadowRoot;window.__t=setInterval(()=>{const e=r.querySelector('${sel}'),p=r.querySelector('${sel === '.csh' ? '.csh-p' : '.pick'}');window.__s.push({on:e.classList.contains('on'),top:Math.round(p.getBoundingClientRect().top),kb:document.querySelector('.device').classList.contains('kb')})},20)`);
+    await q(`r=>{r.querySelector('${btn}').click()}`); await W(150);
+    const early = await E(() => window.__s.slice(-1)[0]);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(900);
+    const smp = await E(() => { clearInterval(window.__t); return window.__s }), on = smp.filter(x => x.on), fin = smp.slice(-1)[0];
+    T(`键盘开着点「${name}」：键盘收完之前弹层不滑入`, early && !early.on, early);
+    T(`键盘开着点「${name}」：弹层只在键盘收起后才出现、位置一路不高于最终位置（不冲顶）`, on.length > 0 && on.every(x => !x.kb) && on.every(x => x.top >= fin.top - 2), { fin, bad: on.filter(x => x.kb || x.top < fin.top - 2).slice(0, 3) });
+    await q(`r=>{const b=r.querySelector('${sel === '.csh' ? '.csh-b' : '[data-pkx]'}');b&&b.click()}`); await W(700) }
   T('首页输入框全程没拿到焦点、没出话题条（不会弹键盘）', !s1.focusIn && !s1.qing && s1.qtpH === 0, s1);
   T('不带话题的提示：写页没有话题，用通用提示语', s1.topic === '加个话题' && !!hintBefore, { hintBefore, s1 });
   await close(); let s2 = await st();
