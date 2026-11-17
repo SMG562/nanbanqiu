@@ -18,7 +18,9 @@ if [ "$BRIEF" = 1 ]; then
   echo "── 没合并的 PR："; $R api "repos/$REPO/pulls?state=open" --jq '.[]|"  #\(.number)\(if .draft then " [草稿]" else "" end) \(.head.ref)：\(.title)"' 2>/dev/null | head -n 5 | grep . || echo "  无"
   nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft==false and (.user.login|test("dependabot")|not))]|group_by(.user.login)|map("\(.[0].user.login) \(length)")|join("、")' 2>/dev/null); echo "── 在制品（非草稿，每人上限 2）：${nd:-无}"
   echo "── 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status=="completed" and .conclusion!="success" and .conclusion!="skipped")|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.conclusion)"' 2>/dev/null | head -n 3 | grep . || echo "  无"
-  echo "── 本周（Issue #65 顶部块；走 REST，会话里 GraphQL 被拦）："; $R api "repos/$REPO/issues/65" --jq .body 2>/dev/null | sed -n '/^## 本周/,/^---/p' | grep -E '^\|' | grep -vE '^\| *(事项|---)' | head -n 4 | cut -c1-160 | grep . || echo "  读不到（gh api repos/$REPO/issues/65）"
+  b65=$($R api "repos/$REPO/issues/65" --jq .body 2>/dev/null)
+  d65=$(printf '%s\n' "$b65" | grep -oE '目标上线日 *[:：]? *20[0-9]{2}-[0-9]{2}-[0-9]{2}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1); [ -n "$d65" ] && echo "── 上线倒计时：目标 $d65，还有 $(( ($(TZ=Australia/Melbourne date -d "$d65" +%s) - $(TZ=Australia/Melbourne date -d "$(TZ=Australia/Melbourne date +%F)" +%s)) / 86400 )) 天（#65 倒计时行；排期两侧同一份）"
+  echo "── 本周（Issue #65 顶部块；走 REST，会话里 GraphQL 被拦）："; printf '%s\n' "$b65" | sed -n '/^## 本周/,/^---/p' | grep -E '^\|' | grep -vE '^\| *(事项|---)' | head -n 4 | cut -c1-160 | grep . || echo "  读不到（gh api repos/$REPO/issues/65）"
   echo "（要全貌：不带 --brief 再跑一次）"; exit 0
 fi
 echo "进度记录最后更新：$(git log -1 --format='%h %ci' "$last")"
@@ -30,5 +32,5 @@ node tools/branch_prune.mjs --summary 2>/dev/null || echo "── 分支：读�
 echo "── 之后合并的 PR："; $R api "repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=10" --jq ".[]|select(.merged_at!=null and .merged_at>\"$when\")|\"  #\(.number) \(.title)（\(.merged_at)）\"" 2>/dev/null | grep . || echo "  无"
 echo "── 还在跑 / 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status!="completed" or (.conclusion!="success" and .conclusion!="skipped"))|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.status) \(.conclusion // "")"' 2>/dev/null | grep . || echo "  无"
 echo "── 开着的 PR 之间同改的文件（要串行：先合一个，另一个再 sync_main；开工前 node tools/overlap_check.mjs 查自己的）："; node tools/overlap_check.mjs --prs 2>/dev/null || echo "  读不到"
-echo "── 近 7 天协作规则 / 合并闸门的变化（仅供知悉，不代表记录过时；规则以仓库文件为准）："; git log origin/main --since='7 days ago' --format='  %h %cs %s' -- CLAUDE.md CONTRIBUTING.md 协作实践.md docs/协作分工.md 开发规矩.md tools/pr_merge.sh tools/merge_drift.sh tools/sync_main.sh 2>/dev/null | head -5 | grep . || echo "  无"
+echo "── 近 7 天协作规则 / 合并闸门的变化（仅供知悉，不代表记录过时；规则以仓库文件为准）："; git log origin/main --since='7 days ago' --format='  %h %cs %s' -- CLAUDE.md CONTRIBUTING.md 协作实践.md docs/协作分工.md docs/roadmap.md 开发规矩.md tools/pr_merge.sh tools/merge_drift.sh tools/sync_main.sh tools/collab_board.mjs tools/pr_say.sh 2>/dev/null | head -5 | grep . || echo "  无"
 echo "（任何一节不是「无」：记录可能过时——先把这些写进进度记录，再告诉用户「记录比实际落后，以下是我根据 git / PR / CI 补上的」。）"

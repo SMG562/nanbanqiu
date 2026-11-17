@@ -199,4 +199,4 @@ function settingsHTML(){return `<div class="m-b"><h3 class="sh-t">设置</h3>
     ${invSetHTML('set')}<button class="set" data-a="blocklist"><span class="ico" style="background:#667085"><svg><use href="#i-ban"/></svg></span><span class="v">屏蔽名单<small>${ME.blocked.size?ME.blocked.size+' 人':'暂无'}</small></span></button>${anPrivHTML('set')}${pvExportHTML('set')}
     <button class="set" data-a="safety"><span class="ico" style="background:var(--g)"><svg><use href="#i-shield"/></svg></span><span class="v">安全须知</span></button>
     <button class="set" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div></div>`}
-function openSettings(){if(!ME){toast('请先登录');return}openModal(settingsHTML(),'sm')}
+function openSettings(){if(!ME){openAuth(openSettings,'登录后才能打开设置');return}openModal(settingsHTML(),'sm')}

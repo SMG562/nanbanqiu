@@ -32,11 +32,9 @@ function openLocSheet(){LOC.asked=true;nbqLocSave();
 const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
 function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
 function fallbackLoc(msg){const v=ME&&myClubIds().length?VEN[myClubIds()[0]]:null;if(v){setLoc(v.lat,v.lng,v.short,'club');toast(msg+'，以 '+v.short+' 为中心')}else{setLoc(CITY.lat,CITY.lng,CITY.center,'default');toast(msg+'，以 '+CITY.center+' 为中心')}}
-function requestLocation(){closeSheet();if(!navigator.geolocation){fallbackLoc('无法获取位置');return}
-  navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5){fallbackLoc('你目前不在'+CITY.zh+'附近');return}
-    let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps');toast('已定位到 '+b.name)},()=>fallbackLoc('未获得位置权限'),{timeout:8000,maximumAge:6e5})}
+function requestLocation(){closeSheet();nbqGeoFix((lat,lng,b)=>{setLoc(lat,lng,b.name,'gps');toast('已定位到 '+b.name)},r=>fallbackLoc(r==='nogeo'?'无法获取位置':r==='far'?'你目前不在'+CITY.zh+'附近':'未获得位置权限'))}
 /* 已授权过位置才在后台悄悄更新；没授权不弹任何提示（iPhone 桌面 App 每次启动都弹的根源） */
-function nbqLocQuiet(){try{if(LOC.source!=='gps'||!navigator.permissions||!navigator.geolocation)return;navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state!=='granted')return;navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return;let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});setLoc(lat,lng,b.name,'gps')},()=>{},{timeout:8000,maximumAge:6e5})}).catch(()=>{})}catch(e){}}
+function nbqLocQuiet(){try{if(LOC.source!=='gps'||!navigator.permissions||!navigator.geolocation)return;navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state!=='granted')return;nbqGeoFix((lat,lng,b)=>setLoc(lat,lng,b.name,'gps'),()=>{})}).catch(()=>{})}catch(e){}}
 setTimeout(nbqLocQuiet,1500);
 function openSuburbPicker(){SBS.q='';SBS.letter=null;openSheet(`<div class="sh-t">位置与距离</div>
   <button class="btn btn-s" data-a="locAllow" style="color:var(--blue);margin-bottom:6px"><svg><use href="#i-nav"/></svg>使用当前位置</button>

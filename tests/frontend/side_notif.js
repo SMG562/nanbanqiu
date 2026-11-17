@@ -41,7 +41,7 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
   await others('ball', 21, 'Coco'); await E(() => { NOTIFS.find(n => n.kind === 'sb_ball').read = true }); await W(50); await others('ball', 21, 'Ray'); L = await SB();
   T('看过之后再有新网球 → 新的一条（人数只算看过之后的）', L.length === 2 && L[0].count === 1 && L[0].an === 'Ray' && !L[0].read, L);
   T('新的一条再提醒', (await E(() => _bn)).length === 3, await E(() => _bn));
-  await clear(); const notMine = await E(() => SBV.L.find(x => !x.mine).id);
+  await clear(); const notMine = await E(() => SBV.L.find(x => !x.mine && !(SBV.pend || []).includes(x)).id);
   await others('ball', notMine, 'Coco'); await others('reply', notMine, '路过'); L = await SB();
   T('别人的发布被点网球 / 被回复 → 不提醒我', L.length === 0, L);
 
@@ -110,7 +110,7 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
 
   // ---- 埋点 ----
   await E(() => { AN_LOG.length = 0 }); const sh = s => E(s => document.querySelector('#sbHost').shadowRoot.querySelector(s)?.click(), s);
-  const first = await E(() => String(SBV.L.find(x => !x.mine && !x.closed && Date.now() - x.t < 864e5).id));
+  const first = await E(() => String(SBV.L.find(x => !x.mine && !x.closed && Date.now() - x.t < 864e5 && !(SBV.pend || []).includes(x)).id));
   await sr(`[data-s="home"] [data-ball="${first}"]`).first().click(); await W(500);
   await sh(`[data-s="home"] [data-ln="${first}"]`); await W(500); if (!(await E(() => SBV.open))) await E(id => SBV.api.open(id), first); await W(300);
   await sr('.sheet [data-rin]').fill('我也去'); await W(100); await sr('.sheet [data-rsend]').click(); await W(400);

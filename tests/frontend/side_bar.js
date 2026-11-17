@@ -9,10 +9,14 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.goto('file:///mnt/user-data/outputs/南伴球_PWA.html'); await pg.settle(800);
   await pg.evaluate(() => { LOC.asked = true; closeSheet(); setWho('jason', true) }); await pg.settle(300);
+  // 冻结会自己冒动画的两个定时器（#344 / #245：「没有挂着没结束的动画」偶发红，main 上同样，重跑一红一绿）。取证（失败时列出在跑的动画）：
+  // 在跑的是输入框提示语轮换（SPAN.hint，每隔几秒换一条、348ms 的动画）；实时流每 5.6 秒冒一条新动态也会撞上，两个一起冻。
+  // 光设 SBV.every=1e9 只影响下一次排期，已排好的那次还会响：实时流读 el.matches(':hover')，让它恒为真就整个跳过；提示轮换读 SBV.hintAt（「刚换过不久就不换」），让它恒在未来。
+  await pg.evaluate(() => { const m = Element.prototype.matches; Element.prototype.matches = function (q) { return q === ':hover' ? true : m.call(this, q) } });   // 场边实例点「场边」tab 才创建，SBV 此刻还是 null，先只补这一半
   const E = (f, a) => pg.evaluate(f, a), W = ms => pg.settle(ms);
   const R = s => E(s => { const r = document.querySelector('#sbHost').shadowRoot; return r.querySelector(s) }, s);
   const q = f => E(new Function(`const r=document.querySelector('#sbHost').shadowRoot;return (${f})(r)`));
-  await pg.click('#tabbar [data-tab="side"]'); await W(500);
+  await pg.click('#tabbar [data-tab="side"]'); await pg.evaluate(() => { SBV.every = 1e9; Object.defineProperty(SBV, 'hintAt', { get: () => Date.now() + 1e9, set() { } }) }); await W(500);
 
   const st = () => q(`r=>{const el=r.querySelector('.compose'),b=r.querySelector('.bar .box').getBoundingClientRect(),i=r.querySelector('[data-in]'),a=r.activeElement;
     return {composeOn:el.getBoundingClientRect().top<innerHeight-60,focusIn:a===i||(!!a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)),qing:!!r.querySelector('.qing')||r.querySelector('.view.home').parentElement.classList.contains('qing'),
@@ -72,7 +76,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   for (let i = 0; i < 5; i++) { await clickAt('.bar .box', 0.3); await W(120); await close() }
   const s3 = await st(), sy = await E(() => ({ y: scrollY, x: scrollX, d: document.querySelector('.device').getBoundingClientRect().top }));
   T('来回开关 5 次：输入框原位、页面没被带起来', !s3.composeOn && s3.boxTop === s0.boxTop && sy.y === 0 && sy.x === 0 && sy.d === 0, { s3, sy });
-  const ghost = await q(`r=>({v:r.querySelector('[data-in]').value,anims:r.getAnimations?r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).length:0})`);
+  const ghost = await q(`r=>({v:r.querySelector('[data-in]').value,anims:r.getAnimations?r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).length:0,what:r.getAnimations().filter(a=>a.playState==='running'&&a.effect&&a.effect.getTiming().iterations!==Infinity).map(a=>{const t=a.effect.target;return (t&&(t.tagName+'.'+t.className))+'|'+(a.animationName||'')+'|'+Math.round(a.effect.getTiming().duration)+'|'+Math.round(a.currentTime)})})`);
   T('没有残留文字、没有挂着没结束的动画', ghost.v === '' && ghost.anims === 0, ghost);
 
   // ---- 提示带话题（#宝藏球场 这类）：点输入框 → 进写页，话题已选好，首页不出话题条 ----

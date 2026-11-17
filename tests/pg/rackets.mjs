@@ -186,6 +186,24 @@ try {
   T('B2 迁移后 4 个事件 = 字典（名称、分类、说明、props、来源）', JSON.stringify(await evRows()) === JSON.stringify(spec) && spec.length === 4, { db: await evRows(), spec });
   T('B2 迁移结果 = schema.sql 载入的结果', JSON.stringify(await evRows()) === fromSchema);
   T('B2 schema_migrations 记了一次', +(await q(`select count(*) from schema_migrations where version='20261109_racket_events'`)).rows[0].count === 1);
+  // —— C1：球员卡显示球拍（api_player_rackets：别人可读，注销 / 封禁不出，未登录拒绝，迁移可重复）
+  const UC = id(71), UD = id(72), UB = id(73);
+  await q(`insert into users(id,phone_e164,nickname,utr) values ($1,'+61400071','Cat',5),($2,'+61400072','Dan',5),($3,'+61400073','Bo',5)`, [UC, UD, UB]);
+  r = await set(UB, [{ brand: 'Head', series: 'Speed' }, { series: '老拍' }]); T('C1 准备：UB 存了 2 把', r.ok, r); await set(UC, [{ brand: 'Yonex', series: 'EZONE' }]);
+  const pr = (uid, ids) => as(uid, 'select user_id, slot, brand, series from api_player_rackets($1::uuid[]) order by user_id, slot', [ids]);
+  r = await pr(A, [UB, UC, UD]);
+  T('C1 别人能读到球拍（按 slot 排，没拍的人不出）', r.ok && r.rows.map(x => x.user_id.slice(-2) + ':' + x.slot + x.series).join(' ') === '71:1EZONE 73:1Speed 73:2老拍', r);
+  T('C1 直接读表仍只看到自己的（RLS 没放开）', (await as(A, 'select user_id from user_rackets where user_id = $1', [UB])).rows.length === 0);
+  await q(`update users set status='deleted' where id=$1`, [UC]);
+  r = await pr(A, [UB, UC]); T('C1 注销的人不出', r.ok && r.rows.every(x => x.user_id === UB) && r.rows.length === 2, r);
+  await q(`update users set status='active', anonymized_at=now() where id=$1`, [UC]);
+  r = await pr(A, [UC]); T('C1 匿名化的人不出', r.ok && r.rows.length === 0, r);
+  await q(`update users set status='banned', anonymized_at=null where id=$1`, [UC]);
+  r = await pr(A, [UC]); T('C1 封禁的人不出', r.ok && r.rows.length === 0, r);
+  r = await pr(null, [UB]); T('C1 未登录被拒', !r.ok && /login_required/.test(r.err), r);
+  r = await pr(A, Array.from({ length: 60 }, (_, i) => i < 55 ? id(10 + (i % 30)) : UB)); T('C1 一次最多看前 50 个 id', r.ok && r.rows.length === 0, r);
+  const rc = fs.readFileSync(path.join(DIR, 'server/migrations/20261120_racket_cards.sql'), 'utf8');
+  let e2 = null; try { await q(rc); await q(rc) } catch (e) { e2 = e.message } T('C1 迁移连跑两次不报错', e2 === null, e2);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
 finally { if (pool) await pool.end().catch(() => { }); c.stop() }
 console.log(`rackets: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

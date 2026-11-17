@@ -52,7 +52,7 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   await pg.setViewportSize({ width: 1440, height: 900 }); await W(400);
 
   // ---- 打开详情：右边滑出；关掉不留动画 ----
-  const first = await E(() => String(SBV.L.find(x => !x.mine && Date.now() - x.t < 864e5).id));
+  const first = await E(() => String(SBV.L.find(x => !x.mine && Date.now() - x.t < 864e5 && !(SBV.pend || []).includes(x)).id));
   await sh(`[data-s="home"] [data-ln="${first}"]`); await W(800);
   await pg.waitForFunction(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet'); return SBV.open && !s.getAnimations().some(a => a.playState === 'running') }, null, { timeout: 3000, polling: 50 }).catch(() => {});   // 量位置前等滑出动画走完
   const sd = await E(() => { const r = document.querySelector('#sbHost').shadowRoot, s = r.querySelector('.sheet').getBoundingClientRect(); return { open: String(SBV.open), cls: r.querySelector('.wb>div').className, l: Math.round(s.left), w: Math.round(s.width) } });

@@ -39,4 +39,4 @@ function settingsHTML(){return `<h3 class="sh-t">设置</h3>
     <button class="li" data-a="contact"><span class="ico" style="background:#2F80ED"><svg><use href="#i-mail"/></svg></span><span class="v">联系我们 / 举报</span><svg class="ch"><use href="#i-ch"/></svg></button>
     <button class="li" data-a="logout"><span class="ico" style="background:#98A2B3"><svg><use href="#i-out"/></svg></span><span class="v">退出登录</span></button></div>
   ${pvLegalHTML()}`}
-function openSettings(){if(!ME){toast('请先登录');return}openSheet(settingsHTML(),true)}
+function openSettings(){if(!ME){openAuth(openSettings,'登录后才能打开设置');return}openSheet(settingsHTML(),true)}

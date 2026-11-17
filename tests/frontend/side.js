@@ -77,8 +77,8 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   const n1 = await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`)), q1 = await E(() => SBV.qi);
   T('不在场边页时，不自动冒新消息（期间约 5 拍都没冒）', n1 === n0 && q1 === q0, [n0, n1, q0, q1]);
   await pg.click('#tabbar [data-tab="side"]');
-  const n2 = await U(n1 => document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln').length > n1, n1, 10000).then(() => E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`))).catch(() => n1);
-  T('回到场边页，新消息继续冒出来', n2 > n1, [n1, n2]);
+  const n2 = await U(() => (SBV.pend || []).length > 0, null, 12000).then(() => E(() => (SBV.pend || []).length)).catch(() => 0);
+  T('回到场边页，新消息继续进来（#344：攒着、亮胶囊，不自己插进列表）', n2 > 0 && await E(new Function(`return ${SR}.querySelectorAll('[data-s="home"] .ln').length`)) === n1, [n1, n2]);
   await E(() => { SBV.every = 1200 });   // 气泡那段：一条接一条但不叠在一起
   // 新动态的气泡：底是单独一层（.bb），褪去后连同 bub 一起移除；动画结束后不留 fill（WAAPI 动画全部释放）
   const lk = await E(() => new Promise(res => { const root = document.querySelector('#sbHost').shadowRoot, born = new Map(); let max = 0, n = 0, pcN = 0; const t0 = performance.now();

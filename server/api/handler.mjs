@@ -97,7 +97,11 @@ const CARD_SQL = `select pc.user_id as id, pc.member_no, pc.nickname, pc.last_in
     pc.card_venue_id, pc.played::int as played, pc.hosted::int as hosted, pc.kudos::int as kudos, pc.level, pp.gone
   from player_cards pc join public_profiles pp on pp.id = pc.user_id where pc.user_id = any($1::uuid[])`;
 const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))]; if (!u.length) return {};
-  return Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r])) };
+  const cards = Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r]));
+  // 球拍（#60 PR-C1）：只加不改（ADR 0013）；注销 / 封禁的人库函数不返回 → 空数组
+  const have = Object.keys(cards).filter(i => !cards[i].gone); for (const i of Object.keys(cards)) cards[i].rackets = [];
+  if (have.length) for (const r of (await q('select user_id, slot, brand, series, catalog_id from api_player_rackets($1::uuid[])', [have])).rows) cards[r.user_id]?.rackets.push({ slot: r.slot, brand: r.brand, series: r.series, catalog_id: r.catalog_id });
+  return cards };
 // 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
 const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.message end as message,
@@ -116,6 +120,41 @@ const rnd = n => { let s = ''; for (const b of crypto.getRandomValues(new Uint8A
 const HO_CODE = /^[A-Za-z0-9_-]{40,64}$/, HO_TTL = 3600;
 const hoTokens = async (d, who, refresh) => ({ access_token: await d.session.sign({ sub: who.auth_id, phone: who.phone }, HO_TTL), refresh_token: refresh, expires_in: HO_TTL, user: { id: who.auth_id, phone: who.phone } });
 const hoOff = () => send(404, { error: 'handoff_unavailable' });   // 没配签名密钥 = 不启用，前台安静跳过
+
+// ---- 场边读接口（PR-A，#369）：一期纯文字；行级权限在库里（sb_post_public / sb_post_readable / sb_reply_read），这里只拼查询、分页、整理返回 ----
+//   photo_count / photos 从第一天就在返回里（一期恒为 0 / 空数组），二期加照片不用改接口形状。没登录也能看公开的（anon）；SQL 也导出给 tests/pg/sb_read.mjs 逐条跑
+const SB_CUR = `to_char(p.publish_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') || '_' || p.id::text`;   // 游标 = 公开时间（微秒）+ id，不会因毫秒截断丢帖 / 重复
+const SB_POST_COLS = `p.id, p.user_id, p.city, p.body, p.topic_id, p.floor, p.venue_id, p.photo_count, p.tone, p.replies_open, p.publish_at, p.balls, p.replies,
+    coalesce(p.user_id = nbq_uid(), false) as mine,
+    exists (select 1 from sb_balls b where b.post_id = p.id and b.user_id = nbq_uid()) as my_ball`;
+export const SB_FEED_SQL = `select ${SB_POST_COLS}, ${SB_CUR} as cur from sb_posts p
+   where p.city = $1 and p.status = 'visible' and p.deleted_at is null and p.publish_at <= now() and p.publish_at > now() - interval '48 hours'   -- 上限 48 小时 = public_hours 的最大值；让部分索引能用、帖子少时也不扫旧帖
+     and sb_post_public(p.id, nbq_uid()) and ($2::text is null or p.topic_id = $2)
+     and ($3::timestamptz is null or (p.publish_at, p.id) < ($3::timestamptz, $4::uuid))
+   order by p.publish_at desc, p.id desc limit $5`;
+export const SB_MINE_SQL = `select ${SB_POST_COLS}, p.status, sb_post_public(p.id, nbq_uid()) as public, ${SB_CUR} as cur from sb_posts p
+   where p.user_id = nbq_uid() and p.deleted_at is null
+     and ($1::timestamptz is null or (p.publish_at, p.id) < ($1::timestamptz, $2::uuid))
+   order by p.publish_at desc, p.id desc limit $3`;
+export const SB_POST_SQL = `select ${SB_POST_COLS}, p.status, sb_post_public(p.id, nbq_uid()) as public from sb_posts p where p.id = $1`;   // 行级权限：看不到 = 没有这一行 = 404
+export const SB_REPLIES_SQL = `select r.id::float8 as id, r.user_id, r.to_user, r.body, r.created_at, coalesce(r.user_id = nbq_uid(), false) as mine, (r.status = 'hidden') as hidden
+   from sb_replies r where r.post_id = $1 and r.deleted_at is null and (r.status = 'visible' or r.user_id = nbq_uid()) order by r.created_at, r.id limit 200`;
+export const SB_TOPICS_SQL = `select id, title, kind from sb_topics where id = any($1::text[])`;
+export const SB_PROFILES_SQL = `select id, member_no, nickname, last_initial, avatar_kind, avatar_animal, avatar_color, seal_roll, card_theme, level, gone from public_profiles where id = any($1::uuid[])`;
+const SB_CURSOR = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const sbPage = req => {   // 查询参数：before（游标）、limit（1–max，默认 def）；格式不对一律 422 invalid
+  const u = new URL(req.url).searchParams, lim = u.get('limit'), before = u.get('before'), m = before === null ? null : SB_CURSOR.exec(before);
+  if (lim !== null && !/^\d{1,3}$/.test(lim)) throw bad(); if (before !== null && !m) throw bad();
+  return { u, lim: lim === null ? null : Math.min(Math.max(+lim, 1), 50), ts: m ? m[1] : null, id: m ? m[2] : null };
+};
+// 一页帖子 → { posts, next, topics, profiles }：多取 1 条判断还有没有下一页；作者名片和话题名一并带上（前台不用再逐条查）
+async function sbPosts(q, rows, lim) {
+  const more = rows.length > lim, page = rows.slice(0, lim), next = more ? page[page.length - 1].cur : null;
+  const posts = page.map(({ cur, ...r }) => ({ ...r, photos: [] }));
+  const tids = [...new Set(posts.map(x => x.topic_id).filter(Boolean))], uids = [...new Set(posts.map(x => x.user_id))];
+  return { posts, next, topics: Object.fromEntries((tids.length ? (await q(SB_TOPICS_SQL, [tids])).rows : []).map(t => [t.id, t])),
+    profiles: Object.fromEntries((uids.length ? (await q(SB_PROFILES_SQL, [uids])).rows : []).map(x => [x.id, x])) };
+}
 
 const ROUTES = {
   // 已登录的页面要一个一次性交接码（明文只在这次响应里出现一次，库里只存 sha256；24 小时内有效，每人每天 5 个）
@@ -442,6 +481,21 @@ const ROUTES = {
     const ids = b.post_ids; if (!Array.isArray(ids) || ids.length > 50 || !ids.every(v => UUID.test(str(v) || ''))) throw Object.assign(new Error('invalid'), { code: 'P0001', detail: 'posts' });
     return { counted: (await one(q, 'select api_sb_view($1::uuid[], $2) as n', [ids, str(b.device)])).n } }, { anon: true }),
   'POST /api/sideline/posts/:id/share': (req, d, p) => act(req, d, p, async (q, b, x) => ({ counted: (await one(q, 'select api_sb_share($1, $2) as n', [x.id, str(b.device)])).n }), { ids: ['id'], anon: true }),
+  // 场边读（PR-A）：动态流 = 本城 24 小时内公开的、倒序、游标分页；没登录也能看（屏蔽 / 不感兴趣只对登录的人生效）
+  'GET /api/sideline/feed': (req, d, p) => act(req, d, p, async q => {
+    const { u, lim, ts, id } = sbPage(req), city = u.get('city') ?? 'melb', topic = u.get('topic');
+    if (!/^[a-z]{2,12}$/.test(city) || (topic !== null && !/^[a-z][a-z0-9_]{1,39}$/.test(topic))) throw bad();
+    const n = lim ?? 20; return sbPosts(q, (await q(SB_FEED_SQL, [city, topic, ts, id, n + 1])).rows, n) }, { body: false, anon: true }),
+  // 我发过的（含已过 24 小时、只剩自己能看的；已删除的没有）：删除与回看用
+  'GET /api/sideline/mine': (req, d, p) => act(req, d, p, async q => {
+    const { lim, ts, id } = sbPage(req), n = lim ?? 30; return sbPosts(q, (await q(SB_MINE_SQL, [ts, id, n + 1])).rows, n) }, { body: false }),
+  // 帖子详情 + 回复（按时间正序，最多 200 条）；看不到的（过期别人的 / 被屏蔽 / 隐藏 / 已删）和不存在的一样 404
+  'GET /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const post = (await q(SB_POST_SQL, [x.id])).rows[0]; if (!post) throw Object.assign(new Error('not_found'), { code: 'P0001' });
+    const replies = (await q(SB_REPLIES_SQL, [x.id])).rows, uids = [...new Set([post.user_id, ...replies.flatMap(r => [r.user_id, r.to_user])].filter(Boolean))];
+    const tid = post.topic_id ? (await q(SB_TOPICS_SQL, [[post.topic_id]])).rows : [];
+    return { post: { ...post, photos: [] }, replies, topics: Object.fromEntries(tid.map(t => [t.id, t])),
+      profiles: Object.fromEntries((await q(SB_PROFILES_SQL, [uids])).rows.map(r => [r.id, r])) } }, { ids: ['id'], body: false, anon: true }),
   'GET /api/sideline/config': (req, d, p) => act(req, d, p, async q => {
     const v = new URL(req.url).searchParams.get('v'); if (v !== null && !/^\d{1,9}$/.test(v)) throw bad();
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),

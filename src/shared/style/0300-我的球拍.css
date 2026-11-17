@@ -49,3 +49,6 @@
 .rk-act b{font-size:15px;font-weight:600}.rk-act small{font-size:12.5px;color:var(--mut)}
 .rk-act.danger b{color:#D92D20}
 @media (prefers-reduced-motion:reduce){.rk-chip{transition:none}.rk-chip:active{transform:none}.rk-chip.busy::after,.rk-act.busy::after{animation-duration:2s}}
+/* 别人球员卡弹层里的球拍一行（#60 PR-C）：弹层底色深浅不一，只用 currentColor + 透明度 */
+.rk-pc{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;font-size:14px;line-height:1.4;text-align:left}.rk-pc .rk-h{flex:none;opacity:.7}
+.rk-pl{display:flex;flex-direction:column;gap:2px;min-width:0}.rk-pi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.rk-pi em{margin-right:6px;font-style:normal;font-size:11px;font-weight:500;opacity:.65}

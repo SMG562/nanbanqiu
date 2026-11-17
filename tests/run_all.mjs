@@ -96,6 +96,7 @@ add('pg', 'pg/risk', ['node', path.join(HERE, 'pg/risk.mjs')], { pass: [/risk: \
 add('pg', 'pg/privacy', ['node', path.join(HERE, 'pg/privacy.mjs')], { pass: [/privacy: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass: [/sb_schema: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_read', ['node', path.join(HERE, 'pg/sb_read.mjs')], { pass: [/sb_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')], { pass: [/admin_reports: \d+ 通过, 0 失败/], timeout: 300 });
@@ -152,6 +153,7 @@ add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'fronte
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
 add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
+add('frontend', 'frontend/racket_card', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/racket_card.js')], { pass: [/racket_card: \d+ 通过, 0 失败/], timeout: 300 });   // 球员卡显示球拍 #60 PR-C2
 add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
 add('frontend', 'frontend/buddies_scan', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies_scan.js')], { pass: [/buddies_scan: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B2 扫码加球友
 add('frontend', 'frontend/logout_race', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/logout_race.js')], { pass: [/logout_race: \d+ 通过, 0 失败/], timeout: 300 });   // 读到一半退出登录（11-09）
@@ -171,7 +173,7 @@ add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
 add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F3 网页端接入场边
 // 第八批 T2：设计稿 v35 的 146 项场边测试（原来读 QA_FILE 设计稿），改测正式页面（手机端 / 网页端），tests/场边/lib.cjs 做转接
-for (const [n, nm] of [[1, '信息流'], [2, '网球点赞'], [3, '筛选'], [4, '详情回复菜单'], [5, '底栏'], [6, '发布页'], [7, '话题墙相册'], [8, '压力边界'], [10, '选球场行与底栏芯片'], [9, '攒着的新动态']])
+for (const [n, nm] of [[1, '信息流'], [2, '网球点赞'], [3, '筛选'], [4, '详情回复菜单'], [5, '底栏'], [6, '发布页'], [7, '话题墙相册'], [8, '压力边界'], [9, '攒着的新动态'], [10, '选球场行与底栏芯片'], [11, '新动态先攒着']])
   add('frontend', 'side_design/t' + n, ['node', '-r', PRELOAD, path.join(HERE, '场边/t' + n + '.cjs')], { pass: [/T\d+：通过 \d+，失败 0/], timeout: 300 });   // t1 信息流 · t2 网球点赞 · …
 add('pg', 'e2e/sb_publish', ['node', '-r', PRELOAD, path.join(HERE, 'e2e/sb_publish.mjs')], { pass: [/sb_publish: \d+ 通过, 0 失败/], timeout: 300, slow: true });   // 第八批 T1 后台发布 → 前台读到
 add('frontend', 'frontend/site', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/site.js')], { pass: [/\d+ passed, 0 failed/], timeout: 200 });   // 预览网站 site/（Cloudflare Pages）
