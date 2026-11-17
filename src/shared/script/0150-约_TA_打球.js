@@ -165,7 +165,7 @@ function makeGame(i){const p=invCur(i),a=U(i.from),b=U(i.to),id='p'+(++NID);
 function finishAccept(i){const id=makeGame(i);i.status='accepted';i.game_id=id;const other=i.from===ME.id?i.to:i.from;
   notifyInv(other,'invite_accepted',i,ME.id);INV_CLOSE();toast('已生成私人球局 🎾');INV_RENDER();setTimeout(()=>INV_GAME(id),300)}
 function invAct(act,el){const i=IVP&&invOf(IVP.id);
-  if(IVF&&['pickVen','addVen','addCancel','addSurf','addSave','vpLetter','pickPlace','auPick'].includes(act)){keepForm();if(vpAct(IVF,act,el))drawInviteForm();return}
+  if(IVF&&['pickVen','addVen','addCancel','addSurf','addSave','vpLetter','vpLocate','pickPlace','auPick'].includes(act)){keepForm();if(vpAct(IVF,act,el))drawInviteForm();return}
   switch(act){
     case'close':IVF=null;INV_CLOSE();break;
     case'day':keepForm();IVF.o=+el.dataset.v;if(dayAt(IVF.o,IVF.t)<=NOW){const t=firstFree(IVF.o);if(t){IVF.t=t;IVF.per=perOf(t);setEnd(IVF)}}drawInviteForm();break;
