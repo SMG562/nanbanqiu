@@ -97,7 +97,11 @@ const CARD_SQL = `select pc.user_id as id, pc.member_no, pc.nickname, pc.last_in
     pc.card_venue_id, pc.played::int as played, pc.hosted::int as hosted, pc.kudos::int as kudos, pc.level, pp.gone
   from player_cards pc join public_profiles pp on pp.id = pc.user_id where pc.user_id = any($1::uuid[])`;
 const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))]; if (!u.length) return {};
-  return Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r])) };
+  const cards = Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r]));
+  // 球拍（#60 PR-C1）：只加不改（ADR 0013）；注销 / 封禁的人库函数不返回 → 空数组
+  const have = Object.keys(cards).filter(i => !cards[i].gone); for (const i of Object.keys(cards)) cards[i].rackets = [];
+  if (have.length) for (const r of (await q('select user_id, slot, brand, series, catalog_id from api_player_rackets($1::uuid[])', [have])).rows) cards[r.user_id]?.rackets.push({ slot: r.slot, brand: r.brand, series: r.series, catalog_id: r.catalog_id });
+  return cards };
 // 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
 const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.message end as message,
