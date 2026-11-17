@@ -52,6 +52,8 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     // 键盘升起（视口缩到 470）：搜索框在可视区内、列表有高度
     await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
     await q(`r=>{r.querySelector('[data-cq]').focus()}`); await W(400);
+    const zfs = await q(`r=>parseFloat(getComputedStyle(r.querySelector('[data-cq]')).fontSize)`);   // iOS Safari 聚焦字号 < 16px 的输入框会放大整页（11-17 真机）
+    T('搜索球场输入框字号 ≥ 16px（点它不放大页面）', zfs >= 16, zfs);
     const kb = await q(`r=>{const i=r.querySelector('[data-cq]').getBoundingClientRect(),l=r.querySelector('.pk-b').getBoundingClientRect();return {ib:Math.round(i.bottom),it:Math.round(i.top),lh:Math.round(l.height),vh:innerHeight}}`);
     T(N + ' 键盘升起：搜索框在可视区内，列表还有高度', kb.it >= 0 && kb.ib <= kb.vh && kb.lh > 40, kb);
     T(N + ' 无脚本错误', errs.length === 0, errs);
