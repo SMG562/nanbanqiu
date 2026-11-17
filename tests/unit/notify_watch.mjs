@@ -7,7 +7,10 @@ export const MACHINERY = ['tools/collab_board.mjs', 'tools/pr_say.sh', '.github/
 const norm = x => x.replace(/^['"]|['"]$/g, '').replace(/\/\*\*$/, '');
 const yml = rd('.github/workflows/proposals.yml'), settings = rd('.claude/settings.json'), handoff = rd('tools/handoff_check.sh');
 const paths = ((/paths:\s*\[([^\]]*)\]/.exec(yml) || [])[1] || '').split(',').map(s => norm(s.trim())).filter(Boolean);
-const spec = ((/git diff --name-only "\$BEFORE" "\$SHA" -- ([^|]*)\|/.exec(yml) || [])[1] || '').trim().split(/\s+/).map(norm).filter(Boolean);
+const spec = ((/git (?:-c core\.quotepath=off )?diff --name-only "\$BEFORE" "\$SHA" -- ([^|]*)\|/.exec(yml) || [])[1] || '').trim().split(/\s+/).map(norm).filter(Boolean);
+// 11-18 首次演练的缺陷：通知里中文文件名成了 "docs/\345\..." 八进制转义、提交标题被 cut -c（按字节）切成半个汉字。消息是发给人看的，所以不能靠「只给人看不查」放过
+T('通知里的文件名带 core.quotepath=off（中文名不转义）', /git -c core\.quotepath=off diff --name-only "\$BEFORE"/.test(yml));
+T('通知里的提交标题不用 cut -c（按字节，会切坏汉字）', !/git log --format='%s'[^\n]*\bcut\s+-c/.test(yml));
 const hook = (/git diff --name-only HEAD origin\/main -- ([^2]*?) 2>\/dev\/null/.exec(settings) || [])[1] || '';
 T('触发器 paths 与 git diff 过滤是同一组（只差 .claude/** 的写法）', paths.length > 0 && [...paths].sort().join() === [...spec].sort().join(), { paths, spec });
 for (const f of MACHINERY) {
