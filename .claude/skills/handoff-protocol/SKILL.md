@@ -17,8 +17,9 @@ description: 所有者说「梳理总结并交接」「开新对话」「交接�
 
 ## 二、起手提示模板（放在代码块里，一句话 + 明确边界）
 ```
-做 Issue #<号>。先读 `gh issue view <号> -R SMG562/nanbanqiu` 和 <技能名> §<章节>；不用读进度记录全文，不跑 handoff_check。完成标准见 Issue 验收。
+做 Issue #<号>。先读 `gh api repos/SMG562/nanbanqiu/issues/<号> --jq .body` 和 <技能名> §<章节>；不用读进度记录全文，不跑 handoff_check。完成标准见 Issue 验收。
 ```
+注意：Claude Code 会话里 `gh issue view` / `gh pr view` 走 GraphQL 会 403，一律用 `gh api repos/…`（REST）。
 要点：①任务 + Issue 号；②**具体**要读什么（命令 / 文件 / 章节）；③**明确不读什么**（进度记录全文）；④需要时加第一条命令。CLAUDE.md 已规定「开场点名任务就直接做」，所以这一句就够。
 
 ## 三、什么时候才需要读进度记录
