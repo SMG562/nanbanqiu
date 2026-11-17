@@ -127,7 +127,7 @@ function nrDiagHTML(r){if(!r||!Array.isArray(r.devices))return'<small>读取失�
   const rc=(r.recent||[]).length?r.recent.map(n=>`<div class="nrl"><b>${esc(NR_KIND_ZH[n.kind]||n.kind)} · ${nrAgo(n.created_at,r.now)}</b><span>${(n.deliveries||[]).length?n.deliveries.map(x=>esc(nrDeliveryZh(x))).join('；'):'还没发送'}${n.read_at?' · 已读':''}</span></div>`).join(''):'<div class="nrl"><span>还没有提醒</span></div>';
   return `<div class="nrs-h" style="margin-top:14px;font-size:14px">推送自检</div>${dv}${tip}<div class="nrs-h" style="margin-top:10px;font-size:14px">最近的提醒去了哪</div>${rc}`}
 async function nrDiagLoad(){const el=document.getElementById('nrDiag');if(!el||typeof nbqPushDiag!=='function')return;el.innerHTML='<small>正在读取…</small>';let r=null;try{r=await nbqPushDiag()}catch(e){}if(document.getElementById('nrDiag'))document.getElementById('nrDiag').innerHTML=nrDiagHTML(r)}
-function nrSettings(){if(!ME){toast('请先登录');return}UF_OPEN(nrSetHTML());nrDiagLoad()}
+function nrSettings(){if(!ME){openAuth(nrSettings,'登录后才能设置通知');return}UF_OPEN(nrSetHTML());nrDiagLoad()}
 // 网页：通知面板里的引导 —— 先引导到手机，电脑通知是次要的
 function nrWebCard(){const d=nrDev(ME);if(d.mobile.push)return'';
   return `<div class="pushcard nrw"><div class="ic"><svg width="20" height="20"><use href="#i-bell"/></svg></div><div style="flex:1"><b>在手机上接收提醒</b><p>用手机打开 nanbanqiu.app/${CITY.slug}，添加到主屏幕，提醒都会推送到手机</p></div></div>`}
