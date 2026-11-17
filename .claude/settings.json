@@ -55,7 +55,7 @@
           },
           {
             "type": "command",
-            "command": "bash -c 'git fetch -q origin main 2>/dev/null; f=$(git diff --name-only HEAD origin/main -- .claude CLAUDE.md tools/lib/token_guard.mjs 2>/dev/null | head -4); [ -n \"$f\" ] && echo \"规则已更新（主干比你本地新）：先 git pull，再只读这些文件的 diff：$f\"; true'",
+            "command": "bash -c 'git fetch -q origin main 2>/dev/null; f=$(git diff --name-only HEAD origin/main -- .claude CLAUDE.md tools/lib/token_guard.mjs tools/collab_board.mjs tools/pr_say.sh .github/workflows/collab-board.yml .github/workflows/proposals.yml docs/协作分工.md 2>/dev/null | head -6); [ -n \"$f\" ] && echo \"规则已更新（主干比你本地新）：先 git pull，再只读这些文件的 diff：$f\"; true'",
             "timeout": 20
           }
         ]
