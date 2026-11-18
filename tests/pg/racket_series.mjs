@@ -74,6 +74,25 @@ try {
   await q(`update racket_catalog set status='hidden' where brand='Head' and series='Speed'`); await q(`update racket_series set status='active'`);
   await q(fs.readFileSync(path.join(DIR, 'server/migrations/20261122_racket_held.sql'), 'utf8'));
   T('种子：旧 catalog hidden 的系列迁移后为 hidden', await n(`select count(*) n from racket_series s join brands b on b.id=s.brand_id where lower(b.name)='head' and lower(s.name)='speed' and s.status='hidden'`) === 1);
+  // —— #385 第 4 条：别名迁移 20261123（旧 catalog 别名 + 合并名带过来，再补拼写变体）
+  const MA = fs.readFileSync(path.join(DIR, 'server/migrations/20261123_racket_aliases.sql'), 'utf8');
+  const cid = async (b, s) => (await q(`select id from racket_catalog where brand=$1 and series=$2`, [b, s])).rows[0]?.id;
+  await q(`update racket_catalog set aliases = '{ps97,PS 100,blade}' where id = $1`, [await cid('Wilson', 'Pro Staff')]);   // blade = 同品牌另一个系列名 → 不能收
+  await q(`insert into racket_catalog (brand, series, status, merged_into, sort) values ('Wilson', 'Pro Staff RF', 'merged', $1, 990)`, [await cid('Wilson', 'Pro Staff')]);
+  await q(`update racket_catalog set aliases = '{dupname}' where id = any ($1)`, [[await cid('Wilson', 'Blade'), await cid('Wilson', 'Clash')]]);   // 两个系列抢同一个别名 → 只留一条
+  await q(`update racket_catalog set aliases = '{a very long alias that is definitely over forty characters long}' where id = $1`, [await cid('Wilson', 'Ultra')]);
+  const ea = (await q(MA)).err || (await q(MA)).err || (await q(MA)).err; T('迁移 20261123 连跑 3 次不报错', !ea, ea);
+  const al = async a => (await q(`select s.name sname, b.name bname from racket_aliases r join racket_series s on s.id=r.series_id join brands b on b.id=s.brand_id where lower(r.alias)=$1`, [a])).rows;
+  T('别名：旧 catalog 别名 ps97 → Wilson Pro Staff', (await al('ps97')).length === 1 && (await al('ps97'))[0].sname === 'Pro Staff');
+  T('别名：存成小写、去空白（PS 100 → ps 100）', (await al('ps 100')).length === 1);
+  T('别名：已合并条目的系列名也算别名，指向合并目标', (await al('pro staff rf')).length === 1 && (await al('pro staff rf'))[0].sname === 'Pro Staff');
+  T('别名：和同品牌系列名相同的别名不收（blade）', (await al('blade')).length === 0);
+  T('别名：两个系列抢同一个别名 → 只留 1 条', (await al('dupname')).length === 1);
+  T('别名：超过 40 字符的跳过', await n(`select count(*) n from racket_aliases where char_length(alias) > 40`) === 0);
+  T('别名：拼写变体 e-zone → Yonex EZONE、tfight → Tecnifibre T-Fight', (await al('e-zone'))[0]?.sname === 'EZONE' && (await al('tfight'))[0]?.sname === 'T-Fight');
+  T('别名：没有任何别名等于同品牌某个系列名', await n(`select count(*) n from racket_aliases r join racket_series s on s.id=r.series_id join racket_series s2 on s2.brand_id=s.brand_id and lower(s2.name)=lower(r.alias)`) === 0);
+  T('别名：不挂到「其他系列」上', await n(`select count(*) n from racket_aliases r join racket_series s on s.id=r.series_id where s.is_other`) === 0);
+  T('别名：重跑后条数不变', await n(`select count(*) n from racket_aliases`) === await (async () => { await q(MA); return n(`select count(*) n from racket_aliases`) })());
 
   // —— RLS：新表对三种前台角色全拒
   for (const t of ['brands', 'racket_series', 'racket_aliases', 'catalogue_submissions']) for (const role of ['anon', 'authenticated', 'nbq_user']) {
