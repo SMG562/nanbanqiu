@@ -100,7 +100,7 @@ const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))];
   const cards = Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r]));
   // 球拍（#60 PR-C1）：只加不改（ADR 0013）；注销 / 封禁的人库函数不返回 → 空数组
   const have = Object.keys(cards).filter(i => !cards[i].gone); for (const i of Object.keys(cards)) cards[i].rackets = [];
-  if (have.length) for (const r of (await q('select user_id, slot, brand, series, catalog_id from api_player_rackets($1::uuid[])', [have])).rows) cards[r.user_id]?.rackets.push({ slot: r.slot, brand: r.brand, series: r.series, catalog_id: r.catalog_id });
+  if (have.length) for (const r of (await q('select user_id, slot, brand, series, catalog_id, brand_id, series_id, other_text, other_brand_text, nickname from api_player_rackets2($1::uuid[])', [have])).rows) { const { user_id, ...x } = r; cards[user_id]?.rackets.push(x) }   // 新字段只加不改（#377 PR2）
   return cards };
 // 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
 const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
@@ -422,15 +422,26 @@ const ROUTES = {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
   // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
-  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id, brand_id, series_id, other_text, other_brand_text, nickname from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
   // 球拍产品库（选择列表）：不用登录，只给可选的（active）；改动不频繁，缓存 1 小时
   'GET /api/rackets/catalog': async (req, d) => {
     const rows = await d.db.asService(async q => (await q(`select id, brand, series from racket_catalog where status = 'active' order by sort, brand, series`)).rows);
     return send(200, { catalog: rows }, { 'Cache-Control': 'public, max-age=3600' });
   },
+  // 品牌 → 系列库（#377 PR2，ADR 0014）：不用登录，只给 active；别名给前台搜索用；缓存 1 小时
+  'GET /api/rackets/lib': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select b.id as bid, b.name as bname, s.id as sid, s.name as sname, s.is_other,
+        coalesce((select array_agg(a.alias order by a.alias) from racket_aliases a where a.series_id = s.id), '{}') as aliases
+      from brands b join racket_series s on s.brand_id = b.id where b.status = 'active' and s.status = 'active' order by b.sort, b.name, s.is_other, s.sort, s.name`)).rows);
+    const m = new Map(); for (const r of rows) { if (!m.has(r.bid)) m.set(r.bid, { id: r.bid, name: r.bname, series: [] }); m.get(r.bid).series.push({ id: r.sid, name: r.sname, is_other: r.is_other, aliases: r.aliases }) }
+    return send(200, { brands: [...m.values()] }, { 'Cache-Control': 'public, max-age=3600' });
+  },
   'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
-    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')))) throw bad();
-    const list = r.map(x => UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id } : { brand: x.brand ?? null, series: x.series });   // 选自产品库只转 id；自由文字只转品牌 + 系列
+    const r = b.rackets, ns = x => x == null || typeof x === 'string';   // 新形状（品牌 id + 系列 id | 自填系列）与旧形状都收；字段细节由 api_set_rackets 判（ADR 0013 只加不改）
+    if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (x.brand_id != null ? typeof x.brand_id === 'string' && ns(x.series_id) && ns(x.other_text) && ns(x.other_brand_text) && ns(x.nickname)
+      : UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string' && ns(x.nickname))))) throw bad();
+    const list = r.map(x => x.brand_id != null ? { brand_id: x.brand_id, series_id: x.series_id ?? null, other_text: x.other_text ?? null, other_brand_text: x.other_brand_text ?? null, nickname: x.nickname ?? null }
+      : UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id, nickname: x.nickname ?? null } : { brand: x.brand ?? null, series: x.series, nickname: x.nickname ?? null });   // 选自产品库只转 id；自由文字只转品牌 + 系列
     return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
   // 我的 UTR（#101）：正式 / 自评；写入只走 api_set_utr（校验、频率、历史都在库里），PATCH /api/me 不再放行 utr
   'GET /api/me/utr': (req, d, p) => act(req, d, p, async q => ({ utr: (await one(q, 'select api_my_utr() as v')).v }), { body: false }),

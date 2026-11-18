@@ -86,6 +86,8 @@ try {
   T('球员卡：没拍的人 rackets = []（字段永远在）', Array.isArray(r.j.player.rackets) && r.j.player.rackets.length === 0, r.j);
   await admin.query(`insert into user_rackets(user_id, slot, brand, series) values ($1, 1, 'Head', 'Speed'), ($1, 2, null, '老拍')`, [P]);
   r = await call('GET', `/api/players/${P}`, tQ); T('球员卡：别人的球拍带出（slot 序）', JSON.stringify(r.j.player.rackets.map(x => [x.slot, x.brand, x.series])) === '[[1,"Head","Speed"],[2,null,"老拍"]]', r.j);
+  await admin.query(`update user_rackets set nickname = '小黑', other_text = '老拍' where user_id = $1 and slot = 2`, [P]);
+  r = await call('GET', `/api/players/${P}`, tQ); T('球员卡：球拍带新字段（昵称 / other_text / brand_id / series_id），且不漏 user_id', r.j.player.rackets[1].nickname === '小黑' && r.j.player.rackets[1].other_text === '老拍' && 'brand_id' in r.j.player.rackets[0] && 'series_id' in r.j.player.rackets[0] && !('user_id' in r.j.player.rackets[0]), r.j);
   r = await call('GET', `/api/profiles?ids=${H},${P}`, tQ); T('批量卡片：也带 rackets', r.j.profiles[P].rackets.length === 2 && r.j.profiles[H].rackets.length === 0, r.j);
   T('球员卡：没有手机号 / 微信号 / 登录 id', !/phone|wechat|auth_id|\+61/.test(JSON.stringify(r.j)));
   r = await call('GET', `/api/players/${G}`, tQ); T('球员卡：不存在 → 404', r.s === 404);
