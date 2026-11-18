@@ -64,4 +64,4 @@ try {
   T('再执行后规则仍是 2 条、开关仍是 4 行', +(await one(`select count(*) from rate_rules where grp = 'sb_photo'`)).count === 2 && +(await one('select count(*) from app_switches')).count === 4);
   T('schema.sql 里含这个迁移的完整内容（db-parity 用）', fs.readFileSync(path.join(DIR, 'schema.sql'), 'utf8').includes(mig.trim()));
 } catch (e) { fail++; console.log('FAIL 未捕获的错误', e && e.stack || e) } finally { if (pool) await pool.end().catch(() => { }); c.stop && c.stop() }
-console.log(`sb_photo: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
+console.log(`sb_photo: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);
