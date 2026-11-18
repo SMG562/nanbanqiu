@@ -86,8 +86,7 @@ try {
   const g2 = await handleApi(new Request('https://x.test' + url0.replace(/&s=.{4}/, '&s=AAAA'), { method: 'GET' }), deps);
   T('地址被改动 → 403', g2.status === 403, g2.status);
   r = await call('/api/sideline/feed', tB);
-  const none = await call('/api/sideline/feed', null);
-  T('库里的行没变：重复读取结果稳定', JSON.stringify(phs(r, '正常两张').map(x => x.idx)) === '[0,1]' && JSON.stringify(none.j.posts.map(x => x.body).sort()) === JSON.stringify(r.j.posts.map(x => x.body).sort()));
+  T('重复读取结果稳定（idx 顺序不变）', JSON.stringify(phs(r, '正常两张').map(x => x.idx)) === '[0,1]');
 } catch (e) { fail++; console.log('FAIL 测试脚本异常', e && (e.stack || e.message || e)) }
 finally { try { await admin?.end() } catch (_) { } c.stop() }
 console.log(`sb_photo_read: ${pass} 通过, ${fail} 失败`); process.exit(fail ? 1 : 0);

@@ -187,8 +187,8 @@
 | photo_daily_limit | 429 | 今天传的照片够多了，明天再来吧 | 数据库 nbq_rate（规则 sb_photo_day；§14.16） |
 | photos_paused | 503 | 照片上传暂时关闭，先发文字吧 | 后端（运行时开关 photos_paused 开；已发的图照常显示；§14.16） |
 | photos_unavailable | 503 | 照片服务暂时不可用，请稍后再试 | 后端（没有配置对象存储绑定 PHOTOS；§14.16） |
-| photo_forbidden | 403 | （读图地址，前台不弹提示，重读列表换新地址） | 后端 GET /api/sideline/photo（签名不对 / 过期时间离谱；§14.17，#393 P2） |
-| photo_expired | 410 | （读图地址，前台不弹提示，重读列表换新地址） | 后端 GET /api/sideline/photo（地址过期超过 60 秒时钟偏差；§14.17） |
+| photo_forbidden | 403 | 这张图的地址失效了，刷新一下就好 | 后端 GET /api/sideline/photo（签名不对 / 过期时间离谱；§14.17，#393 P2；图片地址一般不弹提示，重读列表换新地址）|
+| photo_expired | 410 | 这张图的地址过期了，刷新一下就好 | 后端 GET /api/sideline/photo（地址过期超过 60 秒时钟偏差；§14.17）|
 
 ---
 
