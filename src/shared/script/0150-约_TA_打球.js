@@ -60,7 +60,7 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
-function newInvite(to){const why=canInvite(to);if(why){toast(why);return}
+function newInvite(to){if(!ME){openAuth(()=>newInvite(to),'登录后就可以约 TA 打球');return}const why=canInvite(to);if(why){toast(why);return}
   let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;       // 默认最近的周六
   const mine=ME.home_club_ids||[];
   IVF={kind:'new',to,o,t:'09:00',e:'10:30',dur:90,per:0,venue_id:mine[0]||null,extra:null,search:!mine.length,q:'',game_type:'singles',note:'',hint:''};
