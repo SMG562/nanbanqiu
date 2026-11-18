@@ -121,7 +121,7 @@ const card = (id, nick, no) => ({ id, member_no: no, nickname: nick, last_initia
 
     // —— 全部球友列表（> 8 位才有入口；这里直接打开，断言内容和埋点）
     await pg.evaluate(() => bdListOpen()); await pg.settle(300);
-    T(tag('全部球友：仅你可见 · 3 位，写清来源'), /仅你可见 · 3 位.*Xin.*当面扫码认识.*Zoe.*当面扫码认识.*Pat.*一起打过 1 场/.test(await layer() || ''), await layer());
+    T(tag('全部球友：3 位，写清来源（「仅你可见」只在区块标题写一次）'), /3 位.*Xin.*当面扫码认识.*Zoe.*当面扫码认识.*Pat.*一起打过 1 场/.test(await layer() || ''), await layer());
     await toMe(); await pg.settle(200);
 
     // —— 刷新：服务器慢时先画快照里的球友（不先少一块），读完以服务器为准

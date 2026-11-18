@@ -71,7 +71,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-rc]');if(!
 
 // ---------- 球局详情里的入口（结束后 7 天内） ----------
 function rcEntryHTML(c){if(!ME)return'';const g=GAMES.find(x=>x.id===c.id);if(!rcEligible(g,ME.id))return'';const a=AFTER[c.id+'|'+ME.id]||{};
-  return `<button class="rc-entry" data-rc="open" data-g="${c.id}"><span><b>${a.closed?'你的赛后记录':`第 ${rcHero(g,ME.id).n} 场打完啦`}</b><small>${a.closed?'已保存 · 只有你知道 · 7 天内可以修改':'顺手记一下 · 只有你知道'}</small></span><svg><use href="#i-r"/></svg></button>`}
+  return `<button class="rc-entry" data-rc="open" data-g="${c.id}"><span><b>${a.closed?'你的赛后记录':`第 ${rcHero(g,ME.id).n} 场打完啦`}</b><small>${a.closed?'已保存 · 7 天内可以修改':'顺手记一下 · 只有你知道'}</small></span><svg><use href="#i-r"/></svg></button>`}
 const _rcPass=passHTML;passHTML=function(c){return _rcPass(c)+rcEntryHTML(c)};
 
 // ---------- 球员卡：一起打过的人，随时改 ----------

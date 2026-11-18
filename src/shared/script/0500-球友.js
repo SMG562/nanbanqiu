@@ -50,7 +50,7 @@ function bdConfirmHTML(r){const u=U(r.from),k=playedCount(ME.id,r.from);
 function bdOpen(id,via){const r=bdIn().find(x=>x.id===id);if(!r){toast('这条申请已经处理过或失效了');render();return}
   track('buddy_request_open',{request_id:id,via});bdShow(bdConfirmHTML(r))}
 function bdListOpen(){const L=bdAll();track('buddy_list_open',{n_buddies:L.filter(x=>x.scan).length,n_played:L.filter(x=>x.n).length});
-  bdShow(`<div class="bd-ls"><div class="bd-h"><b>我的球友</b><small>仅你可见 · ${L.length} 位</small></div>${L.map(x=>{const u=U(x.uid);return `<button class="bd-row" data-user="${x.uid}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>${esc(bdLine(x))}</small></span></button>`}).join('')}</div>`)}
+  bdShow(`<div class="bd-ls"><div class="bd-h"><b>我的球友</b><small>${L.length} 位</small></div>${L.map(x=>{const u=U(x.uid);return `<button class="bd-row" data-user="${x.uid}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>${esc(bdLine(x))}</small></span></button>`}).join('')}</div>`)}
 
 /* ---- 确认 / 忽略：写服务器，成功后整体重读 ---- */
 async function bdRespond(id,act){const r=BUDDY.incoming.find(x=>x.id===id);if(!r||!ME)return;
