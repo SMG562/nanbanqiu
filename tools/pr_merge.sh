@@ -74,7 +74,9 @@ OF=$(gh api "repos/$R/actions/runs?head_sha=$SHA&event=pull_request&per_page=100
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
   # db-parity 算不算数只有一份实现（11-13，#241）：以库结构最后一次改动为准，只多合并 main 不作废；tools/merge_gate.mjs 也调它
   read -r DS DID DT <<<"$(bash tools/merge_drift.sh --db-parity "$SHA")"
-  if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"; fi
+  if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"
+  # 11-18：卡在所有者才能做的一步时，自动 @ 所有者留言（pr_say 按提交号去重，不会刷屏），不靠会话记得说
+  bash tools/pr_say.sh "$N" 需要你操作 "${SHA:0:7}" "@SMG562 本 PR 改了数据库，卡在你才能做的一步：先在正式库跑迁移（先只读查有无受影响的行），再 Actions 手动跑 db-parity；有「较大风险」的还要预览站真机两项（刷新后还在、换设备登录还在）。做完回一句「好了」，我接着合并。" >/dev/null 2>&1 || true; fi
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
