@@ -4,6 +4,7 @@
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
 import { OWN_ISS, issOf } from './jwt.mjs';
 import { checkJpeg, PHOTO_VARIANTS } from './photo_jpeg.mjs';
+import { VIEWS, expiryAt, photoUrl, verifyPhoto } from './photo_sign.mjs';
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
@@ -149,9 +150,26 @@ const sbPage = req => {   // 查询参数：before（游标）、limit（1–max
   return { u, lim: lim === null ? null : Math.min(Math.max(+lim, 1), 50), ts: m ? m[1] : null, id: m ? m[2] : null };
 };
 // 一页帖子 → { posts, next, topics, profiles }：多取 1 条判断还有没有下一页；作者名片和话题名一并带上（前台不用再逐条查）
-async function sbPosts(q, rows, lim) {
+// 帖子的 photos（#393 P2，只加不改）：[{ idx, w, h, state, url?, t?, b? }]；url / t / b 是签名地址（photo_sign.mjs），缺省 = 不可见：
+//   ok 给 url（原图）/ t / b；blurred（打码）只给 b；removed（行级权限只让作者读到）一个都不给。没配密钥 = 都不给，只剩 state / 宽高。
+//   仅作者可见的帖子（public = false：过 24 小时 / 被后台隐藏）的地址带 p=1。只查有图的帖子（photo_count > 0），没图的一条都不多查。
+async function sbPhotos(q, d, posts) {
+  const withPh = posts.filter(x => x.photo_count > 0), by = new Map();
+  if (withPh.length) {
+    const rows = (await q('select post_id, idx, storage_key, width, height, review from sb_photos where post_id = any($1::uuid[]) order by post_id, idx', [withPh.map(x => x.id)])).rows;
+    const e = expiryAt(Math.floor(Date.now() / 1000)), owner = new Map(withPh.map(x => [x.id, x]));
+    for (const r of rows) {
+      const post = owner.get(r.post_id), priv = post.public === false, u = v => photoUrl(d.photoKey, post.user_id, r.storage_key, v, e, priv);
+      const o = { idx: r.idx, w: r.width, h: r.height, state: r.review };
+      if (d.photoKey && r.review !== 'removed') { o.b = await u('b'); if (r.review === 'ok') { o.url = await u('full'); o.t = await u('t') } }
+      (by.get(r.post_id) || by.set(r.post_id, []).get(r.post_id)).push(o);
+    }
+  }
+  return posts.map(x => ({ ...x, photos: by.get(x.id) || [] }));
+}
+async function sbPosts(q, d, rows, lim) {
   const more = rows.length > lim, page = rows.slice(0, lim), next = more ? page[page.length - 1].cur : null;
-  const posts = page.map(({ cur, ...r }) => ({ ...r, photos: [] }));
+  const posts = await sbPhotos(q, d, page.map(({ cur, ...r }) => r));
   const tids = [...new Set(posts.map(x => x.topic_id).filter(Boolean))], uids = [...new Set(posts.map(x => x.user_id))];
   return { posts, next, topics: Object.fromEntries((tids.length ? (await q(SB_TOPICS_SQL, [tids])).rows : []).map(t => [t.id, t])),
     profiles: Object.fromEntries((uids.length ? (await q(SB_PROFILES_SQL, [uids])).rows : []).map(x => [x.id, x])) };
@@ -497,21 +515,23 @@ const ROUTES = {
   'GET /api/sideline/feed': (req, d, p) => act(req, d, p, async q => {
     const { u, lim, ts, id } = sbPage(req), city = u.get('city') ?? 'melb', topic = u.get('topic');
     if (!/^[a-z]{2,12}$/.test(city) || (topic !== null && !/^[a-z][a-z0-9_]{1,39}$/.test(topic))) throw bad();
-    const n = lim ?? 20; return sbPosts(q, (await q(SB_FEED_SQL, [city, topic, ts, id, n + 1])).rows, n) }, { body: false, anon: true }),
+    const n = lim ?? 20; return sbPosts(q, d, (await q(SB_FEED_SQL, [city, topic, ts, id, n + 1])).rows, n) }, { body: false, anon: true }),
   // 我发过的（含已过 24 小时、只剩自己能看的；已删除的没有）：删除与回看用
   'GET /api/sideline/mine': (req, d, p) => act(req, d, p, async q => {
-    const { lim, ts, id } = sbPage(req), n = lim ?? 30; return sbPosts(q, (await q(SB_MINE_SQL, [ts, id, n + 1])).rows, n) }, { body: false }),
+    const { lim, ts, id } = sbPage(req), n = lim ?? 30; return sbPosts(q, d, (await q(SB_MINE_SQL, [ts, id, n + 1])).rows, n) }, { body: false }),
   // 帖子详情 + 回复（按时间正序，最多 200 条）；看不到的（过期别人的 / 被屏蔽 / 隐藏 / 已删）和不存在的一样 404
   'GET /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
     const post = (await q(SB_POST_SQL, [x.id])).rows[0]; if (!post) throw Object.assign(new Error('not_found'), { code: 'P0001' });
     const replies = (await q(SB_REPLIES_SQL, [x.id])).rows, uids = [...new Set([post.user_id, ...replies.flatMap(r => [r.user_id, r.to_user])].filter(Boolean))];
     const tid = post.topic_id ? (await q(SB_TOPICS_SQL, [[post.topic_id]])).rows : [];
-    return { post: { ...post, photos: [] }, replies, topics: Object.fromEntries(tid.map(t => [t.id, t])),
+    return { post: (await sbPhotos(q, d, [post]))[0], replies, topics: Object.fromEntries(tid.map(t => [t.id, t])),
       profiles: Object.fromEntries((await q(SB_PROFILES_SQL, [uids])).rows.map(r => [r.id, r])) } }, { ids: ['id'], body: false, anon: true }),
   'GET /api/sideline/config': (req, d, p) => act(req, d, p, async q => {
     const v = new URL(req.url).searchParams.get('v'); if (v !== null && !/^\d{1,9}$/.test(v)) throw bad();
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
   // 场边照片上传（#393 P1，ADR 0015）：路径 <名>-f|t|b（原图 / 缩略 / 极小图），带不带 <用户 id> 段都行，带了必须是本人。存储访问只经 d.photos（photo_store.mjs），没配桶 = 503
+  // 读图（#393 P2）：不用登录、不查库，靠签名地址（photo_sign.mjs）；图在 R2，不暴露公共域名
+  'GET /api/sideline/photo/:uid/:name': photoGet,
   'PUT /api/sideline/photos/:name': photoPut,
   'PUT /api/sideline/photos/:uid/:name': photoPut,
   'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
@@ -582,6 +602,18 @@ async function bodyCapped(req, max) {
   const r = req.body && req.body.getReader(), parts = []; let n = 0; if (!r) return new Uint8Array(0);
   for (;;) { const { done, value } = await r.read(); if (done) break; n += value.length; if (n > max) { r.cancel().catch(() => {}); return null } parts.push(value) }
   const out = new Uint8Array(n); let o = 0; for (const c of parts) { out.set(c, o); o += c.length } return out;
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+async function photoGet(req, d, p) {
+  const u = new URL(req.url).searchParams, v = u.get('v'), e = u.get('e'), s = u.get('s'), pv = u.get('p'), uid = p.uid.toLowerCase();
+  if (!UUID_RE.test(uid) || !PH_NAME.test(p.name) || /-[tb]$/.test(p.name) || !Object.hasOwn(VIEWS, v) || !/^\d{9,12}$/.test(e || '') || !s || (pv !== null && pv !== '1')) return send(404, { error: 'not_found' });
+  if (!d.photos || !d.photoKey) return send(503, { error: 'photos_unavailable' });
+  const now = Math.floor(Date.now() / 1000), r = await verifyPhoto(d.photoKey, { uid, name: p.name, v, e: +e, p: pv === '1', s }, now);
+  if (r === 'bad') return send(403, { error: 'photo_forbidden' });
+  if (r === 'expired') return send(410, { error: 'photo_expired' });
+  const bytes = await d.photos.get(`sb/${uid}/${p.name}${VIEWS[v]}.jpg`); if (!bytes) return send(404, { error: 'not_found' });
+  return new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length), 'X-Content-Type-Options': 'nosniff',
+    'Content-Disposition': 'inline', 'Cache-Control': `${pv === '1' ? 'private' : 'public'}, max-age=${Math.max(0, +e - now)}` } });   // max-age ≤ 剩余有效期：缓存不会比地址活得更久
 }
 async function photoPut(req, d, p) {
   const w = await whoIs(req, d); if (w.err || !w.uid) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err?.headers.get('X-Auth-Reason') || '' });
