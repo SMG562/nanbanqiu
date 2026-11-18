@@ -3,6 +3,7 @@
 //   错误一律 { error: '<码>' }，码和前台 API_ERR 对照；没登录 401 unauthorized；数据库没配 / 连不上 503 db_unavailable。
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
 import { OWN_ISS, issOf } from './jwt.mjs';
+import { checkJpeg, PHOTO_VARIANTS } from './photo_jpeg.mjs';
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
@@ -510,6 +511,9 @@ const ROUTES = {
   'GET /api/sideline/config': (req, d, p) => act(req, d, p, async q => {
     const v = new URL(req.url).searchParams.get('v'); if (v !== null && !/^\d{1,9}$/.test(v)) throw bad();
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
+  // 场边照片上传（#393 P1，ADR 0015）：路径 <名>-f|t|b（原图 / 缩略 / 极小图），带不带 <用户 id> 段都行，带了必须是本人。存储访问只经 d.photos（photo_store.mjs），没配桶 = 503
+  'PUT /api/sideline/photos/:name': photoPut,
+  'PUT /api/sideline/photos/:uid/:name': photoPut,
   'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
   'POST /api/me/restore': (req, d, p) => act(req, d, p, async q => { await q('select api_account_restore()'); return { ok: true } }, { body: false }),
   // 推送的公钥（VAPID_PUBLIC，本来就是公开的）：前台订阅推送时要用；没配 = 404，前台安静跳过。不需要登录
@@ -570,6 +574,31 @@ const ROUTES = {
     return send(200, { registered: true, user });
   },
 };
+
+// 上传顺序：登录 → 路径 → 没配桶 / 停传开关 → 先看 Content-Length → 账号状态 + 频率（api_sb_photo_gate，频率只数原图）→ 读体（到上限即断）→ JPEG 校验 → 不覆盖地写入。
+//   同键重复 PUT：内容相同 = 200（重试幂等），不同 = 409 photo_conflict，绝不覆盖。<名> 不能以 -t / -b 结尾（否则和另一张图的缩略图 / 极小图撞键）
+const PH_NAME = /^[A-Za-z0-9_-]{16,24}$/;
+async function bodyCapped(req, max) {
+  const r = req.body && req.body.getReader(), parts = []; let n = 0; if (!r) return new Uint8Array(0);
+  for (;;) { const { done, value } = await r.read(); if (done) break; n += value.length; if (n > max) { r.cancel().catch(() => {}); return null } parts.push(value) }
+  const out = new Uint8Array(n); let o = 0; for (const c of parts) { out.set(c, o); o += c.length } return out;
+}
+async function photoPut(req, d, p) {
+  const w = await whoIs(req, d); if (w.err || !w.uid) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err?.headers.get('X-Auth-Reason') || '' });
+  if (p.uid !== undefined && p.uid.toLowerCase() !== w.uid) return send(403, { error: 'forbidden' });   // 不能往别人的前缀下写
+  const m = /^(.+)-([ftb])$/.exec(p.name), name = m && m[1], V = m && PHOTO_VARIANTS[m[2]];
+  if (!V || !PH_NAME.test(name) || /-[tb]$/.test(name)) return send(404, { error: 'not_found' });
+  if (!d.photos) return send(503, { error: 'photos_unavailable' });
+  if ((await switchesOf(d)).photos_paused) return send(503, { error: 'photos_paused' });
+  if (Number(req.headers.get('Content-Length')) > V.bytes) return send(413, { error: 'photo_too_big' });
+  await d.db.asUser(w.uid, q => q('select api_sb_photo_gate($1)', [m[2] === 'f']));
+  const u = await bodyCapped(req, V.bytes); if (!u) return send(413, { error: 'photo_too_big' });
+  const c = checkJpeg(u, m[2]); if (!c.ok) return send(c.code === 'photo_too_big' ? 413 : 422, { error: c.code });
+  const key = `sb/${w.uid}/${name}${V.suffix}.jpg`, out = { key, size: u.length, w: c.w, h: c.h };
+  if (await d.photos.put(key, u)) return send(200, out);
+  const old = await d.photos.get(key);
+  return old && old.length === u.length && old.every((x, i) => x === u[i]) ? send(200, out) : send(409, { error: 'photo_conflict' });
+}
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
 const PATTERNS = Object.keys(ROUTES).filter(k => k.includes(':')).map(k => { const [m, pth] = k.split(' ');

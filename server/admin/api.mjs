@@ -470,7 +470,7 @@ export const ROUTES = {
     switches: (await db.query('select key, is_on, updated_at from app_switches order by key')).rows,
   })) },
   'POST /admin/api/switches/set': { name: 'switches_set', perm: 'switch.set', body: true, run: (req, d, b, route) => {
-    if (!['register_paused', 'maintenance', 'sms_paused'].includes(b.key) || typeof b.on !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'switches_set');
+    if (!['register_paused', 'maintenance', 'sms_paused', 'photos_paused'].includes(b.key) || typeof b.on !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'switches_set');
     return authed(req, d, route, async db => { await db.query('select admin_set_switch($1, $2, $3)', [b.key, b.on, b.reason]); return { ok: true } }, b);
   } },
   // 开放时通知我：导出还没通知的邮箱（个人信息：owner + 理由，留痕；响应不缓存）· 发完标记已通知
