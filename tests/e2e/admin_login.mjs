@@ -59,6 +59,7 @@ try {
     T('1.2 /me 回来（没登录）：显示登录页，不显示后台', await until(() => vis(p2, '#lgEmail')) && !(await vis(p2, '#app')) && !(await vis(p2, '#boot')));
     T('1.3 真模式的登录页：没有演示用的假输入框和演示身份', !(await vis(p2, '#demoRole')) && !(await p2.evaluate(() => /han@nanbanqiu\.app|••••/.test(document.getElementById('login').innerText))));
     T('1.4 页面模式 = real；演示开关没有启动', await p2.evaluate(() => document.documentElement.dataset.mode === 'real' && NBQ_MODE === 'real' && !window._tk));
+    T('1.4b 真模式不生成模拟数据（#415）：DB 没有球友 / 球局，生成耗时 < 50ms；页面没报错', await p2.evaluate(() => DB.users.length === 0 && DB.games.length === 0 && DB.ms < 50), await p2.evaluate(() => [DB.users.length, DB.games.length, DB.ms]));
     T('1.5 没有页面报错', !pe.length, pe); await ctx.close();
   }
 
@@ -311,6 +312,7 @@ try {
   {
     const f = await open('file://' + path.join(DIR, '南伴球_后台.html'));
     T('10.1 本机文件（file:）= 演示：显示演示登录，不发任何 /admin/api 请求', await f.pg.evaluate(() => document.documentElement.dataset.mode === 'demo' && NBQ_MODE === 'demo') && await vis(f.pg, '#demoRole') && !(await vis(f.pg, '#lgEmail')));
+    T('10.1b 演示模式照旧生成模拟数据（#415）：DB 有 2000 个以上球友', await f.pg.evaluate(() => DB.users.length > 2000), await f.pg.evaluate(() => DB.users.length));
     await f.pg.click('.go'); await sleep(200); T('10.2 演示登录照旧：进入带模拟数据的后台', await vis(f.pg, '#app') && await f.pg.evaluate(() => /Han/.test(document.querySelector('.side .me b').textContent) && document.querySelectorAll('#nav [data-pg]').length > 10 && !document.querySelector('#nav .soon'))); await f.ctx.close();
     for (const [host, want] of [['nanbanqiu-preview.pages.dev', 'demo'], ['nanbanqiu.app', 'real'], ['evil-nanbanqiu-preview.pages.dev', 'real'], ['nanbanqiu-preview.pages.dev.evil.test', 'real'], ['staging.nanbanqiu-preview.pages.dev', 'real']]) {
       const ctx = await br.newContext(), p = await ctx.newPage(); const reqs = [];

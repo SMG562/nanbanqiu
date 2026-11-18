@@ -8,6 +8,8 @@
  * Q：和 schema 视图 / 函数同名同口径的查询；页面只调用 Q，上线时 Q 换成 GET /admin/api/...（清单见 3e）
  * 时间：day = 0（上线第一天）… DB.L（今天）；今天只生成到此刻
  * ===================================================================== */
+// 真模式（NBQ_MODE，0010）不读这一层：每天的目标人数取 0，数据层只建空壳（各天的结构照建，因为 0140–0210 加载时按天遍历），生成耗时 ≈ 5 ms；演示模式不变（#415）
+const NOMOCK=NBQ_MODE==='real';
 const DB=(()=>{const t0=performance.now();
   let s=20261015>>>0;const R=()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
   let s2=7771>>>0;const R2=()=>{s2=(s2+0x6D2B79F5)>>>0;let t=s2;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};   // 第二条随机数流（3d 新增的访问细节），不影响原有数据
@@ -41,7 +43,7 @@ const DB=(()=>{const t0=performance.now();
   let anonN=0,recent=[];const anonPool=[];                                                                   // anonPool[id]；recent = 近 7 天来过的访客（可能回访）
   const ENT=['direct','push','share','external'];                                                        // 入口：位掩码 1 / 2 / 4 / 8
   for(let d=0;d<=L;d++){const date=new Date(dms(d)),wd=date.getDay(),g=Math.pow((d+1)/(L+1),1.35),season=(wd===0||wd===6)?1.32:wd===3?1.06:wd===5?.94:1,
-      part=d===L?Math.max(.05,fracToday):1,end=d===L?nowT:dms(d+1),noise=.9+R()*.2,target=(45+585*g)*season*noise;
+      part=d===L?Math.max(.05,fracToday):1,end=d===L?nowT:dms(d+1),noise=.9+R()*.2,target=NOMOCK?0:(45+585*g)*season*noise;
     // ---------- 未登录访客（含从分享链接进来的） ----------
     const A={a:[],dev:[],ent:[],env:[],scr:[],reg:[],t:[]};const tNow=d=>{let t=tIn(d);if(t>=end)t=dms(d)+R()*(end-dms(d));return t};const shareOpen=[];
     let si=shares.length;while(si>0&&shares[si-1].day>=d-2)si--;const prevShares=shares.slice(si);

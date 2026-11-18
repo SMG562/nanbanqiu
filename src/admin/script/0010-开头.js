@@ -4,3 +4,5 @@ window.NBQ_ERRS=[];(()=>{const seen=new Set(),rep=(msg,src,line)=>{const k=msg+'
   try{if(location.protocol==='https:'&&navigator.sendBeacon)navigator.sendBeacon('/api/client-errors',JSON.stringify(e))}catch(_){}};
   addEventListener('error',ev=>{if(ev.message)rep(ev.message,ev.filename,ev.lineno)});addEventListener('unhandledrejection',ev=>rep('unhandled: '+((ev.reason&&ev.reason.message)||ev.reason),'',0))})();
 
+// 运行模式（判定在 page 里 data-mode 一处，这里只读一次）：真模式不生成 / 不读模拟数据层（0130），要在它之前定义
+const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
