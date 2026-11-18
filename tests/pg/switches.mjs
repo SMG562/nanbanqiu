@@ -32,8 +32,8 @@ try {
   const REG = { nickname: '新球友', last_initial: 'w', utr: 6.5, utr_estimated: true, avatar_kind: 'animal', avatar_animal: 'tiger', avatar_color: 'paper', card_theme: 'clay', adult: true };
 
   let r = await call('GET', '/api/switches');
-  T('默认：三个开关都是关，不需要登录，不缓存', r.s === 200 && Object.keys(r.j.switches).length === 3 && Object.values(r.j.switches).every(v => v === false) && /no-store/.test(r.h.get('Cache-Control')), r);
-  T('库里只有这三行', +(await admin.query('select count(*) from app_switches')).rows[0].count === 3);
+  T('默认：四个开关都是关，不需要登录，不缓存', r.s === 200 && Object.keys(r.j.switches).length === 4 && Object.values(r.j.switches).every(v => v === false) && /no-store/.test(r.h.get('Cache-Control')), r);
+  T('库里只有这四行', +(await admin.query('select count(*) from app_switches')).rows[0].count === 4);
   r = await call('GET', '/api/me', tOld); T('默认：已注册的人照常读自己', r.s === 200, r.s);
 
   await set('register_paused', true);

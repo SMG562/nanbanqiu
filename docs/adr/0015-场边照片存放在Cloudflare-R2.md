@@ -43,7 +43,7 @@
 ## P0 spike 结果（11-19，只读调研，未动产品代码；「未核实」的项不当结论用）
 **R2 绑定**
 - Pages Functions：官方文档支持 R2 绑定，写在 wrangler 文件的 `r2_buckets` 或控制台「设置 → Functions → R2 bucket bindings」；**生产与预览要各配一次**，配完要重新部署才生效。Workers：同样用 `r2_buckets`。两种都能用，适配层（`env.PHOTOS`）不用区分。
-- **未核实 · 要所有者看控制台**：正式站 `nanbanqiu.app` 现在是 Pages 还是 Workers 部署（`wrangler.jsonc` 是 Pages 写法，`worker/index.mjs` 注释却说预览站走 Workers，两处说法不一致）；分支预览（`*.pages.dev`）要不要单独绑测试桶。P1 开工前先定，否则预览站读不到桶。
+- **已确认（P1 实测，11-19）**：正式站与预览站是同一个 **Pages 项目 `nanbanqiu-preview`**（Pages Functions，不是 Workers；`worker/index.mjs` 的入口同样接 `PHOTOS`，备用）。`wrangler.jsonc` 里 `env.preview.r2_buckets` 在分支预览站**生效**：草稿分支预览站上 `env.PHOTOS` 可读写，`put(onlyIf: { etagDoesNotMatch: '*' })` 对已存在的键返回 null（= 不覆盖，实测）。配置只写在 `env.production` / `env.preview` 里、不写顶层，没认到就是没有绑定 → 上传接口 503 `photos_unavailable`。**仍待核对**：预览站绑的是 staging 桶（探针留了对象 `probe/identity-marker`，所有者在控制台看它出现在哪个桶，并顺手删掉）；`env.production` 绑定在 main 部署后核对。
 - 启用 R2 是否必须绑付款方式：第三方指南说首次建桶可能要求，**官方页面没查到明确说法**；免费额度（每月 10 GB 存储、100 万次写、1000 万次读、出站免费）已在官方价格页确认。所有者在控制台点开 R2 时会直接看到。
 - 位置提示 `oc`（大洋洲）官方有，**尽力而为、不是保证**；只在**同名桶第一次创建**时生效（删了重建沿用旧位置）。建桶时就带上 `oc`，建完在桶设置页的「Bucket details」核对实际位置。隐私文案维持「优先存放在大洋洲区域」。
 

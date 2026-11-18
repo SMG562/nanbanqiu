@@ -2,5 +2,11 @@
   "name": "nanbanqiu-preview",
   "pages_build_output_dir": "./site",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  // 场边照片（ADR 0015）：绑定名 PHOTOS。不写顶层 r2_buckets，只在 env 里各写一次：
+  //   万一某个环境没认到这段配置 = 没有绑定 = 上传接口 503 photos_unavailable，不会让预览站的测试图落进正式桶。
+  "env": {
+    "production": { "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "nanbanqiu-photos" }] },
+    "preview": { "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "nanbanqiu-photos-staging" }] }
+  }
 }
