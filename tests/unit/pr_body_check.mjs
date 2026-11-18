@@ -25,4 +25,9 @@ T('只同步了一部分 → 仍不过（点名没同步的那个）', (r => r.s
 T('全部写了已同步 → 过', checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2).length === 0, checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2));
 T('「你来做」只提 main 上已有的文件 → 不要求', checkBody(TBL + RISK + '## 你来做\n- 看 `tools/site.mjs`\n', FILES2).length === 0);
 T('改了技能 / 钩子、描述没 @SMG562 / @MDD1102 → 不过；写其一 → 过；普通文档不要求', (m => checkBody(RISK, ['.claude/skills/x/SKILL.md']).some(m) && !checkBody(RISK + '@SMG562 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK + '@MDD1102 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK, DOC).some(m))(x => /@SMG562 或 @MDD1102/.test(x)));
+// 11-19（#397 E）：改规则 / 范围要同时追加台账一行
+T('改了业务规则、没动台账 → 不过', checkBody(RISK, ['业务规则.md']).some(x => /台账/.test(x)));
+T('改了路线图、同时改了决定台账 → 过', checkBody(RISK, ['docs/roadmap.md', 'docs/决定台账.md']).length === 0);
+T('改了 ADR、写了「台账：无（理由）」+ @ → 过', checkBody(RISK + '台账：无（只改错别字）\n@MDD1102\n', ['docs/adr/0001-x.md']).length === 0);
+T('「台账：无」没理由 → 不过', checkBody(RISK + '台账：无\n', ['业务规则.md']).length > 0);
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
