@@ -21,7 +21,9 @@ try {
   // 旧库形状：先用旧 catalog 存一把，迁移后要映射到新 series_id
   const old = await set(A, [{ catalog_id: (await q(`select id from racket_catalog where brand='Head' and series='Speed'`)).rows[0]?.id }]); T('准备：旧形状 catalog_id 可存', old.ok, old);
   const hasMig = fs.existsSync(MIG); T('迁移文件 20261121_racket_series.sql 存在', hasMig);
-  if (hasMig) { const sql = fs.readFileSync(MIG, 'utf8'); const e = (await q(sql)).err; T('迁移执行无错误', !e, e); const e2 = (await q(sql)).err || (await q(sql)).err; T('迁移连跑 3 次幂等', !e2, e2) }
+  if (hasMig) { const sql = fs.readFileSync(MIG, 'utf8'); const e = (await q(sql)).err; T('迁移执行无错误', !e, e); const e2 = (await q(sql)).err || (await q(sql)).err; T('迁移连跑 3 次幂等', !e2, e2);
+    // #385：20261122 覆盖 api_set_rackets（held 例外）和 hidden 种子；旧迁移重跑会退回旧函数，所以按顺序补跑
+    const m2 = fs.readFileSync(path.join(DIR, 'server/migrations/20261122_racket_held.sql'), 'utf8'); const e3 = (await q(m2)).err || (await q(m2)).err; T('迁移 20261122 连跑两次不报错', !e3, e3) }
   const n = async s => +((await q(s)).rows[0] || { n: -1 }).n;
 
   // —— 种子
@@ -54,6 +56,24 @@ try {
   r = await set(B, [{ brand_id: br, series_id: se, nickname: '拍'.repeat(13) }]); T('昵称超 12 字符 → invalid', !r.ok && r.err === 'invalid', r);
   await Promise.all([set(B, [{ brand_id: br, series_id: se }]), set(B, [{ brand_id: br, other_text: '并发' }]), set(B, [{ brand: 'Head', series: 'Speed' }])]);
   T('并发整组替换：最后只剩 1 把、无半截', (await get(B)).rows.length === 1, (await get(B)).rows);
+
+  // —— #385 held 例外：系列 / 品牌被设为 hidden 后，已选的人原样保存不报 invalid；新选 hidden 仍拒
+  const hs = (await q(`select id from racket_series where brand_id=$1 and not is_other and id<>$2 limit 1`, [br, se])).rows[0]?.id;
+  await set(Z, []); await q(`update users set status='active' where id=$1`, [Z]);
+  r = await set(Z, [{ brand_id: br, series_id: se }]); T('held：先正常保存', r.ok, r);
+  await q(`update racket_series set status='hidden' where id=$1`, [se]);
+  r = await set(Z, [{ brand_id: br, series_id: se }]); T('held：已选的系列被 hidden 后原样保存仍通过', r.ok, r);
+  r = await set(A, [{ brand_id: br, series_id: se }]); T('held：没选过的人选 hidden 系列仍 invalid', !r.ok && r.err === 'invalid', r);
+  await q(`update brands set status='hidden' where id=$1`, [br]);
+  r = await set(Z, [{ brand_id: br, series_id: se }]); T('held：已选的品牌被 hidden 后原样保存仍通过', r.ok, r);
+  r = await set(A, [{ brand_id: br, other_text: '新拍' }]); T('held：没选过的人选 hidden 品牌仍 invalid', !r.ok && r.err === 'invalid', r);
+  await q(`update brands set status='active' where id=$1`, [br]); await q(`update racket_series set status='active' where id=$1`, [se]);
+  // 老行回退：品牌对不上（Foo/Bar）→ other_brand_text 与 other_text 都为空，前台读旧 brand/series 列
+  r = await set(Z, [{ brand: 'Foo', series: 'Bar' }]); T('回退：旧形状 Foo/Bar 保存后旧列在、新文本列为空', r.ok && r.v[0].brand === 'Foo' && r.v[0].series === 'Bar' && !r.v[0].other_text, r);
+  // hidden 种子：旧 catalog 里 hidden 的条目 → 新系列 hidden（迁移再跑一次生效）
+  await q(`update racket_catalog set status='hidden' where brand='Head' and series='Speed'`); await q(`update racket_series set status='active'`);
+  await q(fs.readFileSync(path.join(DIR, 'server/migrations/20261122_racket_held.sql'), 'utf8'));
+  T('种子：旧 catalog hidden 的系列迁移后为 hidden', await n(`select count(*) n from racket_series s join brands b on b.id=s.brand_id where lower(b.name)='head' and lower(s.name)='speed' and s.status='hidden'`) === 1);
 
   // —— RLS：新表对三种前台角色全拒
   for (const t of ['brands', 'racket_series', 'racket_aliases', 'catalogue_submissions']) for (const role of ['anon', 'authenticated', 'nbq_user']) {
