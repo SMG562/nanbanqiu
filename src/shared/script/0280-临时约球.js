@@ -57,7 +57,7 @@ const _ugHost=ufHostCard;ufHostCard=function(c){if(!c.isHost)return'';const now=
       h+=`<div class="ugh warn">${who}${pend.length>1?'最早':''} ${ugClock(dl)} 前没处理会自动失效</div>`}
     const ex=PARTS.filter(p=>p.game_id===c.id&&p.reason==='timeout').length;
     if(ex)h+=`<div class="ugh">${ex} 个申请超过 15 分钟没处理，已过时间</div>`}
-  return h+(fresh?(c.hide_done?`<div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>`:''):_ugHost(c))};
+  return h+(fresh?(c.hide_done?hideDoneNote():''):_ugHost(c))};
 
 // ---------- 申请人：申请弹窗、等待中的提示 ----------
 const ugApplyNote=c=>{const now=ugNow();if(c.start-now>UG_SOON)return'';const dl=ugDeadline({created_at:now},c);
