@@ -18,7 +18,7 @@ const LIB = [mk(1, 'Head', [[1, 'Speed'], [2, 'Radical'], [3, '其他系列']]),
     const W = f.includes('Web'), tag = s => `${W ? 'Web' : 'PWA'}${on ? '' : '（开关关）'} ${s}`;
     const ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
-    if (on) await pg.addInitScript(() => { try { localStorage.setItem('nbq_ff_rackets', '1') } catch (_) { } });
+    await pg.addInitScript(v => { try { localStorage.setItem('nbq_ff_rackets', v) } catch (_) { } }, on ? '1' : '0');
     await pg.addInitScript(() => { window.AN_LOG = [] });
     const S = { me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() },
       rk: [{ brand: 'Head', series: 'Speed' }], log: [], puts: [], getFail: false, putFail: null, rkGets: 0, slowMe: 0, lib: LIB, libGets: 0 };   // lib：null = 接口 500（兜底）；数组 = 正常；{raw} = 原样返回（坏数据）
