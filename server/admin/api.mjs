@@ -79,6 +79,7 @@ async function readJson(req) {
 }
 const strIn = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
 const noOk = v => Number.isInteger(v) && v > 0 && v < 1e9;                                   // 会员编号
+const codeOk = v => typeof v === 'string' && /^[A-Za-z0-9]{3,20}$/.test(v);
 const reasonOk = v => typeof v === 'string' && v.length <= 200;                               // 理由：长度上限在这里，「至少 4 个字」由数据库按权限判断（不需要理由的动作可以空）
 const cityOk = v => typeof v === 'string' && /^[a-z]{2,12}$/.test(v);
 const notFound = () => Object.assign(new Error('not_found'), { code: 'not_found' });
@@ -591,7 +592,7 @@ export const ROUTES = {
     const like = '%' + q.replace(/[\\%_]/g, m => '\\' + m) + '%';
     return authed(req, d, route, async (db, a) => {
       const c = a.cities ?? null;
-      const rows = (await db.query(`select g.share_code, g.starts_at, g.duration_min, g.game_type::text as game_type, g.capacity, g.status::text as status, g.visibility, g.join_mode, g.tags, g.city, g.created_at, g.cancelled_at, g.created_device,
+      const rows = (await db.query(`select g.share_code, g.starts_at, g.duration_min, g.game_type::text as game_type, g.capacity, g.status::text as status, g.visibility, g.join_mode, g.tags, g.city, g.created_at, g.cancelled_at, (g.admin_hidden_at is not null) as admin_hidden, g.created_device,
                case when g.visibility = 'public' then g.note end as note, case when g.visibility = 'public' then coalesce(v.name, g.venue_name) end as venue,
                h.nickname as host, h.member_no::int as host_no,
                (select count(*)::int from game_participants p where p.game_id = g.id and p.status = 'approved') as joined,
@@ -604,6 +605,15 @@ export const ROUTES = {
       const cnt = (await db.query(`select g.status::text as status, count(*)::int n from games g where ($1::text[] is null or g.city = any($1::text[])) and (case $2 when 'upcoming' then g.starts_at >= now() when 'past' then g.starts_at < now() else true end) group by 1`, [c, when])).rows;
       return { games: rows.slice(0, 50), more: rows.length > 50, counts: Object.fromEntries(cnt.map(x => [x.status, x.n])) };
     });
+  } },
+  // 取消 / 隐藏（#27 第 5 步）：理由必填（库里按权限查「至少 4 个字」）；限城市的管理员只能动自己城市的球局（库里查）。状态不符（已开打 / 已取消 / 没被后台隐藏过）→ 409
+  'POST /admin/api/games/cancel': { name: 'games_cancel', perm: 'game.cancel', body: true, run: (req, d, b, route) => {
+    if (!codeOk(b.code) || !reasonOk(b.reason)) return fail(bad(), 'games_cancel');
+    return authed(req, d, route, async db => { await db.query('select admin_game_cancel($1, $2)', [b.code, b.reason]); return { ok: true } }, b);
+  } },
+  'POST /admin/api/games/hide': { name: 'games_hide', perm: 'game.hide', body: true, run: (req, d, b, route) => {
+    if (!codeOk(b.code) || typeof b.hide !== 'boolean' || !reasonOk(b.reason)) return fail(bad(), 'games_hide');
+    return authed(req, d, route, async db => { await db.query('select admin_game_hide($1, $2, $3)', [b.code, b.hide, b.reason]); return { ok: true } }, b);
   } },
 };
 
