@@ -723,7 +723,7 @@ insert into event_definitions (event,category,description,props,source,status,re
  ('a2hs_back','安装','从添加步骤回到页面，看到「放好了吗」','','client','active',null),
  ('analytics_off','隐私','关闭使用数据（发完这一条后停止）','','client','active',null),
  ('analytics_on','隐私','重新打开使用数据','','client','active',null),
- ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/link/scan/settings/report/...)','client','active',null),
+ ('login_open','登录','打开登录（含被动触发）','trigger(apply/create/invite/chat/manual/sideline/...)','client','active',null),
  ('login_send_code','登录','发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记）','ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送)','client','active',null),
  ('login_resend','登录','重发验证码（第 2 次及以后的发送）','n','client','active',null),
  ('login_verify','登录','提交验证码的结果','ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数)','client','active',null),

@@ -24,7 +24,7 @@
 | a2hs_back | 安装 | C | 从添加步骤回到页面，看到「放好了吗」 | — |
 | analytics_off | 隐私 | C | 关闭使用数据（发完这一条后停止） | — |
 | analytics_on | 隐私 | C | 重新打开使用数据 | — |
-| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/link/scan/settings/report/...) |
+| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/...) |
 | login_send_code | 登录 | C | 发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记） | ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送) |
 | login_resend | 登录 | C | 重发验证码（第 2 次及以后的发送） | n |
 | login_verify | 登录 | C | 提交验证码的结果 | ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数) |
