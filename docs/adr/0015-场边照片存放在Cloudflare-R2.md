@@ -40,5 +40,24 @@
 - 隐私评估认定必须保证数据只在澳洲（那时换 Supabase 悉尼 Storage，改适配层一个文件）。
 - 月账单里照片相关超过 50 美元，或 R2 价格 / 条款变化。
 
+## P0 spike 结果（11-19，只读调研，未动产品代码；「未核实」的项不当结论用）
+**R2 绑定**
+- Pages Functions：官方文档支持 R2 绑定，写在 wrangler 文件的 `r2_buckets` 或控制台「设置 → Functions → R2 bucket bindings」；**生产与预览要各配一次**，配完要重新部署才生效。Workers：同样用 `r2_buckets`。两种都能用，适配层（`env.PHOTOS`）不用区分。
+- **未核实 · 要所有者看控制台**：正式站 `nanbanqiu.app` 现在是 Pages 还是 Workers 部署（`wrangler.jsonc` 是 Pages 写法，`worker/index.mjs` 注释却说预览站走 Workers，两处说法不一致）；分支预览（`*.pages.dev`）要不要单独绑测试桶。P1 开工前先定，否则预览站读不到桶。
+- 启用 R2 是否必须绑付款方式：第三方指南说首次建桶可能要求，**官方页面没查到明确说法**；免费额度（每月 10 GB 存储、100 万次写、1000 万次读、出站免费）已在官方价格页确认。所有者在控制台点开 R2 时会直接看到。
+- 位置提示 `oc`（大洋洲）官方有，**尽力而为、不是保证**；只在**同名桶第一次创建**时生效（删了重建沿用旧位置）。建桶时就带上 `oc`，建完在桶设置页的「Bucket details」核对实际位置。隐私文案维持「优先存放在大洋洲区域」。
+
+**识别服务比较**（价格来自各家官网；一期按日均 300 张 ≈ 每月 9000 张估）
+| 候选 | 价格 | 数据在哪 | 接入代价 | 备注 |
+|---|---|---|---|---|
+| AWS Rekognition `DetectModerationLabels`（悉尼 ap-southeast-2） | 每张 0.001 美元（首 100 万张）≈ 每月 9 美元；新账号 12 个月内每月 1000 张免费 | 悉尼区可选 | 要 AWS 账号 + 密钥放进 notify-worker（**新增一把长期密钥**，与 ADR 前提相反）+ Worker 里自己做 SigV4 签名 | 区域最贴合隐私文案；价格最低 |
+| Google Cloud Vision SafeSearch | 每月前 1000 次免费，之后每千次 1.5 美元 ≈ 每月 13 美元 | **未核实**能否指定澳洲 | 要 GCP 项目 + 密钥 | 只给「成人 / 暴力 / 恶搞」等级，不给细标签 |
+| Sightengine | 免费版每月 2000 次（每天 ≤500）；Starter 每月 29 美元含 1 万次 | 公司在法国，**未核实**处理位置 | 一个 API 密钥，接口最简单 | 9000 张刚好卡在 Starter 内 |
+| Cloudflare Workers AI | **未核实**（官方模型列表页没能读取，不确定有没有现成的成人内容分类模型） | 与 R2 同平台 | 绑定调用，没有新密钥 | 若有合适模型，是最符合 ADR 精神的选项，值得再核一次 |
+- **没做到**：误报率与延迟需要拿 50 张真实场边照片实测，调研阶段没有样张，所以不下误报结论。
+- **建议（待所有者定）**：先核 Workers AI 有没有合适模型；没有就选 Rekognition 悉尼（区域和价格最合隐私文案），并接受「新增一把识别服务密钥、只放 notify-worker」。无论选哪家，隐私清单 §4 都要列出处理方，识别只发缩略图变体（≤150 KB）。
+
+**仍待真机**：iOS Safari / PWA / 微信内置 × `accept=image/*` + `multiple` 的 HEIC 转换、Live Photo、取消选择、杀页恢复——协议见 #393 的 P0 评论，所有者有设备时跑。
+
 ## 来源
-Issue #393 与 11-18 夜对话；价格与限制来自 Cloudflare R2 与 Supabase 官方定价页（11 月查阅）。
+Issue #393 与 11-18 夜对话；价格与限制来自 Cloudflare R2 与 Supabase 官方定价页（11 月查阅）；P0 spike（11-19）：Cloudflare Pages / R2 / data location 官方文档，AWS Rekognition、Google Cloud Vision、Sightengine 官方定价页。
