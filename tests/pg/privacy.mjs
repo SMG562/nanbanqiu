@@ -78,7 +78,7 @@ try {
   r = await call(A, `select api_export_me()`); T('#71 过期后被忽略的申请显示「已失效」', r.ok && r.v.buddy_requests.find(x => x.direction === 'sent').status === 'expired', r.v && r.v.buddy_requests);
   const fnSrc = (await q(`select prosrc from pg_proc where proname = 'api_export_me'`)).rows[0].prosrc;
   const mig = fs.readFileSync(path.join(DIR, 'server/migrations/20261113_export_more.sql'), 'utf8');
-  let e1 = null; try { await q(mig); await q(mig) } catch (e) { e1 = e.message } T('#71 迁移连跑两次不报错', e1 === null, e1);
+  let e1 = null; try { await q(mig); await q(mig); await q(fs.readFileSync(path.join(DIR, 'server/migrations/20261121_racket_series.sql'), 'utf8')); await q(fs.readFileSync(path.join(DIR, 'server/migrations/20261122_racket_held.sql'), 'utf8')) /* #377：api_export_me 后被新迁移重新定义，按顺序再跑 */ } catch (e) { e1 = e.message } T('#71 迁移连跑两次不报错', e1 === null, e1);
   T('#71 迁移里的函数与 schema.sql 一致', (await q(`select prosrc from pg_proc where proname = 'api_export_me'`)).rows[0].prosrc === fnSrc);
   await q(`delete from buddies`); await q(`delete from buddy_requests`); await q(`delete from user_rackets`); await q(`delete from utr_changes`);   // 清掉本段的数据，后面按总数核对的用例不受影响
   r = await call(A, `select api_export_me()`); T('每天只能导出 1 次', !r.ok && r.err === 'rate_limited' && +r.detail > 80000, r);
