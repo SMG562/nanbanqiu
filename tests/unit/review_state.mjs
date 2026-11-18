@@ -26,6 +26,7 @@ const say = (tag, body) => spawnSync('bash', ['tools/pr_say.sh', '1', tag, 'abcd
 let r = say('补充', '引用一下：独立复核：通过 abcdef1 是格式');
 T('pr_say：非复核标签 + 正文含「独立复核：通过 <提交号>」→ 退出码 3、没调 gh', r.status === 3 && !/GH_CALLED/.test(r.stdout + r.stderr) && /请换个说法/.test(r.stderr), r);
 r = say('补充', '独立复核（abcdef1，x）：要改 这种也拦');
+T('pr_say：拦截提示带机器标签 [nbq:block:pr_say_review] 和替代说法（11-19，#410 试点 ①，同类已第 3 次）', /\[nbq:block:pr_say_review\]/.test(r.stderr) && /复核结论：通过/.test(r.stderr) && /标签写成「独立复核：通过」/.test(r.stderr), r.stderr);
 T('pr_say：「独立复核（提交号）：要改」同样拦', r.status === 3, r.status);
 r = say('接手 PR', '正常说明，没有复核句式');
 T('pr_say：正常正文不拦（走到 gh）', r.status !== 3 && /GH_CALLED/.test(r.stdout), r);
