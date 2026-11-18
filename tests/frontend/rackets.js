@@ -1,6 +1,6 @@
 // 我的球拍（#60 / #389 PR2b，ADR 0014）：真实模式（nanbanqiu.app + 假 Supabase + 有状态的假 /api），两端都点真实按钮走一遍入口清单：
-//   添加（搜索 / 品牌 → 系列 + 昵称）· 其他系列 · 其他品牌 · 编辑 · 设为主力 · 删除（要确认）—— 每次都断言 PUT 的内容、页面（DOM）和「清空内存 → 重读 → 还在」；
-//   库（GET /api/rackets/lib）读不到 / 数据不对 → 内置兜底（发旧形状）；老行（brand_id 空）回退读 brand / series；昵称 ≤12 字符、输入法组合期间不截断；
+//   添加（搜索 / 品牌 → 系列，点到系列就保存）· 其他系列 · 其他品牌 · 编辑 · 设为主力 · 删除（要确认）—— 每次都断言 PUT 的内容、页面（DOM）和「清空内存 → 重读 → 还在」；
+//   库（GET /api/rackets/lib）读不到 / 数据不对 → 内置兜底（发旧形状）；老行（brand_id 空）回退读 brand / series；昵称这一版不显示、编辑时原样带着；
 //   刷新：先画快照里的球拍；读失败：保留原来的、不许改；保存失败：页面不变 + 有提示；当场校验不发请求；开关关着：不显示、不读接口；退出登录：清掉；
 //   4 个埋点（racket_picker_open / racket_brand_pick / racket_save / racket_invalid）props 与字典一致、不含手写文字。
 const { chromium } = require('playwright'); const path = require('path'); const fs = require('fs');
@@ -73,35 +73,37 @@ const LIB = [mk(1, 'Head', [[1, 'Speed'], [2, 'Radical'], [3, '其他系列']]),
     // —— 读入：老行（brand_id 空）回退读 brand / series 列；主力大卡 + 空槽
     T(tag('登录后读 /api/me/rackets'), S.rkGets >= 1, S.log);
     T(tag('读入后页面：主力 Speed/Head（老行回退旧列）+ 空槽'), await until(async () => await tiles() === '*Speed/Head +'), await tiles());
-    T(tag('一张主力大卡 + 备用小卡区（空槽虚线）'), await pg.evaluate(() => !!document.querySelector('.rk .rk-big.main') && document.querySelectorAll('.rk .rk-sm.rk-add').length === 1));
+    T(tag('只有一组行：第一行「主力」、末尾一行「添加球拍」；没有头像框，没有昵称'), await pg.evaluate(() => document.querySelectorAll('.rk .rk-row').length === 2 && !!document.querySelector('.rk .rk-row .rk-main') && document.querySelectorAll('.rk .rk-add').length === 1 && !document.querySelector('.rk .rk-av')));
 
-    // —— 添加：一屏（搜索 + 品牌 + 系列 + 昵称 + 保存）；点品牌 → 系列；保存按钮先是灰的
+    // —— 添加：两步列表（品牌 → 系列），点到系列就保存；没有保存按钮、没有昵称、没有说明句
     await open(1); const g0 = S.libGets;
-    T(tag('点空槽 → 一屏弹层：搜索框、品牌 chips、昵称、保存、可见说明'), await pg.evaluate(() => !!document.querySelector('.rk-pk #rkQ') && document.querySelectorAll('#rkBr [data-a="rkBrand"]').length === 4 && !!document.querySelector('#rkBr [data-a="rkOther"]') && !!document.querySelector('#rkNick') && /所有球友可见/.test(document.querySelector('.rk-pk').textContent)));
-    T(tag('搜索框 16px（iOS 不放大）、昵称输入框有'), W || await pg.evaluate(() => parseFloat(getComputedStyle(document.getElementById('rkQ')).fontSize) >= 16 && parseFloat(getComputedStyle(document.getElementById('rkNick')).fontSize) >= 16));
+    T(tag('点空槽 → 品牌列表：搜索框 + 4 个品牌 + 其他品牌；没有昵称 / 保存 / 说明句'), await pg.evaluate(() => !!document.querySelector('.rk-pk #rkQ') && document.querySelectorAll('#rkLs [data-a="rkBrand"]').length === 4 && !!document.querySelector('#rkLs [data-a="rkOther"]') && !document.querySelector('#rkNick') && !document.querySelector('[data-a="rkSave"]') && !/所有球友可见|选品牌和系列/.test(document.querySelector('.rk-pk').textContent)));
+    T(tag('搜索框 16px（iOS 不放大）'), W || await pg.evaluate(() => parseFloat(getComputedStyle(document.getElementById('rkQ')).fontSize) >= 16));
     T(tag('品牌名当文字显示（无 img、脚本没执行）'), await pg.evaluate(() => !document.querySelector('.rk-pk img') && window.__rkx === undefined));
-    T(tag('保存先是灰的'), await saveDis());
     await tap('[data-a="rkBrand"][data-b="Wilson"]'); await pg.settle(100);
-    T(tag('Wilson 的系列：Blade / Pro Staff / 其他系列'), await txt('#rkSe [data-a="rkSeries"]') === 'Blade|Pro Staff|其他系列', await txt('#rkSe [data-a="rkSeries"]'));
-    await tap('[data-a="rkSeries"][data-s="Blade"]'); await pg.settle(100);
-    T(tag('选了系列：保存亮了'), !(await saveDis()));
-    await setIn('rkNick', '老伙计'); const n0 = putN(); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('老伙计'));
-    T(tag('添加：PUT 整组（老行旧形状，新的发 brand_id / series_id / nickname）'), same(lastPut(), { rackets: [{ brand: 'Head', series: 'Speed' }, { brand_id: U(2), series_id: U(4), nickname: '老伙计' }] }) && putN() === n0 + 1, lastPut());
-    T(tag('添加：昵称为主、品牌系列为副；弹层关了'), await tiles() === '*Speed/Head 老伙计/Wilson Blade +' && !(await sheetOpen()), await tiles());
-    T(tag('添加：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head 老伙计/Wilson Blade +', await tiles());
+    T(tag('Wilson 的系列：Blade / Pro Staff / 其他系列；有返回'), await txt('#sheet .rk-ls [data-a="rkSeries"], #modal .rk-ls [data-a="rkSeries"]') === 'Blade|Pro Staff|其他系列' && await pg.evaluate(() => !!document.querySelector('.rk-pk [data-a="rkBack"]') && document.querySelector('.rk-tt').textContent === 'Wilson'), await txt('.rk-ls [data-a="rkSeries"]'));
+    await tap('[data-a="rkBack"]'); await pg.settle(100);
+    T(tag('返回 → 回到品牌列表'), await pg.evaluate(() => document.querySelectorAll('#rkLs [data-a="rkBrand"]').length === 4));
+    await tap('[data-a="rkBrand"][data-b="Wilson"]'); await pg.settle(100);
+    const n0 = putN(); await tap('[data-a="rkSeries"][data-s="Blade"]'); await until(async () => (await tiles()).includes('Blade'));
+    T(tag('添加：点到系列就保存，PUT 整组（老行旧形状，新的发 brand_id / series_id）'), same(lastPut(), { rackets: [{ brand: 'Head', series: 'Speed' }, { brand_id: U(2), series_id: U(4) }] }) && putN() === n0 + 1, lastPut());
+    T(tag('添加：系列为主、品牌为副；弹层关了'), await tiles() === '*Speed/Head Blade/Wilson +' && !(await sheetOpen()), await tiles());
+    T(tag('添加：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head Blade/Wilson +', await tiles());
     T(tag('库一页只读一次'), S.libGets === g0, S.libGets - g0);
 
     // —— 搜索（品牌 / 系列 / 别名）、已在包里不能再选
     await open(2); await setIn('rkQ', 'pd'); await pg.settle(100);
-    T(tag('搜索别名 pd → Babolat Pure Drive'), await txt('#rkSe [data-a="rkSeries"]') === 'Babolat Pure Drive' && await txt('#rkBr [data-a="rkBrand"]') === 'Babolat', await txt('#rkSe [data-a="rkSeries"]'));
+    T(tag('搜索别名 pd → 直接出「Babolat Pure Drive」一行（点了就保存）'), await txt('#rkLs [data-a="rkSeries"]') === 'Babolat Pure Drive' && await pg.evaluate(() => !document.querySelector('#rkLs [data-a="rkBrand"]')), await txt('#rkLs [data-a="rkSeries"]'));
+    await setIn('rkQ', 'wil'); await pg.settle(100);
+    T(tag('搜品牌名 wil → Wilson 品牌行'), await txt('#rkLs [data-a="rkBrand"]') === 'Wilson', await txt('#rkLs [data-a="rkBrand"]'));
     await setIn('rkQ', 'zzz'); await pg.settle(100);
-    T(tag('搜不到：提示可以点「其他品牌」'), /其他品牌/.test(await txt('#rkSe')), await txt('#rkSe'));
+    T(tag('搜不到：只剩「其他品牌」一行，没有说明文字'), await txt('#rkLs button') === '其他品牌' && await txt('#rkLs') === '其他品牌', await txt('#rkLs'));
     await setIn('rkQ', ''); await tap('[data-a="rkBrand"][data-b="Wilson"]'); await pg.settle(100);
     T(tag('包里已有的 Wilson Blade 不能再选'), await pg.evaluate(() => { const x = document.querySelector('[data-a="rkSeries"][data-s="Blade"]'); return !!x && x.disabled && /已在包里/.test(x.textContent) }));
 
-    // —— 其他系列：出输入框，当场校验不发请求；通过后发 {brand_id, other_text}
-    await tap('[data-a="rkSeries"][data-s="其他系列"]'); await pg.settle(400);
-    T(tag('其他系列：出现拍子名称输入框，保存灰'), await pg.evaluate(() => !document.getElementById('rkTx').hidden) && await saveDis());
+    // —— 其他系列：出输入框 + 完成，当场校验不发请求；通过后发 {brand_id, other_text}
+    await tap('[data-a="rkSeries"][data-s="其他系列"]'); await pg.settle(300);
+    T(tag('其他系列：只有一个名称输入框（已聚焦）+ 完成（灰）'), await pg.evaluate(() => !!document.getElementById('rkName') && !document.querySelector('[data-a="rkSeries"]') && document.querySelector('.rk-tt').textContent === 'Wilson · 其他系列') && await saveDis() && (W || await pg.evaluate(() => document.activeElement === document.getElementById('rkName'))));
     const n1 = putN();
     for (const [v, re] of [['加我 1234567', /链接|@|数字/], ['www.shop.com', /链接/], ['ask @me', /@/], ['blade', /已经在包里/]]) {
       await setIn('rkName', v); await tap('[data-a="rkSave"]'); await pg.settle(120);
@@ -109,45 +111,53 @@ const LIB = [mk(1, 'Head', [[1, 'Speed'], [2, 'Radical'], [3, '其他系列']]),
     T(tag('埋点 racket_invalid：dup / link / at / digits 各一次'), same((await rkEv()).filter(e => e.ev === 'racket_invalid').map(e => e.p.reason), ['digits', 'link', 'at', 'dup']), (await rkEv()).filter(e => e.ev === 'racket_invalid'));
     await setIn('rkName', '  Pro  Staff 97 '); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('Pro Staff 97'));
     T(tag('其他系列：去多余空格，发 {brand_id, other_text}'), same(lastPut().rackets[2], { brand_id: U(2), other_text: 'Pro Staff 97' }), lastPut());
-    T(tag('其他系列：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head 老伙计/Wilson Blade Pro Staff 97/Wilson', await tiles());
+    T(tag('其他系列：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head Blade/Wilson Pro Staff 97/Wilson', await tiles());
 
-    // —— 昵称：≤12 字符；输入法组合期间不截断，组合结束才截
+    // —— 编辑：停在上次选的那一步；返回一路回到品牌；服务器上已有的昵称不显示、编辑时原样带着
+    S.rk[2].nickname = '老伙计'; await reread();
+    T(tag('昵称这一版不显示：页面上没有'), !/老伙计/.test(await pg.evaluate(() => document.querySelector('.rk').textContent)));
     await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(200); await tap('[data-a="rkEdit"]'); await pg.settle(300);
-    T(tag('编辑：带出已选的品牌 + 其他系列 + 文字'), await pg.evaluate(() => document.querySelector('[data-a="rkBrand"].on').dataset.b === 'Wilson' && document.querySelector('[data-a="rkSeries"].on').dataset.s === '其他系列' && document.getElementById('rkName').value === 'Pro Staff 97'));
-    const cap = await pg.evaluate(() => { const k = document.getElementById('rkNick'); k.focus(); k.value = '一二三四五六七八九十一二三四'; k.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true })); const mid = k.value.length; k.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })); return [mid, k.value.length] });
-    T(tag('昵称：组合期间不截断（14），组合结束截到 12'), same(cap, [14, 12]), cap);
-    await setIn('rkNick', '新昵称'); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('新昵称'));
-    T(tag('编辑：只改昵称，其余照旧'), same(lastPut().rackets[2], { brand_id: U(2), other_text: 'Pro Staff 97', nickname: '新昵称' }), lastPut());
+    T(tag('编辑：直接停在「Wilson · 其他系列」，带出文字'), await pg.evaluate(() => document.querySelector('.rk-tt').textContent === 'Wilson · 其他系列' && document.getElementById('rkName').value === 'Pro Staff 97'));
+    await tap('[data-a="rkBack"]'); await pg.settle(100);
+    T(tag('返回 → Wilson 系列列表（其他系列没有勾）→ 再返回 → 品牌列表'), await pg.evaluate(() => !!document.querySelector('.rk-tt') && document.querySelector('.rk-tt').textContent === 'Wilson' && !document.querySelector('.rk-ck')));
+    await tap('[data-a="rkBack"]'); await pg.settle(100);
+    T(tag('品牌列表'), await pg.evaluate(() => document.querySelectorAll('#rkLs [data-a="rkBrand"]').length === 4));
+    await tap('[data-a="rkBrand"][data-b="Wilson"]'); await tap('[data-a="rkSeries"][data-s="其他系列"]'); await pg.settle(200);
+    await setIn('rkName', 'Pro Staff 98'); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('Pro Staff 98'));
+    T(tag('编辑：昵称原样带着，其余照新的'), same(lastPut().rackets[2], { brand_id: U(2), other_text: 'Pro Staff 98', nickname: '老伙计' }), lastPut());
+    T(tag('编辑后页面仍不显示昵称'), !/老伙计/.test(await pg.evaluate(() => document.querySelector('.rk').textContent)));
 
-    // —— 其他品牌：一个输入框，发旧形状 {brand:null, series}
+    // —— 删除要确认
     await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(200); await tap('[data-a="rkDel"]'); await pg.settle(200);
     const nDel = putN();
     T(tag('删除要确认：先出确认弹层，不发请求'), await pg.evaluate(() => !!document.querySelector('[data-a="rkDelOk"]') && !!document.querySelector('[data-a="rkNo"]')) && putN() === nDel, putN());
     const n2 = putN(); await tap('[data-a="rkNo"]'); await pg.settle(300);
-    T(tag('先不删：弹层关了、不发请求、还在'), putN() === n2 && !(await sheetOpen()) && (await tiles()).includes('新昵称'), await tiles());
-    await open(2).catch(() => { }); await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(200); await tap('[data-a="rkDel"]'); await pg.settle(200);
+    T(tag('先不删：弹层关了、不发请求、还在'), putN() === n2 && !(await sheetOpen()) && (await tiles()).includes('Pro Staff 98'), await tiles());
+    await tap('.rk [data-a="rkSlot"][data-i="2"]'); await pg.settle(200); await tap('[data-a="rkDel"]'); await pg.settle(200);
     S.putFail = 'invalid'; await tap('[data-a="rkDelOk"]'); await pg.settle(900);
-    T(tag('保存失败：发了请求、页面不变、有提示'), putN() === n2 + 1 && (await tiles()).includes('新昵称') && await pg.evaluate(() => { const t = document.querySelector('#toast'); return !!t && t.textContent.trim().length > 0 }), await tiles());
-    S.putFail = null; await tap('[data-a="rkDelOk"]'); await until(async () => !(await tiles()).includes('新昵称'));
+    T(tag('保存失败：发了请求、页面不变、有提示'), putN() === n2 + 1 && (await tiles()).includes('Pro Staff 98') && await pg.evaluate(() => { const t = document.querySelector('#toast'); return !!t && t.textContent.trim().length > 0 }), await tiles());
+    S.putFail = null; await tap('[data-a="rkDelOk"]'); await until(async () => !(await tiles()).includes('Pro Staff 98'));
     T(tag('确认删除：PUT 少一把'), lastPut().rackets.length === 2, lastPut());
-    T(tag('删除：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head 老伙计/Wilson Blade +', await tiles());
-    await open(2); await tap('#rkBr [data-a="rkOther"]'); await pg.settle(400);
-    T(tag('其他品牌：只有名称输入框出现，保存灰'), await pg.evaluate(() => !document.getElementById('rkTx').hidden && !document.querySelector('#rkSe [data-a="rkSeries"]')) && await saveDis());
+    T(tag('删除：清空内存 → 重读 → 还在'), await reread() === '*Speed/Head Blade/Wilson +', await tiles());
+
+    // —— 其他品牌：一个输入框，发旧形状 {brand:null, series}
+    await open(2); await tap('#rkLs [data-a="rkOther"]'); await pg.settle(300);
+    T(tag('其他品牌：只有名称输入框 + 完成（灰），没有系列'), await pg.evaluate(() => !!document.getElementById('rkName') && !document.querySelector('[data-a="rkSeries"]') && document.querySelector('.rk-tt').textContent === '其他品牌') && await saveDis());
     await setIn('rkName', 'Diadem Elevate'); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('Diadem'));
     T(tag('其他品牌：发旧形状 {brand:null, series}'), same(lastPut().rackets[2], { brand: null, series: 'Diadem Elevate' }), lastPut());
     T(tag('其他品牌：清空内存 → 重读 → 还在'), (await reread()).endsWith('Diadem Elevate'), await tiles());
 
-    // —— 编辑老行：对回库里的 Head / Speed，改昵称后升级成新形状
+    // —— 编辑老行：停在 Head 的系列列表，Speed 打了勾；点回 Speed 就升级成新形状
     await tap('.rk [data-a="rkSlot"][data-i="0"]'); await pg.settle(200); await tap('[data-a="rkEdit"]'); await pg.settle(300);
-    T(tag('编辑老行：品牌 Head、系列 Speed 已选'), await pg.evaluate(() => document.querySelector('[data-a="rkBrand"].on').dataset.b === 'Head' && document.querySelector('[data-a="rkSeries"].on').dataset.s === 'Speed'));
-    await setIn('rkNick', '主力'); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).startsWith('*主力'));
-    T(tag('编辑老行：发新形状 + 昵称'), same(lastPut().rackets[0], { brand_id: U(1), series_id: U(1), nickname: '主力' }), lastPut());
+    T(tag('编辑老行：停在 Head 的系列列表，Speed 打了勾'), await pg.evaluate(() => document.querySelector('.rk-tt').textContent === 'Head' && document.querySelector('.rk-ck').closest('[data-a="rkSeries"]').dataset.s === 'Speed'));
+    await tap('[data-a="rkSeries"][data-s="Speed"]'); await until(async () => !(await sheetOpen()));
+    T(tag('编辑老行：发新形状'), same(lastPut().rackets[0], { brand_id: U(1), series_id: U(1) }), lastPut());
 
     // —— 设为主力：和 1 号交换
     await tap('.rk [data-a="rkSlot"][data-i="1"]'); await pg.settle(200);
     T(tag('点已有的一把 → 编辑 / 设为主力 / 删除'), await pg.evaluate(() => ['rkEdit', 'rkMain', 'rkDel'].every(a => document.querySelector(`[data-a="${a}"]`))));
-    await tap('[data-a="rkMain"]'); await until(async () => (await tiles()).startsWith('*老伙计'));
-    T(tag('设为主力：与 1 号交换，清空内存 → 重读 → 还在'), (await reread()).startsWith('*老伙计/Wilson Blade 主力/Head Speed'), await tiles());
+    await tap('[data-a="rkMain"]'); await until(async () => (await tiles()).startsWith('*Blade'));
+    T(tag('设为主力：与 1 号交换，清空内存 → 重读 → 还在'), (await reread()).startsWith('*Blade/Wilson Speed/Head'), await tiles());
 
     // —— 读失败：保留原来的；第一次就没读到：不显示格子、不许改
     const keep = await tiles(); S.getFail = true; await pg.evaluate(() => nbqRefresh()); await pg.settle(300);
@@ -170,8 +180,8 @@ const LIB = [mk(1, 'Head', [[1, 'Speed'], [2, 'Radical'], [3, '其他系列']]),
     for (const [lib, why] of [[null, '500'], [{ raw: { brands: [{ id: 'bad', name: 'Evil', series: [] }, { id: U(1), name: '', series: [] }] } }, '坏行']]) {
       S.lib = lib; S.rk = [{ brand: 'Head', series: 'Speed' }]; await pg.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } }); await pg.reload(); await pg.waitForFunction(() => typeof ME !== 'undefined' && !!ME && Array.isArray(ME.rackets), null, { timeout: 8000 }).catch(() => { }); await toMe(); await pg.settle(300);
       await open(1); await pg.settle(600);
-      T(tag(`库${why}：用内置 7 个品牌（+ 其他品牌），不显示坏数据`), await pg.evaluate(() => document.querySelectorAll('#rkBr [data-a="rkBrand"]').length === 7 && !/Evil/.test(document.querySelector('.rk-pk').textContent)), await txt('#rkBr [data-a="rkBrand"]'));
-      await tap('[data-a="rkBrand"][data-b="Wilson"]'); await pg.settle(100); await tap('[data-a="rkSeries"][data-s="Blade"]'); await tap('[data-a="rkSave"]'); await until(async () => (await tiles()).includes('Blade'));
+      T(tag(`库${why}：用内置 7 个品牌（+ 其他品牌），不显示坏数据`), await pg.evaluate(() => document.querySelectorAll('#rkLs [data-a="rkBrand"]').length === 7 && !/Evil/.test(document.querySelector('.rk-pk').textContent)), await txt('#rkLs [data-a="rkBrand"]'));
+      await tap('[data-a="rkBrand"][data-b="Wilson"]'); await pg.settle(100); await tap('[data-a="rkSeries"][data-s="Blade"]'); await until(async () => (await tiles()).includes('Blade'));
       T(tag(`库${why}：保存发旧形状 {brand, series}`), same(lastPut().rackets[1], { brand: 'Wilson', series: 'Blade' }), lastPut());
       await pg.evaluate(() => { try { closeSheet() } catch (_) { } try { closeModal() } catch (_) { } }) }
     S.lib = LIB;
