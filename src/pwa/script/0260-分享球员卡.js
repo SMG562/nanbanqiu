@@ -9,7 +9,7 @@ function openBlock(uid){const u=U(uid);openSheet(`<div class="sh-t">屏蔽 ${esc
 function openBlocklist(){const l=[...ME.blocked].map(U);openSheet(`<div class="sh-t">屏蔽名单</div><p class="sh-s">被屏蔽的人看不到你的球局，也无法申请</p>
   ${l.length?l.map(u=>`<div class="cp">${av(u)}<span class="v"><b>${esc(u.name)}</b><small>UTR ${f1(u.ntrp)}</small></span><button class="sbtn" style="flex:none" data-a="unblock" data-u="${u.id}">解除</button></div>`).join(''):'<div class="empty" style="padding:24px">名单是空的</div>'}`)}
 const reportMail=uid=>{const u=uid?U(uid):null;return `mailto:safety@nanbanqiu.app?subject=${encodeURIComponent(u?`举报用户：${u.name}（${u.id}）`:'举报 / 安全问题')}&body=${encodeURIComponent('请描述发生了什么（时间、球局、经过），可附截图：\n\n')}`};
-function openSafety(){openSheet(`<div class="center"><div class="bigic" style="background:var(--gss);color:var(--g)"><svg><use href="#i-shield"/></svg></div><div class="sh-t">安全约球</div><p class="sh-s">南伴球的球友都来自社区，我们也希望每一次见面都安心</p></div>
+function openSafety(){openSheet(`<div class="center"><div class="bigic" style="background:var(--gss);color:var(--g)"><svg><use href="#i-shield"/></svg></div><div class="sh-t">安全约球</div></div>
   ${pactHTML(false)}<div class="pact-t2">见面安全</div><ul class="tips"><li><i>🏟</i><div>在公开球场见面<small>第一次约球选白天或灯光充足的时段，不去私人住所</small></div></li>
     <li><i>📍</i><div>把球局链接发给朋友或家人<small>让他们知道你在哪、和谁打球</small></div></li>
     <li><i>🔒</i><div>保护个人信息<small>不需要提前转账，不透露住址、证件等信息</small></div></li>
@@ -17,17 +17,17 @@ function openSafety(){openSheet(`<div class="center"><div class="bigic" style="b
     <li><i>🚫</i><div>遇到骚扰或不当行为<small>点对方头像 → 屏蔽或举报，我们会在 24 小时内处理</small></div></li>
     <li><i>🆘</i><div>紧急情况请拨打 000<small>澳大利亚报警 / 救护 / 消防</small></div></li></ul>
   <a class="btn btn-s" href="${reportMail()}"><svg><use href="#i-mail"/></svg>举报邮箱 safety@nanbanqiu.app</a>`,true)}
-function openContact(){openSheet(`<div class="sh-t">联系我们</div><p class="sh-s">我们会认真看每一封邮件</p>
+function openContact(){openSheet(`<div class="sh-t">联系我们</div>
   <div class="contact"><a href="${reportMail()}"><span style="font-size:22px">🛡</span><span><b>举报与安全</b><small>违反球友约定、骚扰、虚假信息 · safety@nanbanqiu.app</small></span></a>
   <a href="mailto:hello@nanbanqiu.app?subject=${encodeURIComponent('南伴球反馈')}"><span style="font-size:22px">💬</span><span><b>建议与反馈</b><small>功能建议、Bug、球场信息更正 · hello@nanbanqiu.app</small></span></a>
   <a href="mailto:club@nanbanqiu.app?subject=${encodeURIComponent('Club 合作')}"><span style="font-size:22px">🏟</span><span><b>Club / 球场合作</b><small>场地优惠、活动合作 · club@nanbanqiu.app</small></span></a></div>
   <p class="fine">举报时请写上对方昵称、球局时间和经过，可附截图</p>`)}
-function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">${esc(CITY.zh)}的华人球友都在这里约球、聊球、组队<br>长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div><p class="fine">有想法也欢迎在群里告诉我们 🙌</p></div>`);qr($('#cqr'),'https://nanbanqiu.app/'+CITY.slug+'/community')}
+function openCommunity(){openSheet(`<div class="center"><div class="bigic" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></div><div class="sh-t">加南伴球小助手，进球友群</div><p class="sh-s">长按识别二维码，备注「南伴球」，拉你进群</p><div class="qr" id="cqr"></div></div>`);qr($('#cqr'),'https://nanbanqiu.app/'+CITY.slug+'/community')}
 function qr(el,text){if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text,width:156,height:156,colorDark:'#1B2620',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else el.innerHTML=`<div style="color:#1B2620;width:100%;height:100%">${qrSVG(text)}</div>`}
 
 /* 位置 */
 function openLocSheet(){LOC.asked=true;nbqLocSave();
-  openSheet(`<div class="center"><div class="bigic" style="background:#EAF2FE;color:var(--blue)"><svg><use href="#i-nav"/></svg></div><div class="sh-t">允许南伴球使用你的位置？</div><p class="sh-s">用来显示附近的球局和距离，不会公开你的位置。</p></div>
+  openSheet(`<div class="center"><div class="bigic" style="background:#EAF2FE;color:var(--blue)"><svg><use href="#i-nav"/></svg></div><div class="sh-t">允许南伴球使用你的位置？</div><p class="sh-s">只用于显示附近球局，不会公开你的位置</p></div>
   <button class="btn btn-p" data-a="locAllow">允许</button><div style="height:8px"></div><button class="btn btn-s" data-a="locPick">暂不</button>`)}
 const nbqLocSave=()=>{try{localStorage.setItem('nbq_loc',JSON.stringify({city:CITY.slug,lat:LOC.lat,lng:LOC.lng,label:LOC.label,source:LOC.source}))}catch(e){}};
 function setLoc(lat,lng,label,source){LOC={...LOC,lat,lng,label,source,asked:true};nbqLocSave();if(MAP.lf)MAP.lf.setView([lat,lng],12);render()}
@@ -36,7 +36,7 @@ function requestLocation(){closeSheet();nbqGeoFix((lat,lng,b)=>{setLoc(lat,lng,b
 /* 已授权过位置才在后台悄悄更新；没授权不弹任何提示（iPhone 桌面 App 每次启动都弹的根源） */
 function nbqLocQuiet(){try{if(LOC.source!=='gps'||!navigator.permissions||!navigator.geolocation)return;navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state!=='granted')return;nbqGeoFix((lat,lng,b)=>setLoc(lat,lng,b.name,'gps'),()=>{})}).catch(()=>{})}catch(e){}}
 setTimeout(nbqLocQuiet,1500);
-function openSuburbPicker(){SBS.q='';SBS.letter=null;openSheet(`<div class="sh-t">位置与距离</div><p class="sh-s">最远 50 km，只显示附近的球局</p>
+function openSuburbPicker(){SBS.q='';SBS.letter=null;openSheet(`<div class="sh-t">位置与距离</div>
   <button class="btn btn-s" data-a="locAllow" style="color:var(--blue);margin-bottom:6px"><svg><use href="#i-nav"/></svg>使用当前位置</button>
   <div class="lab">距离</div><div class="opt eq" style="--n:5">${RADII.map(r=>`<button class="${F.radius===r?'on':''}" data-radius="${r}">${r} km</button>`).join('')}</div>
   <div class="lab">区域</div><div class="sbq"><svg><use href="#i-pin"/></svg><input id="sbQ" placeholder="区名、邮编或中文名" autocomplete="off" spellcheck="false"></div>
@@ -61,7 +61,7 @@ function openFilter(){const draw=()=>openSheet(`<div class="sh-t">筛选</div>
 /* 登录 */
 let AUTH={next:null,phone:'',cc:'+61',t:0},NP={ntrp:3.0,clubs:[]};
 function openAuth(next,why){AUTH.next=next;
-  openSheet(`<div class="sh-t">用手机号继续</div><p class="sh-s">${why||'30 秒创建账号，以后打开链接自动登录'}</p>
+  openSheet(`<div class="sh-t">用手机号继续</div>${why?`<p class="sh-s">${why}</p>`:''}
   <div class="phone"><select class="inp" id="cc">${COUNTRIES.map(k=>`<option>${k.dial}</option>`).join('')}</select><input class="inp" id="ph" inputmode="tel" autocomplete="tel" placeholder="0412 345 678"></div>
   <div style="height:12px"></div><button class="btn btn-p" data-a="sendCode">获取验证码</button><p class="fine">${typeof SBA!=='undefined'&&SBA.on()?'目前仅支持澳洲手机号（04 开头）<br>':'演示：任意手机号和 6 位验证码<br>'}继续即表示同意${legalLinks()}</p>`);setTimeout(()=>$('#ph')&&$('#ph').focus(),350)}
 function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="height:auto;margin-bottom:6px">‹ 修改手机号</button><div class="sh-t">输入验证码</div><p class="sh-s">已发送至 ${esc(AUTH.cc)} ${esc(AUTH.phone)}</p>
@@ -69,7 +69,7 @@ function openOtp(){openSheet(`<button class="btn-link" data-a="login" style="hei
   let n=60;clearInterval(AUTH.t);AUTH.t=setInterval(()=>{n--;const r=$('#resend');if(!r){clearInterval(AUTH.t);return}r.innerHTML=n>0?n+' 秒后可重新发送':'<b style="color:var(--g)" data-a="sendCode">重新发送</b>';if(n<=0)clearInterval(AUTH.t)},1000);
   setTimeout(()=>{const o=$('#otp');if(!o)return;o.focus();o.oninput=()=>{o.value=o.value.replace(/\D/g,'');if(o.value.length===6){sbaOtpDone(o.value)}}},350)}
 function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km(LOC,b)).slice(0,6);
-  const draw=()=>openSheet(`<div class="sh-t">欢迎来到南伴球 👋</div><p class="sh-s">填一次就好，发起人会看到</p>
+  const draw=()=>openSheet(`<div class="sh-t">欢迎来到南伴球 👋</div>
   <div class="lab">昵称</div><input class="inp" id="npName" maxlength="20" placeholder="球友怎么称呼你" value="${esc(NP.name||'')}"><div class="lab">姓氏首字母 <span>选填 · 用来区分同名球友，如 Jason W.</span></div><input class="inp" id="npLast" data-keep maxlength="1" placeholder="W" style="width:88px;text-transform:uppercase" value="${esc(NP.last||'')}">
   <div class="lab">UTR <span>UTR Sports app 里可以查到</span></div><div class="utrin"><button data-nlv="${Math.max(UTR_MIN,NP.ntrp-.5)}">−</button><b>${f1(NP.ntrp)}</b><button data-nlv="${Math.min(UTR_MAX,NP.ntrp+.5)}">+</button></div>
   <div class="lab">还没有 UTR？<span>选一个最接近的</span></div><div class="cchips">${UTR_EST.map(([l,v])=>`<button data-nlv="${v}" class="${NP.ntrp===v?'on':''}">${l}<small> ≈${v}</small></button>`).join('')}</div>
@@ -81,7 +81,7 @@ function openNewProfile(){const near=Object.values(VEN).sort((a,b)=>km(LOC,a)-km
 
 /* 申请 / 取消 */
 function openApply(id){APPLY_ETA=0;const c=api.get(id),h=c.host,gap=ME.ntrp<c.ntrp_min-.5||ME.ntrp>c.ntrp_max+1;
-  openSheet(`<div class="sh-t">申请加入</div><p class="sh-s">${esc(h.name)} 确认后，你会收到通知</p>
+  openSheet(`<div class="sh-t">申请加入</div>
   <div class="mini">${av(h)}<div style="flex:1;min-width:0"><b>${relDay(c.start)} ${hm(c.start)} · ${esc(c.v.short)}</b><span class="s">${TYPE[c.game_type]} · UTR ${lvl(c)} · 发起人 ${esc(h.name)}</span></div></div>
   <div class="lab">说一句 <span>选填</span></div><textarea class="inp" id="applyMsg" maxlength="140">你好，我 ${f1(ME.ntrp)} 左右，希望一起打！</textarea>
   <div class="qchips">${['可以带新球','时间可以灵活','住得很近'].map(q=>`<button data-q="${q}">+ ${q}</button>`).join('')}</div>
@@ -101,7 +101,7 @@ function openCancelGame(id){const c=api.get(id),n=c.appr.length-1+c.pend.length;
 let CL=[],CLQ='';const CLUB_COLL=new Intl.Collator(['zh-Hans-u-co-pinyin','en'],{sensitivity:'base',numeric:true});
 function clubRows(){const q=CLQ.trim().toLowerCase(),vs=Object.values(VEN).filter(v=>!q||(v.name+' '+v.short+' '+v.suburb+' '+(v.pc||'')).toLowerCase().includes(q));if(q&&!vs.length)return '<div class="vp-none">没找到，换个词</div>';return vs.sort((a,b)=>CLUB_COLL.compare(a.name,b.name)).map(v=>{const i=CL.indexOf(v.id);return `<button class="cp${i>=0?' on':''}" data-cl="${v.id}"><span class="v"><b>${esc(v.name)}</b><small>${esc(v.suburb)} · ${surfTxt(v)}</small></span>${i===0?'<span class="cpm on" title="主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="currentColor"/></svg>主 Club</span>':i>0?`<span class="cpm" data-clmain="${v.id}" title="设为主 Club"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>`:''}<span class="ck"><svg><use href="#i-check"/></svg></span></button>`}).join('')}
 document.addEventListener('input',e=>{if(e.target.id==='clQ'){CLQ=e.target.value;const l=document.getElementById('clList');if(l)l.innerHTML=clubRows()}});
-function openClubs(){CL=[...myClubIds()];CLQ='';openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个 · ★ 主 Club 会显示在球员卡上</p>
+function openClubs(){CL=[...myClubIds()];CLQ='';openSheet(`<div class="sh-t">我的 Club</div><p class="sh-s">最多选 3 个，★ 为主 Club</p>
   <div class="vp" style="margin:0 0 8px"><div class="vp-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="clQ" placeholder="搜索 Club 名称或区域" autocomplete="off" spellcheck="false"></div></div>
   <div id="clList">${clubRows()}</div>
   <div style="position:sticky;bottom:calc(-18px - var(--hb));margin:12px -20px calc(-18px - var(--hb));padding:12px 20px calc(18px + var(--hb));background:linear-gradient(to top,#fff 78%,rgba(255,255,255,0))"><button class="btn btn-p" data-a="saveClubs">完成${CL.length?`（${CL.length}）`:''}</button></div>`,true)}
@@ -133,10 +133,8 @@ function openShare(id){const c=api.get(id);
   openSheet(`<div class="sh-t">分享球局</div>${wxPreviewHTML(c)}
   <div class="sgrid"><button data-a="wxShare" data-g="${id}"><span class="si" style="background:#E7F7EC;color:#07C160"><svg><use href="#i-wx"/></svg></span>发到微信群</button>
   <button data-a="sysShare" data-g="${id}"><span class="si"><svg><use href="#i-share"/></svg></span>更多</button>
-  <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button>
-  <button data-a="copyLink" data-g="${id}"><span class="si"><svg><use href="#i-link"/></svg></span>复制链接</button></div>
-  ${pushNudgeHTML('game')}
-  <button class="sh-lnk" data-a="copyText" data-g="${id}">只想发文字？复制文案</button>`)}
+  <button data-a="poster" data-g="${id}"><span class="si" style="background:#FDECEE;color:#FF2442"><svg><use href="#i-img"/></svg></span>发到小红书</button></div>
+  ${pushNudgeHTML('game')}`)}
 // 发到小红书（一键）：点一下 = 复制文案 + 弹出系统分享面板（图片已在里面），用户选「小红书」，图片自动带进发布页，只需粘贴文案。
 // 海报图在打开时就预先生成（XHSP），点击时直接分享——iOS 要求分享发生在点击之后很短时间内，现生成容易被拒；被拒或不支持就弹大图长按保存
 const XHSP={};
@@ -152,8 +150,8 @@ function xhsGo(id){const text=xhsText(api.get(id));
   if(XHSP[id])go(XHSP[id]);
   else{const el=document.querySelector('.xhs-pv .ogW');
     if(el&&window.html2canvas)nbqShot(el,2).then(bl=>{if(bl)XHSP[id]=bl;go(bl)});else go(null)}}
-function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" data-a="share" data-g="${id}" style="height:auto;margin-bottom:8px">‹ 返回</button><div class="sh-t">发到小红书</div><p class="sh-s">图片上带二维码，小红书上的球友扫码就能加入</p><div class="xhs-pv">${ogAHTML(c)}</div>
-  <button class="btn btn-p xhs-go" data-sx="xhsCopy" data-g="${id}">分享到小红书</button><p class="xhs-tip">文案会自动复制；在弹出的面板里选「小红书」，图片已带上，粘贴文案发布即可</p>`);setTimeout(()=>xhsPre(id),350)}
+function openPoster(id){const c=api.get(id);openSheet(`<button class="btn-link" data-a="share" data-g="${id}" style="height:auto;margin-bottom:8px">‹ 返回</button><div class="sh-t">发到小红书</div><div class="xhs-pv">${ogAHTML(c)}</div>
+  <button class="btn btn-p xhs-go" data-sx="xhsCopy" data-g="${id}">分享到小红书</button>`);setTimeout(()=>xhsPre(id),350)}
 
 /* 微信 / 主屏幕 / 推送 */
 function openWxGuide(){$('#wxg').hidden=false;$('#wxg').innerHTML=`<svg class="arrow" viewBox="0 0 100 100" fill="none" stroke="#C6EA3D" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 92 C 30 52, 55 32, 84 14"/><path d="M67 11 L85 13 L80 30"/></svg>
@@ -190,7 +188,7 @@ function a2hsSteps(k){
     +a2s(3,'点右上角「添加」','桌面出现南伴球图标，之后从它打开','add')}
 function openA2HS(gate){a2hsPut('nbq_a2hs_at',String(Date.now()));if(typeof hoGuide==='function')hoGuide();
   if(typeof a2hsV2==='function'&&a2hsV2()){a2hsScreen(a2hsKind()==='ios_safari'?'why':'open',gate===true);return}   // 新引导（开关 NBQ_A2HS2_ON，script/0265）；安卓仍走下面
-  const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div><p class="sh-s">像 App 一样打开，有人申请时第一时间通知你</p></div>`;
+  const k=a2hsKind(),head=`<div class="center"><img src="/icons/icon-180.png" alt="" class="a2ic"><div class="sh-t">添加到主屏幕</div></div>`;
   let top='',main='';
   if(k==='inapp'||k==='ios_other'){
     top=`<div class="a2warn"><b>先用 Safari 打开</b><p>${k==='inapp'?'现在是在 App 里打开的，':'只有 Safari 能把网页添加到 iPhone 主屏幕，'}点下面复制链接，打开 Safari 粘贴到地址栏。</p><button class="btn btn-s" data-a="a2hsLink">复制链接</button></div>`;
