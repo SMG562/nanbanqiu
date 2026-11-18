@@ -61,12 +61,12 @@ try {
 
   // —— 读函数 / 导出 / 注销 / rollup
   await set(A, [{ brand_id: br, series_id: se }]); await q(`insert into catalogue_submissions(user_id, text) values ($1,'新系列')`, [B]);
-  const pl = ids => as('nbq_user', A, `select user_id, slot, brand_id, series_id, other_text, nickname from api_player_rackets($1::uuid[])`, [ids]);
-  r = await pl([B, Z]); T('api_player_rackets 返回新结构字段', r.ok && r.rows.length >= 1 && 'series_id' in r.rows[0] && 'nickname' in r.rows[0], r);
-  await q(`update users set status='banned' where id=$1`, [Z]); r = await pl([Z]); T('api_player_rackets 不返回封禁', r.ok && r.rows.length === 0, r);
+  const pl = ids => as('nbq_user', A, `select user_id, slot, brand_id, series_id, other_text, nickname from api_player_rackets2($1::uuid[])`, [ids]);
+  r = await pl([B, Z]); T('api_player_rackets2 返回新结构字段', r.ok && r.rows.length >= 1 && 'series_id' in r.rows[0] && 'nickname' in r.rows[0], r);
+  await q(`update users set status='banned' where id=$1`, [Z]); r = await pl([Z]); T('api_player_rackets2 不返回封禁', r.ok && r.rows.length === 0, r);
   const ex = await as('nbq_user', B, `select api_export_me() v`); T('导出含新字段（series_id/nickname）', ex.ok && /series_id/.test(JSON.stringify(ex.v)) && /nickname/.test(JSON.stringify(ex.v?.rackets ?? ex.v)), ex.err);
   T('导出含自己的 catalogue_submissions', ex.ok && /catalogue_submissions|新系列/.test(JSON.stringify(ex.v)));
-  await q(`update users set status='deleted', deleted_at=now()-interval '40 days' where id=$1`, [B]); await as('nbq_service', null, `select job_anonymize_deleted() v`);
+  await q(`update users set status='deleted', status_since=now()-interval '40 days' where id=$1`, [B]); await as('nbq_service', null, `select job_anonymize_deleted() v`);
   T('注销后球拍和 catalogue_submissions 都清空', await n(`select count(*) n from user_rackets where user_id='${B}'`) === 0 && await n(`select count(*) n from catalogue_submissions where user_id='${B}'`) === 0);
   r = await as('nbq_service', null, `select racket_rollup(current_date - 1) v`); T('racket_rollup 在新结构下能跑', r.ok, r.err);
 } catch (e) { fail++; console.log('FAIL 异常 ' + (e.stack || e)) }
