@@ -62,7 +62,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(!
 function ufHostCard(c){if(!c.isHost)return'';let h='';
   if(ufCan(c)&&c.start>NOW&&c.start-NOW<=3*36e5)h+=`<div class="ufc"><div><b>还缺 ${c.spots} 位 · ${ufLeft(c)}后开打</b><small>${c.postponed?'已顺延 1 小时 · 可以再分享一次，或者放宽水平':'再分享一次、放宽水平，或者顺延 1 小时'}</small></div><button data-uf="open" data-g="${c.id}">看看办法</button></div>`;
   if(ufCan(c)&&c.lateOpen)h+=`<div class="ufc"><div><b>已开打 · 还缺 ${c.spots} 位</b><small>${hm(new Date(+c.start+LATE_JOIN))} 前别人还能申请，申请来了可以直接处理</small></div><button data-uf="closeFull" data-g="${c.id}">人齐了</button></div>`;
-  if(c.hide_done)h+=`<div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>`;return h}
+  if(c.hide_done)h+=hideDoneNote();return h}
+// 「约满或开打后不再公开」提示：发起球局页与球局详情共用一处
+function hideDoneNote(){return`<div class="ufh">🔒 约满或开打后不再公开</div>`}
 
 function ufDemo(){const t=new Date(+NOW+80*6e4);t.setMinutes(t.getMinutes()<30?30:60,0,0);const id=api.create({venue_id:'v1',starts_at:t.toISOString(),duration_min:90,game_type:'doubles',ntrp_min:3.5,ntrp_max:5,note:''});
   const g=GAMES.find(x=>x.id===id);g.tags=[];g.filled=1;g.hide_done=true;PARTS.push({game_id:id,user_id:'grace',role:'player',status:'approved',message:'',created_at:Date.now()});housekeep();return id}
