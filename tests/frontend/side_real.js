@@ -50,6 +50,8 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       return J(r, 404, { error: 'not_found' }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
     if (p === '/api/sideline/posts' && m === 'POST') { if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
+    if ((p === '/api/reports' || p === '/api/blocks') && m === 'POST') { S.log.push(m + ' ' + p); S.bodies[m + ' ' + p] = body; if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
+    if (/\/hide$/.test(p) && m === 'POST') { if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     let mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/ball$/);
     if (mm) { if (S.failBall) return J(r, 429, { error: 'rate_limited' }); const x = S.posts.find(q => q.id === mm[1]); if (m === 'PUT' && !x.my_ball) { x.my_ball = true; x.balls++ } if (m === 'DELETE' && x.my_ball) { x.my_ball = false; x.balls-- } return J(r, 200, { balls: x.balls }) }
     mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/replies$/);
@@ -165,6 +167,17 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const cached = await rows();
   T('刷新 + feed 读不到：用本机缓存画，不是空白', cached.length >= 4 && cached.some(x => x.includes('红土 3、4 号空着')), cached);
   T('刷新后配置仍是 v2（内置 v1 没盖掉它）', await E(() => !SB.CFG.topics.some(t => t.id === 'ootd') && SB.today() === 'brain'));
+  // ---- 举报 / 不感兴趣 / 屏蔽（PR-C）：打到真接口，失败回滚 ----
+  const dc = sel => E(q => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(q); if (r) r.click(); return !!r }, sel);
+  const acts = async (id, act, ex) => { await dc('[data-s="home"] [data-ln="' + id + '"] .tx'); await until(async () => (await SRQ('.sheet', 'r.textContent')).length > 0); await pg.settle(600); await dc('.sheet [data-menu]'); await pg.settle(300); await pg.settle(400); await sr('.acts [data-act="' + act + '"]').click(); if (ex) { await pg.settle(300); await sr('.acts ' + ex).click(); await pg.settle(300) } };
+  S.log.length = 0; await acts(P1, 'report', '[data-rr="harass"]'); await until(() => S.log.includes('POST /api/reports'));
+  T('举报：POST /api/reports 带对象和原因', S.bodies['POST /api/reports'] && S.bodies['POST /api/reports'].target_type === 'sb_post' && S.bodies['POST /api/reports'].target_id === P1 && S.bodies['POST /api/reports'].reason === 'harass', S.bodies['POST /api/reports']);
+  await pg.settle(500); S.log.length = 0; await acts(P1, 'block'); await until(() => S.log.includes('POST /api/blocks'));
+  T('屏蔽：POST /api/blocks 带对方 id，画面立刻拿掉 TA 的帖子', S.bodies['POST /api/blocks'].user_id === MIA && !(await rows()).some(x => x.includes('红土 3、4 号空着')), [S.bodies['POST /api/blocks'], await rows()]);
+  S.log.length = 0; await acts(P2, 'less'); await until(() => S.log.some(x => /\/hide$/.test(x)));
+  T('不感兴趣：POST /hide', S.log.join() === 'POST /api/sideline/posts/P2/hide', S.log);
+  await dc('.acts [data-act="l0"]');
+
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
 })();

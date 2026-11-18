@@ -399,19 +399,21 @@ function App(el,init){
     if('shut' in d){shut();return}
     if('menu' in d){const x=find(S.open),u=U(x);
       $('.acts .g').innerHTML=x.mine?`<p class="ah2">你发的</p>${x.pic?'<button data-act="share">分享图片</button>':''}<button data-act="mute">${x.closed?'允许回复':'关闭回复'}</button><button class="warn" data-act="del">删除</button>`
-        :`<p class="ah2">${u.anon?'一位球友发的':esc(u.n)+' 发的'}</p><button data-act="less">不感兴趣<small>以后少给你看类似的</small></button>${u.anon||u.off?'':`<button data-act="block" data-un="${esc(u.n)}">屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button>`}<button class="warn" data-act="report">举报</button>`;
+        :`<p class="ah2">${u.anon?'一位球友发的':esc(u.n)+' 发的'}</p><button data-act="less">不感兴趣<small>以后少给你看类似的</small></button>${u.anon||u.off?'':`<button data-act="block" data-un="${esc(u.n)}"${u.real&&u.id?` data-uid="${esc(u.id)}"`:''}>屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button>`}<button class="warn" data-act="report">举报</button>`;
       el.classList.add('acting');return}
     if(d.act&&['less','block','report','r'].includes(d.act)&&!S.gok){need(d.act==='less'?'less':d.act==='block'?'block':'report',()=>again(t));return}
     if(d.act){const A=d.act,drop=f=>{S.L.filter(f).forEach(y=>S.gone.add(String(y.id)));S.L=S.L.filter(y=>!f(y));if(S.open&&!find(S.open))shut();drawHome();if(S.court)drawCourt()};
       if(A==='report'){$('.acts .g').innerHTML=`<p class="ah2">举报的原因</p><button data-act="r" data-rr="harass">骚扰或冒犯</button><button data-act="r" data-rr="photo">不当照片</button><button data-act="r" data-rr="fraud">虚假交易</button><button data-act="r" data-rr="other">其他</button>`;
         track('report_open',{target_type:'sb_post',via:'sideline'});return}
       el.classList.remove('acting');
-      if(A==='r'){const id=S.open,R=S.rep||(S.rep=new Set());if(R.has(String(id))){say('report_duplicate');return}const c=sbRate(S,'sb_report');if(c){say(c);return}R.add(String(id));track('report_submit',{target_type:'sb_post',reason:d.rr||'other',has_note:false,via:'sideline'});toast('已收到，我们会尽快处理')}
-      if(A==='less'){const x=find(S.open),c=catOf(x),n=U(x).n;S._lx={id:x.id,c,n};track('sb_hide',{post_id:x.id,reason:'none'});shut();drop(y=>String(y.id)===String(x.id));el.classList.add('acting');
+      if(A==='r'){const id=S.open,R=S.rep||(S.rep=new Set());if(R.has(String(id))){say('report_duplicate');return}const c=sbRate(S,'sb_report');if(c){say(c);return}R.add(String(id));track('report_submit',{target_type:'sb_post',reason:d.rr||'other',has_note:false,via:'sideline'});toast('已收到，我们会尽快处理');
+        rlSafe('/api/reports',{target_type:'sb_post',target_id:String(id),reason:d.rr||'other',via:'sideline'},()=>R.delete(String(id)))}
+      if(A==='less'){const x=find(S.open),c=catOf(x),n=U(x).n;S._lx={id:x.id,c,n};track('sb_hide',{post_id:x.id,reason:'none'});shut();drop(y=>String(y.id)===String(x.id));rlSafe('/api/sideline/posts/'+x.id+'/hide',{reason:'none'},()=>{S.gone.delete(String(x.id));loadFeed()});el.classList.add('acting');
         $('.acts .g').innerHTML=`<p class="ah2">这一条已隐藏。想告诉我们原因吗？</p><button data-act="lc">少看「${esc(c)}」<small>同类内容会排得更靠后</small></button><button data-act="lu">少看 ${esc(n)} 的<small>${esc(n)} 发的会排得更靠后</small></button><button data-act="lf">离我太远<small>远处的内容会排得更靠后</small></button><button data-act="l0">只是这一条</button>`;return}
-      if(['lc','lu','lf','l0'].includes(A)){const L=S._lx;if(A!=='l0')track('sb_hide',{post_id:L.id,reason:{lc:'topic',lu:'user',lf:'far'}[A]});if(A==='lc')S.lc[L.c]=1;if(A==='lu')S.lu[L.n]=1;if(A==='lf')S.lf=true;shut();drop(y=>String(y.id)===String(L.id));
+      if(['lc','lu','lf','l0'].includes(A)){const L=S._lx;if(A!=='l0'){const rs={lc:'topic',lu:'user',lf:'far'}[A];track('sb_hide',{post_id:L.id,reason:rs});rlSafe('/api/sideline/posts/'+L.id+'/hide',{reason:rs})}if(A==='lc')S.lc[L.c]=1;if(A==='lu')S.lu[L.n]=1;if(A==='lf')S.lf=true;shut();drop(y=>String(y.id)===String(L.id));
         toast(A==='lc'?`好的，会少给你看「${L.c}」`:A==='lu'?`好的，会少给你看 ${L.n} 的`:A==='lf'?'好的，会多给你看近处的':'好的，这一条不会再出现')}
-      if(A==='block'){const n=d.un;S.bl.add(n);track('user_block',{target_uid:'sb:'+hsh(n)});shut();drop(y=>U(y).n===n&&!y.mine);toast('已屏蔽 '+n)}
+      if(A==='block'){const n=d.un,uid=d.uid;S.bl.add(n);track('user_block',{target_uid:'sb:'+hsh(n)});shut();drop(y=>(uid?y.uid===uid:U(y).n===n)&&!y.mine);toast('已屏蔽 '+n);
+        if(uid)rlSafe('/api/blocks',{user_id:uid},()=>{S.bl.delete(n);loadFeed()})}
       if(A==='del'){const id=S.open,dx=find(id);track('sb_post_delete',{post_id:id});shut();drop(y=>String(y.id)===String(id));toast('已删除');if(S.real&&dx)sendDelete(dx)}
       if(A==='mute'){const x=find(S.open);x.closed=!x.closed;track('sb_replies_toggle',{post_id:x.id,open:!x.closed});drawSheet();toast(x.closed?'已关闭回复':'已允许回复')}
       if(A==='share'){S.share='photo';drawShare();state()}
@@ -564,6 +566,8 @@ function App(el,init){
     if(String(S.open)===String(x.id)){const ri=$('[data-rin]'),v=ri&&ri.value;drawSheet();if(v){const n=$('[data-rin]');if(n){n.value=v;if(n.oninput)n.oninput()}}}};
   // 发布：body 里不带照片（一期纯文字）；topic_title = 大家发起的新话题（二期入口关着）
   const realBody=(v,tp,lk,o={})=>{const b={body:v};if(tp){const T=S.T[tp];if(T&&T.fresh)b.topic_title=T.t;else b.topic_id=tp}const c=lk&&COURTS[lk];if(c&&c.vid)b.venue_id=c.vid;if(o.later)b.later=true;if(o.closed)b.replies_open=false;if(o.tone)b.tone=o.tone;return b};
+  // 举报 / 不感兴趣 / 屏蔽：画面先动，接口失败再回滚并说人话（#369 PR-C）
+  const rlSafe=async(path,b,undo)=>{const net=rlNet();if(!net)return;const r=await net.post(path,b);if(!r.ok){if(undo)undo();if(r.code!=='login_required')say(r.code)}};
   const sendDelete=async x=>{const net=rlNet();if(!net||!x)return;if(x.tmp){x.cancel=1;return}S.gone.add(String(x.id));const r=await net.del('/api/sideline/posts/'+x.id);
     if(!r.ok&&r.status!==404){S.gone.delete(String(x.id));if(r.code!=='login_required')say(r.code);loadFeed()}};
   const realSend=async(x,b,restore)=>{const net=rlNet();if(!net)return;const k=NBQ_IDEM.key('sbpost',b),r=await net.post('/api/sideline/posts',b,{idem:k});NBQ_IDEM.done('sbpost',r);
