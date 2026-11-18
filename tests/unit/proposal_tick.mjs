@@ -1,5 +1,5 @@
 // 提案「24 小时无异议自动生效」（tools/proposal_tick.mjs，11-11）：倒计时、异议、所有者同意、硬红线不自动生效、重新计时。纯函数，不碰网络。
-import { decide, textOf, planOf, swap, marker, LBL, HARD, SILENCE_H, SCHED, schedBlock, schedRows, schedHash, lastSchedHash, schedDrift, schedText, schedMark } from '../../tools/proposal_tick.mjs';
+import { decide, textOf, planOf, swap, marker, LBL, HARD, SILENCE_H, SCHED, schedBlock, schedRows, schedHash, lastSchedHash, schedDrift, schedText, schedMark, pingText, needsPing, pingMark, OWNER } from '../../tools/proposal_tick.mjs';
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok) console.log('FAIL ' + n + (x !== undefined ? ' ' + JSON.stringify(x).slice(0, 400) : '')) };
 const H = 3600e3, T0 = Date.parse('2026-11-11T00:00:00Z'), at = h => new Date(T0 + h * H).toISOString();
 const issue = (o = {}) => ({ number: 9, title: '提案：每周自动清理分支', body: '### 默认方案\n\n每周一自动删已合并分支\n\n### 一句理由\n省事', author: 'MDD1102', created: at(0), ...o });
@@ -56,4 +56,10 @@ T('漂移：读不到表格', schedDrift('## 本周\n没有表', LAB)[0].include
 const tx = schedText(blk, ['x 对不上'], h0);
 T('通知文本：带标记、@ 两个人、指向 #65、每件一行、看得见的行 ≤ 5', tx.startsWith(schedMark(h0)) && SCHED.people.every(x => tx.includes('@' + x)) && tx.includes('#65') && tx.includes('场边一期接真后端 → SMG562 侧会话（#369）') && tx.split('\n').slice(1).length <= 5, tx);
 T('通知文本：无漂移时没有警告行', !schedText(blk, [], h0).includes('⚠'));
+// 11-19（#398 P0）：需拍板的 Issue 第一时间 @ 所有者
+T('格式不合格（malformed）也 @ 所有者与作者', (t => /@SMG562/.test(t) && /@MDD1102/.test(t))(textOf(issue(), { action: 'malformed' })));
+T('需拍板提醒带标记并 @ 所有者', (t => t.startsWith(pingMark) && t.includes('@SMG562'))(pingText({ title: '某提案' })));
+T('没提醒过且作者不是所有者 → 要提醒', needsPing({ author: 'MDD1102' }, []) === true);
+T('已提醒过 → 不重复', needsPing({ author: 'MDD1102' }, [{ body: pingMark + 'x' }]) === false);
+T('作者就是所有者 → 不提醒', needsPing({ author: OWNER }, []) === false);
 console.log(`proposal_tick: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
