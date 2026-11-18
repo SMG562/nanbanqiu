@@ -5,7 +5,7 @@ const K = await adminKit('admin_switches'), { T, call, as, one } = K;
 try {
   await K.guards('GET', '/admin/api/switches'); await K.guards('POST', '/admin/api/switches/set', { key: 'maintenance', on: true, reason: '测试维护' });
   let r = await call('GET', '/admin/api/switches', { cookie: as.owner });
-  T('owner 读：三个开关，默认全关', r.s === 200 && r.j.switches.map(x => x.key + ':' + x.is_on).join() === 'maintenance:false,register_paused:false,sms_paused:false', r);
+  T('owner 读：四个开关，默认全关', r.s === 200 && r.j.switches.map(x => x.key + ':' + x.is_on).join() === 'maintenance:false,photos_paused:false,register_paused:false,sms_paused:false', r);
   r = await call('GET', '/admin/api/switches', { cookie: as.operator }); T('运营读 → 403', r.s === 403, r);
   const set = (body, ck = as.owner) => call('POST', '/admin/api/switches/set', { body, cookie: ck });
   r = await set({ key: 'maintenance', on: true, reason: '测试维护' }, as.operator); T('运营切 → 403', r.s === 403, r);
@@ -19,6 +19,8 @@ try {
   T('留痕：switch.set + 开关名 + on + 理由', !!(await one(`select 1 from admin_audit_log where action='switch.set' and target='register_paused' and detail->>'on'='true' and detail->>'reason'='控制上线节奏'`)));
   r = await set({ key: 'register_paused', on: false, reason: '恢复注册' }); T('关掉 → 200，重读是关', r.s === 200 && (await call('GET', '/admin/api/switches', { cookie: as.owner })).j.switches.every(x => !x.is_on), r);
   T('关掉也留痕（共 2 条）', (await one(`select count(*)::int n from admin_audit_log where action='switch.set'`)).n === 2);
-  T('app_switches_get 公开读返回三项', JSON.stringify(await one(`select app_switches_get() j`).then(x => Object.keys(x.j).sort())) === '["maintenance","register_paused","sms_paused"]');
+  T('app_switches_get 公开读返回四项', JSON.stringify(await one(`select app_switches_get() j`).then(x => Object.keys(x.j).sort())) === '["maintenance","photos_paused","register_paused","sms_paused"]');
+  r = await set({ key: 'photos_paused', on: true, reason: '测试停传照片' }); T('owner 停传照片 → 200，公开读是 true，留痕', r.s === 200 && (await one(`select app_switches_get() j`)).j.photos_paused === true && !!(await one(`select 1 from admin_audit_log where action='switch.set' and target='photos_paused' and detail->>'on'='true'`)), r);
+  r = await set({ key: 'photos_paused', on: false, reason: '恢复上传' }); T('关掉停传 → 200，公开读回到 false', r.s === 200 && (await one(`select app_switches_get() j`)).j.photos_paused === false, r);
   await K.done();
 } catch (e) { await K.done(e) }
