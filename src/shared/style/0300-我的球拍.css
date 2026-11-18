@@ -11,14 +11,23 @@
 .rk-br{display:block;margin-bottom:3px;font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
 .rk-se{display:block;font-size:16.5px;font-weight:650;line-height:1.25;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rk-main{flex:none;font-size:11.5px;font-weight:600;line-height:1;letter-spacing:.04em;color:var(--g);background:var(--gss);border:1px solid var(--gs);border-radius:999px;padding:5px 10px}
-.rk .rk-add{min-height:54px;gap:8px;color:var(--g);font-size:15px;font-weight:600}
+.rk .rk-add{min-height:54px;gap:8px;color:var(--g);font-size:15px;font-weight:600;border:1.5px dashed var(--gs);border-radius:14px;margin:8px 14px;width:calc(100% - 28px);padding:10px 14px}
 .rk-plus{font-size:19px;font-weight:400;line-height:1;width:16px;text-align:center}
 .rk-hint{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--mut)}
 .rk-off{padding:16px 18px;font-size:13.5px;color:var(--mut)}
 .rk-card{padding-bottom:4px}.rk-card .rk .rk-row{padding:11px 16px;min-height:58px}.rk-card .rk-se{font-size:15px}.rk-card .rk .rk-add{min-height:48px;font-size:14px}
 .rk-card .rk .rk-row:hover{background:#FAFBFA}
 
+.rk .rk-row.main{min-height:84px;padding:16px 18px}.rk .rk-row.main .rk-se{font-size:19px}.rk .rk-row.main .rk-bd{width:46px;height:46px;font-size:19px}
+.rk-bd{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#EEF0EE;color:var(--ink2);font-size:15px;font-weight:700}
+.rk-more{flex:none;color:var(--mut);font-size:18px;line-height:1;letter-spacing:.1em}
 /* 弹层 */
+.rk-pk{display:flex;flex-direction:column;max-height:calc(var(--rkvh,100dvh) - 72px)}
+.rk-top{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:6px}
+.rk-foot{flex:none;padding-top:10px}.rk-tip{margin:8px 2px 0;font-size:12px;color:var(--mut);text-align:center}
+.rk-q{font-size:16px;margin:4px 0 6px}.rk-nick,.rk-pk .inp{font-size:16px}
+.rk-top .rk-lab{margin-top:12px}.rk-none{margin:12px 2px;font-size:13.5px;color:var(--mut)}
+.rk-chip.on{background:var(--gss);border-color:var(--g)}
 .rk-pk.busy{pointer-events:none}
 .rk-pk.busy .rk-chip:not(.busy),.rk-pk.busy .rk-act:not(.busy){opacity:.45}
 .rk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}
