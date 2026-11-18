@@ -136,7 +136,7 @@ function App(el,init){
         ${x.mine&&x.pend&&x.pend.length?`<div class="scr"><div class="scr-h">${ic('lock')}<b>${x.pend.length} 条回复等你确认</b><span>来自第一次和你说话的人，只有你看得到</span></div>${x.pend.map((r,i)=>{const u=uOf('s'+r.x);return `<div class="scr-r">${av(u,28)}<div><b>${esc(u.n)}</b><p>${esc(r.x)}</p></div><button data-scok="${i}">显示</button><button data-scno="${i}">忽略</button></div>`}).join('')}</div>`:''}<div class="rs">${x.r.map(r=>replyHTML(r,x)).join('')}</div></div>
       ${x.closed?'':`<div class="bar"><div class="box"><span class="hint" style="right:60px">回复…</span><input maxlength="${CFG.settings.post_max_len}" data-rin><button class="send" data-rsend disabled>${ic('up')}</button></div></div>`}`;
     const hs=$('.sheet .hs');if(hs)hs.onscroll=()=>{const k=Math.round(hs.scrollLeft/hs.clientWidth);el.querySelectorAll('.sheet .hd2 i').forEach((d,i)=>d.classList.toggle('on',i===k))};
-    if(x.mine){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
+    if(x.mine&&!x.real){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
     const ri=$('[data-rin]'),rb=$('[data-rsend]'),rh=$('.sheet .hint');
     if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!rb.disabled)rb.click()};
       ri.onblur=()=>setTimeout(()=>{if(S.rto&&!ri.value&&AE()!==ri)clearRto()},220)}};
@@ -229,14 +229,14 @@ function App(el,init){
   const keepRow=x=>`<div class="keep" data-keep="${x.id}"><div><b>${x.keep?'会留下来':'到期就消失'}</b><p>${x.keep?'24 小时后收进「我的」，只有你看得到':'想留下来？打开就好，只有你看得到'}</p></div><span class="tg${x.keep?' on':''}"></span></div>`;
   const drawAlbum=()=>{const pend=S.L.filter(x=>x.mine&&Date.now()-x.t<24*H),MO={};S.A.forEach(x=>{const m=new Date(x.t).getMonth()+1;(MO[m]=MO[m]||[]).push(x)});
     $('.album').innerHTML=`<div class="cnav"><button class="ib" data-aback>${ic('back')}</button></div>
-      <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我的相册</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
+      <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我发布的场边</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
       ${pend.length?`<div class="pend">${pend[0].pic?`<span class="th">${PIC(pend[0].pic,'hero',pend[0].tone)}</span>`:''}<div>公开中 <b>${pend.length} 条</b>，${life(pend[0].t).txt.replace('还剩 ','')}后存到这里</div></div>`:''}
       ${Object.keys(MO).sort((a,b)=>b-a).map(m=>`<div class="mon">${['','一','二','三','四','五','六','七','八','九','十','十一','十二'][m]}月</div><div class="ag">${MO[m].map(x=>x.pic?`<div class="at" data-pic="${x.id}">${PIC(x.pic,'hero',x.tone)}<em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`:`<div class="at tx3"><p>${esc(x.x)}</p><em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`).join('')}</div>`).join('')}</div>`};
   const showRemind=id=>{const x=find(id);if(!x)return;const r=$('.remind'),mins=Math.max(1,Math.round((24*H-(Date.now()-x.t))/M));
     r.innerHTML=`${x.pic?`<span class="th">${PIC(x.pic,'hero',x.tone)}</span>`:''}<div><p>「${esc(x.x.length>12?x.x.slice(0,12)+'…':x.x)}」还剩 <b>${mins} 分钟</b>，刚刚又有 3 个人点了网球。</p><div class="bt"><button class="k1" data-keep1="${x.id}">留下来</button><button data-letgo>让它走</button></div></div>`;
     r.classList.add('show')};
   let undoT;
-  const showUndo=msg=>{const u=$('.undo'),D=S.undoHold?6e5:8000;u.innerHTML=`<span>${msg}</span><button data-undo>撤回</button><i></i>`;u.classList.add('show');
+  const showUndo=msg=>{const u=$('.undo'),D=S.undoHold?6e5:8000;u.innerHTML=S.real?`<span>已发布，保质期 24h 😊</span><i></i>`:`<span>${msg}</span><button data-undo>撤回</button><i></i>`;u.classList.add('show');
     u.querySelector('i').animate([{transform:'scaleX(1)'},{transform:'scaleX(0)'}],{duration:D,easing:'linear',fill:'forwards'});clearTimeout(undoT);undoT=setTimeout(()=>u.classList.remove('show'),D)};
   const collapse=row=>{const n=row.closest('.slot')||row.closest('.it')||row,h=n.offsetHeight;n.style.overflow='hidden';
     n.animate([{height:h+'px',opacity:1},{height:'0px',opacity:0,marginTop:'0px',marginBottom:'0px'}],{duration:440,easing:'cubic-bezier(.4,0,.2,1)'}).onfinish=()=>n.remove()};

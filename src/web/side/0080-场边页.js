@@ -12,7 +12,7 @@ function sbBoot(){if(SBV)return SBV;const host=$('#sbHost');if(!host)return null
 const SB_WHY={post:'发布前，先用手机号验证一下',reply:'回复前，先用手机号验证一下',ball:'点网球前，先用手机号验证一下',less:'先用手机号验证一下',block:'屏蔽前，先用手机号验证一下',report:'举报前，先用手机号验证一下'};
 function sbGate(k,fn){const ok=()=>{if((k==='post'||k==='reply'||k==='ball')&&acctGuard('sb_'+k))return;fn()};
   if(ME)return ok();AN.trig='sideline';try{openAuth(ok,SB_WHY[k]||SB_WHY.post)}finally{AN.trig=null}}
-// 去场边（导航、右上角菜单「场边相册」、点开场边通知）
+// 去场边（导航、右上角菜单「我发布的场边」、点开场边通知）
 function sbGo(){closeModal();$('#umenu').classList.remove('show');if(UI.landing){UI.landing=null;history.replaceState(null,'','#/')}
   if(UI.tab!=='side'){UI.tab='side';UI.sel=null;render();scrollTo(0,0)}sbBoot()}
 document.addEventListener('click',e=>{const a=e.target.closest('[data-a="sbAlbum"]');if(!a)return;e.stopImmediatePropagation();sbGo();SBV.api.album()},true);

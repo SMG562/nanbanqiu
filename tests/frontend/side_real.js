@@ -138,9 +138,12 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await until(() => E(() => { const r = SBV.L.find(x => x.x === '今晚七点有人打吗'); return r && !r.tmp && r.id === '88888888-8888-4888-8888-888888888888' }));
   T('发布成功：本地临时 id 换成服务器 id', await E(() => { const r = SBV.L.find(x => x.x === '今晚七点有人打吗'); return !!r && !r.tmp && r.id === '88888888-8888-4888-8888-888888888888' }));
   // 撤回 = DELETE
-  S.log.length = 0; await pg.settle(400); await sr('[data-undo]').click(); await until(() => S.log.some(x => x.startsWith('DELETE')));
+  T('发布提示：「已发布，保质期 24h」，没有撤回按钮', (await SRQ('.undo', 'r.textContent')).includes('保质期 24h') && !(await SRQ('.undo', 'r.querySelector("[data-undo]")')), await SRQ('.undo', 'r.textContent'));
+  const dc = sel => E(q => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(q); if (r) r.click(); return !!r }, sel);
+  const acts = async (id, act, ex) => { await dc('[data-s="home"] [data-ln="' + id + '"] .tx'); await until(async () => (await SRQ('.sheet', 'r.textContent')).length > 0); await pg.settle(600); await dc('.sheet [data-menu]'); await pg.settle(300); await pg.settle(400); await sr('.acts [data-act="' + act + '"]').click(); if (ex) { await pg.settle(300); await sr('.acts ' + ex).click(); await pg.settle(300) } };
+  S.log.length = 0; await acts(P5, 'del'); await until(() => S.log.some(x => x.startsWith('DELETE')));
   await until(async () => !(await rows()).some(x => x.includes('今晚七点有人打吗')));
-  T('撤回：DELETE /posts/:id，列表里拿掉', S.log.join() === 'DELETE /api/sideline/posts/P5' && !(await rows()).some(x => x.includes('今晚七点有人打吗')), [S.log, await rows()]);
+  T('删除（帖子菜单）：DELETE /posts/:id，列表里拿掉', S.log.join() === 'DELETE /api/sideline/posts/P5' && !(await rows()).some(x => x.includes('今晚七点有人打吗')), [S.log, await rows()]);
   // 限频
   S.failPost = 'sb_post_hourly_limit'; await sr('[data-in]').fill('连发的第六条'); await sr('[data-send]').click();
   await until(async () => /发得有点多/.test(await toast()));
@@ -169,8 +172,6 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('刷新 + feed 读不到：用本机缓存画，不是空白', cached.length >= 4 && cached.some(x => x.includes('红土 3、4 号空着')), cached);
   T('刷新后配置仍是 v2（内置 v1 没盖掉它）', await E(() => !SB.CFG.topics.some(t => t.id === 'ootd') && SB.today() === 'brain'));
   // ---- 举报 / 不感兴趣 / 屏蔽（PR-C）：打到真接口，失败回滚 ----
-  const dc = sel => E(q => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(q); if (r) r.click(); return !!r }, sel);
-  const acts = async (id, act, ex) => { await dc('[data-s="home"] [data-ln="' + id + '"] .tx'); await until(async () => (await SRQ('.sheet', 'r.textContent')).length > 0); await pg.settle(600); await dc('.sheet [data-menu]'); await pg.settle(300); await pg.settle(400); await sr('.acts [data-act="' + act + '"]').click(); if (ex) { await pg.settle(300); await sr('.acts ' + ex).click(); await pg.settle(300) } };
   S.log.length = 0; await acts(P1, 'report', '[data-rr="harass"]'); await until(() => S.log.includes('POST /api/reports'));
   T('举报：POST /api/reports 带对象和原因', S.bodies['POST /api/reports'] && S.bodies['POST /api/reports'].target_type === 'sb_post' && S.bodies['POST /api/reports'].target_id === P1 && S.bodies['POST /api/reports'].reason === 'harass', S.bodies['POST /api/reports']);
   await pg.settle(500); S.log.length = 0; await acts(P1, 'block'); await until(() => S.log.includes('POST /api/blocks'));

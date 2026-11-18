@@ -22,7 +22,7 @@ function renderMe(){
   ${utSectionHTML('pwa')}
   ${rkSectionHTML('pwa')}
   ${partnersHTML()}
-  <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">场边相册</span><svg class="ch"><use href="#i-ch"/></svg></button></div>
+  <div class="group" style="margin-top:14px"><button class="li" data-a="sbAlbum"><span class="ico sb"><svg><use href="#i-side"/></svg></span><span class="v">我发布的场边</span><svg class="ch"><use href="#i-ch"/></svg></button></div>
   ${PUSH.enabled||ENV==='wechat'?'':`<div class="group" style="margin-top:14px"><button class="li" data-a="nrSet"><span class="ico" style="background:#E5484D"><svg><use href="#i-bell"/></svg></span><span class="v">通知未开启</span><svg class="ch"><use href="#i-ch"/></svg></button></div>`}`;
 }
 // 设置子页（#134 P2）：原来堆在「我的」里的设置，收进右上角齿轮
