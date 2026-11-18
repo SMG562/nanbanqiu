@@ -258,7 +258,7 @@ async function nbqLinkOpen(){if(!NBQ_NET||NBQ_LINK.done||typeof location==='unde
     if(NBQ_LINK.done||(!r.ok&&r.status!==404))return;   // 断网 / 服务器忙：留到下次读完再试
     if(r.ok&&r.data.game){NBQ_LINK.g=nbqFromGame(r.data.game);nbqLinkKeep();g=GAMES.find(x=>x.id===NBQ_LINK.g.id)}}
   if(!g){if(!anon){NBQ_LINK.done=true;toast('这场球局已结束或不公开');return}
-    if(!NBQ_LINK.asked&&typeof openAuth==='function'){NBQ_LINK.asked=true;openAuth(null,'登录后查看这场球局')}return}   // 未登录看不到（女生局 / 私人局 / 已结束）：给出路——登录面板；登录读入后 nbqEnter 会再试一次（11-14 所有者评审）
+    if(!NBQ_LINK.asked&&typeof openAuth==='function'){NBQ_LINK.asked=true;AN.trig='link';try{openAuth(null,'登录后查看这场球局')}finally{AN.trig=null}}return}   // 未登录看不到（女生局 / 私人局 / 已结束）：给出路——登录面板；登录读入后 nbqEnter 会再试一次（11-14 所有者评审）
   NBQ_LINK.done=true;
   if(AN_BUILD==='pwa'){if(!UI.detail)openDetail(g.id,true)}else{UI.landing=code;render()}}
 // 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code} · {st:'gone'} 读取途中退出了（什么都不做）

@@ -91,7 +91,7 @@ const bdHome=()=>{if(AN_BUILD==='pwa')go('disc');else{UI.landing=null;UI.tab='di
 async function bdLandGo(){const L=BD_LAND;if(!L||L.uid)return;
   if(!ME||NBQ_STALE){
     if((typeof sbaWaiting==='function'&&sbaWaiting())||NBQ_STALE){if(++L.tries<60)setTimeout(bdLandGo,500);else BD_LAND=null;return}   // 正在恢复登录：最多等 30 秒
-    track('buddy_scan_view',{target_uid:null,logged_in:false,source:L.src});openAuth(()=>bdLandGo(),'登录后就能看到 TA 的球员卡，加 TA 为球友');return}
+    track('buddy_scan_view',{target_uid:null,logged_in:false,source:L.src});AN.trig='scan';try{openAuth(()=>bdLandGo(),'登录后就能看到 TA 的球员卡，加 TA 为球友')}finally{AN.trig=null}return}
   const r=await NBQ_NET.get('/api/players/no/'+L.no);if(BD_LAND!==L||!ME)return;
   if(!r.ok||!r.data||!r.data.player){BD_LAND=null;toast(r.code==='not_found'||r.ok?'没找到这位球友，可能已注销':apiErrText(r.code));return}
   const u=nbqFromUser(r.data.player);L.uid=u.id;L.card=r.data.player;if(!USERS[u.id])USERS[u.id]=u;
