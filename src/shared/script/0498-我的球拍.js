@@ -3,14 +3,14 @@
  * 数据：挂在 ME.rackets（[{brand|null, series}]，顺序 = 槽位）。真实模式只认服务器：读入走 nbqLoadAll → nbqApply → nbqRacketsIn；
  *   写入走 nbqWrite(PUT /api/me/rackets) 整组替换，成功后用服务器返回的列表；读不到（undefined）时不许改，免得拿空列表把服务器上的冲掉。
  * 演示模式（NBQ_NET 为空）：只改内存。快照（nbq_snap）随 USERS 一起存，刷新不先闪空槽。
- * 开关 NBQ_RACKETS_ON：正式站默认关（上线闸门过了由所有者打开，见 #60 PR-D）；测试环境（分支预览，连测试库）开；
- *   任何设备可用 localStorage nbq_ff_rackets=1 单独打开（真机预看、自动化测试）。关着时不显示入口、也不读接口。
+ * 开关 NBQ_RACKETS_ON：11-18 所有者同意打开（#60 PR-D），所有环境默认开；
+ *   任何设备可用 localStorage nbq_ff_rackets=0 单独关掉（应急、自动化测试）。关着时不显示入口、也不读接口。
  * PR2b（#389，ADR 0014）：品牌 → 系列两级库（GET /api/rackets/lib，第一次打开弹层时读，同一页面只读一次）；没读到 / 数据不对 / 演示模式 → 用 RK_BRANDS 兜底（发旧形状 {brand, series}）。
  *   弹层两步列表：品牌（顶上一个搜索框，搜到系列直接出「品牌 系列」行）→ 系列，点到系列就保存，没有保存按钮、没有说明句。库里的点选发 {brand_id, series_id}，「其他系列」发 other_text，「其他品牌」发旧形状 {brand:null, series}；这两个才有一个输入框 + 「完成」。
  *   昵称（11-18 所有者决定）这一版不开放：不显示、不输入；服务器上已有的昵称编辑时原样带着（RK.keepNick），后续要开再加回输入框。
  *   老行（品牌对不上：brand_id 空、other_text / other_brand_text 皆空）照旧读 brand / series 列。
  *   埋点（字典 tests/spec/events_spec.md）：racket_picker_open / racket_brand_pick / racket_save（服务器保存成功后才发）/ racket_invalid；不记手写的文字。 */
-const NBQ_RACKETS_ON=(()=>{if(typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')return true;try{return localStorage.getItem('nbq_ff_rackets')==='1'}catch(_){return false}})();
+const NBQ_RACKETS_ON=(()=>{try{return localStorage.getItem('nbq_ff_rackets')!=='0'}catch(_){return true}})();
 const RK_MAX=3,RK_LEN=30;
 // 兜底列表：热门品牌 + 系列（只用文字，不发 id）。和种子一致；正常以服务器的品牌 → 系列库为准
 const RK_BRANDS=[['Wilson',['Pro Staff','Blade','Clash','Ultra','Burn','Shift']],['Babolat',['Pure Drive','Pure Aero','Pure Strike']],['Head',['Speed','Radical','Gravity','Prestige','Extreme','Boom']],

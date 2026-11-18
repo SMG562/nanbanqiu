@@ -33,4 +33,10 @@ echo "── 之后合并的 PR："; $R api "repos/$REPO/pulls?state=closed&sort
 echo "── 还在跑 / 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status!="completed" or (.conclusion!="success" and .conclusion!="skipped"))|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.status) \(.conclusion // "")"' 2>/dev/null | grep . || echo "  无"
 echo "── 开着的 PR 之间同改的文件（要串行：先合一个，另一个再 sync_main；开工前 node tools/overlap_check.mjs 查自己的）："; node tools/overlap_check.mjs --prs 2>/dev/null || echo "  读不到"
 echo "── 近 7 天协作规则 / 合并闸门的变化（仅供知悉，不代表记录过时；规则以仓库文件为准）："; git log origin/main --since='7 days ago' --format='  %h %cs %s' -- CLAUDE.md CONTRIBUTING.md 协作实践.md docs/协作分工.md docs/roadmap.md 开发规矩.md tools/pr_merge.sh tools/merge_drift.sh tools/sync_main.sh tools/collab_board.mjs tools/pr_say.sh 2>/dev/null | head -5 | grep . || echo "  无"
+# 11-19（#397 E）文档同步体检：计划 / 台账 / 进度记录有没有漂移（只提示，不拦）
+echo "── 文档同步体检（#397）："; drift=0
+sz=$(wc -c < "$F" | tr -d ' '); [ "$sz" -gt 15360 ] && { echo "  ⚠ $F 有 ${sz} 字节，超过 15KB 目标：把长段原文移到 进度记录_历史.md"; drift=1; }
+for n in $($R api "repos/$REPO/issues/372" --jq .body 2>/dev/null | grep -E '^- \[ \]' | grep -oE '#[0-9]+' | sort -un | tr -d '#'); do st=$($R api "repos/$REPO/issues/$n" --jq .state 2>/dev/null); [ "$st" = "closed" ] && { echo "  ⚠ #372 里 #$n 已关闭但框没打勾"; drift=1; }; done
+if [ -f docs/决定台账.md ]; then old=$(grep -E '^\| [0-9]{2}-[0-9]{2} \|.*\| (生效|待所有者) \|$' docs/决定台账.md | wc -l | tr -d ' '); stale=$(git log -1 --format=%cs -- docs/决定台账.md 2>/dev/null); [ -n "$stale" ] && [ "$(( ($(date +%s) - $(date -d "$stale" +%s)) / 86400 ))" -gt 90 ] && { echo "  ⚠ docs/决定台账.md 已超 90 天没更新（$old 行生效 / 待所有者），复核一遍"; drift=1; }; fi
+[ "$drift" = 0 ] && echo "  无漂移"
 echo "（任何一节不是「无」：记录可能过时——先把这些写进进度记录，再告诉用户「记录比实际落后，以下是我根据 git / PR / CI 补上的」。）"
