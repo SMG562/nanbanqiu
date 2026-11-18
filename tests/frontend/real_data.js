@@ -179,7 +179,8 @@ const VENUES = [{ id: V1, name: 'Test Tennis Club', short_name: 'Test TC', subur
     await pg.evaluate(() => { openAuth(null) }); await pg.settle(800);
     T(tag('新号码划掉资料卡后再点登录：直接回到填资料，不再要手机号 / 验证码'), await pg.$('#npName') !== null && await pg.$('#ph') === null, await pg.evaluate(() => !!document.querySelector('#ph')));
     await pg.fill('#npName', 'Newbie'); await pg.fill('#npLast', 'z'); await pg.click(`[data-npc="${V2}"]`); await pg.settle(200); await pg.click('[data-sx="npg"][data-v="f"]'); await pg.settle(200);
-    await pg.check('#npAdult'); await pg.click('[data-a="npDone"]'); await pg.settle(1200); s = await state();
+    await pg.check('#npAdult'); await pg.click('[data-a="npDone"]'); await pg.settle(1200);
+    await pg.waitForFunction(() => typeof ME !== 'undefined' && ME && ME.name === 'Newbie' && GAMES.length >= 1, null, { timeout: 8000 }).catch(() => { }); s = await state();   // 11-18（#245）：不再只靠固定 1200ms，负载高时读入还没完成 → me:null 误红
     T(tag('新号码注册：昵称 / 姓 / UTR / 成年确认'), S.regBody && S.regBody.nickname === 'Newbie' && S.regBody.last_initial === 'Z' && S.regBody.adult === true && typeof S.regBody.utr === 'number', S.regBody);
     T(tag('新号码：常去球场和性别单独保存，然后读入'), S.clubsBody && S.clubsBody.venue_ids[0] === V2 && S.genderBody && S.genderBody.gender === 'f' && s.me === 'Newbie' && s.g === 1, [S.clubsBody, S.genderBody, s]);
     T(tag('全程没有页面报错'), errs.length === 0, errs);
