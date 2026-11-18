@@ -137,7 +137,7 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
     <div class="kbhide">${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>约满或开打后，发现页和分享链接里不再出现</small></span><span class="sw${f.hide?' on':''}"></span></div>
-    <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场</small></span><span class="sw${f.rep?' on':''}"></span></div>
+    <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场。仅你可见，球友看到的是普通球局</small></span><span class="sw${f.rep?' on':''}"></span></div>
     </div>
     <button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
     </div>`}
