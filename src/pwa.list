@@ -163,6 +163,7 @@ shared/side/0040-数据.js
 shared/side/0050-组件.js
 shared/side/0060-动画.js
 shared/side/0065-发布规则.js
+shared/side/0066-场边接口.js
 shared/side/0070-一个_App_实例.js
 pwa/side/0080-场边页.js
 shared/side/0085-场边通知规则.js
