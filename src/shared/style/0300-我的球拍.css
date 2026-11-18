@@ -25,7 +25,14 @@
 .rk-off{padding:16px 18px;font-size:13.5px;color:var(--mut)}
 .rk-hint{margin-left:6px}
 /* 弹层 */
-.rk-pk{display:flex;flex-direction:column;max-height:min(82dvh,calc(var(--vvh,100dvh) - 56px))}
+.rk-pk{display:flex;flex-direction:column;max-height:min(82dvh,calc(var(--vvh,100dvh) - var(--sb,0px) - var(--wx,0px) - var(--shgap,56px) - 45px - var(--hb,0px)))}   /* 45px = 弹层上下内边距 + 把手；不超过弹层自己的最大高度，弹层本身就不会再出现第二层滚动 */
+.sheet:has(.rk-pk){overflow:hidden}   /* 唯一能滚的是 .rk-sc：弹层和里面各有一层滚动，iOS 聚焦时两层一起滚，输入框就滚到不知哪里（11-18 真机） */
+.rk-kbsum{display:none;margin-top:10px;padding:8px 12px;border-radius:10px;background:#F1F5F1;font-size:12.5px;font-weight:600;color:var(--ink2)}
+/* 键盘弹出（手机端外壳有 .kb）：只留正在填的那一项 + 保存。打字在「拍子名称 / 昵称」时品牌 / 系列折成一行摘要；在搜索框时品牌 / 系列留着（那是搜索结果） */
+.device.kb .rk-pk .sh-t,.device.kb .rk-pk .sh-s,.device.kb .rk-pk .rk-note{display:none}
+.device.kb .rk-pk:has(#rkName:focus,#rkNick:focus) :is(#rkBr,#rkSe){display:none}
+.device.kb .rk-pk:has(#rkName:focus,#rkNick:focus) .rk-kbsum:not(:empty){display:block}
+.device.kb .rk-pk:has(#rkName:focus,#rkNick:focus) .rk-q{display:none}
 .rk-sc{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:4px}
 .rk-ft{flex:none;padding-top:8px;background:inherit}.rk-note{margin:0 0 8px;font-size:12.5px;color:var(--mut);text-align:center}
 .rk-q{width:100%;font-size:16px;margin:10px 0 2px}

@@ -50,6 +50,18 @@ const FLOWS = [
       total++; T(`${name} · ${r.label}：键盘弹出时看得见、点得到`, !r.gone && r.shown && r.focused && r.inView && r.onTop, r);
     }
   }
+  // 我的球拍弹层（11-18 真机：点输入框就滚到不知哪里）：弹层和里面各有一层滚动、内容比弹层高，iOS 聚焦时两层一起滚。
+  // 键盘弹出（.kb 钉住，免得 0285 视口守卫在模拟里又把它摘掉）后：弹层自己不许有滚动、保存按钮在弹层里面、正在填的输入框不靠 scrollIntoView 就在弹层可见区内。
+  for (const [name, js, id] of [['拍子名称', `Object.assign(RK,{i:0,mode:'add',brand:'*',ser:null,q:'',other:'',nick:'',touched:false});rkDraw()`, 'rkName'], ['昵称', `Object.assign(RK,{i:0,mode:'add',brand:null,ser:null,q:'',other:'',nick:'',touched:false});rkDraw()`, 'rkNick'], ['搜索', `Object.assign(RK,{i:0,mode:'add',brand:null,ser:null,q:'',other:'',nick:'',touched:false});rkDraw()`, 'rkQ']]) {
+    await pg.setViewportSize({ width: 390, height: 844 }); await pg.evaluate(() => { const d = document.querySelector('.device'); d.classList.remove('kb'); d.style.removeProperty('--vvh'); d.style.removeProperty('--sb'); try { closeSheet() } catch (_) { } }); await pg.waitForTimeout(300);
+    await pg.evaluate(j => (0, eval)(j), js); await pg.waitForTimeout(500); await pg.setViewportSize({ width: 390, height: 330 });
+    await pg.evaluate(i => document.getElementById(i).focus(), id); await pg.waitForTimeout(100);
+    await pg.evaluate(() => { const d = document.querySelector('.device'); d.classList.add('kb'); d.style.setProperty('--vvh', '330px'); d.style.setProperty('--sb', '50px'); new MutationObserver(() => { if (!d.classList.contains('kb')) d.classList.add('kb') }).observe(d, { attributes: true, attributeFilter: ['class'] }) }); await pg.waitForTimeout(300);
+    const r = await pg.evaluate(i => { const s = document.querySelector('#sheet'), sr = s.getBoundingClientRect(), e = document.getElementById(i).getBoundingClientRect(), sv = document.querySelector('.rk-save').getBoundingClientRect();
+      return { sheetScroll: s.scrollHeight - s.clientHeight, saveIn: sv.bottom <= sr.bottom + 1 && sv.top >= sr.top, fieldIn: e.top >= sr.top && e.bottom <= sr.bottom + 1 && e.top >= 0 && e.bottom <= innerHeight + 1 } }, id);
+    T(`我的球拍 · ${name}：键盘弹出时弹层自己不滚、保存按钮在弹层内、输入框在可见区`, r.sheetScroll <= 1 && r.saveIn && r.fieldIn, r);
+    await pg.evaluate(() => { const d = document.querySelector('.device'); d.classList.remove('kb'); d.style.removeProperty('--vvh'); d.style.removeProperty('--sb'); try { document.activeElement.blur() } catch (_) { } });
+  }
   // 同屏重画保草稿：新用户资料里先打「姓氏首字母」，再点 UTR 按钮（整张重画），字还在；表单故意清空 / 改值的不被盖回去
   await pg.setViewportSize({ width: 390, height: 600 }); await pg.evaluate(() => { document.querySelector('.device').classList.remove('kb'); closeSheet() }); await pg.waitForTimeout(250);
   await pg.evaluate(() => openNewProfile()); await pg.waitForTimeout(500);

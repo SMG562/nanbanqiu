@@ -93,6 +93,7 @@ function rkParts(){const g=$('#rkBr');if(!g)return;
   g.innerHTML=rkBrands().map(b=>`<button class="rk-chip brand${RK.brand===b?' on':''}" data-a="rkBrand" data-b="${esc(b.name)}" aria-pressed="${RK.brand===b}">${esc(b.name)}</button>`).join('')+`<button class="rk-chip brand oth${RK.brand==='*'?' on':''}" data-a="rkOther" aria-pressed="${RK.brand==='*'}">其他品牌</button>`;
   $('#rkSe').innerHTML=RK.brand==='*'?'':rkSeriesChips();
   const t=$('#rkTx');t.hidden=!rkNeedText();$('#rkName').placeholder=RK.brand==='*'?'品牌和型号，例如 Diadem Elevate':'系列 / 型号，例如 Pro Staff 97';
+  const sm=$('#rkSum');if(sm)sm.textContent=RK.brand==='*'?'其他品牌':RK.brand?RK.brand.name+(RK.ser?' · '+RK.ser.name:''):'';
   const sv=document.querySelector('[data-a="rkSave"]');if(sv)sv.disabled=!rkValid()}
 // 编辑 / 重读库后：把已选的对回库里的品牌和系列（按 id，没有 id 按名字）
 function rkReselect(){const r=RK.mode==='swap'?(rkList()||[])[RK.i]:null;if(!r)return;const G=rkGroups(),bn=rkBr(r).toLowerCase();
@@ -104,7 +105,7 @@ function rkDraw(){const c=rkCls(),L=rkList()||[],cur=RK.mode==='swap'?L[RK.i]:nu
   rkShow(`<div class="rk-sc"><div class="${c.t}">${cur?'编辑球拍':'添一把球拍'}</div><p class="${c.s}">${cur?'换品牌 / 系列，或者只改昵称。':RK.i===0||!L.length?'这把会是你的主力。':'选品牌和系列就好。'}</p>
     <input id="rkQ" class="inp rk-q" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="搜品牌或系列，例如 Pure Drive" value="${esc(RK.q)}" aria-label="搜索球拍">
     <div class="rk-grid brands" id="rkBr"></div><div class="rk-grid" id="rkSe"></div>
-    <label class="rk-field" id="rkTx" hidden><span class="rk-lab">拍子名称</span><input id="rkName" class="inp" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" value="${esc(RK.other)}"></label>
+    <div class="rk-kbsum" id="rkSum"></div><label class="rk-field" id="rkTx" hidden><span class="rk-lab">拍子名称</span><input id="rkName" class="inp" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" value="${esc(RK.other)}"></label>
     <label class="rk-field"><span class="rk-lab">昵称（选填，≤${RK_NICK} 个字）</span><input id="rkNick" class="inp" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="例如 老伙计" value="${esc(RK.nick)}"></label>
     <div class="rk-meta"><span class="rk-err" id="rkErr" role="alert"></span><span class="rk-n" id="rkN">${[...RK.nick].length}/${RK_NICK}</span></div></div>
     <div class="rk-ft"><p class="rk-note">球拍和姓名一样，所有球友可见</p><button class="btn btn-p rk-save" data-a="rkSave" disabled>保存</button></div>`);
