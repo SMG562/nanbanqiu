@@ -53,7 +53,7 @@ wrap('togglePop',o=>function(){const r=o.apply(this,arguments);const p=document.
 addEventListener('click',()=>later(anSync));
 
 /* ---------- 登录 ---------- */
-function trig(next){if(AN.trig)return AN.trig;const el=AN.clickEl,d=el&&el.closest&&(el.closest('[data-a],[data-iv]')||{}).dataset||{};
+function trig(next){if(AN.trig)return AN.trig;const el=Date.now()-(AN.clickT||0)<5000?AN.clickEl:null,d=el&&el.closest&&(el.closest('[data-a],[data-iv]')||{}).dataset||{};
   if(next&&next===window.openCreate||d.a==='create')return'create';if(d.a==='apply')return'apply';if(d.a==='myCard'||d.a==='custom')return'card';
   if(d.iv==='new')return'invite';if(d.a==='login')return/女生/.test(el.textContent||'')?'women':'manual';return'other'}
 wrap('openAuth',o=>function(next,why){

@@ -57,7 +57,7 @@ function anOverlay(name){AN.overlay=name;anPage(name)}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){if(AN.pv){track('page_time',{screen:AN.pv.screen,ms:Date.now()-AN.pv.t});AN.pv.t=Date.now()}track('app_hide');anFlush()}
   else{if(AN.pv)AN.pv.t=Date.now();track('app_show')}});
 // 记录这次点击发生在哪块区域，用来区分「从列表 / 地图 / 消息 / 通知 / 球员卡 / 我的球局 / 详情」进入
-addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;AN.clickEl=t;
+addEventListener('click',e=>{const t=e.target;if(!t||!t.closest)return;AN.clickEl=t;AN.clickT=Date.now();
   AN.ctx=t.closest('.rc,.rc-p')?'recap':t.closest('.req,.rq-c')?'request':t.closest('#banner,#dn')?'notif':t.closest('.mapel,#mapView,#map,.mapbox,.vcs,.vpanel,[data-vc],[data-pin],.mcard')?'map'
     :t.closest('.cx-th,.cxsheet,.cx-list,.cx-m,.cx-web')?'chat':t.closest('#scr-notif,#pop,.ntf')?'notif':t.closest('.pc,[data-card],.kdb,.fp,.cardsheet,.invbtn,.pals')?'card'
     :t.closest('#scr-mine,.tl2,.ivq')?'mine':t.closest('#detail,.dpanel,#colR,.dp,.land')?'detail':'list'},true);

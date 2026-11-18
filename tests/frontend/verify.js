@@ -233,6 +233,13 @@ async function entries(b,plat){const W=plat==='Web',out={};
    T(plat+' share link: page_view',L.some(e=>e.ev==='page_view'&&e.props.screen===(W?'landing':'game_detail')),L.map(e=>[e.ev,e.props.screen]))}
   {const [L]=await one('?source=pwa',async()=>0);T(plat+' source param',(L.find(e=>e.ev==='session_start')||{props:{}}).props.source==='pwa')}
   {const [L]=await one('#/mine',pg=>0);T(plat+' #/mine',L.some(e=>e.ev==='page_view'&&e.props.screen==='mine'),L.map(e=>[e.ev,e.props.screen]))}
+  // 登录来源要记对：没有点击就自动弹出的登录，不能沿用很久以前那次点击（原先 98% 记成 other，看不出入口）；链接 / 扫码落地有自己的名字；未登录约 TA 直接弹登录，不再弹「请先登录」
+  {const trg=async(setup)=>{const [L,r]=await one('',async pg=>{await pg.evaluate(()=>AN_LOG.splice(0));await pg.evaluate(setup);await pg.settle(300);return pg.evaluate(()=>({lo:AN_LOG.filter(e=>e.ev==='login_open').map(e=>e.props.trigger),ph:!!document.getElementById('ph'),toast:(document.getElementById('toast')||{}).textContent||''}))});return r};
+   const mk="const b=document.createElement('button');b.dataset.a='apply';document.body.appendChild(b);AN.clickEl=b;";
+   let r=await trg(new Function(mk+"AN.clickT=Date.now()-6000;openAuth(null,'x')"));T(plat+' login trigger: 很久以前的点击不算 → other',eq(r.lo,['other']),r);
+   r=await trg(new Function(mk+"AN.clickT=Date.now();openAuth(null,'x')"));T(plat+' login trigger: 刚点过「申请」→ apply',eq(r.lo,['apply']),r);
+   r=await trg(new Function("AN.trig='link';try{openAuth(null,'x')}finally{AN.trig=null}"));T(plat+' login trigger: 分享链接落地 → link',eq(r.lo,['link']),r);
+   r=await trg(()=>{ME=null;newInvite('jason')});T(plat+' 未登录约 TA：弹登录，不弹「请先登录」',r.ph&&!/请先登录/.test(r.toast),r)}
   {const [L]=await one('#/new',pg=>0);const lo=L.filter(e=>e.ev==='login_open');T(plat+' #/new → login (create)',lo.length===1&&lo[0].props.trigger==='create',lo.map(e=>e.props))}
   {const [L,r]=await one('#/p/0062',async pg=>{const a=await pg.evaluate(()=>AN_LOG.splice(0));
       // 未登录在球员卡点「约 TA 打球」：打开登录，登录后回到邀约表单
