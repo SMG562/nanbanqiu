@@ -71,24 +71,25 @@ try {
     { name: '球员卡 · 举报一位球友（骚扰）', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
     { name: '后台处理这条举报后，前台刷新不再显示「已举报」', act: async (pg, x) => { const r = await x.adminHandleReport(x.H, x.P, 'actioned'); T('后台列表里看得到这条举报、处理成功', r.listed && r.handled, r); await pg.reload() }, check: (pg, x) => pg.evaluate(p => typeof NBQ_STALE !== 'undefined' && !NBQ_STALE && !!ME && Object.keys(VEN).length > 0 && !repOpenOf('user', p), x.P) },
     { name: '后台处理后可以重新举报同一位球友', act: async (pg, x) => { await clickAttrs(pg, { 'data-a': 'report', 'data-u': x.P }); await pg.waitForSelector('[data-rp="harass"]', { state: 'attached', timeout: 15000 }); await clickAttrs(pg, { 'data-rp': 'harass' }) }, check: (pg, x) => pg.evaluate(p => !!repOpenOf('user', p), x.P) },
-    // ---- 我的球拍 B2（#60，ADR 0009）：选择列表来自真服务器的产品库；点选发 catalog_id；手写的由服务器归到产品库（库里和页面都以产品库写法为准）----
-    { name: '我的球拍 · 从产品库点选（Wilson Blade）', act: async pg => {
+    // ---- 我的球拍（#389 PR2b，ADR 0014）：选择列表来自真服务器的品牌 → 系列库；点选发 {brand_id, series_id, nickname}；老写法「head  speed」由服务器按名字对回库里（记 id）----
+    { name: '我的球拍 · 点选 Wilson Blade + 昵称', act: async pg => {
         await clickAttrs(pg, { 'data-a': 'rkSlot', 'data-i': '0' });
-        await pg.waitForFunction(() => typeof RK_CAT !== 'undefined' && !!RK_CAT.groups && !!document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Wilson"]'), null, { timeout: 15000 });
+        await pg.waitForFunction(() => typeof RK_LIB !== 'undefined' && !!RK_LIB.groups && !!document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Wilson"]'), null, { timeout: 15000 });
         await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Wilson"]').click());
-        await pg.waitForSelector('.rk-pk [data-a="rkSeries"][data-s="Blade"][data-c]', { state: 'attached', timeout: 15000 });
-        await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkSeries"][data-s="Blade"]').click());
+        await pg.waitForSelector('.rk-pk [data-a="rkSeries"][data-s="Blade"]', { state: 'attached', timeout: 15000 });
+        await pg.evaluate(() => { document.querySelector('.rk-pk [data-a="rkSeries"][data-s="Blade"]').click(); const k = document.getElementById('rkNick'); k.value = '老伙计'; k.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-a="rkSave"]').click() });
         await pg.waitForFunction(() => (ME.rackets || []).length === 1, null, { timeout: 15000 }); await pg.evaluate(() => anFlush()) },   // 埋点先发出去（无头浏览器刷新时不会补发队列里的）
-      check: async (pg, x) => { const id = (await admin.query(`select id from racket_catalog where brand = 'Wilson' and series = 'Blade'`)).rows[0].id, db = (await admin.query(`select catalog_id from user_rackets where user_id = $1 and slot = 1`, [x.H])).rows[0];
-        return !!db && db.catalog_id === id && await pg.evaluate(id => (ME.rackets || []).some(r => r.series === 'Blade' && r.catalog_id === id), id) } },
-    { name: '我的球拍 · 手写「head  speed」→ 服务器归到产品库 Head Speed', act: async pg => {
+      check: async (pg, x) => { const db = (await admin.query(`select u.brand_id, u.series_id, u.nickname, b.name bn, s.name sn from user_rackets u join brands b on b.id = u.brand_id join racket_series s on s.id = u.series_id where u.user_id = $1 and u.slot = 1`, [x.H])).rows[0];
+        return !!db && db.bn === 'Wilson' && db.sn === 'Blade' && db.nickname === '老伙计' && await pg.evaluate(() => { const r = (ME.rackets || [])[0]; return !!r && r.series === 'Blade' && !!r.brand_id && !!r.series_id && r.nickname === '老伙计' }) } },
+    { name: '我的球拍 · 其他系列（Head · Pro Test 9）', act: async pg => {
         await clickAttrs(pg, { 'data-a': 'rkSlot', 'data-i': '1' });
-        await pg.waitForSelector('.rk-pk [data-a="rkOther"]', { state: 'attached', timeout: 15000 }); await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkOther"]').click());
-        await pg.waitForSelector('#rkName', { state: 'attached', timeout: 15000 });
-        await pg.evaluate(() => { const i = document.getElementById('rkName'); i.value = 'head  speed'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-a="rkSave"]').click() });
+        await pg.waitForSelector('.rk-pk [data-a="rkBrand"][data-b="Head"]', { state: 'attached', timeout: 15000 }); await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkBrand"][data-b="Head"]').click());
+        await pg.waitForSelector('.rk-pk [data-a="rkSeries"][data-s="其他系列"]', { state: 'attached', timeout: 15000 }); await pg.evaluate(() => document.querySelector('.rk-pk [data-a="rkSeries"][data-s="其他系列"]').click());
+        await pg.waitForSelector('#rkName', { state: 'visible', timeout: 15000 });
+        await pg.evaluate(() => { const i = document.getElementById('rkName'); i.value = 'Pro Test 9'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-a="rkSave"]').click() });
         await pg.waitForFunction(() => (ME.rackets || []).length === 2, null, { timeout: 15000 }); await pg.evaluate(() => anFlush()) },
-      check: async (pg, x) => { const id = (await admin.query(`select id from racket_catalog where brand = 'Head' and series = 'Speed'`)).rows[0].id, db = (await admin.query(`select brand, series, catalog_id from user_rackets where user_id = $1 and slot = 2`, [x.H])).rows[0];
-        return !!db && db.catalog_id === id && db.brand === 'Head' && db.series === 'Speed' && await pg.evaluate(id => { const r = (ME.rackets || [])[1]; return !!r && r.brand === 'Head' && r.series === 'Speed' && r.catalog_id === id }, id) } },
+      check: async (pg, x) => { const db = (await admin.query(`select u.brand_id, u.series_id, u.other_text, b.name bn from user_rackets u join brands b on b.id = u.brand_id where u.user_id = $1 and u.slot = 2`, [x.H])).rows[0];
+        return !!db && db.bn === 'Head' && db.series_id === null && db.other_text === 'Pro Test 9' && await pg.evaluate(() => { const r = (ME.rackets || [])[1]; return !!r && r.brand === 'Head' && r.series === 'Pro Test 9' && !!r.brand_id && !r.series_id && r.other_text === 'Pro Test 9' }) } },
     // 屏蔽放最后：屏蔽后和对方的球局、赛后都不再可见
     { name: '屏蔽一位球友', act: (pg, x) => pg.evaluate(p => nbqBlock(p, true), x.P), check: (pg, x) => pg.evaluate(p => !!ME.blocked && ME.blocked.has(p), x.P) },
     // 自检：只改内存的动作，刷新后必须「丢」——证明这套检查真能发现「没写服务器」
@@ -139,7 +140,7 @@ try {
     const rkSaves = async () => (await admin.query(`select props from events where event = 'racket_save' and build = $1 order by occurred_at`, [W ? 'web' : 'pwa'])).rows.map(r => r.props);
     T(`${f} 球拍埋点入库：racket_save = [add/catalog/1, add/other/2]`, await until(async () => JSON.stringify(await rkSaves()) === JSON.stringify([{ action: 'add', source: 'catalog', n_after: 1 }, { action: 'add', source: 'other', n_after: 2 }])), await rkSaves());
     const rkAll = (await admin.query(`select event, props from events where event like 'racket_%' and build = $1`, [W ? 'web' : 'pwa'])).rows;
-    T(`${f} 球拍埋点入库：打开、选品牌（Wilson / other）都在，不含手写文字`, rkAll.some(r => r.event === 'racket_picker_open') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'Wilson') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'other') && !/head  speed|head speed/.test(JSON.stringify(rkAll)), rkAll);
+    T(`${f} 球拍埋点入库：打开、选品牌（Wilson / Head）都在，不含手写文字`, rkAll.some(r => r.event === 'racket_picker_open') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'Wilson') && rkAll.some(r => r.event === 'racket_brand_pick' && r.props.brand === 'Head') && !/head  speed|head speed/.test(JSON.stringify(rkAll)), rkAll);
     T(`${f} 无脚本错误`, perr.length === 0, perr); await ctx.close();
   }
 } catch (e) { fail++; console.log('FAIL 异常 ' + String((e && (e.stack || e.message)) || JSON.stringify(e)).slice(0, 1500)) } finally { try { await br?.close() } catch (_) { } try { await admin?.end() } catch (_) { } c.stop() }

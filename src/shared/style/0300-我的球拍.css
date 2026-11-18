@@ -2,23 +2,38 @@
    只有主力行右侧一个绿色「主力」标签，其余行没有箭头、没有图标框，整行可点。 */
 .rk-h{display:inline-flex;align-items:center;gap:6px}
 .rk-hi{width:16px;height:16px;color:var(--g);flex:none}
-.rk .rk-row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 18px;border:0;border-top:1px solid var(--line);background:none;
+.rk-pwa{background:#fff;border-radius:16px;padding:10px;border:1px solid var(--line)}
+.rk{display:flex;flex-direction:column;gap:8px}.rk-card .rk{padding:0 12px 10px}
+.rk-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rk .rk-row{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-width:0;border:1px solid var(--line);border-radius:14px;background:#fff;
   font:inherit;color:var(--ink);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
-.rk .rk-row:first-child{border-top:0}
+.rk .rk-big{min-height:84px;padding:14px 44px 14px 14px}.rk .rk-sm{min-height:68px;padding:10px 32px 10px 10px;gap:8px}
 .rk .rk-row:active{background:#F7F8F7}
-.rk .rk-row:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-back:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
+.rk .rk-row:focus-visible,.rk-chip:focus-visible,.rk-act:focus-visible,.rk-save:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
 .rk .rk-row .v{flex:1;min-width:0}
-.rk-br{display:block;margin-bottom:3px;font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.rk-av{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#EEF1EE;color:var(--ink2);font-size:16px;font-weight:700}
+.rk-sm .rk-av{width:30px;height:30px;font-size:13px}
+.rk-br{display:block;margin-top:3px;font-size:12px;font-weight:500;line-height:1.2;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rk-se{display:block;font-size:16.5px;font-weight:650;line-height:1.25;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-sm .rk-se{font-size:14.5px}
 .rk-main{flex:none;font-size:11.5px;font-weight:600;line-height:1;letter-spacing:.04em;color:var(--g);background:var(--gss);border:1px solid var(--gs);border-radius:999px;padding:5px 10px}
-.rk .rk-add{min-height:54px;gap:8px;color:var(--g);font-size:15px;font-weight:600}
-.rk-plus{font-size:19px;font-weight:400;line-height:1;width:16px;text-align:center}
-.rk-hint{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--mut)}
+.rk-more{position:absolute;right:10px;top:8px;font-size:18px;line-height:1;color:var(--mut);letter-spacing:1px}
+.rk .rk-add{justify-content:center;gap:8px;border-style:dashed;background:none;color:var(--g);font-size:15px;font-weight:600}
+.rk .rk-add.rk-big{min-height:72px}.rk .rk-add.rk-sm{min-height:68px;padding:10px;font-size:14px}
+.rk-plus{font-size:17px;line-height:1}
+.rk-hint{font-size:12.5px;font-weight:400;color:var(--mut)}
 .rk-off{padding:16px 18px;font-size:13.5px;color:var(--mut)}
-.rk-card{padding-bottom:4px}.rk-card .rk .rk-row{padding:11px 16px;min-height:58px}.rk-card .rk-se{font-size:15px}.rk-card .rk .rk-add{min-height:48px;font-size:14px}
-.rk-card .rk .rk-row:hover{background:#FAFBFA}
-
+.rk-hint{margin-left:6px}
 /* 弹层 */
+.rk-pk{display:flex;flex-direction:column;max-height:min(82dvh,calc(var(--vvh,100dvh) - 56px))}
+.rk-sc{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:4px}
+.rk-ft{flex:none;padding-top:8px;background:inherit}.rk-note{margin:0 0 8px;font-size:12.5px;color:var(--mut);text-align:center}
+.rk-q{width:100%;font-size:16px;margin:10px 0 2px}
+.rk-grid.brands{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));margin-top:10px}
+.rk-grid.brands .rk-chip{min-height:42px;padding:6px 10px;border-radius:12px;font-size:12.5px}
+.rk-chip.on{background:var(--gss);border-color:var(--g);color:var(--g)}
+.rk-none{grid-column:1/-1;padding:10px 2px;font-size:13px;color:var(--mut)}
+.rk-field[hidden]{display:none}
 .rk-pk.busy{pointer-events:none}
 .rk-pk.busy .rk-chip:not(.busy),.rk-pk.busy .rk-act:not(.busy){opacity:.45}
 .rk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}
@@ -31,10 +46,6 @@
 .rk-chip small{font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--mut)}
 .rk-chip.busy::after,.rk-act.busy::after{content:"";position:absolute;right:14px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;border:2px solid var(--gs);border-top-color:var(--g);animation:rkspin .7s linear infinite}
 @keyframes rkspin{to{transform:rotate(360deg)}}
-.rk-nav{display:flex;align-items:center;gap:2px}
-.rk-nav>div{margin:0}
-.rk-back{width:36px;height:36px;margin-left:-10px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:none;color:var(--ink2);cursor:pointer}
-.rk-back svg{width:22px;height:22px}.rk-back:active{background:#F0F2F0}
 .rk-field{display:block;margin-top:14px}
 .rk-lab{display:block;font-size:12.5px;font-weight:600;color:var(--ink2);margin:0 2px 6px}
 .rk-meta{display:flex;justify-content:space-between;gap:10px;min-height:20px;margin:6px 2px 12px;font-size:12.5px}
