@@ -9,6 +9,7 @@
     "frontend/e2e_admin_login": 59,
     "frontend/csp": 55,
     "frontend/side_notif": 53,
+    "frontend/side_real": 45,
     "frontend/rackets": 45,
     "frontend/notif_open": 45,
     "pg/perf@对照": 32,
