@@ -12,7 +12,7 @@ const card = (id, n, no, o = {}) => ({ id, member_no: no, nickname: n, last_init
     const W = f.includes('Web'), tag = s => `${W ? 'Web' : 'PWA'}${on ? '' : '（开关关）'} ${s}`;
     const ctx = await b.newContext({ viewport: W ? { width: 1360, height: 860 } : { width: 390, height: 844 } });
     const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message));
-    if (on) await pg.addInitScript(() => { try { localStorage.setItem('nbq_ff_rackets', '1') } catch (_) { } });
+    await pg.addInitScript(v => { try { localStorage.setItem('nbq_ff_rackets', v) } catch (_) { } }, on ? '1' : '0');
     const me = { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString() };
     const S = { myRk: [{ slot: 1, brand: 'Head', series: 'Speed', catalog_id: null }], getFail: false };
     const profiles = () => ({ [ME]: card(ME, 'Sam', 1288, { rackets: [] }), [P1]: card(P1, 'Pat', 1001, { rackets: [{ slot: 1, brand: 'Wilson', series: 'Blade', catalog_id: null }, { slot: 2, brand: null, series: '老拍', catalog_id: null }] }),
