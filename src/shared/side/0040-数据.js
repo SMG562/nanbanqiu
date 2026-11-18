@@ -76,7 +76,7 @@ const U=x=>x.u||(x.u=x.mine?ME_U:x.anon?ANON_U:x.ed?OFF_U:uOf('p'+x.id));
 const RU=(r,x)=>r.u||(r.u=r.me?ME_U:r.op?U(x):uOf('r'+r.x));
 const catOf=x=>/出 |\$|二手|转让/.test(x.x)?'二手':/捡到|丢了|谁的|有人捡/.test(x.x)?'失物':x.topic?'#'+TOPICS[x.topic].t:/雨|风|晒|热|冷|晚霞|月亮/.test(x.x)?'天气':/场地|空着|灯|干了|关了|开着|号场/.test(x.x)?'场地':x.pic?'照片':'闲聊';
 const CIC=x=>({'天气':'i-weather','场地':'i-court','二手':'i-tag','失物':'i-found'})[catOf(x)];
-const UREG={};const regU=u=>{const k='u'+hsh(u.n);UREG[k]=u;return k};
+const UREG={};const regU=u=>{const k='u'+hsh(u.id||u.n);UREG[k]=u;return k};
 const av=(u,s=18)=>`<span class="av${u.anon?' an':''}${u.off?' of':''}" style="width:${s}px;height:${s}px;font-size:${Math.round(s*.46)}px;background:${u.c}">${u.anon||u.off?'':esc([...u.n][0])}</span>`;
 const unb=u=>`<b class="un"${u.anon||u.off?'':` data-user="${regU(u)}"`}>${esc(u.n)}</b>`;
 const DAY=d=>new Date(2026,d[0]-1,d[1],8).getTime();
@@ -90,7 +90,7 @@ const ALBUM=()=>norm([
   {id:'a7',t:DAY([9,22]),x:'换了新手胶',w:'Glen Iris',b:7,r:[],pics:['gear'],tone:''},
   {id:'a8',t:DAY([9,15]),x:'影子',w:'Glen Iris',b:40,r:[],pics:['shadow'],tone:'film'},
   {id:'a9',t:DAY([9,3]),x:'清晨的红土',w:'Kooyong',b:26,r:[],pics:['clay'],tone:'warm'}]);
-const TODAY=sbToday();
+let TODAY=sbToday();
 const TOPICS={ootd:{t:'网球人的OOTD',k:'今日推荐 · 周五',q:'今天穿什么上场？拍一张发上来。',ask:'今天穿什么上场？',fills:['今天这身是','第一次穿网球裙上场，','这双鞋终于到了，'],n:37,left:'9 小时',daily:1},
   love:{t:'别人在恋爱，而我在打球',k:'常驻话题',q:'周末的约会对象：一块场，一筐球。',ask:'周末和网球约会了吗？',fills:['这个周末的约会对象，是','别人在约会，我在','今天又和球拍待了一下午，'],n:486},
   gear:{t:'我的新装备',k:'常驻话题',q:'新拍子、新鞋、新手胶，拆开的那一刻。',ask:'最近换了什么装备？',fills:['换了新拍子，','新鞋第一次上场，','纠结了一个月，终于入手了'],n:212},

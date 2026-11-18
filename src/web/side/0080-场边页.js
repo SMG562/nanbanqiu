@@ -7,7 +7,7 @@ const SB_WEB_CSS=`:host{background:var(--bg);background-image:var(--noise)}
 let SBV=null;
 function sbBoot(){if(SBV)return SBV;const host=$('#sbHost');if(!host)return null;const root=host.attachShadow({mode:'open'});
   root.innerHTML=`<style>${SB_CSS}${SB_WEB_CSS}</style>${SB_SVG}<div class="wb"><div></div></div>`;const el=root.querySelector('.wb>div');
-  SBV=SB.App(el,{desk:true,live:true,first:2200,every:5200,home:'',gate:sbGate,err:apiErrText,ntf:o=>sbNtf(o)});return SBV}
+  SBV=SB.App(el,{desk:true,live:true,first:2200,every:5200,home:'',getMe:()=>ME,gate:sbGate,err:apiErrText,ntf:o=>sbNtf(o)});return SBV}
 // 场边的写操作：没登录 → 先登录，登录后接着做；发布 / 回复 / 网球再看账号状态（同手机端，接口文档 §14.11）
 const SB_WHY={post:'发布前，先用手机号验证一下',reply:'回复前，先用手机号验证一下',ball:'点网球前，先用手机号验证一下',less:'先用手机号验证一下',block:'屏蔽前，先用手机号验证一下',report:'举报前，先用手机号验证一下'};
 function sbGate(k,fn){const ok=()=>{if((k==='post'||k==='reply'||k==='ball')&&acctGuard('sb_'+k))return;fn()};

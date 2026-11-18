@@ -172,6 +172,7 @@ add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致
 add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_scroll.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边整页上移 / 卡顿回归
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
+add('frontend', 'frontend/side_real', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_real.js')], { pass: [/side_real: \d+ 通过, 0 失败/], timeout: 300 });   // #369 PR-B 场边接真后端（真实模式）
 add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F3 网页端接入场边
 // 第八批 T2：设计稿 v35 的 146 项场边测试（原来读 QA_FILE 设计稿），改测正式页面（手机端 / 网页端），tests/场边/lib.cjs 做转接
 for (const [n, nm] of [[1, '信息流'], [2, '网球点赞'], [3, '筛选'], [4, '详情回复菜单'], [5, '底栏'], [6, '发布页'], [7, '话题墙相册'], [8, '压力边界'], [9, '攒着的新动态'], [10, '选球场行与底栏芯片'], [11, '新动态先攒着']])

@@ -21,13 +21,13 @@ const sbToday=(hot=SB_HOT)=>{const now=melNow(),k=dkey(now);
   const inWeek=new Set(CFG.week.flatMap(x=>[x.topic_id,x.alt_topic_id]).filter(Boolean));
   return CFG.topics.filter(t=>t.kind==='evergreen').sort((a,b)=>(inWeek.has(a.id)-inWeek.has(b.id))||a.sort-b.sort||(a.id<b.id?-1:1)).map(t=>t.id)[0]};
 // 演示：本周最热的大家发起的话题（正式版由数据库按近 7 天发帖人数算）
-const SB_HOT='u2';
+let SB_HOT='u2';
 // 演示数字（今天几条）：正式版由信息流接口返回
 const SB_N={ootd:37,love:486,gear:212,sunset:153,pet:96,spot:131,good:88,dopa:174,brain:207,trip:58};
-const sbApplyTopics=T=>{const now=melNow(),today=sbToday(),left=Math.max(1,24-now.h);
-  Object.keys(T).forEach(k=>{if(!T[k].user)delete T[k]});
+const sbApplyTopics=T=>{const now=melNow(),today=sbToday(),left=Math.max(1,24-now.h),kn={};
+  Object.keys(T).forEach(k=>{kn[k]=T[k].n;if(!T[k].user)delete T[k]});
   CFG.topics.filter(t=>t.kind!=='user'&&live(t)).sort((a,b)=>a.sort-b.sort).forEach(t=>{
-    T[t.id]={t:t.title,k:t.id===today?'今日推荐 · '+WD[now.dow]:t.kind==='limited'?'限时话题':'常驻话题',q:t.intro||'',ask:t.ask||'',fills:t.starters||[],n:SB_N[t.id]||0,...(t.id===today?{left:left+' 小时',daily:1}:{})}});
+    T[t.id]={t:t.title,k:t.id===today?'今日推荐 · '+WD[now.dow]:t.kind==='limited'?'限时话题':'常驻话题',q:t.intro||'',ask:t.ask||'',fills:t.starters||[],n:SB_N[t.id]||kn[t.id]||0,...(t.id===today?{left:left+' 小时',daily:1}:{})}});
   if(T[today]&&T[today].user)Object.assign(T[today],{k:'今日推荐 · '+WD[now.dow],left:left+' 小时',daily:1});
   if(!T[today])T[today]={t:'',k:'',q:'',ask:'',fills:[],n:0}};
 const HQ0=(t,tp,sc)=>({t,tp:tp||null,sc:sc||null});
