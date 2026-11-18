@@ -8,6 +8,7 @@
 - 隐私：不记录聊天内容、手机号、精确位置、性别值；用户关闭「使用数据」后不发任何事件（含未登录访客）。
 - source: C = 前端（两端都必须发，同名同 props），S = 服务端/API 层。
 - 场边（sb_*，第八批 F2）：两端都发（网页端 F3 起）；post_id 是场边发布的 id，不记发布和回复的内容。
+- login_open 的 trigger 取值另有 link（分享链接落地登录）、scan（扫球员码落地登录），字典「props」列没改（改库要迁移，等一并再登记）。
 
 | 事件 | 分类 | 来源 | 说明 | props |
 |---|---|---|---|---|
@@ -24,7 +25,7 @@
 | a2hs_back | 安装 | C | 从添加步骤回到页面，看到「放好了吗」 | — |
 | analytics_off | 隐私 | C | 关闭使用数据（发完这一条后停止） | — |
 | analytics_on | 隐私 | C | 重新打开使用数据 | — |
-| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/link/scan/...) |
+| login_open | 登录 | C | 打开登录（含被动触发） | trigger(apply/create/invite/chat/manual/sideline/...) |
 | login_send_code | 登录 | C | 发送验证码的结果（号码格式通过才发；真实登录拿到结果后才记） | ok, reason(rate_limited/provider_error/network/paused/unknown，仅失败), cc, n(本次登录第几次发送) |
 | login_resend | 登录 | C | 重发验证码（第 2 次及以后的发送） | n |
 | login_verify | 登录 | C | 提交验证码的结果 | ok, reason(wrong_code/too_many/network/unknown，仅失败), secs(从发码成功到提交的秒数) |
