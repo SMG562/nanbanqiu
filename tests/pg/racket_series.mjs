@@ -34,7 +34,7 @@ try {
   T('拼写不同的旧品牌映射（HEAD/Head、TFight/T-Fight）', await n(`select count(*) n from racket_catalog c where c.status='active' and not exists (select 1 from racket_series s join brands b on b.id=s.brand_id where lower(replace(b.name,'-',''))=lower(replace(c.brand,'-','')))`) === 0);
 
   // —— 表约束（绕过函数直接写）
-  const br = (await q(`select id from brands order by id limit 1`)).rows[0]?.id, se = (await q(`select id from racket_series where brand_id=$1 and not is_other limit 1`, [br])).rows[0]?.id;
+  const br = (await q(`select id from brands where lower(name) <> 'head' order by name limit 1`)).rows[0]?.id, se = (await q(`select id from racket_series where brand_id=$1 and not is_other limit 1`, [br])).rows[0]?.id;
   const cons = async (name, cols, v, ok) => { await q(`delete from user_rackets where user_id=$1`, [Z]); const r = await q(`insert into user_rackets(user_id,slot,series,${cols}) values ($1,1,'x',${v})`, [Z]); T('约束：' + name, ok ? !r.err : !!r.err, r.err) };
   await cons('series_id 与 other_text 都有 → 拒', 'brand_id,series_id,other_text', `'${br}','${se}','老拍'`, false);
   await cons('series_id 与 other_text 都没有 → 拒', 'brand_id', `'${br}'`, false);
