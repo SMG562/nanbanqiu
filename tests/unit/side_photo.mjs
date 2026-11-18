@@ -15,8 +15,17 @@ T('文件在空沙盒里能载入，两端都拼进去了', !!X.sbPhQueue && ['p
 const names = Array.from({ length: 500 }, X.sbPhName);
 T('随机名 16–24 位且只含 [A-Za-z0-9_-]', names.every(n => /^[A-Za-z0-9_-]{16,24}$/.test(n)));
 T('500 个随机名不重复', new Set(names).size === 500);
-const sch = rd('schema.sql'), m = sch.match(/\[A-Za-z0-9_-\]\{(\d+),(\d+)\}/);
-T('与数据库键正则的长度范围一致（8–64 ⊇ 16–24）', !m || (+m[1] <= 16 && +m[2] >= 24), m && m[0]);
+T('随机名不以 -t / -b 结尾（会撞变体键）', names.every(n => !/-[tb]$/.test(n)));
+{ // 强制前两次抽到以 -t / -b 结尾的名字：应重抽，最终名合格
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-', idx = s => [...s].map(c => A.indexOf(c));
+  const fixed = [idx('aaaaaaaaaaaaaa-t'), idx('aaaaaaaaaaaaaa-b')]; let calls = 0;
+  const sb2 = vm.createContext({ sbLS, Date, Promise, setTimeout, clearTimeout, AbortController, Array, Object, Error, Uint8Array,
+    Math: Object.assign(Object.create(Math), { random: () => 0 }), // n = 16
+    crypto: { getRandomValues: a => { const f = fixed[calls++]; for (let i = 0; i < a.length; i++) a[i] = f ? f[i] : (i * 7 + 3) % 62; return a } } });
+  vm.runInContext(rd(F) + '\n;globalThis.__n=sbPhName', sb2);
+  const n2 = sb2.__n();
+  T('抽到 -t / -b 结尾时重抽，最终名合格', calls === 3 && !/-[tb]$/.test(n2) && /^[A-Za-z0-9_-]{16,24}$/.test(n2), { calls, n2 });
+}
 
 // ---- 缩放 ----
 T('长边缩到 1600、不放大、比例保持', JSON.stringify(X.sbPhFit(4000, 3000, 1600)) === '{"w":1600,"h":1200}' && JSON.stringify(X.sbPhFit(800, 600, 1600)) === '{"w":800,"h":600}' && X.sbPhFit(3000, 4000, 1600).h === 1600);

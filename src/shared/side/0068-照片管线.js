@@ -5,9 +5,12 @@
 const SB_PH={full:1600,t:480,b:48,max:3,mp:16e6,pre:4096,conc:2,tries:3,
   bytes:{full:1.5e6,t:150e3,b:4e3},steps:[.82,.7]};
 const sbPhErr=(code,x)=>Object.assign(new Error(code),{code},x);
-const sbPhName=()=>{const A='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-',n=16+Math.floor(Math.random()*9),
-  r=typeof crypto!=='undefined'&&crypto.getRandomValues?crypto.getRandomValues(new Uint8Array(n)):Array.from({length:n},()=>Math.floor(Math.random()*256));
-  return Array.from(r,v=>A[v%64]).join('')};
+// 名字不能以 -t / -b 结尾（会和别张图的变体键 <名>-t.jpg / <名>-b.jpg 撞名，服务端同样拒收）→ 以它们结尾就重抽
+const sbPhName=()=>{const A='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';let s;
+  do{const n=16+Math.floor(Math.random()*9),
+    r=typeof crypto!=='undefined'&&crypto.getRandomValues?crypto.getRandomValues(new Uint8Array(n)):Array.from({length:n},()=>Math.floor(Math.random()*256));
+    s=Array.from(r,v=>A[v%64]).join('')}while(/-[tb]$/.test(s));
+  return s};
 // 长边缩到 max（不放大）
 const sbPhFit=(w,h,m)=>{const s=Math.min(1,m/Math.max(w,h));return {w:Math.max(1,Math.round(w*s)),h:Math.max(1,Math.round(h*s))}};
 // 编码一个变体：质量 .82 → .7，仍超就缩小（full 缩到 1280 再 1024；t / b 同比例）。仍超 → photo_too_big
