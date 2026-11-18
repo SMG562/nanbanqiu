@@ -119,6 +119,7 @@ add('pg', 'pg/admin_sb_config', ['node', path.join(HERE, 'pg/admin_sb_config.mjs
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/racket_series', ['node', path.join(HERE, 'pg/racket_series.mjs')], { pass: [/racket_series: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/buddies', ['node', path.join(HERE, 'pg/buddies.mjs')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-A
 add('pg', 'pg/admin_buddies', ['node', path.join(HERE, 'pg/admin_buddies.mjs')], { pass: [/admin_buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友统计 #110 PR-A3
 add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
