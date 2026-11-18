@@ -43,7 +43,7 @@ const tagMini=c=>(c.tags||[]).filter(k=>TAG_MINI.includes(k)).map(k=>`<em class=
 function gxHTML(c){const rows=[];
   if(isW(c))rows.push(`<div class="gx"><span class="gxi tg-w">♀</span><span><b>女生局</b><small>只有女生能看到和报名</small></span></div>`);
   if((c.tags||[]).includes('newbie'))rows.push(`<div class="gx"><span class="gxi tg-n">🌱</span><span><b>新手友好</b><small>节奏轻松，不计较失误，第一次来也没关系</small></span></div>`);
-  const s=seriesOf(c);if(s&&c.isHost&&s.active)rows.push(`<div class="gx"><span class="gxi tg-a">↻</span><span><b>每${WD[s.wd]} ${s.t} 自动发布</b><small>此设置仅你可见，球友看到的是普通球局</small></span></div>`);
+  const s=seriesOf(c);if(s&&c.isHost&&s.active)rows.push(`<div class="gx" style="align-items:center"><span class="gxi tg-a">↻</span><b>每${WD[s.wd]} ${s.t} 自动发布</b></div>`);
   const other=(c.tags||[]).filter(k=>!['women','newbie'].includes(k)&&TAGS[k]);
   return rows.length||other.length?`<div class="gxs">${other.length?`<div class="gtags">${other.map(k=>`<em>${TAGS[k][0]}</em>`).join('')}</div>`:''}${rows.join('')}</div>`:''}
 const ANON_SVG='<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M4.5 21c1-4.2 4-6.3 7.5-6.3s6.5 2.1 7.5 6.3"/></svg>';
