@@ -191,6 +191,12 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('通知点开：读不到的（已删 / 看不到）→ 不打开、说已经不在了', (await E(id => SBV.api.ensure(id), U('5'))) === false);
   T('通知过时检查：真实模式没读进来的不当成已不在', await E(id => sbGone({ kind: 'sb_ball', sb_post_id: id }), U('4')) === null);
 
+  // ---- 一期开关（PR-D）：真实模式不出「稍后公开」「新建话题」；照片开关默认开 ----
+  await dc('[data-cam]'); await pg.settle(600);
+  await dc('[data-cset]'); await pg.settle(500);
+  T('一期：发布设置里没有「2 小时后再公开」，有「允许回复」', await SRQ('.csh', "r.textContent.includes('允许回复') && !r.textContent.includes('2 小时后再公开')"), await SRQ('.csh', 'r.textContent'));
+  T('一期：照片开关默认开，稍后公开 / 新话题默认关', await E(() => SB_PHOTOS_ON() === true && SB_LATER_ON() === false && SB_NEWTOPIC_ON() === false));
+  T('一期：照片开关能紧急关', await E(() => { window.NBQ_SB_PHOTOS_ON = false; const o = SB_PHOTOS_ON(); delete window.NBQ_SB_PHOTOS_ON; return o === false }));
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
 })();
