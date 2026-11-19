@@ -50,7 +50,7 @@ function App(el,init){
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
     const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
-    if(S.real&&!fil&&!L.length)rows.push(`<div class="empty">${S.loaded?'今天还没有人说话 · 来说第一句吧':S.loadErr?'没连上网络，稍后会自动重试':'正在读取场边…'}</div>`);
+    if(S.real&&!fil&&!L.length)rows.push(S.loaded?emptyCard():`<div class="empty">${S.loadErr?'没连上网络，稍后会自动重试':'正在读取场边…'}</div>`);
     if(fil&&!rows.length)rows.push(`<div class="empty">${mine?'你的球场今天还很安静':'这里今天还很安静'}</div>`);
     list.innerHTML=fbarHTML(L.length)+rows.join('');
     const mt=$('[data-mine]');if(mt){mt.classList.toggle('on',mine);mt.style.display=S.homes.length?'':'none'}
@@ -164,7 +164,7 @@ function App(el,init){
   const TONES=[['','原片'],['warm','暖阳'],['film','胶片'],['dawn','清晨']];
   const shHTML=k=>{const C=S.cmp,pic=C.pics[0];
     if(k==='topic')return `<p class="csh-t">选个话题</p><label class="tq"><span>#</span><input data-tq maxlength="${CFG.settings.name_max}" placeholder="搜一个，没有就新建"></label><div class="tl">${tRows('')}</div>`;
-    return `<p class="csh-t">发布设置</p><div class="op" data-tg="later"><div><b>2 小时后再公开</b><p>打完球再让大家看到</p></div><span class="tg${C.later?' on':''}"></span></div><div class="op" data-tg="replyOn"><div><b>允许回复</b></div><span class="tg${C.replyOn?' on':''}"></span></div>`};
+    return `<p class="csh-t">发布设置</p>${S.real&&!SB_LATER_ON()?'':`<div class="op" data-tg="later"><div><b>2 小时后再公开</b><p>打完球再让大家看到</p></div><span class="tg${C.later?' on':''}"></span></div>`}<div class="op" data-tg="replyOn"><div><b>允许回复</b></div><span class="tg${C.replyOn?' on':''}"></span></div>`};
   const GEN=CFG.generic;   // 太宽的词：后台配置
   const SIM=SB_ALIAS();   // 相似词：后台配置
   const tRows=q=>{const C=S.cmp,pic=C.pics[0],ids=Object.keys(S.T),lq=q.toLowerCase(),sim=Object.keys(SIM).filter(w=>lq.includes(w)).map(w=>SIM[w]),m=id=>!q||S.T[id].t.toLowerCase().includes(lq)||sim.includes(id),used=new Set(),G=[];
@@ -173,7 +173,7 @@ function App(el,init){
     const sub=id=>{const T=S.T[id];return id===TODAY?'今日推荐 · 已有 '+T.n+' 张':T.mine?'你刚发起的':T.user?`由 ${esc(T.by)} 发起 · ${T.n} 人发过`:T.n+' 条'};
     let h=G.map(([l,a])=>`<div class="pk-l">${l}</div>${a.map(id=>`<button class="pi${C.topic===id?' on':''}" data-tp="${id}"><span class="pin2">#</span><div><b>${esc(S.T[id].t)}</b><small>${S.T[id].ask?esc(S.T[id].ask)+' · ':''}${sub(id)}</small></div>${ic('check')}</button>`).join('')}`).join('');
     const exact=ids.some(id=>S.T[id].t.toLowerCase()===lq)||!!(SIM[lq]&&S.T[SIM[lq]]);
-    if(q&&!exact){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:[...q].length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
+    if(q&&!exact&&!(S.real&&!SB_NEWTOPIC_ON())){const nw=sbGeneric(lq)?`<div class="tnew no"><b>#${esc(q)}</b> 太宽了，换个具体的？比如 #反手终于开窍了</div>`:[...q].length<2?'':`<button class="pi tnew" data-tnew="${esc(q)}"><span class="pin2">+</span><div><b>新建 #${esc(q)}</b><small>发出后，别人也能用这个话题</small></div></button>`;
       h=sbGeneric(lq)?nw+(G.length?`<div class="pk-l">试试这些</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):''):(G.length?`<div class="pk-l">已有相似的</div>`+h.replace(/<div class="pk-l">[^<]*<\/div>/g,''):'')+nw}
     return h+(q?'':`<button class="pi${!C.topic?' on':''}" data-tp="" style="margin-top:8px"><span class="pin2">–</span><div><b>不加话题</b></div>${ic('check')}</button>`)};
   // 弹层 / 选球场从底部滑入前，先让键盘收完：键盘还在时页面被缩成「键盘上方那一小块」（.device.kb），弹层在小块里滑入会顶到最上面，键盘收起后再落回底部（11-17 真机）
@@ -243,6 +243,10 @@ function App(el,init){
   // 话题卡：叠起来的三张 + 楼数
   const topicCard=()=>{const T=S.T[TODAY],th=S.L.filter(x=>x.topic===TODAY&&x.pic).sort((a,b)=>b.floor-a.floor).slice(0,3).reverse();
     return `<div class="tpc" data-topic="${TODAY}"><div><span class="k">${T.k}</span><span class="tt">#${esc(T.t)}</span><small>已有 <span class="n"><b>${T.n}</b></span> ${S.real?'条 · 说一句':'张 · 我也发一张'}</small></div><div class="stk">${th.map(x=>`<i>${PIC(x.pic,'band',x.tone)}</i>`).join('')}</div></div>`};
+  // 空状态 = 邀请（不造假）：今日话题 + 一句提问 + 3 个一点即填 + 说一句 / 拍一张 / 选一张（照片开关关时只有「说一句」）
+  function emptyCard(){const T=S.T[TODAY];if(!T)return '<div class="empty">今天还没有人说话 · 来说第一句吧</div>';
+    const F=(T.fills||[]).slice(0,3),ph=SB_PHOTOS_ON();
+    return `<div class="empty sbe"><span class="k">${esc(T.k||'今日话题')}</span><b>#${esc(T.t)}</b><p>${esc(T.ask||'今天还没有人说话 · 来说第一句吧')}</p>${F.length?`<div class="sts">${F.map(f=>`<button class="st" data-efill="${esc(f)}">${esc(f)}<i>…</i></button>`).join('')}</div>`:''}<div class="ebt"><button class="go" data-esay>说一句</button>${ph?'<button data-esay="pic">拍一张</button><button data-esay="pic">选一张</button>':''}</div></div>`}
   const refreshTopic=x=>{const old=list.querySelector('.tpc');
     if(old&&x.topic===TODAY){const n=S.T[TODAY].n,tmp=document.createElement('div');tmp.innerHTML=topicCard();const nc=tmp.firstElementChild;
       const o=nc.querySelector('.n');o.innerHTML=`<span class="roll"><b>${n-1}</b><b>${n}</b></span>`;old.replaceWith(nc);
@@ -388,7 +392,7 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
@@ -418,6 +422,7 @@ function App(el,init){
       if(A==='mute'){const x=find(S.open);x.closed=!x.closed;track('sb_replies_toggle',{post_id:x.id,open:!x.closed});drawSheet();toast(x.closed?'已关闭回复':'已允许回复')}
       if(A==='share'){S.share='photo';drawShare();state()}
       return}
+    if('efill' in d||'esay' in d){openCompose({topic:TODAY,text:d.efill||'',ph:S.T[TODAY]&&S.T[TODAY].ask,lib:d.esay==='pic'});return}
     if('qtx' in d){S.qtp=null;drawQ();return}
     if('qx' in d){const q=S.qhq||{};const v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc});return}
     if('place' in d){S.lpOn?closeLp():openLp();return}
@@ -628,7 +633,7 @@ function App(el,init){
   return S;
 }
 
-return {App,CFG,rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
+return {App,CFG,flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
   photo:{env:sbPhEnv,run:sbPhRun,pick:sbPhPick,queue:sbPhQueue,draft:{get:sbPhDraftGet,set:sbPhDraftSet,clear:sbPhDraftClear},limits:SB_PH}};   // 照片管线（P3）：P4 发布页接线用；测试也从这里取
 })();
 
