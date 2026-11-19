@@ -8,6 +8,14 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
 const pm = fs.readFileSync(path.join(ROOT, 'tools/pr_merge.sh'), 'utf8'), mg = fs.readFileSync(path.join(ROOT, 'tools/merge_gate.mjs'), 'utf8');
 T('pr_merge.sh ④ 调 merge_drift.sh --db-parity，自己不再查 db-parity 运行记录', /bash tools\/merge_drift\.sh --db-parity "\$SHA"/.test(pm) && !/db-parity\.yml\/runs/.test(pm));
 T('merge_gate.mjs 调 merge_drift.sh --db-parity，自己不再查 db-parity 运行记录', /'tools\/merge_drift\.sh', '--db-parity'/.test(mg) && !/db-parity\.yml\/runs/.test(mg));
+// 11-19（#410 试点 ④）：db-parity 没过时的提示要给完整可复制命令；每个 -f 参数都得是对应工作流真有的输入（改参数名提示会失效，这里先红）
+for (const [wf, tag] of [['staging-migrate', 'MIGCMD'], ['db-parity', 'DBPCMD']]) {
+  const line = (pm.match(new RegExp(tag + '="([^"]*)"')) || [])[1] || '', y = fs.readFileSync(path.join(ROOT, '.github/workflows/' + wf + '.yml'), 'utf8');
+  const keys = [...line.matchAll(/-f (\w+)=/g)].map(m => m[1]);
+  T(`${tag} 给出完整的 gh workflow run ${wf}.yml 命令，参数都是工作流的真输入`, line.includes(`gh workflow run ${wf}.yml`) && keys.length > 0 && keys.every(k => new RegExp('\\n      ' + k + ':').test(y)), { line, keys });
+}
+T('db-parity 的命令带确认词 confirm=production', /DBPCMD="[^"]*-f confirm=production/.test(pm));
+T('pr_say 那句双引号里没有反引号（bash 会当命令替换，等于检查时真触发工作流）', !/需要你操作[^\n]*`/.test(pm));
 
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nbq-dbp-')), bin = path.join(tmp, 'bin'), fx = path.join(tmp, 'runs.json');
