@@ -1,4 +1,11 @@
 /* ===== 首页引导条：显示规则（纯函数，不碰页面；tests/unit/intro_rules.mjs 在空沙盒里测）=====
- * 只给「第一次来、没登录、直接打开首页」的人看一眼南伴球是干什么的；任何一条不满足就不显示。
- *   on 开关 · loggedIn 已登录或本机有登录快照 / 令牌 · seen 本机看过 · standalone 从主屏幕打开 · deep 从分享 / 推送 / 球局链接进来 */
-function nbqIntroDecide(c){c=c||{};return c.on&&!c.loggedIn&&!c.seen&&!c.standalone&&!c.deep?'show':'off'}
+ * 11-19 起：每天每端（pwa / web 各算一次）最多显示一次，所有人都看（含已登录、从主屏幕打开）；
+ *   从分享 / 推送 / 球局链接进来这次不显示，也不占当天额度。
+ *   on 开关 · force 测试用（网址带 ?intro=1，仅预览 / 本地，正式站无效）：无视当天额度、也不占额度 · deep 从分享 / 推送 / 球局链接进来 · surface 'pwa'|'web' · today 本机日期 · days 本机各端最后一次显示的日期
+ *   audience 'all' 所有人｜'new' 只给新用户（本机第一次显示起 14 天内，或没有记录）；isNew 由 nbqIntroIsNew 算
+ * 曝光够了要收窄：把 0502 里的 NBQ_INTRO_AUDIENCE 从 'all' 改成 'new' 即可（一行）。 */
+const NBQ_INTRO_NEW_DAYS=14;
+function nbqIntroDay(d){d=d||new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+function nbqIntroIsNew(rec,now){return !rec||!rec.first||(now||Date.now())-rec.first<NBQ_INTRO_NEW_DAYS*864e5}
+function nbqIntroDecide(c){c=c||{};const days=c.days||{};
+  return c.on&&!c.deep&&(c.surface==='pwa'||c.surface==='web')&&(c.force||days[c.surface]!==c.today)&&(c.audience!=='new'||c.isNew)?'show':'off'}

@@ -165,6 +165,7 @@ add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HER
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
 add('frontend', 'frontend/late_join', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/late_join.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 开打后 30 分钟内仍可申请（11-04）
 add('frontend', 'frontend/intro', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro.js')], { pass: [/intro: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条（11-08）
+add('frontend', 'frontend/intro_motion', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro_motion.js')], { pass: [/intro_motion: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条运动不变式（11-19）：场景不变 / 球一直亮 / 弹跳平滑 / 灯亮不闪 / 退场球不动
 add('frontend', 'frontend/layout_tz', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/layout_tz.js')], { pass: [/layout_tz: \d+ passed, 0 failed/], timeout: 400 });   // 排版守卫：非墨尔本时区 × 窄屏，卡片文字不压住（11-09 逃逸）
 add('frontend', 'frontend/side_court_pick', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_court_pick.js')], { pass: [/side_court_pick: \d+ passed, 0 failed/], timeout: 300 });   // 场边选球场接真实球场（#335 B2）：附近 + 距离、搜索、无结果、无权限、刷新后还在、键盘升起
 add('frontend', 'frontend/club_search', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/club_search.js')], { pass: [/club_search: \d+ passed, 0 failed/], timeout: 300 });   // Home Club 列表加搜索（#335 C）：仍按字母序、不显示距离

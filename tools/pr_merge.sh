@@ -74,9 +74,12 @@ OF=$(gh api "repos/$R/actions/runs?head_sha=$SHA&event=pull_request&per_page=100
 if [ -n "$(git diff --name-only origin/main "$SHA" -- schema.sql server/migrations ':!server/migrations/_bundle.sql')" ]; then   # 11-11：_bundle.sql 是生成文件（ADR 0011），不算库结构改动
   # db-parity 算不算数只有一份实现（11-13，#241）：以库结构最后一次改动为准，只多合并 main 不作废；tools/merge_gate.mjs 也调它
   read -r DS DID DT <<<"$(bash tools/merge_drift.sh --db-parity "$SHA")"
+  # 11-19（#410 试点 ④）：提示给完整可复制命令（含确认词），不让人去翻文档找参数；staging-migrate 的 production 路径会在结束时自动触发 db-parity
+  MIGCMD="gh workflow run staging-migrate.yml --repo $R --ref main -f target=production -f ref=$HEAD -f sha=${SHA:0:7}"; DBPCMD="gh workflow run db-parity.yml --repo $R --ref main -f confirm=production"
   if [ "${DS:-}" = ok ]; then yes "改了数据库：db-parity 在库结构最后一次改动（${DT:-}）之后通过（运行 ${DID:-}）"; else no "改了数据库：需要在库结构最后一次改动（${DT:-?}）之后跑 db-parity 并通过（先在正式库跑迁移）。现在：${DID:-没有}"
+    echo "    ① 正式库迁移（所有者在 production-migrate 批准，结束自动跑 db-parity）：$MIGCMD"; echo "    ② 迁移已执行过、只补跑核对：$DBPCMD"
   # 11-18：卡在所有者才能做的一步时，自动 @ 所有者留言（pr_say 按提交号去重，不会刷屏），不靠会话记得说
-  bash tools/pr_say.sh "$N" 需要你操作 "${SHA:0:7}" "@SMG562 本 PR 改了数据库，卡在你才能做的一步：先在正式库跑迁移（先只读查有无受影响的行），再 Actions 手动跑 db-parity；有「较大风险」的还要预览站真机两项（刷新后还在、换设备登录还在）。做完回一句「好了」，我接着合并。" >/dev/null 2>&1 || true; fi
+  bash tools/pr_say.sh "$N" 需要你操作 "${SHA:0:7}" "@SMG562 本 PR 改了数据库，卡在你才能做的一步：先在正式库跑迁移（先只读查有无受影响的行）：「$MIGCMD」（看完计划页的 SQL 在 production-migrate 批准，结束自动跑 db-parity）；已执行过的只补跑：「$DBPCMD」。有「较大风险」的还要预览站真机两项（刷新后还在、换设备登录还在）。做完回一句「好了」，我接着合并。" >/dev/null 2>&1 || true; fi
 else yes "没改数据库结构，不需要 db-parity"; fi
 PB=$(node tools/pr_body_check.mjs "$N" --merge 2>&1) && yes "PR 描述：入口清单 + 真机两项核对通过" || { no "PR 描述核对没过："; echo "$PB" | sed 's/^/    /'; }
 ME=$(gh api user --jq .login 2>/dev/null || echo "")
@@ -91,6 +94,8 @@ case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   *) yes "自助合并：无红线、无需复核" ;;
 esac
 [ -z "$(git status --porcelain)" ] && yes "本地工作区干净" || no "本地有没提交的改动"
+# 11-19：有运行在等审批 / 排队就顺带列出（只提示不拦；留言 @ 审批人由定时的 queue-watch 工作流发）
+bash tools/ci_wait.sh --stuck --min=5 2>/dev/null | grep -E '^(⏸|⏳)' | head -3 | sed 's/^/ℹ️ /' || true
 [ $bad = 0 ] || { echo "→ 有没满足的项，没有合并。$([ "$CHECK" = "--check" ] || echo " [nbq:block:pr_merge]")"; exit 1; }   # 只给真合并记账，--check 等 CI 是常态不算
 [ "$CHECK" = "--check" ] && { echo "→ 全部满足（--check 只核对，没有推）。"; exit 0; }
 # 11-05：pre-push 闸门要本地「相关测试全绿」戳；经 PR 合并的提交已在 GitHub 对同一提交号跑过 tests-fast + tests 且 completed success（上面 ③ 已核对，走到这里即满足），
