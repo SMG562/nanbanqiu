@@ -213,7 +213,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('一期：照片开关能紧急关', await E(() => { window.NBQ_SB_PHOTOS_ON = false; const o = SB.flags.photos(); delete window.NBQ_SB_PHOTOS_ON; return o === false }));
   // ---- #393 P4b：发布页真选图 → 压缩 → 上传 → 发布带 photos（开关 NBQ_SB_PHOTO_POST）----
     await E(() => { window.NBQ_SB_PHOTO_POST = true }); await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(800);
-  T('P4b：发布页有选图入口（隐藏的文件框 + 加号）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.phadd')"));
+  T('P4b：发布页有选图入口（隐藏的文件框 + 正文下的「照片」按钮；没图时不画大加号框）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.ctool [data-lib]') && !r.querySelector('.phadd')"));
   const jpg = Buffer.from(await E(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#c60'; g.fillRect(0, 0, 600, 400); return c.toDataURL('image/jpeg', .9).split(',')[1] }), 'base64');
   S.failPost = null; S.putN = 0; S.log.length = 0;
   await SRQ('.compose', "(window.__phRm = [], new MutationObserver(m => m.forEach(x => x.removedNodes.forEach(n => n.classList && n.classList.contains('ph1') && window.__phRm.push(n.dataset.u)))).observe(r.querySelector('.phs'), { childList: true }), 1)");

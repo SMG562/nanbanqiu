@@ -48,8 +48,8 @@ const BODY={
 const PM={outfit:1,shadow:1,shoes:1,gear:1};
 const VB={band:{sunset:'0 222 400 157',rain:'0 170 400 157',night:'0 140 400 157',clay:'0 170 400 157',cup:'0 150 400 157'},
           hero:{sunset:'0 150 400 300',rain:'0 100 400 300',night:'0 60 400 300',clay:'0 100 400 300',cup:'0 110 400 300'}};
-// 真照片（#450）：n 是 {ph:1,t,u,b} 对象时画 <img>（band / hero 用缩略 t，full 用原图 u；打码的只有 b）；字符串键仍走内置插画
+// 真照片（#450）：n 是 {ph:1,t,u,b} 对象时画 <img>（band 列表行用缩略 t；hero 详情和 full 大图用 u（1600 边，缩略放大会糊）；打码的只有 b）；字符串键仍走内置插画
 // 地址只认 blob: / https: / 站内 /api/（接口签名地址、本地缩略图），其余一律不画（xss_static 白名单：phSrc）
-const phSrc=(n,crop)=>{const u=String((crop==='full'?n.u||n.t:n.t||n.u)||n.b||'');return /^(blob:|https:\/\/|\/api\/)/.test(u)?esc(u):''};
+const phSrc=(n,crop)=>{const u=String((crop==='band'?n.t||n.u:n.u||n.t)||n.b||'');return /^(blob:|https:\/\/|\/api\/)/.test(u)?esc(u):''};
 const PIC=(n,crop='full',tone)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}" alt="" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block"></div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
 
