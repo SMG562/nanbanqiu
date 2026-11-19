@@ -17,6 +17,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '.github/actions/**'     # 11-19：工作流共用的 composite action（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
@@ -64,11 +65,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: 系统依赖（PostgreSQL 16 + PostGIS）
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3
-          pip install --break-system-packages -q pglast || pip install -q pglast
+      # 11-19（#432 ③b）：慢的是个别 runner 外网极慢（超时重试 / 换镜像无效，#438），改成缓存 .deb、命中就本地装；细节见 .github/actions/ci-apt/action.yml
+      - name: 系统依赖（PostgreSQL 16 + PostGIS；pglast）
+        uses: ./.github/actions/ci-apt
+        with:
+          name: fast
+          packages: postgresql-16 postgresql-16-postgis-3
+          pip: pglast
       - name: 依赖缓存（PGlite、pg）
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

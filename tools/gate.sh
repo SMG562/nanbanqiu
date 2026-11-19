@@ -14,7 +14,7 @@ smoke_triggered() {
 }
 # 11-13（#266）：tests-fast / tests 也按 paths 触发（两份 paths 一致，ci_paths 盯着）；只改文档的提交没有运行记录 = 「不适用」。
 # 下面两个正则要和 tests-fast.yml 的 push.paths 等价，tests/unit/ci_paths 拿每个已跟踪文件对照。
-TESTS_RE='^(src/.*|.*\.(html|js|mjs|cjs|sql|py|json|jsonc|sh)|manifest\.webmanifest|tests/.*|\.github/workflows/.*|\.githooks/.*|\.gitattributes|vendor/.*)$'
+TESTS_RE='^(src/.*|.*\.(html|js|mjs|cjs|sql|py|json|jsonc|sh)|manifest\.webmanifest|tests/.*|\.github/(workflows|actions)/.*|\.githooks/.*|\.gitattributes|vendor/.*)$'
 TESTS_EXCL='^marketing/icons/'
 tests_triggered() {
   git -c core.quotepath=off diff-tree --no-commit-id --name-only -r --root "$SHA" 2>/dev/null \
