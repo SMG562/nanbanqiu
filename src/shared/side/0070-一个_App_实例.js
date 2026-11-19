@@ -190,9 +190,11 @@ function App(el,init){
   const phReal=()=>S.real&&SB_PHOTOS_ON()&&SB_PHOTO_POST();
   const phPend=C=>C.ups.filter(u=>u.st!=='ok').length,phFail=C=>C.ups.some(u=>u.st==='fail');
   const phsHTML=C=>C.ups.map(u=>{const bad=u.st==='fail';return `<div class="ph1 pt"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${bad?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%'}</div>`}</div>`}).join('');
+  const phAddBtn=C=>phReal()&&!C.ups.length?`<button class="phadd big" data-lib>${ic('cam')}<b>添加照片</b><small>最多 3 张</small></button>`:`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
   const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
-  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;h.innerHTML=phsHTML(C)+(C.ups.length<3?`<button class="phadd" data-lib>${ic('plus')}</button>`:'');phGo(C);const t=$('.compose .tones2');if(!t&&C.ups.length)drawCompose()};
-  const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;phPaint(C)}}}));
+  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;h.innerHTML=phsHTML(C)+(C.ups.length<3?phAddBtn(C):'');phGo(C);const t=$('.compose .tones2');if(!t&&C.ups.length)drawCompose()};
+  const phUpMsg=c=>c==='login_required'?'登录过期了，重新登录后点「重试」':c==='photos_unavailable'?'照片服务还没开通，稍后再试':c==='photos_paused'?'照片功能暂时关闭了':c==='photo_net'?'网络不稳，点「重试」再传一次':'没传上去（'+(c||'未知')+'），点「重试」';
+  const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){const was=u.st;u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;if(u.st==='fail'&&was!=='fail')toast(phUpMsg(u.code));phPaint(C)}}}));
   const phMsg=c=>c==='photo_not_image'||c==='photo_decode'||c==='photo_empty'?'这张格式暂时不支持，换一张或截图再发':c==='photo_too_big'?'这张图太大了，换一张试试':'这张图没处理好，换一张试试';
   const phAdd=async files=>{const C=S.cmp;if(!C)return;const k=sbPhPick(files,C.ups.length);if(k.skip)toast('最多三张');
     for(const f of k.take){const u={id:'u'+(++UID),st:'proc',p:0,url:URL.createObjectURL(f)};C.ups.push(u);phPaint(C);
@@ -205,13 +207,13 @@ function App(el,init){
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
         ${stHTML(C)}
-        <div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?`<button class="phadd" data-lib>${ic('plus')}</button>`:''}</div>
+        <div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
         ${pic||C.ups.length?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
       </div>
       <input type="file" accept="image/*" multiple hidden data-cfile>
       <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
-      <div class="ctool"><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
+      <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':''}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
       <div class="pick${C.pick?' on':''}">${pickHTML(C)}</div>
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
@@ -507,7 +509,7 @@ function App(el,init){
     if('ctp' in d){openSh('topic');return}
     if('cset' in d){openSh('set');return}
     if('cshx' in d){closeSh();return}
-    if('lib' in d&&phReal()){if(S.cmp.ups.length>=3){toast('最多三张');return}$('[data-cfile]').click();return}
+    if('lib' in d&&phReal()){if(S.cmp.ups.length>=3){toast('最多三张');return}const ta=$('[data-ctext]');if(ta)ta.blur();$('[data-cfile]').click();return}
     if('lib' in d){S.cmp.lib=!S.cmp.lib;S.cmp.libReady=true;drawCompose();return}
     if(d.fill){S.cmp.text=d.fill;drawCompose();const ct=$('[data-ctext]');ct.focus({preventScroll:true});ct.setSelectionRange(ct.value.length,ct.value.length);return}
     if(d.ln&&!t.classList.contains('pc')){openSheet(d.ln);return}
