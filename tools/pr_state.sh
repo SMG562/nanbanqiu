@@ -20,6 +20,7 @@ if [ "$(git rev-parse --abbrev-ref HEAD)" != "$HEAD" ]; then
   if [ -z "${NBQ_PR_OVERRIDE:-}" ]; then
     echo "⛔ 这个 PR 属于分支 $HEAD 的会话。你不在这个分支上：不要改它的草稿 / Ready 状态。"
     echo "   要它改：在 PR 上留言【请转草稿】/【请转 Ready】+ 理由，由所属会话自己改（见 docs/协作分工.md §1b）。"
+    echo "   如果这个 PR 就是你这个会话开的：先 git checkout -B $HEAD origin/$HEAD（浅克隆先 git fetch --depth=50 origin +refs/heads/$HEAD:refs/remotes/origin/$HEAD），再重跑本命令。[nbq:block:pr_state_branch]"
     exit 2
   fi
   gh pr comment "$PR" -R "$R" --body "【越权改状态】$ACT：$NBQ_PR_OVERRIDE（所有者点头）" >/dev/null
@@ -28,6 +29,8 @@ fi
 if [ "$ACT" = ready ] && [ "$DRAFT" = true ] && [ -z "${NBQ_PR_OVERRIDE:-}" ]; then
   node tools/pr_body_check.mjs "$PR" || { echo "⛔ PR 描述没过核对（见上），先改描述再转 Ready；PR 模板：.github/pull_request_template.md"; exit 4; }
 fi
+# 11-19（#426/#427 同改 doc_budget.mjs，冲突 + tests 重跑一轮）：转 Ready 前看有没有别的开着的 PR 也在改同一批文件（只提醒，不拦）
+if [ "$ACT" = ready ] && [ "$DRAFT" = true ]; then ov=$(node tools/overlap_check.mjs 2>/dev/null | grep '^⚠️ #' || true); [ -z "$ov" ] || echo "$ov"$'\n'"⚠️ [nbq:warn:overlap] 上面的 PR 和本 PR 改了同一批文件：先合一个，另一个再 bash tools/sync_main.sh；别各自转 Ready 后才撞冲突（冲突重推 = tests 重跑约 35 分钟）。"; fi
 case "$ACT" in
   ready) [ "$DRAFT" = true ] || { echo "已经是 Ready"; exit 0; }; P=ready_for_review ;;
   draft) [ "$DRAFT" = false ] || { echo "已经是草稿"; exit 0; }; P=convert_to_draft ;;

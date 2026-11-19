@@ -51,6 +51,10 @@ const lj = [hu('human'), u('l1', 100000), hu('human'), u('l2', 120000), hu('task
 const ll = G.ledgerLine(lj, 'MDD1102', new Date('2026-11-18T01:00:00Z'));
 T('台账行：固定格式、含登录名 / 日期 / 回合 / 各闸门命中；不含对话内容', /^NBQ-LEDGER v1 \| MDD1102 \| 2026-11-18 \| human=3 notif=1 \| readPerHuman=\d+ \| notifShare=\d+ \| ctxMax=140K \| asks=\d \| hits=long:0,edits:0,poll:0,wake:2,bigread:1,ask:0 \| blocks=-$/.test(ll) && !/好|要我/.test(ll), ll);
 T('台账行末尾 blocks=：按闸门数 [nbq:block:<闸门>] 命中；没有则 -（11-19 #410）', G.blockCounts('[nbq:block:pr_say_review] x [nbq:block:pre_push] y [nbq:block:pr_say_review] [nbq:poll]') === 'pr_say_review:2,pre_push:1' && G.blockCounts('') === '-' && /blocks=pre_push:1$/.test(G.ledgerLine(lj + '\n[nbq:block:pre_push]', 'x')));
+T('gh pr list / gh issue view|list 会 403：手写拒绝并给 REST 替代（11-19）；gh api 放行', ['gh pr list --state open', 'gh issue view 12', 'gh issue list -l x'].every(c => /REST|gh api/.test(G.pollingBlock(c) || '')) && G.pollingBlock('gh api repos/SMG562/nanbanqiu/pulls?state=open') === null);
+T('warn 标签也记账：blockCounts 数 [nbq:warn:x]', G.blockCounts('[nbq:warn:repush] a [nbq:block:pre_push] [nbq:warn:repush]') === 'repush:2,pre_push:1');
+{ const f = x => fs.readFileSync(path.join(DIR, x), 'utf8');   // 闸门接线：脚本里真有这些标签（漂移会红）
+  T('11-19 批次闸门已接线：pr_state（报错带修复命令 / 重叠提醒）与 pre-push（重推提醒）', /nbq:block:pr_state_branch/.test(f('tools/pr_state.sh')) && /git checkout -B/.test(f('tools/pr_state.sh')) && /nbq:warn:overlap/.test(f('tools/pr_state.sh')) && /nbq:warn:repush/.test(f('.githooks/pre-push')) && ['pr_state_branch', 'warn:overlap', 'warn:repush'].every(k => f('.claude/skills/collaborator-pitfalls/SKILL.md').includes(k))); }
 T('台账登录名被清洗（防注入）', !/[|\n<]/.test(G.ledgerLine(lj, 'a|b\n<x>').split(' | ')[1]));
 // postLedger：注入假 gh，不碰网络
 const calls = [], fake = (c, a) => { calls.push(a.join(' ')); return a[1] === 'user' ? { status: 0, stdout: 'MDD1102\n' } : { status: 0, stdout: '777\n' } };
