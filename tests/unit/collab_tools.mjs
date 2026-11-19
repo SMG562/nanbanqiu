@@ -63,4 +63,6 @@ s = sm('gen', { pipe: true, nested: true }); T('管道运行 + 仓库嵌在另�
   const w = tmpd('nbq-sh-w-') + '/w'; execFileSync('git', ['clone', '-q', '--depth', '1', 'file://' + o, w], { env }); execFileSync('git', ['fetch', '-q', '--depth', '1', 'origin', 'feat'], { cwd: w, env }); execFileSync('git', ['checkout', '-q', '-B', 'feat', 'FETCH_HEAD'], { cwd: w, env });   // 和云端会话同样的浅克隆方式
   const p = spawnSync('bash', ['-c', `git show origin/main:tools/sync_main.sh >/dev/null 2>&1; cp ${JSON.stringify(path.join(ROOT, 'tools/sync_main.sh'))} /tmp/nbq_sm_$$.sh; bash /tmp/nbq_sm_$$.sh --check; rm -f /tmp/nbq_sm_$$.sh`], { cwd: w, env, encoding: 'utf8' });
   T('浅克隆：main 比分支多 10 个提交，如实报 10（不是 1 / 11 / 几百）', /多 10 个提交/.test(p.stdout), p.stdout + p.stderr); }
+{ const c = spawnSync('node', ['tools/doc_budget.mjs', '--counts'], { cwd: ROOT, encoding: 'utf8' });   // 11-19 #410 试点 ⑥：new_branch.sh 靠它打印件数余量
+  T('doc_budget --counts：打印「余量：tools 脚本数 N/M、工作流数 N/M」并正常退出', c.status === 0 && /^余量：tools 脚本数 \d+\/\d+、工作流数 \d+\/\d+/m.test(c.stdout), c.stdout); }
 console.log(`collab_tools: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
