@@ -97,6 +97,8 @@ add('pg', 'pg/privacy', ['node', path.join(HERE, 'pg/privacy.mjs')], { pass: [/p
 add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass: [/sb_schema: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_read', ['node', path.join(HERE, 'pg/sb_read.mjs')], { pass: [/sb_read: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_photo', ['node', path.join(HERE, 'pg/sb_photo.mjs')], { pass: [/sb_photo: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_photo_read', ['node', path.join(HERE, 'pg/sb_photo_read.mjs')], { pass: [/sb_photo_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')], { pass: [/admin_reports: \d+ 通过, 0 失败/], timeout: 300 });
@@ -197,6 +199,7 @@ add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 
 add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/side_photo', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_photo.js')], { pass: [/side_photo: \d+ 通过, 0 失败/], timeout: 300 });   // #393 P3 照片管线（真实画布）
 add('frontend', 'frontend/shot_fallback', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/shot_fallback.js')], { pass: [/shot_fallback: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });

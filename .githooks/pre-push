@@ -14,7 +14,15 @@ while read -r lref lsha rref rsha; do
     fi
     if [ -n "$why" ]; then
       if [ -n "$NBQ_REWRITE" ]; then echo "改写 / 删除远端历史，原因：$NBQ_REWRITE（$why）"
-      else echo "推送被拦下：这次会$why。普通推送不会这样；确实需要请 NBQ_REWRITE=\"原因\" git push …"; exit 1; fi
+      else echo "推送被拦下[nbq:block:pre_push]：这次会$why。普通推送不会这样；确实需要请 NBQ_REWRITE=\"原因\" git push …"; exit 1; fi
+    fi ;;
+  esac
+  # 11-19：非草稿 PR 的完整 tests 要跑 30–43 分钟，每次推新提交都从头重算 → 正在跑时提醒（只提醒、读不到就静默；NBQ_REPUSH_CHECK=0 关）
+  case "$rref" in refs/heads/main|refs/heads/staging) ;; refs/heads/*)
+    if [ "${NBQ_REPUSH_CHECK:-1}" != 0 ] && [ "$lsha" != "$Z" ] && git remote get-url origin 2>/dev/null | grep -q 'SMG562/nanbanqiu' && command -v gh >/dev/null 2>&1; then
+      hs=$(timeout 8 gh api "repos/SMG562/nanbanqiu/pulls?state=open&head=SMG562:${rref#refs/heads/}" --jq '.[0]|select(.draft==false)|.head.sha' 2>/dev/null)
+      [ -z "$hs" ] || [ "$(timeout 8 gh api "repos/SMG562/nanbanqiu/actions/runs?head_sha=$hs&per_page=30" --jq '[.workflow_runs[]|select(.name=="tests" and .status!="completed")]|length' 2>/dev/null || echo 0)" -eq 0 ] || \
+        echo "提醒[nbq:warn:repush]：这个分支的 PR 已转 Ready，完整 tests 正在跑（约 35 分钟）；这次推送会让它从头重算。能攒成一次推送就先别推（改完这轮要改的再推）。"
     fi ;;
   esac
   [ "$rref" = "refs/heads/main" ] || continue
@@ -22,7 +30,7 @@ while read -r lref lsha rref rsha; do
   base="$rsha"; [ "$base" = "0000000000000000000000000000000000000000" ] && continue
   git cat-file -e "$base^{commit}" 2>/dev/null || continue
   n=$(git diff --diff-filter=D --name-only "$base" "$lsha" | wc -l)
-  if [ "$n" -ge 10 ]; then echo "推送被拦下：这次推到 main 会删掉 $n 个文件（前 5 个：$(git diff --diff-filter=D --name-only "$base" "$lsha" | head -5 | tr '\n' ' ')）。如果不是有意的，先查提交内容。"; exit 1; fi
+  if [ "$n" -ge 10 ]; then echo "推送被拦下[nbq:block:pre_push]：这次推到 main 会删掉 $n 个文件（前 5 个：$(git diff --diff-filter=D --name-only "$base" "$lsha" | head -5 | tr '\n' ' ')）。如果不是有意的，先查提交内容。"; exit 1; fi
   # 11-05：推到 main 的提交改了代码（不含文档 / 宣传图 / 进度记录）→ 必须有「相关测试全绿」的戳且对的是这个提交的内容（node tests/run_all.mjs --changed=origin/main 跑完全绿、工作区干净时自动盖）。
   # 来历：11-05 我没等 --changed 跑完就推了，结果它抓到的 real_chat 红已经在 main 上。纪律写在 skill 里拦不住赶时间，改成机器拦。
   # 确实只改了测试 / 工具之外的东西或环境跑不了：NBQ_UNTESTED="原因" git push（原因会打印，请同时写进提交信息）。
@@ -30,7 +38,7 @@ while read -r lref lsha rref rsha; do
     stamp=$(cat "$(git rev-parse --git-dir)/nbq_changed_ok" 2>/dev/null); want=$(git rev-parse "$lsha^{tree}")
     if [ "$stamp" != "$want" ]; then
       if [ -n "$NBQ_UNTESTED" ]; then echo "未跑相关测试就推送，原因：$NBQ_UNTESTED";
-      else echo "推送被拦下：这次推到 main 的提交改了代码，但没有对应的「相关测试全绿」记录。先跑 node tests/run_all.mjs --changed=origin/main（要等它跑完且全绿；工作区要干净），再推。"; exit 1; fi
+      else echo "推送被拦下[nbq:block:pre_push]：这次推到 main 的提交改了代码，但没有对应的「相关测试全绿」记录。先跑 node tests/run_all.mjs --changed=origin/main（要等它跑完且全绿；工作区要干净），再推。"; exit 1; fi
     fi
   fi
   # 随做随写（11-04）：这次推到 main 的提交改了代码（不含宣传图、文档），进度记录却没跟着改 → 提醒（不拦）。用户随时会开新对话，记录要跟上。

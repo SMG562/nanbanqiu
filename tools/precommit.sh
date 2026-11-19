@@ -39,5 +39,10 @@ fi
 sz=$(wc -c < 进度记录.md)
 [ "$sz" -gt 20480 ] && echo "提醒：进度记录.md 已 $((sz/1024))KB（目标约 15KB）——已完成的移到 进度记录_历史.md"
 
-[ $fail -eq 0 ] && echo "提交前检查通过" || echo "提交被拦下。修好再提交；确实要跳过用 git commit --no-verify 并写明原因"
+# 4. 测试断言净减少提醒（11-19 教训：改写测试时误删断言没人发现；只提醒，不拦）
+rm_n=$(git diff --cached -U0 -- 'tests/*.mjs' 'tests/**/*.mjs' 2>/dev/null | grep -E '^-[^-]' | grep -cE '(^|[^A-Za-z0-9_])T\(') || true
+ad_n=$(git diff --cached -U0 -- 'tests/*.mjs' 'tests/**/*.mjs' 2>/dev/null | grep -E '^\+[^+]' | grep -cE '(^|[^A-Za-z0-9_])T\(') || true
+[ "${rm_n:-0}" -gt "${ad_n:-0}" ] && echo "提醒：暂存的测试里删掉的断言（T(）比新增的多 $((rm_n-ad_n)) 条——确认不是误删（git diff --cached tests/）"
+
+[ $fail -eq 0 ] && echo "提交前检查通过" || echo "提交被拦下[nbq:block:precommit]。修好再提交；确实要跳过用 git commit --no-verify 并写明原因"
 exit $fail

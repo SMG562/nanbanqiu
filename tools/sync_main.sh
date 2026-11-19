@@ -13,6 +13,8 @@ B=$(git rev-parse --abbrev-ref HEAD)
 case "$B" in main|staging|HEAD) echo "❌ 不在功能分支上（现在是 $B）"; exit 1;; esac
 [ -z "$(git status --porcelain)" ] || { echo "❌ 工作区有没提交的改动，先提交或处理"; exit 1; }
 git fetch -q origin main
+# 11-19（#410 试点 ③）：浅克隆里 HEAD..origin/main 会把没连上的历史也数进去（谎报「多 N 个提交」）→ 先加深再数
+[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ] && { git fetch -q --depth=300 origin main "$B" 2>/dev/null || true; }
 n=$(git rev-list --count HEAD..origin/main)
 [ "$n" -gt 0 ] || { echo "✅ $B 已包含最新 main，不用合"; exit 0; }
 base=$(git merge-base HEAD origin/main 2>/dev/null) || { git fetch -q --deepen=200 origin main "$B" 2>/dev/null || true; base=$(git merge-base HEAD origin/main); }
@@ -34,9 +36,9 @@ git merge -q --no-edit -m "合并 origin/main，为快进合并做准备" origin
   if [ -n "$U" ] && ! echo "$U" | grep -qvE '^(南伴球_(PWA|Web|后台)\.html|server/migrations/_bundle\.sql)$'; then
     echo "ℹ️ 冲突只有生成文件（ADR 0011 起不入库）：跟着 main 删除 → $(echo "$U" | tr '\n' ' ')"
     echo "$U" | while IFS= read -r f; do git rm -q --cached -- "$f" 2>/dev/null || true; rm -f -- "$f"; done
-    git -c core.quotepath=off diff --name-only --diff-filter=U | grep -q . && { echo "❌ 还有没解决的冲突"; git merge --abort; exit 3; }
+    git -c core.quotepath=off diff --name-only --diff-filter=U | grep -q . && { echo "❌ [nbq:block:sync_main] 还有没解决的冲突"; git merge --abort; exit 3; }
     git commit -q --no-edit || { git merge --abort; exit 3; }
   else
-    echo "❌ 合并冲突：$(echo "$U" | tr '\n' ' ')"; git merge --abort; echo "已 --abort，分支没变。"; exit 3
+    echo "❌ [nbq:block:sync_main] 合并冲突：$(echo "$U" | tr '\n' ' ')"; git merge --abort; echo "已 --abort，分支没变。"; exit 3
   fi; }
 git push -q origin "HEAD:refs/heads/$B" && echo "→ 已合并并推送 $B。下一步：bash tools/ci_wait.sh"

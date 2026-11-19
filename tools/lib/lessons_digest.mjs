@@ -10,10 +10,13 @@ export const dupes = lines => { const k = l => l.replace(/\W+/g, '').slice(0, 24
 // 规则体检：每条编号规则 = 一行；年龄取 git blame 的提交日期；「近期被用到」= 它点名的 #号 / `脚本名` 在近 30 天提交说明或评论里出现过。老（>30 天）且没被用到 = 候选删除（时效性）；有 #号证据却从没出现 = 证据缺失
 export const ruleKeys = line => [...new Set([...(line.match(/#\d{2,4}/g) || []), ...(line.match(/`([\w./-]+\.(?:mjs|sh|js))`/g) || []).map(x => x.replace(/`/g, ''))])];
 export const latestCheck = bodies => [...bodies].reverse().find(b => /【规则体检】/.test(b || '')) || '';   // 所有者周任务（#216）发的台账体检结论：有效性（命中 + 指标变化）
+export const gateHits = (bodies, min = 2) => { const m = {}; for (const b of bodies) for (const l of String(b || '').split('\n')) { const x = /^NBQ-LEDGER v1 .*\| blocks=(\S+)\s*$/.exec(l); if (x && x[1] !== '-') for (const kv of x[1].split(',')) { const [g, n] = kv.split(':'); if (g && +n) m[g] = (m[g] || 0) + +n } } return Object.entries(m).filter(([, n]) => n >= min).sort((a, b) => b[1] - a[1]) };   // ③b（#410）：台账 #349 里 blocks=闸门:次数，近 N 天同一闸门 ≥2 次 = 升级候选
 export const stale = (age, hits, days = 30) => age > days && hits === 0;
 if (process.argv[1] && process.argv[1].endsWith('lessons_digest.mjs')) {
   let bodies = []; try { bodies = JSON.parse(sh('gh', ['api', '-X', 'GET', `repos/SMG562/nanbanqiu/issues/comments`, '-f', `since=${since}`, '-f', 'per_page=100']) || '[]').map(c => c.body) } catch { }
   const p = pitfalls(bodies); console.log(`## ① 近 ${days} 天评论里的踩坑 / 教训（${p.length} 条，重复 ${dupes(p).length} 组 = 该升级成自动检查）`); p.slice(0, 25).forEach(l => console.log('- ' + l));
+  let led = []; try { led = JSON.parse(sh('gh', ['api', '-X', 'GET', 'repos/SMG562/nanbanqiu/issues/349/comments', '-f', `since=${since}`, '-f', 'per_page=100']) || '[]').map(c => c.body) } catch { }
+  const gh = gateHits(led); console.log(`## ③b 闸门命中（台账 #349，近 ${days} 天同一闸门 ≥2 次 = 升级候选：在 #216 开一条「一句话问话 + 建议的机器检查」，走 24 小时无异议机制；${gh.length} 个）`); gh.forEach(([g, n]) => console.log(`- ${g}：${n} 次`));
   console.log('## ② 近期改动过的经验文档'); console.log(sh('git', ['log', `--since=${since}`, '--oneline', '--', '逃逸缺陷.md', '.claude/skills', '开发规矩.md']).split('\n').slice(0, 15).join('\n') || '（无）');
   console.log('## ③ 规则体检（老 >30 天且近 30 天没被用到 = 候选删除；净增行数必须 ≤ 0）');
   const chk = latestCheck(JSON.parse(sh('gh', ['api', '-X', 'GET', 'repos/SMG562/nanbanqiu/issues/216/comments', '-f', 'per_page=100', '--jq', '[.[-30:][].body]']) || '[]')); console.log(chk ? '- 台账体检（#216 最近一条，有效性）：\n' + chk.split('\n').slice(0, 8).map(x => '  ' + x.slice(0, 160)).join('\n') + '\n  → 删除候选取并集（本表时效 ∪ 体检无效/过时）；任一侧反对 = 保留一周' : '- 台账体检：#216 上还没有「【规则体检】」，只用时效一侧');

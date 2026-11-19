@@ -16,6 +16,8 @@ export function checkBody(body, files, { merge = false } = {}) {
   }
   // 11-17（经验对齐）：改了经验 / 技能 / 钩子 / ADR 的 PR，描述里 @SMG562 或 @MDD1102 其一（GitHub 自动通知对方，不靠人转告；所有者自己改就 @ 共同所有者）；缺了 CI 变红
   if ((files || []).some(f => /^(\.claude\/|逃逸缺陷\.md|docs\/adr\/|tools\/lib\/(token_guard|token_report|lessons_digest))/.test(f)) && !/@(SMG562|MDD1102)\b/.test(b)) bad.push('改了经验 / 技能 / 钩子 / ADR：描述里要写 @SMG562 或 @MDD1102 其一（一句话说改了什么、为什么），GitHub 会自动通知，不用人转告');
+  // 11-19（#397 E）：改了业务规则 / ADR / 路线图（= 规则或范围变了）的 PR，必须同时在 docs/决定台账.md 或 docs/变更记录.md 追加一行，或描述里写「台账：无（理由）」；缺了 CI 变红
+  if ((files || []).some(f => /^(业务规则\.md|docs\/adr\/|docs\/roadmap\.md)/.test(f)) && !(files || []).some(f => /^docs\/(决定台账|变更记录)\.md$/.test(f)) && !/台账\s*[:：]\s*无[（(][^）)]{4,}[）)]/.test(b)) bad.push('改了业务规则 / ADR / 路线图：要在 docs/决定台账.md 或 docs/变更记录.md 追加一行（谁定的、不做什么、来源链接）；确实不用就在描述写「台账：无（理由）」');
   // 11-05（逃逸：用户照「你来做」去电脑上找迁移文件，没有）：「你来做」里提到的、本 PR 才有的文件，main 的同步不会带到用户电脑 →
   //   必须先 sync_files.sh --branch=<分支> <文件…> 写过去并回读核对，再在描述里写一行「已同步到电脑：…」
   const todo = /##+[^\n]*你来做[^\n]*\n([\s\S]*?)(?=\n##+ |$)/.exec(b);

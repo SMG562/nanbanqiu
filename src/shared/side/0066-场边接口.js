@@ -2,6 +2,9 @@
  * 真实模式 = 宿主页面有 NBQ_NET（正式 / 测试库）；演示（本地文件、测试）仍走 seed，PR-D 删。
  * 接口字段进前台只经这里（skill §六）：页面代码不直接读接口字段。读接口规格 tests/spec/api_spec.md §14.1。 */
 const sbReal=()=>typeof nbqOn==='function'&&nbqOn();
+// 一期开关（#369 PR-D / #393）：照片默认开（留作紧急关：页面先设 window.NBQ_SB_PHOTOS_ON=false）；二期入口（稍后公开、发起新话题）默认关，设 true 才显示
+const sbFlag=(k,d)=>{try{const v=typeof window!=='undefined'?window[k]:undefined;return v===undefined?d:!!v}catch(e){return d}};
+const SB_PHOTOS_ON=()=>sbFlag('NBQ_SB_PHOTOS_ON',true),SB_LATER_ON=()=>sbFlag('NBQ_SB_LATER_ON',false),SB_NEWTOPIC_ON=()=>sbFlag('NBQ_SB_NEWTOPIC_ON',false);
 const SB_CFG_KEY='nbq_sb_cfg',SB_FEED_KEY='nbq_sb_feed',SB_POLL_MS=30000;
 const sbLS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
 // ---- 配置：只往前走。内置第 1 版（SB_CONFIG）不能盖掉后台发布的 v2：版本号不比手上的大就不用 ----

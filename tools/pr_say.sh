@@ -5,7 +5,7 @@
 set -eu
 N="${1:?用法：bash tools/pr_say.sh <号> <标签> <提交号7位|-> \"<正文>\"}"; TAG="${2:?缺标签}"; SHA="${3:?缺提交号（没有写 -）}"; BODY="${4:?缺正文}"; R=SMG562/nanbanqiu
 # 11-12（#201）：标签不是复核类，正文里却出现「独立复核：通过 / （提交号）：要改」句式 → 会被看板 / pr_merge 当成复核结论，拒绝发送
-case "$TAG" in 独立复核*) ;; *) if printf '%s' "$BODY" | sed $'s/）/\x01/g' | grep -qE $'独立复核(：通过 *[0-9a-f]{7,40}|（[0-9a-f]{7,40}[^\x01]*\x01(：|:))'; then echo "❌ 正文里有复核结论句式（独立复核：通过 / 独立复核（提交号）：要改），会被看板和 pr_merge 当成真复核：请换个说法，或把标签写成「独立复核…」并确实做过复核" >&2; exit 3; fi;; esac
+case "$TAG" in 独立复核*) ;; *) if printf '%s' "$BODY" | sed $'s/）/\x01/g' | grep -qE $'独立复核(：通过 *[0-9a-f]{7,40}|（[0-9a-f]{7,40}[^\x01]*\x01(：|:))'; then echo "❌ [nbq:block:pr_say_review] 正文里有复核结论句式（独立复核：通过 / 独立复核（提交号）：要改），会被看板和 pr_merge 当成真复核。请换个说法：写「复核结论：通过」或「留复核通过留言」；只有真做过只读复核、要发正式结论时，标签写成「独立复核：通过」（会生成首行【独立复核：通过 提交号】，解析口径见 tools/review_state.mjs）" >&2; exit 3; fi;; esac
 H=$(printf '%s' "$BODY" | sha1sum | cut -c1-6); KEY="nbq-say:$TAG:$SHA:$H"
 if gh api --paginate "repos/$R/issues/$N/comments?per_page=100" --jq '.[].body' | grep -qF "<!-- $KEY -->"; then echo "已经说过（$KEY），不重复发"; exit 0; fi
 HEAD1="【$TAG$([ "$SHA" = - ] || echo " $SHA")】"
