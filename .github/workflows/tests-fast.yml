@@ -17,6 +17,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '.github/actions/**'     # 11-19：工作流共用的 composite action（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
@@ -64,47 +65,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      # 11-19（#432 ③b）：慢的是「个别 runner 下载 Ubuntu 镜像卡 20+ 分钟」（超时重试 / 换镜像实测无效，#438），所以不靠外网：
-      #   把装完的 .deb 存进 GitHub 缓存，命中就 dpkg -i 本地文件（不 apt update、不下载）；未命中 = 原来的 apt 流程（最坏不比以前差）。
-      #   键含 runner 镜像发布日（ImageVersion 取点号前，后面的 .370.1 每台不同）。用 restore / save 分开：测试失败也要存。
-      - name: apt 缓存键
-        id: aptkey
-        run: echo "k=apt-fast-v4-${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
-      - name: apt 包缓存（恢复）
-        id: aptc
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # 11-19（#432 ③b）：慢的是个别 runner 外网极慢（超时重试 / 换镜像无效，#438），改成缓存 .deb、命中就本地装；细节见 .github/actions/ci-apt/action.yml
+      - name: 系统依赖（PostgreSQL 16 + PostGIS；pglast）
+        uses: ./.github/actions/ci-apt
         with:
-          path: |
-            ~/apt-debs/*.deb
-            ~/pip-wheels/*.whl
-          key: ${{ steps.aptkey.outputs.k }}
-          restore-keys: apt-fast-v4-   # runner 镜像版本同时有好几个在轮换（实测相隔几分钟就是不同发布日）；换镜像的缓存也先试，装不上就退回 apt
-      - name: 系统依赖（PostgreSQL 16 + PostGIS）
-        run: |
-          D=$HOME/apt-debs; mkdir -p "$D/partial"; T0=$(date +%s)
-          if [ -n "${{ steps.aptc.outputs.cache-matched-key }}" ] && ls "$D"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$D"/*.deb; then
-            echo "::notice title=apt::命中缓存，$(ls "$D"/*.deb | wc -l) 个 deb，本地安装 $(( $(date +%s) - T0 ))s，没下载"
-          else
-            echo "::notice title=apt::未命中缓存（或本地安装失败），走 apt 下载"
-            sudo apt-get update -q
-            sudo apt-get install -y -q -o Dir::Cache::archives="$D" postgresql-16 postgresql-16-postgis-3
-            echo "::notice title=apt::下载安装 $(( $(date +%s) - T0 ))s，$(du -sh "$D" | cut -f1)"
-          fi
-          # pglast 也走缓存的 wheel（命中那次实测 pip 单步 110s，也是同一种「个别 runner 外网慢」）
-          W=$HOME/pip-wheels; mkdir -p "$W"; T1=$(date +%s)
-          if ! { ls "$W"/*.whl >/dev/null 2>&1 && { pip install --break-system-packages -q --no-index --find-links "$W" pglast || pip install -q --no-index --find-links "$W" pglast; }; }; then
-            pip download -q -d "$W" pglast || true
-            pip install --break-system-packages -q pglast || pip install -q pglast
-          fi
-          echo "::notice title=pip::pglast $(( $(date +%s) - T1 ))s"
-      - name: apt 包缓存（保存：只在没命中时）
-        if: steps.aptc.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/apt-debs/*.deb
-            ~/pip-wheels/*.whl
-          key: ${{ steps.aptkey.outputs.k }}
+          name: fast
+          packages: postgresql-16 postgresql-16-postgis-3
+          pip: pglast
       - name: 依赖缓存（PGlite、pg）
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

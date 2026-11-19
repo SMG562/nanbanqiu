@@ -1,0 +1,92 @@
+# CI 系统依赖（apt .deb + pip wheel 缓存）——tests.yml 和 tests-fast.yml 共用，别在两处各抄一份（11-19，#432 ③b）。
+#   为什么：慢的是「个别 runner 的外网极慢」（同提交同分支 apt 步骤 312–1599s，超时重试 / 换镜像实测无效，#438），
+#     所以把装完的 .deb 存进 GitHub 缓存：命中就本地 dpkg -i（不 apt update、不下载）；没命中 = 原来的 apt 流程，最坏不比以前差。
+#   取舍：①命中只装「没装 / 比缓存旧」的包（和 apt 的结果一致，不降级 runner 镜像里更新的库）；②本地装失败 → 清掉缓存的 deb 退回 apt，并重新存；
+#     ③键只含镜像发布日（ImageVersion 点号后的后缀每台 runner 不同，按全名分键 = 永远不命中）；同名缓存换镜像日也先试（restore-keys）；
+#     ④保存只在没精确命中时；缓存按分支隔离，main 上跑一次（每晚的 tests / 推 main）才对所有 PR 可见；⑤没有任何超时（只加超时会把慢变失败）。
+#   安全：缓存只能由同一分支 / main 写入，PR 写不进 main 的缓存；deb 的签名在首次 apt 下载时已验，之后靠 GitHub 缓存完整性。
+name: CI 系统依赖（apt 缓存）
+description: 恢复缓存 → 本地装 deb（失败退回 apt）→ 保存缓存
+inputs:
+  name:
+    description: 缓存名；依赖集不同就用不同名（fast / full）
+    required: true
+  packages:
+    description: apt 包，空格分隔
+    required: true
+  playwright:
+    description: Playwright 版本；非空 = 同时装它的 chromium 系统库（不装浏览器本身）
+    default: ''
+  pip:
+    description: pip 包，空格分隔；空 = 不装
+    default: ''
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      env: { NAME: "${{ inputs.name }}" }
+      run: echo "k=apt-ci-v1-${NAME}-${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
+    - id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/apt-debs/*.deb
+          ~/pip-wheels/*.whl
+        key: ${{ steps.key.outputs.k }}
+        restore-keys: apt-ci-v1-${{ inputs.name }}-
+    - id: install
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        PW: ${{ inputs.playwright }}
+        PIP: ${{ inputs.pip }}
+        MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
+      run: |
+        D="$HOME/apt-debs"; W="$HOME/pip-wheels"; mkdir -p "$D/partial" "$W"; T0=$(date +%s)
+        # 之后任何 apt-get（含 playwright install-deps 里的）都把下载的 deb 留在 $D，缓存才存得到
+        printf 'Dir::Cache::archives "%s";\nAPT::Keep-Downloaded-Packages "true";\n' "$D" | sudo tee /etc/apt/apt.conf.d/99ci-archives >/dev/null
+
+        local_install() {   # 只装「没装 / 比缓存旧」的包；全都满足也算成功
+          local need=() f p v st cur
+          for f in "$D"/*.deb; do
+            [ -e "$f" ] || continue
+            p=$(dpkg-deb -f "$f" Package); v=$(dpkg-deb -f "$f" Version)
+            st=$(dpkg-query -W -f='${Status}' "$p" 2>/dev/null || true); cur=$(dpkg-query -W -f='${Version}' "$p" 2>/dev/null || true)
+            if [ "$st" = "install ok installed" ] && dpkg --compare-versions "$cur" ge "$v"; then continue; fi
+            need+=("$f")
+          done
+          [ "${#need[@]}" -eq 0 ] || sudo dpkg -i "${need[@]}" || return 1
+          for p in $PACKAGES; do [ "$(dpkg-query -W -f='${Status}' "$p" 2>/dev/null)" = "install ok installed" ] || return 1; done
+        }
+        apt_install() {
+          rm -f "$D"/*.deb   # 退回 apt 时不留旧 deb（否则新旧混着存）
+          sudo apt-get update -q
+          sudo apt-get install -y -q $PACKAGES
+          [ -z "$PW" ] || npx -y "playwright@$PW" install-deps chromium
+        }
+        if [ -n "$MATCHED" ] && ls "$D"/*.deb >/dev/null 2>&1 && local_install; then
+          echo "::notice title=apt::命中缓存（$MATCHED），$(ls "$D"/*.deb | wc -l) 个 deb，本地安装 $(( $(date +%s) - T0 ))s，没下载"
+        else
+          echo "::notice title=apt::未命中缓存（或本地安装失败），走 apt 下载"
+          apt_install
+          echo "::notice title=apt::下载安装 $(( $(date +%s) - T0 ))s，$(du -sh "$D" | cut -f1)"
+        fi
+        echo "has_debs=$(ls "$D"/*.deb >/dev/null 2>&1 && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+        if [ -n "$PIP" ]; then
+          T1=$(date +%s)
+          pip_local() { ls "$W"/*.whl >/dev/null 2>&1 && { pip install --break-system-packages -q --no-index --find-links "$W" $PIP || pip install -q --no-index --find-links "$W" $PIP; }; }
+          if ! pip_local; then
+            pip download -q -d "$W" $PIP || true
+            pip install --break-system-packages -q $PIP || pip install -q $PIP
+          fi
+          echo "::notice title=pip::$PIP $(( $(date +%s) - T1 ))s"
+        fi
+    - if: steps.restore.outputs.cache-hit != 'true' && steps.install.outputs.has_debs == 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/apt-debs/*.deb
+          ~/pip-wheels/*.whl
+        key: ${{ steps.key.outputs.k }}

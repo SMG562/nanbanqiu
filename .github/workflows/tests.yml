@@ -23,6 +23,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '.github/actions/**'     # 11-19：工作流共用的 composite action（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
@@ -44,6 +45,7 @@ on:
       - 'manifest.webmanifest'
       - 'tests/**'
       - '.github/workflows/**'
+      - '.github/actions/**'     # 11-19：工作流共用的 composite action（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.json'               # 11-04：依赖（package*.json）、海报清单、数据文件；以前改了不跑任何测试（tests/unit/ci_paths 盯着，两份工作流必须一致）
       - '**.jsonc'              # 部署配置（wrangler）
       - '**.sh'                 # 流程脚本（gate / sync_verify / handoff_check …）
