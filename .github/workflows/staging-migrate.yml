@@ -38,12 +38,14 @@ on:
         required: false
 permissions:
   contents: read
-concurrency: { group: staging-migrate, cancel-in-progress: false }   # 同一时间只跑一个，不并发改测试库
+# 11-19：并发锁从整个工作流挪到「真正碰库」的作业上，且测试库 / 正式库各一把：plan 不碰库、不需要锁。
+#   原来整个工作流一把锁：#399 的 staging 迁移在等审批，#402 的正式库计划（plan，无密钥）就一直排在后面不开始，没人知道。
 jobs:
   migrate:
     if: github.event_name == 'push' || inputs.target != 'production'   # 正式库走下面的 plan → apply
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency: { group: migrate-staging-db, cancel-in-progress: false }   # 同一时间只有一个在改测试库
     environment: staging   # NBQ_DB_URL_STAGING 在这个环境里；运行前需要所有者批准，只允许 main
     steps:
       - name: 只在 main 上运行，分支名只许常见字符
@@ -174,6 +176,7 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency: { group: migrate-production-db, cancel-in-progress: false }   # 同一时间只有一个在改正式库
     environment: production-migrate   # 所有者是审批人、只允许 main；NBQ_DB_URL_PROD（可写）和 NBQ_DB_URL_STAGING（核对用）放在这个环境里
     permissions:
       contents: read

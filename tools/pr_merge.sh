@@ -94,6 +94,8 @@ case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   *) yes "自助合并：无红线、无需复核" ;;
 esac
 [ -z "$(git status --porcelain)" ] && yes "本地工作区干净" || no "本地有没提交的改动"
+# 11-19：有运行在等审批 / 排队就顺带列出（只提示不拦；留言 @ 审批人由定时的 queue-watch 工作流发）
+bash tools/ci_wait.sh --stuck --min=5 2>/dev/null | grep -E '^(⏸|⏳)' | head -3 | sed 's/^/ℹ️ /' || true
 [ $bad = 0 ] || { echo "→ 有没满足的项，没有合并。$([ "$CHECK" = "--check" ] || echo " [nbq:block:pr_merge]")"; exit 1; }   # 只给真合并记账，--check 等 CI 是常态不算
 [ "$CHECK" = "--check" ] && { echo "→ 全部满足（--check 只核对，没有推）。"; exit 0; }
 # 11-05：pre-push 闸门要本地「相关测试全绿」戳；经 PR 合并的提交已在 GitHub 对同一提交号跑过 tests-fast + tests 且 completed success（上面 ③ 已核对，走到这里即满足），

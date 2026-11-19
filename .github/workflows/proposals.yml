@@ -5,6 +5,7 @@ name: proposals
 on:
   schedule:
     - cron: '41 * * * *'            # 每小时对账（倒计时到点、漏掉的事件）
+    - cron: '*/10 * * * *'          # 11-19：排队 / 等审批看门狗（queue-watch 作业；工作流数有上限 13，并进这里不新增文件）
   workflow_dispatch:
   issues:
     types: [opened, labeled, edited]
@@ -18,12 +19,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: proposals
+  group: proposals-${{ github.event.schedule }}   # 11-19：每 10 分钟的看门狗单独一组，不会把排队中的整点对账挤掉（其他触发 schedule 为空，组名同原来）
   cancel-in-progress: false
 
 jobs:
   tick:
-    if: github.event_name != 'push' && (github.event_name != 'issue_comment' || !github.event.issue.pull_request)
+    if: github.event_name != 'push' && github.event.schedule != '*/10 * * * *' && (github.event_name != 'issue_comment' || !github.event.issue.pull_request)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions: { contents: read, issues: write }   # 写权限只给各 job（workflow 级只读，zizmor）
@@ -36,6 +37,20 @@ jobs:
       - name: 对账提案
         env: { GH_TOKEN: '${{ github.token }}' }
         run: node tools/proposal_tick.mjs
+
+  queue-watch:
+    # 11-19：运行停在「等审批 / 排队」超过 10 分钟就留言 @ 审批人并写明堵在谁后面（#402 的正式库计划排在 #399 的 staging 审批后面一直 Pending，没人知道）。
+    #   逻辑在 tools/ci_wait.sh --stuck（会话里也能直接跑）；同一运行同一结论只发一次（pr_say 去重）。公开仓库，Actions 分钟免费。
+    if: github.event.schedule == '*/10 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions: { contents: read, actions: read, issues: write, pull-requests: write }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { sparse-checkout: tools, persist-credentials: false }
+      - name: 看卡住的运行并留言
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: bash tools/ci_wait.sh --stuck --min=10 --say || [ $? -eq 4 ]   # 4 = 有卡住的（已留言），不算失败
 
   notify:
     if: github.event_name == 'push'
