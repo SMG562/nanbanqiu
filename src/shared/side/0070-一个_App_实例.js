@@ -201,19 +201,21 @@ function App(el,init){
       try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);phQueue(C).add(r.name,r.parts)}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
   const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(C.q&&u.name)C.q.cancel(u.name)})};
-  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
+  const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
+  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=phReal()&&C.ups.length&&!C.text?'配一句话（可不写）':C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
     $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
+        ${phReal()?phBlk(C):''}
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
         ${stHTML(C)}
-        <div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>
+        ${phReal()?'':phBlk(C)}
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
         ${pic||C.ups.length?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
       </div>
       <input type="file" accept="image/*" multiple hidden data-cfile>
       <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
-      <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':''}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
+      <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
       <div class="pick${C.pick?' on':''}">${pickHTML(C)}</div>
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
@@ -446,7 +448,7 @@ function App(el,init){
     if('clocate' in d){vpLocate(locRefresh);return}
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
-    if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
+    if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:!phReal()})}else fromBar({lib:!phReal()});if(phReal()){const cf=$('[data-cfile]');if(cf)cf.click()}return}
     if('more' in d){flushNew();sc.scrollTop=0;return}
     if('cmore' in d){flushCourt();return}
     if('wmore' in d){flushWall();return}
