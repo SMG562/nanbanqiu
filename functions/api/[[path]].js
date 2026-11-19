@@ -10,6 +10,7 @@ import { SUPABASE } from '../../server/headers.mjs';
 let deps;
 const apiDeps = env => (deps ||= { verify: makeVerifier({ url: env.SUPABASE_URL || SUPABASE }), db: makeDb(connectFromEnv(env)), vapid: env.VAPID_PUBLIC || null, minBuild: env.NBQ_MIN_BUILD || null,
   photos: env.PHOTOS ? r2Store(env.PHOTOS) : null,   // 场边照片的 R2 绑定（wrangler.jsonc 的 env.production / env.preview）；没绑 = 上传接口 503
+  photoKey: env.NBQ_PHOTO_KEY || null,   // 读图地址的签名密钥（Pages 环境变量，预览 / 正式各设一份）；不设 = 读接口不发图片地址、读图 503
   session: makeSession(env.NBQ_SESSION_KEY),   // 登录交接的签名密钥（EC P-256 JWK）；不设 = 不启用
   asset: p => env.ASSETS.fetch(new Request('https://assets.invalid' + p)) });   // 最低前端版本（ADR 0013），默认不设
 export const onRequest = ({ request, env }) => handleApi(request, apiDeps(env));

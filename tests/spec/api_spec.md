@@ -187,6 +187,8 @@
 | photo_daily_limit | 429 | 今天传的照片够多了，明天再来吧 | 数据库 nbq_rate（规则 sb_photo_day；§14.16） |
 | photos_paused | 503 | 照片上传暂时关闭，先发文字吧 | 后端（运行时开关 photos_paused 开；已发的图照常显示；§14.16） |
 | photos_unavailable | 503 | 照片服务暂时不可用，请稍后再试 | 后端（没有配置对象存储绑定 PHOTOS；§14.16） |
+| photo_forbidden | 403 | 这张图的地址失效了，刷新一下就好 | 后端 GET /api/sideline/photo（签名不对 / 过期时间离谱；§14.17，#393 P2；图片地址一般不弹提示，重读列表换新地址）|
+| photo_expired | 410 | 这张图的地址过期了，刷新一下就好 | 后端 GET /api/sideline/photo（地址过期超过 60 秒时钟偏差；§14.17）|
 
 ---
 
@@ -635,7 +637,7 @@
 ### 14.1 读（#369 PR-A，11-18 加；三个读接口都在 `server/api/handler.mjs`，只加不改，不需要库迁移）
 规则仍由库里的行级权限决定（schema ㉕ `sb_post_public` / `sb_post_readable` / `sb_reply_read`），接口只拼查询、分页、整理返回：没登录也能看 24 小时内公开的；屏蔽双方互相看不到；点了不感兴趣的看不到；停用、封禁、注销的人发的看不到；后台隐藏的、本人删除的、还没到公开时间的看不到；自己的（没删的）一直看得到，删了就没了。前台拿不到：后台隐藏原因（`hidden_reason`）、照片识别标签、审核人。
 - **GET /api/sideline/feed**（参数都可选，不传就用默认值，**别传空串**，空串 422：`city`=melb、`topic`、`before`、`limit`=20；不用登录；带令牌则以本人身份，屏蔽 / 不感兴趣才生效）：本城（默认 melb）24 小时内公开的动态，按公开时间倒序。`topic` 可选（话题 id）；`limit` 1–50，默认 20，超过按 50。**游标分页**：返回 `next`（最后一条的游标，没有下一页为 `null`），下一页带 `before=<next>`；游标 = 公开时间（微秒）+ id，同一时间的两条也不丢不重；游标格式不对 → 422 `invalid`。
-  - 返回 `{ posts, next, topics, profiles }`。`posts[]`：`id, user_id, city, body, topic_id, floor, venue_id, photo_count, photos, tone, replies_open, publish_at, balls, replies, mine, my_ball`。**`photo_count` 与 `photos` 从第一天就在（一期恒为 0 / `[]`），二期加照片不改形状**。`topics`：`{id: {id, title, kind}}`（只含这页用到的；已下线的话题查不到，前台用配置里的名字兜底）；`profiles`：`{user_id: {id, member_no, nickname, last_initial, avatar_*, seal_roll, card_theme, level, gone}}`（和 `public_profiles` 一致，不含手机 / 微信 / 性别）。
+  - 返回 `{ posts, next, topics, profiles }`。`posts[]`：`id, user_id, city, body, topic_id, floor, venue_id, photo_count, photos, tone, replies_open, publish_at, balls, replies, mine, my_ball`。**`photo_count` 与 `photos` 从第一天就在，加照片不改形状；11-19（#393 P2）起 `photos` 是 `[{idx, w, h, state, url?, t?, b?}]`，见 §14.17**。`topics`：`{id: {id, title, kind}}`（只含这页用到的；已下线的话题查不到，前台用配置里的名字兜底）；`profiles`：`{user_id: {id, member_no, nickname, last_initial, avatar_*, seal_roll, card_theme, level, gone}}`（和 `public_profiles` 一致，不含手机 / 微信 / 性别）。
   - 参数格式不对（city 不是 2–12 位小写字母、topic 不是话题 id 格式、limit 不是数字）→ 422 `invalid`；带了无效令牌 → 401（不悄悄当匿名）。
 - **GET /api/sideline/posts/:id**（不用登录）：帖子详情 + 回复。返回 `{ post, replies, topics, profiles }`；`post` 同上再加 `status`（`visible` / `hidden`，只有作者能看到 `hidden` 的）与 `public`（是否还在公开期，作者看过期的自己的帖时为 `false`）。`replies[]`（按时间正序，最多 200）：`id`（数字）、`user_id`、`to_user`、`body`、`created_at`、`mine`、`hidden`；已删除的回复不返回，后台隐藏的只有回复作者本人看得到，被屏蔽的人的回复看不到。**看不到的（过期的别人的 / 被屏蔽 / 不感兴趣 / 隐藏 / 已删 / 停用账号）和不存在的一样返回 404 `not_found`**；id 不是 uuid 也是 404。
 - **GET /api/sideline/mine**（参数 `before`、`limit`=30 同上可选；要登录，没登录 401）：我发过的，按公开时间倒序、同样的游标分页（`limit` 默认 30，最大 50）。包含已过 24 小时只剩自己看得到的、被后台隐藏的、还没到公开时间的；已删除的没有。返回 `{ posts, next, topics, profiles }`，`posts[]` 多 `status` 与 `public`。
@@ -755,6 +757,12 @@
 - 校验：魔数 FFD8FF 且正好以 FFD9 结尾、中间不能有第二张图（拼接 / polyglot → 422 photo_bad_format）；读 SOF 得宽高，像素 ≤ 4 MP、长边不超变体上限（413 photo_too_big）；含 APP1（EXIF / XMP）或 APP13 Photoshop 资源（IPTC）→ 422 photo_exif。
 - 写入：不覆盖（R2 `onlyIf etagDoesNotMatch *`）。同键已有且字节相同 = 200（重试幂等）；不同 = 409 photo_conflict。返回 `{key, size, w, h}`。
 - 开关：`GET /api/switches` 多返回 `photos_paused`（默认 false）；后台「运行时开关」可切（owner + 理由）。前台读到 true 隐藏相机入口（P4）。
+
+### 14.17 读图 GET /api/sideline/photo/<用户 id>/<名>?v=full|t|b&e=<过期秒>&s=<签名>[&p=1]，与读接口的 photos（#393 P2，ADR 0015；无库结构改动）
+- **photos 形状**（feed / 我的 / 详情都带，只加不改）：`[{ idx, w, h, state, url?, t?, b? }]`。`state`：`ok` 给 `url`（原图）/ `t`（缩略）/ `b`（极小图）三个签名地址；`blurred`（打码）只给 `b`；`removed`（行级权限只让作者读到）一个地址都不给，只剩 `state` / 宽高。缺省 = 不可见。没配密钥 `NBQ_PHOTO_KEY` 时只剩 `state` / 宽高，不发任何地址。没有图的帖子（`photo_count` = 0）`photos` 是 `[]`，也不多查库。
+- **签名**：HMAC-SHA256(`NBQ_PHOTO_KEY`, `<uid>/<名>|<变体>|<过期>|<p>`)，base64url（43 位）。过期 = 当前 15 分钟时段的结尾再加一个时段 → 剩余有效期 15–30 分钟；同一时段所有人拿到同一个地址，边缘缓存才命中。`p=1` = 仅作者可见的帖子（`public` = false：过 24 小时 / 被后台隐藏），签名也覆盖它，响应用 `private` 缓存。前台缓存只存地址和过期时间，过期后等重读列表，不拿过期地址渲染。
+- **GET 读图**（不用登录、不查库）：格式不对 / 名字以 -t·-b 结尾 / uid 不是 uuid / `p` 不是 1 → 404；没配桶或密钥 → 503 `photos_unavailable`；签名不对或过期时间离现在超过 1 小时 → 403 `photo_forbidden`；过期超过 60 秒时钟偏差 → 410 `photo_expired`；对象不存在 → 404。成功 200：`Content-Type: image/jpeg`（强制）、`X-Content-Type-Options: nosniff`、`Content-Disposition: inline`、`Cache-Control: public|private, max-age=<剩余有效期>`。Service Worker 不缓存图片。
+- **下架**：`removed` 不再发地址；已发出的地址最多再活 30 分钟。同步删 R2 对象随 P6 的后台审核接线做（本 PR 不动后台）。
 
 ## 登录交接（11-14）：Safari 登录 → 添加到主屏幕 → 桌面图标不用再登录
 iPhone 的 Safari 和桌面图标不共用存储。登录后的页面要一个一次性交接码，写进安装配置的启动网址；桌面图标第一次打开时拿码换登录。接口层自己签发令牌（ES256，密钥 `NBQ_SESSION_KEY`，iss = `https://nanbanqiu.app/session`，sub 仍是 Supabase 的 auth id），和 Supabase 的令牌并行，接口两种都认。没配密钥 = 整套不启用（404 `handoff_unavailable`）。
