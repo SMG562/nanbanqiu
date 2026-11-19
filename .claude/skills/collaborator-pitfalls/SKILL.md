@@ -111,7 +111,7 @@ description: 协作者（非所有者）在南伴球仓库开工、提交、开 
    | `block:pr_state_branch` `pr_state ready/draft` 报错直接给 checkout 命令（#418/#419 先踩后补） | 11-19 | 同类命中次数 |
    | `warn:overlap` 转 Ready 前提醒别的 PR 同改这些文件（#426×#427 冲突重跑） | 11-19 | 冲突后重推次数 |
    | `warn:repush` 非草稿 PR 的 tests 在跑时再推提醒（tests 30–43 分钟，推一次重算一次） | 11-19 | 每 PR 推送次数 |
-5. **浅克隆跑 `gate.sh` 会误报 smoke ❌**（`--depth 1` 时 `diff-tree --root` 把整个提交当新增，误判触发 smoke）：先 `git fetch --depth=3 origin main` 再跑，别据此说「没过」（证据 #333，11-17）。
+5. **云会话 / 浅克隆四件事**（11-19，#410 交接教训，证据 #333 #427 #433）：① 新会话先 `add_repo`（access:push）→ 浅克隆 → `register_repo_root`；② 浅克隆跑 `gate.sh` 会误报 smoke ❌（`--depth 1` 时 `diff-tree --root` 把整个提交当新增）：先 `git fetch --depth=3 origin main` 再跑；`git fetch origin <分支>` 不更新远端引用，要 `git fetch --depth=50 origin +refs/heads/<b>:refs/remotes/origin/<b>`；③ `ci_wait.sh` 前台一轮 ≤10 分钟，tests 要连调 3–4 次，环境重启会杀后台等待，重调即可；④ 合并后实查 main 自己的 CI：smoke 红先看日志是不是「线上版本没换」（部署延迟）；tests「取消」多半是 main 又前进了（concurrency），改对新 HEAD 跑 `gate.sh`，别据此说没过。
 8. **开会话常驻规矩自动注入**（#346，11-17）：SessionStart 钩子输出 `START_NOTE`（授权前置、等复核的 PR 不订阅、一件事一会话、查状态只用脚本），不占 CLAUDE.md 预算；订阅 / 唤醒拦截见第 6 条。 **做省 token 机制的取舍原则**（#346，11-17）：能在「工具调用前」拦一次的才做成钩子；靠 Stop 退回回复纠正的要慎做（多一整轮历史重读，常比纠正的事更贵）。想法先问「必要吗 / 合理吗 / 提效吗」，不全是就写进二期并给触发条件（跑一周看 `token_report.mjs` 的通知回合占比、收尾提问数，没降再做）。 **新闸门默认先 warn（带 `[nbq:warn:…]`），同一闸门 7 天 ≥2 次由 digest ③b 升级成 block；30 天零命中进清理候选（11-19，#410）。**
 
 ## 十一、经验自动提炼（11-17，#346；不靠人记）
