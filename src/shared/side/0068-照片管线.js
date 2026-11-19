@@ -56,6 +56,10 @@ const sbPhQueue=o=>{const items=[],sleep=o.sleep||((ms,sg)=>new Promise(r=>{cons
     cancel(name){const i=items.findIndex(x=>x.name===name);if(i<0)return;const it=items[i];it.ac&&it.ac.abort();items.splice(i,1)},   // 取消 = 移除，不再重试
     retry(name){const it=items.find(x=>x.name===name&&x.st==='fail');if(it){it.st='wait';it.code='';pump()}},                   // 单张重试：从失败的那个变体接着传
     pending:()=>items.filter(x=>x.st!=='ok').length}};
+// 队列的 o.put 适配：变体 full → f，PUT 原始 JPEG 字节到 /api/sideline/photos/<名>-<f|t|b>（路径不带用户 id = 取登录人）。
+//   net = NBQ_NET；成功 {status}；失败 {status, code, retryAfter}（status 0 = 断网 / 超时，队列会重试；401 / 4xx 业务错不重试）。每个文件最多 60 秒（弱网下 1.5MB 比普通请求慢）
+const sbPhPutMake=net=>async(name,v,blob,signal)=>{const r=await net.putRaw('/api/sideline/photos/'+name+'-'+(v==='full'?'f':v),blob,{signal,timeout:60000});
+  return r.ok?{status:r.status}:{status:r.status,code:r.code,retryAfter:r.retry_after}};
 // ---- 草稿：上传会话（已传成功的键 + 文字 + 色调等）每步写本机；换账号 / 超过 24 小时作废（微信、iOS 会杀后台页）----
 const SB_DRAFT_KEY='nbq_sb_draft';
 const sbPhDraftGet=uid=>{const d=sbLS(SB_DRAFT_KEY);if(!d)return null;if(!uid||d.u!==uid||!(Date.now()-d.at<864e5)){sbLS(SB_DRAFT_KEY,null);return null}return d};
