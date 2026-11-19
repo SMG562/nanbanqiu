@@ -25,8 +25,10 @@ runs:
   steps:
     - id: key
       shell: bash
-      env: { NAME: "${{ inputs.name }}" }
-      run: echo "k=apt-ci-v1-${NAME}-${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
+      env: { NAME: "${{ inputs.name }}", PW: "${{ inputs.playwright }}" }
+      run: |
+        base="apt-ci-v1-${NAME}${PW:+-pw$PW}-"   # Playwright 版本进键：升级后它要的系统库变了，旧缓存不能用
+        echo "base=$base" >> "$GITHUB_OUTPUT"; echo "k=${base}${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
     - id: restore
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -34,7 +36,7 @@ runs:
           ~/apt-debs/*.deb
           ~/pip-wheels/*.whl
         key: ${{ steps.key.outputs.k }}
-        restore-keys: apt-ci-v1-${{ inputs.name }}-
+        restore-keys: ${{ steps.key.outputs.base }}
     - id: install
       shell: bash
       env:
@@ -61,6 +63,7 @@ runs:
         }
         apt_install() {
           rm -f "$D"/*.deb   # 退回 apt 时不留旧 deb（否则新旧混着存）
+          sudo dpkg --configure -a || true   # 上面本地装到一半失败时，先收拾半装状态
           sudo apt-get update -q
           sudo apt-get install -y -q $PACKAGES
           [ -z "$PW" ] || npx -y "playwright@$PW" install-deps chromium
