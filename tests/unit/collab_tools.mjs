@@ -56,4 +56,11 @@ s = sm('real'); T('真冲突（x.js）：照旧中止、分支不变', s.p.statu
 // 11-11：旧分支没有脚本时按文档用管道运行（$0 = bash）。仓库在另一个仓库里面时，旧写法 cd $(dirname $0)/.. 会跑到外层仓库去操作
 s = sm('gen', { pipe: true, nested: true }); T('管道运行 + 仓库嵌在另一个仓库里：仍在本仓库合并并推送，不碰外层', s.p.status === 0 && s.pushed === s.after && s.after !== s.before && fs.existsSync(path.join(s.w, 'y.js')), { code: s.p.status, out: s.p.stdout + s.p.stderr });
 { const d = tmpd('nbq-norepo-'), p = spawnSync('bash', [], { cwd: d, input: fs.readFileSync(path.join(ROOT, 'tools/sync_main.sh')), env, encoding: 'utf8' }); T('不在仓库里运行：直接报错退出，不往上找别的目录', p.status === 1 && /不在 git 仓库里/.test(p.stdout), { code: p.status, out: p.stdout + p.stderr }); }
+// 11-19（#410 试点 ③）：浅克隆（--depth 1）里不谎报「多 N 个提交」：先加深再数，数对、找得到共同祖先
+{ const o = tmpd('nbq-sh-o-'); git(o, 'init', '-q', '-b', 'main'); fs.mkdirSync(path.join(o, 'tools')); fs.copyFileSync(path.join(ROOT, 'tools/sync_main.sh'), path.join(o, 'tools/sync_main.sh'));
+  W(o, 'a.txt', '0\n'); git(o, 'add', '-A'); git(o, 'commit', '-qm', 'c0'); git(o, 'checkout', '-qb', 'feat'); W(o, 'f.txt', 'f\n'); git(o, 'add', '-A'); git(o, 'commit', '-qm', 'feat'); git(o, 'checkout', '-q', 'main');
+  for (let i = 1; i <= 10; i++) { W(o, `m${i}.txt`, i + '\n'); git(o, 'add', '-A'); git(o, 'commit', '-qm', 'm' + i) }
+  const w = tmpd('nbq-sh-w-') + '/w'; execFileSync('git', ['clone', '-q', '--depth', '1', 'file://' + o, w], { env }); execFileSync('git', ['fetch', '-q', '--depth', '1', 'origin', 'feat'], { cwd: w, env }); execFileSync('git', ['checkout', '-q', '-B', 'feat', 'FETCH_HEAD'], { cwd: w, env });   // 和云端会话同样的浅克隆方式
+  const p = spawnSync('bash', ['-c', `git show origin/main:tools/sync_main.sh >/dev/null 2>&1; cp ${JSON.stringify(path.join(ROOT, 'tools/sync_main.sh'))} /tmp/nbq_sm_$$.sh; bash /tmp/nbq_sm_$$.sh --check; rm -f /tmp/nbq_sm_$$.sh`], { cwd: w, env, encoding: 'utf8' });
+  T('浅克隆：main 比分支多 10 个提交，如实报 10（不是 1 / 11 / 几百）', /多 10 个提交/.test(p.stdout), p.stdout + p.stderr); }
 console.log(`collab_tools: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
