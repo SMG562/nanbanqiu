@@ -36,9 +36,9 @@ git merge -q --no-edit -m "合并 origin/main，为快进合并做准备" origin
   if [ -n "$U" ] && ! echo "$U" | grep -qvE '^(南伴球_(PWA|Web|后台)\.html|server/migrations/_bundle\.sql)$'; then
     echo "ℹ️ 冲突只有生成文件（ADR 0011 起不入库）：跟着 main 删除 → $(echo "$U" | tr '\n' ' ')"
     echo "$U" | while IFS= read -r f; do git rm -q --cached -- "$f" 2>/dev/null || true; rm -f -- "$f"; done
-    git -c core.quotepath=off diff --name-only --diff-filter=U | grep -q . && { echo "❌ 还有没解决的冲突"; git merge --abort; exit 3; }
+    git -c core.quotepath=off diff --name-only --diff-filter=U | grep -q . && { echo "❌ [nbq:block:sync_main] 还有没解决的冲突"; git merge --abort; exit 3; }
     git commit -q --no-edit || { git merge --abort; exit 3; }
   else
-    echo "❌ 合并冲突：$(echo "$U" | tr '\n' ' ')"; git merge --abort; echo "已 --abort，分支没变。"; exit 3
+    echo "❌ [nbq:block:sync_main] 合并冲突：$(echo "$U" | tr '\n' ' ')"; git merge --abort; echo "已 --abort，分支没变。"; exit 3
   fi; }
 git push -q origin "HEAD:refs/heads/$B" && echo "→ 已合并并推送 $B。下一步：bash tools/ci_wait.sh"

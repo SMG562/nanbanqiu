@@ -91,7 +91,7 @@ case "$(echo "$CHG" | node tools/decision_card.mjs --level 2>/dev/null)" in
   *) yes "自助合并：无红线、无需复核" ;;
 esac
 [ -z "$(git status --porcelain)" ] && yes "本地工作区干净" || no "本地有没提交的改动"
-[ $bad = 0 ] || { echo "→ 有没满足的项，没有合并。"; exit 1; }
+[ $bad = 0 ] || { echo "→ 有没满足的项，没有合并。$([ "$CHECK" = "--check" ] || echo " [nbq:block:pr_merge]")"; exit 1; }   # 只给真合并记账，--check 等 CI 是常态不算
 [ "$CHECK" = "--check" ] && { echo "→ 全部满足（--check 只核对，没有推）。"; exit 0; }
 # 11-05：pre-push 闸门要本地「相关测试全绿」戳；经 PR 合并的提交已在 GitHub 对同一提交号跑过 tests-fast + tests 且 completed success（上面 ③ 已核对，走到这里即满足），
 # 不再本地重跑——把运行号写进 NBQ_UNTESTED，推送时打印，事后可追溯。没有 PR 的直接推 main 仍要本地戳。
