@@ -232,8 +232,8 @@ function App(el,init){
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
     const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
-    const cp=$('.compose');cp.classList.remove('typing');
-    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.onfocus=()=>cp.classList.add('typing');ct.onblur=()=>cp.classList.remove('typing');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''}};
+    const cp=$('.compose');cp.classList.remove('cmp-ty');
+    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
     drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
