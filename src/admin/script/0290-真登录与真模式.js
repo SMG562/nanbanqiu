@@ -1,15 +1,13 @@
 /* =====================================================================
  * 真登录与真模式外壳（#27 PR-B1）。必须排在所有包装 render / drawNav / logout 的脚本之后（后面的 03xx 真数据页只登记 REAL_PAGES、不包装）：下面三处包住 render / drawNav / logout，要在所有前面的包装之外。
  *   模式只在 page 里的一处判定（data-mode）：默认「真」；本机文件（file:）和预览站根域名才是「演示」。
- *   真模式的铁律：不显示任何模拟数字。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
+ *   真模式的铁律：不显示任何模拟数字，也不生成模拟数据（0130 的 NOMOCK，#415）。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
  *   新加的页面不用记得去标，天然是占位。导航角标（待审核数、风险数）也来自模拟数据，真模式下不画。
  *   登录：邮箱 + 密码 + 验证码（或恢复码）→ POST /admin/api/login；令牌只在 httpOnly Cookie 里，这里拿不到也不存任何凭证。
  * ===================================================================== */
-const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
 const REAL_RESET=[];   // 退出 / 过期时各真数据页清自己的状态（后面的文件 push 进来）
 const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage(),games:()=>realGamesPage()};
-const REAL_NOTE={};   // 个别页面的占位说明（没有就用通用的）
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
 // ---------- 接口 ----------
@@ -79,7 +77,7 @@ if(NBQ_MODE==='real'){
 }
 
 // ---------- 页面 ----------
-function realPlaceholder(k){return `<div class="card nodata"><h2>${esc(TITLES[k]||'这一页')}：还没接真数据</h2><p>这一页现在不显示任何数字，免得把演示数据当成真的。${esc(REAL_NOTE[k]||'接入计划见 Issue #27。')}</p></div>`}
+function realPlaceholder(k){return `<div class="card nodata"><h2>${esc(TITLES[k]||'这一页')}：还没接真数据</h2><p>这一页现在不显示任何数字，免得把演示数据当成真的。接入计划见 Issue #27。</p></div>`}
 function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[],nm=String(m.name||'').trim()||'管理员';
   return `<div class="grid g12"><div class="card"><div class="acct-top"><span class="av">${esc([...nm][0]||'?')}</span><div><b>${esc(nm)}</b><br><span class="pill nodot">${esc(ROLE_NAME[S.role]||S.role)}</span></div></div>
   <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
