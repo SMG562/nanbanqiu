@@ -9,6 +9,7 @@ const d = o => G.decide({ ...base, ...o });
 T('已推送、有 PR、没有交接留言 → 拦并给 pr_say 命令', /pr_say\.sh 9 交接 abc1234/.test(d({})), d({}));
 T('交接留言带别的提交号 → 仍拦', !!d({ comments: ['<!-- nbq-say:交接:zzz9999:aaaaaa -->'] }));
 T('交接留言带本提交号 → 放行', d({ comments: ['<!-- nbq-say:交接:abc1234:aaaaaa --> x'] }) === null);
+T('PR 已合并（分支还在本地）→ 放行，不误报「没有 PR」', d({ pr: { number: 9, merged: true } }) === null);
 T('没有 PR → 拦并提示先开草稿 PR', /草稿 PR/.test(d({ pr: null })), d({ pr: null }));
 T('有未推送的提交 → 拦并提示先推送', /先推送/.test(d({ pushed: false })));
 T('在 main 上 → 放行', d({ branch: 'main' }) === null);
