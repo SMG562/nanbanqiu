@@ -579,13 +579,13 @@ function App(el,init){
   const rlSafe=async(path,b,undo)=>{const net=rlNet();if(!net)return;const r=await net.post(path,b);if(!r.ok){if(undo)undo();if(r.code!=='login_required')say(r.code)}};
   const sendDelete=async x=>{const net=rlNet();if(!net||!x)return;if(x.tmp){x.cancel=1;return}S.gone.add(String(x.id));const r=await net.del('/api/sideline/posts/'+x.id);
     if(!r.ok&&r.status!==404){S.gone.delete(String(x.id));if(r.code!=='login_required')say(r.code);loadFeed()}};
-  const realSend=async(x,b,restore)=>{const net=rlNet();if(!net)return;const slot='sbpost'+(x?x.id:''),k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts',b,{idem:k});NBQ_IDEM.done(slot,r);
+  const realSend=async(x,b,restore)=>{const net=rlNet();if(!net)return;const slot='sbpost',k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts',b,{idem:k});NBQ_IDEM.done(slot,r);
     if(!r.ok){if(x){const old=x.id;S.L=S.L.filter(y=>y!==x);S.pend=(S.pend||[]).filter(y=>y!==x);el.querySelectorAll(`[data-s] [data-ln="${old}"],.wall [data-ln="${old}"]`).forEach(collapse);S.lastMine=null;$('.undo').classList.remove('show');setCnt();pillSync()}
       if(r.code!=='login_required')say(r.code);if(restore)restore();return}
     if(!x)return;const old=x.id;x.id=r.data.id;x.floor=+r.data.floor||x.floor;x.t=sbTs(r.data.publish_at);delete x.tmp;
     if(r.data.topic_id&&r.data.topic_id!==x.topic){x.topic=r.data.topic_id;sbTopicEnsure(S.T,x.topic);sbTopicEnsure(TOPICS,x.topic)}
     refreshRow(x,old);recount();if(x.cancel){x.cancel=0;sendDelete(x)}};
-  const sendReply=async(x,r0,v,toId,restore)=>{const net=rlNet();if(!net)return;r0.sent=1;const b={body:v};if(toId)b.to=toId;const slot='sbr'+x.id+'_'+r0.id,k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts/'+x.id+'/replies',b,{idem:k});NBQ_IDEM.done(slot,r);
+  const sendReply=async(x,r0,v,toId,restore)=>{const net=rlNet();if(!net)return;r0.sent=1;const b={body:v};if(toId)b.to=toId;const slot='sbr'+x.id,k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts/'+x.id+'/replies',b,{idem:k});NBQ_IDEM.done(slot,r);
     if(!r.ok){x.r=x.r.filter(q=>q!==r0);x.rn=Math.max(0,(x.rn||1)-1);if(String(S.open)===String(x.id))drawSheet();refreshRow(x);if(r.code!=='login_required')say(r.code);if(restore)restore();return}
     if(x.r.some(q=>q!==r0&&String(q.id)===String(r.data.id))){x.r=x.r.filter(q=>q!==r0);if(String(S.open)===String(x.id))drawSheet();refreshRow(x);return}   // 详情已先读回来了
     r0.id=r.data.id;delete r0.tmp};
