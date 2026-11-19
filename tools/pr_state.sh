@@ -24,6 +24,10 @@ if [ "$(git rev-parse --abbrev-ref HEAD)" != "$HEAD" ]; then
   fi
   gh pr comment "$PR" -R "$R" --body "【越权改状态】$ACT：$NBQ_PR_OVERRIDE（所有者点头）" >/dev/null
 fi
+# 转 Ready 前先核对 PR 描述（风险类别 / 入口清单等）：别等到 pr_merge --check 才发现（逃逸：描述没勾风险类别）
+if [ "$ACT" = ready ] && [ "$DRAFT" = true ] && [ -z "${NBQ_PR_OVERRIDE:-}" ]; then
+  node tools/pr_body_check.mjs "$PR" || { echo "⛔ PR 描述没过核对（见上），先改描述再转 Ready；PR 模板：.github/pull_request_template.md"; exit 4; }
+fi
 case "$ACT" in
   ready) [ "$DRAFT" = true ] || { echo "已经是 Ready"; exit 0; }; P=ready_for_review ;;
   draft) [ "$DRAFT" = false ] || { echo "已经是草稿"; exit 0; }; P=convert_to_draft ;;

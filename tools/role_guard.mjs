@@ -98,7 +98,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (input.hook_event_name === 'PreToolUse') { const d = TG.preDecision(input); if (d) process.stdout.write(JSON.stringify(d) + '\n'); process.exit(0) }   // 11-17：省 token 护栏（手写轮询 / gh pr view）
     const text = typeof input.last_assistant_message === 'string' ? input.last_assistant_message : input.transcript_path ? lastTurnText(readTail(input.transcript_path)) : '';
     const login = ghLogin(), reason = decide({ login, text, stopHookActive: !!input.stop_hook_active, coOwners: login === OWNER_LOGIN ? [] : coOwnerList() });
-    const tg = reason ? null : TG.stopReason(input);                                                          // 11-17：会话过长 / 同处反复改 → 提醒一次
+    const tg = reason ? null : TG.stopReason(input) || (await import('./lib/close_guard.mjs')).stopReason(input);   // 11-19：推完必须有交接留言（close_guard）
+                                                             // 11-17：会话过长 / 同处反复改 → 提醒一次
     if (reason || tg) process.stdout.write(JSON.stringify({ decision: 'block', reason: reason || tg }) + '\n');
     TG.postLedger(input);                                                                                       // 11-17：每会话一行纯数字写进台账 Issue #349（NBQ_LEDGER=0 关；出错静默）
   } catch (_) { }                                                                                             // 检查自己出错绝不拦人

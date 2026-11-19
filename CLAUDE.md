@@ -2,7 +2,7 @@
 
 墨尔本（之后悉尼）华人网球约局：手机端 PWA、电脑网页端、管理后台、PostgreSQL 数据库。
 
-用户说「继续上次的」：读 `进度记录.md` 按「§0 中断后怎么接着做」执行（第 2b 步 `bash tools/handoff_check.sh`）。进度只认那份文件；做过什么看 `git log`，下一步看 Issue #65 顶部「本周」块（`gh issue list -R SMG562/nanbanqiu -l 本周`），以后做看其余 Issues，业务规则看 `业务规则.md`，旧决定看 `进度记录_历史.md`。clone 后先 `git config core.hooksPath .githooks`。
+用户说「继续上次的」：读 `进度记录.md` 按「§0 中断后怎么接着做」执行（第 2b 步 `bash tools/handoff_check.sh`）。进度只认那份文件；做过什么看 `git log`，下一步看 Issue #65 顶部「本周」块（`handoff_check.sh --brief` 已带，别用 `gh issue list`），其余 Issues 以后做，业务规则看 `业务规则.md`，旧决定看 `进度记录_历史.md`。clone 后先 `git config core.hooksPath .githooks`。
 
 **读法**：这里只放每次开工必知的规矩；细则在 `开发规矩.md`、`docs/`、`.claude/skills/`，用到再打开。
 
