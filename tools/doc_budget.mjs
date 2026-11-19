@@ -26,6 +26,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const [k, v] of Object.entries(cnt)) { try { cs[k] = fs.readdirSync(path.join(ROOT, v.dir)).filter(n => new RegExp(v.ext).test(n)).length } catch { cs[k] = 0 } }
   const cr = check(cs, Object.fromEntries(Object.entries(cnt).map(([k, v]) => [k, v.max])));
   cr.over.forEach(o => { console.log(`❌ ${o.f} 现有 ${o.size} 个，超过上限 ${o.max}：新增一个先删一个（上限只降不升）`); over.push(o) });
+  if (process.argv.includes('--counts')) { console.log('余量：' + Object.entries(cnt).map(([k, v]) => `${k} ${cs[k]}/${v.max}`).join('、') + (Object.entries(cnt).some(([k, v]) => cs[k] >= v.max) ? '（已满：新增前先并入现有文件，见 ADR 0012）' : '')); process.exit(0) }   // #410 试点 ⑥：开分支时就知道还能不能加新脚本 / 工作流
   console.log(`doc_budget: ${Object.keys(budgets).length} 份文档, ${over.length} 份超预算, ${missing.length} 份缺失, ${near.length} 份接近上限${over.length || missing.length ? ' [nbq:block:doc_budget]' : ''}`);
   process.exit(over.length || missing.length ? 1 : 0);
 }

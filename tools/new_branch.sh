@@ -11,6 +11,8 @@ me=$(gh api user --jq .login 2>/dev/null || echo "")
 nd=$(gh api "repos/SMG562/nanbanqiu/pulls?state=open&per_page=100" --jq "[.[]|select(.draft==false and .user.login==\"$me\")]|length" 2>/dev/null || echo "?")
 [ -n "$me" ] || nd="?"
 [ "$nd" = "?" ] || [ "$nd" -lt 2 ] || echo "⚠️ 你已有 $nd 个非草稿 PR（每人上限 2）：先合并 / 转草稿 / 关掉旧的，再开新的"
+# 11-19（#410 试点 ⑥）：脚本 / 工作流件数余量（满了就要并入现有文件，别等 doc_budget 在提交时才报错）
+node tools/doc_budget.mjs --counts 2>/dev/null | grep "^余量" || true
 # 11-17：开工前自动查「这件事有人做过 / 在做吗」（省 token：重复劳动是最大的浪费；不拦，只摆出来）
 node tools/overlap_check.mjs --dup "$B" 2>/dev/null || true
 git checkout -q -b "$B" origin/main
