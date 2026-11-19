@@ -139,8 +139,12 @@ jobs:
 
       - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体）
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
+          # 11-19（#432 测量）：apt 偶发卡 20+ 分钟（慢分片该步中位 1295s，快的 18s），拖垮整次 tests；每次 120s 超时、最多 4 次，卡住就重来；快速档也要装：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
+          for i in 1 2 3 4; do
+            sudo timeout -k 10 120 sh -c 'apt-get update -q -o Acquire::Retries=3 -o Acquire::http::Timeout=20 && apt-get install -y -q -o Acquire::Retries=3 -o Acquire::http::Timeout=20 postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji' && break
+            [ "$i" = 4 ] && { echo "apt 连续 4 次失败 / 超时"; exit 1; }
+            echo "::warning::apt 第 $i 次超时或失败，重试"; sudo dpkg --configure -a || true; sleep 5
+          done
           [ "$NBQ_LITE" = true ] && exit 0   # pglast 只有 schema 套件用（快速档跳过）
           pip install --break-system-packages -q pglast || pip install -q pglast
 
