@@ -7,7 +7,7 @@ const rd = f => fs.readFileSync(path.join(DIR, f), 'utf8'), F = 'src/shared/side
 const store = {}, sbLS = (k, v) => { if (v === undefined) return store[k] ?? null; if (v === null) delete store[k]; else store[k] = v };
 let now = 1e12;
 const ctx = vm.createContext({ sbLS, Date: { now: () => now }, Promise, setTimeout, clearTimeout, AbortController, Math, Array, Object, Error, Uint8Array });
-vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear}', ctx);
+vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear}', ctx);
 const X = ctx.__x, code = async p => { try { await p; return null } catch (e) { return e.code } };
 T('文件在空沙盒里能载入，两端都拼进去了', !!X.sbPhQueue && ['pwa', 'web'].every(e => rd(`src/${e}.list`).includes('shared/side/0068-照片管线.js')));
 
@@ -101,5 +101,24 @@ T('草稿：超过 24 小时作废', X.sbPhDraftGet('u1') === null);
 X.sbPhDraftSet('u1', { text: 'x', keys: [] }); X.sbPhDraftClear();
 T('草稿：发布 / 取消后清掉', X.sbPhDraftGet('u1') === null);
 X.sbPhDraftSet('', { text: 'x' }); T('草稿：没有账号 id 不写', Object.keys(store).length === 0);
+
+// ---- 上传适配 sbPhPutMake：变体名映射、成功 / 失败形状、与队列配合 ----
+{ const calls = []; const mkNet = r => ({ putRaw: async (p, b, o) => { calls.push({ p, b, o }); return typeof r === 'function' ? r(p) : r } });
+  const blob = { size: 3 }, sg = new AbortController().signal;
+  const put = X.sbPhPutMake(mkNet({ ok: true, status: 200 }));
+  const r1 = await put('Abcdefghijklmnop', 'full', blob, sg), r2 = await put('Abcdefghijklmnop', 't', blob, sg), r3 = await put('Abcdefghijklmnop', 'b', blob, sg);
+  T('变体 full → f，t / b 原样；路径不带用户 id', calls.map(c => c.p).join() === '/api/sideline/photos/Abcdefghijklmnop-f,/api/sideline/photos/Abcdefghijklmnop-t,/api/sideline/photos/Abcdefghijklmnop-b', calls.map(c => c.p));
+  T('成功返回 {status}；字节与 signal 原样交给网络层，单文件超时 60 秒', r1.status === 200 && r2.status === 200 && r3.status === 200 && calls[0].b === blob && calls[0].o.signal === sg && calls[0].o.timeout === 60000, calls[0]);
+  const bad = await X.sbPhPutMake(mkNet({ ok: false, status: 429, code: 'photo_hourly_limit', retry_after: 9 }))('n', 'full', blob, sg);
+  T('失败带出 status / code / retryAfter（队列按它退避）', bad.status === 429 && bad.code === 'photo_hourly_limit' && bad.retryAfter === 9, bad);
+  const off = await X.sbPhPutMake(mkNet({ ok: false, status: 0, code: 'network' }))('n', 't', blob, sg);
+  T('断网 status 0（队列会重试）', off.status === 0 && off.code === 'network', off);
+  // 和队列接起来：三个变体按 b → t → full 顺序传，全 200 → ok；full 返回 422 photo_exif → 失败且不重试
+  const order = []; const q1 = X.sbPhQueue({ put: X.sbPhPutMake(mkNet(p => { order.push(p.slice(-2)); return { ok: true, status: 200 } })), sleep: async () => { } });
+  const it = q1.add('Qqqqqqqqqqqqqqqq', { b: 1, t: 2, full: 3 }); await new Promise(r => setTimeout(r, 20));
+  T('队列 + 适配：b → t → f 依次上传，完成后 st = ok', order.join() === '-b,-t,-f' && it.st === 'ok', [order, it.st]);
+  let n422 = 0; const q2 = X.sbPhQueue({ put: X.sbPhPutMake(mkNet(p => { if (p.endsWith('-f')) { n422++; return { ok: false, status: 422, code: 'photo_exif' } } return { ok: true, status: 200 } })), sleep: async () => { } });
+  const it2 = q2.add('Rrrrrrrrrrrrrrrr', { b: 1, t: 2, full: 3 }); await new Promise(r => setTimeout(r, 20));
+  T('队列 + 适配：4xx 业务错不重试，st = fail 带 code', it2.st === 'fail' && it2.code === 'photo_exif' && n422 === 1, [it2.st, it2.code, n422]) }
 
 console.log(`\nside_photo: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

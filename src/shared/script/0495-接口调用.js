@@ -20,10 +20,12 @@ function nbqNetMake(io){
     if(io.build)h['X-NBQ-Build']=io.build;
     if(opt.idem)h['Idempotency-Key']=opt.idem;   // 重复提交（#276）：只有调用方给了才带
     const init={method,headers:h};
-    if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
+    if(opt.raw!==undefined){h['Content-Type']=opt.ctype||'application/octet-stream';init.body=opt.raw}   // 二进制请求体（场边照片上传 #393 P4）：原样发送，不转 JSON
+    else if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
     // 超时（11-13）：弱网下请求可能一直挂着，「处理中」的锁就一直不放、按钮点了没反应。io.timeout 毫秒（默认 20 秒）后放弃，和断网一样处理（发局 / 发消息重试带同一个 key，不会重复）
-    const tmo=io.timeout===undefined?20000:io.timeout,tm=io.timer||(typeof setTimeout==='function'?{set:(f,ms)=>setTimeout(f,ms),clear:t=>clearTimeout(t)}:null);
-    const ac=tmo>0&&tm&&typeof AbortController==='function'?new AbortController():null;if(ac)init.signal=ac.signal;
+    const tmo=opt.timeout!==undefined?opt.timeout:io.timeout===undefined?20000:io.timeout,tm=io.timer||(typeof setTimeout==='function'?{set:(f,ms)=>setTimeout(f,ms),clear:t=>clearTimeout(t)}:null);
+    const ac=(opt.signal||(tmo>0&&tm))&&typeof AbortController==='function'?new AbortController():null;if(ac)init.signal=ac.signal;
+    if(ac&&opt.signal){if(opt.signal.aborted)return{ok:false,status:0,code:'network'};opt.signal.addEventListener('abort',()=>{try{ac.abort()}catch(_){}},{once:true})}   // 调用方可中途取消（照片上传：用户移除这张图）
     let r,t=null;try{const f=io.fetch(base+path+qs(opt.query),init);
       r=await(tmo>0&&tm?Promise.race([f,new Promise((_,no)=>{t=tm.set(()=>{if(ac)try{ac.abort()}catch(_){}no(new Error('timeout'))},tmo)})]):f)}
     catch(_){return{ok:false,status:0,code:'network'}}finally{if(t!==null)tm.clear(t)}
@@ -38,7 +40,7 @@ function nbqNetMake(io){
     if(ra>0)out.retry_after=ra;else if(d&&d.retry_after>0)out.retry_after=d.retry_after;
     return out}
   return{call,get:(p,q,o)=>call('GET',p,{...o,query:q}),post:(p,b,o)=>call('POST',p,{...o,body:b===undefined?{}:b}),
-    put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
+    put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),putRaw:(p,blob,o)=>call('PUT',p,{...o,raw:blob,ctype:'image/jpeg'}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 // 重复提交（#276）：同一个操作槽（发局 / 某个会话发消息）+ 同样的内容 → 沿用上次的 key，服务器返回第一次的结果，不会建出两局 / 发两条。
 //   沿用：上次没有明确结果（断网 status 0、5xx：不知道写没写进去），而且在 10 分钟内；换新 key：成功了、4xx 被明确拒了、内容改了、隔太久（服务端认 24 小时，前台只在短时间内当「重发」，免得过很久再说同一句话被当成旧的）
