@@ -221,10 +221,13 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('P4b：一张图传完（b / t / full 各一个 PUT），格子里有缩略图、没有「重试」', S.putN === 3 && await SRQ('.compose', "r.querySelectorAll('.ph1 img').length === 1 && !r.querySelector('[data-pr]') && !r.querySelector('.phst')"), [S.putN, S.log]);
   T('P4b：上传进度 / 状态变化不重建缩略图格子（否则每格重播入场动画、图重载 = 真机闪三下）', await E(() => window.__phRm.length === 0), await E(() => window.__phRm));
   // 打字时：只留 取消 / 发布 + 输入框，底栏（照片 / 球场 / 设置）收起，输入框在可视区内；失焦后底栏回来
+  // 聚焦前后版面必须一模一样（11-19：聚焦时收起相机框 / 缩缩略图，输入区上下跳 = 用户眼里的「抖动」）；只有底栏淡出
+  const LAY = "(() => { const g = x => { const e = r.querySelector(x); if (!e) return null; const b = e.getBoundingClientRect(); return [b.top, b.height, b.width].map(Math.round).join() }; return [g('[data-ctext]'), g('.phs'), g('.ph1'), g('.phadd'), g('.ctop')].join('|') })()";
+  const lay0 = await SRQ('.compose', LAY);
   await sr('[data-ctext]').focus(); await pg.settle(300);
-  T('打字时：底栏收起、缩略图变小、输入框完整可见', await SRQ('.compose', "(() => { const cs = x => getComputedStyle(r.querySelector(x)), t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && r.getBoundingClientRect().height >= innerHeight * 0.8 && r.getBoundingClientRect().top <= 60 && cs('.cbot').display === 'none' && r.querySelector('.ph1').getBoundingClientRect().width <= 60 && t.height >= 100 && t.bottom <= innerHeight })()"));
+  T('打字时：版面不动（输入框 / 照片格 / 相机框位置尺寸不变）、底栏淡出、输入框完整可见', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "(() => { const t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity === '0' && t.height >= 100 && t.bottom <= innerHeight })()"));
   await sr('[data-ctext]').evaluate(e => e.blur()); await pg.settle(300);
-  T('失焦后：底栏回来、缩略图恢复', await SRQ('.compose', "!r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).display !== 'none' && r.querySelector('.ph1').getBoundingClientRect().width > 90"));
+  T('失焦后：底栏回来、版面仍不动', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "!r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity !== '0'"));
   T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
   await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
   const pb = S.bodies['POST /api/sideline/posts'];
