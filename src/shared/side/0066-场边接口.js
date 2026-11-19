@@ -4,8 +4,8 @@
 const sbReal=()=>typeof nbqOn==='function'&&nbqOn();
 // 一期开关（#369 PR-D / #393）：照片默认开（留作紧急关：页面先设 window.NBQ_SB_PHOTOS_ON=false）；二期入口（稍后公开、发起新话题）默认关，设 true 才显示
 const sbFlag=(k,d)=>{try{const v=typeof window!=='undefined'?window[k]:undefined;return v===undefined?d:!!v}catch(e){return d}};
-// 照片发布开关（#393 P4）：默认关；预览站用 ?sbphoto=1 打开，P5 真机通过后默认改 true
-const SB_PHOTO_POST=()=>sbFlag('NBQ_SB_PHOTO_POST',false)||(typeof location!=='undefined'&&/[?&]sbphoto=1/.test(location.search||''));
+// 照片发布开关（#393 P4）：测试环境（分支预览，连测试库）默认开，正式站默认关（#450：测试地址不带参数也得是真上传）；仍可用 ?sbphoto=1 打开，P5 真机通过后默认改 true
+const SB_PHOTO_POST=()=>sbFlag('NBQ_SB_PHOTO_POST',typeof NBQ_ENV!=='undefined'&&NBQ_ENV==='staging')||(typeof location!=='undefined'&&/[?&]sbphoto=1/.test(location.search||''));
 const SB_PHOTOS_ON=()=>sbFlag('NBQ_SB_PHOTOS_ON',true),SB_LATER_ON=()=>sbFlag('NBQ_SB_LATER_ON',false),SB_NEWTOPIC_ON=()=>sbFlag('NBQ_SB_NEWTOPIC_ON',false);
 // 11-19 发布页减负（所有者定）：话题的「开头」三行、照片色调（原片 / 暖阳 / 胶片 / 清晨）先关，往后再决定开不开；设 true 才显示
 const SB_FILLS_ON=()=>sbFlag('NBQ_SB_FILLS_ON',false),SB_TONES_ON=()=>sbFlag('NBQ_SB_TONES_ON',false);
