@@ -633,7 +633,7 @@ function App(el,init){
   return S;
 }
 
-return {App,CFG,rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
+return {App,CFG,flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
   photo:{env:sbPhEnv,run:sbPhRun,pick:sbPhPick,queue:sbPhQueue,draft:{get:sbPhDraftGet,set:sbPhDraftSet,clear:sbPhDraftClear},limits:SB_PH}};   // 照片管线（P3）：P4 发布页接线用；测试也从这里取
 })();
 
