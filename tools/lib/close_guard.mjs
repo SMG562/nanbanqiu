@@ -5,12 +5,14 @@
 import { execFileSync } from 'node:child_process';
 export const R = 'SMG562/nanbanqiu';
 // pr: {number,draft,merged}|null（含已合并 / 已关闭的：合并后分支还在本地，不能当成「没有 PR」）；comments: 该 PR 的评论正文数组；ahead: 比 origin/main 多的提交数；pushed: 头提交已在远端
-export function decide({ branch, sha, ahead, pushed, pr, comments = [], stopHookActive = false, off = false }) {
+export function decide({ branch, sha, ahead, pushed, pr, comments = [], lessons = false, stopHookActive = false, off = false }) {
   if (off || stopHookActive || !branch || branch === 'main' || branch === 'HEAD' || !(ahead > 0) || !sha) return null;
   if (!pushed) return `【收尾闭环】分支 ${branch} 有未推送的提交（${sha}）：先推送，再通知所有者。`;
   if (pr && pr.merged) return null;                                                                  // 已合并：交接已在合并前发过，不再拦
   if (!pr) return `【收尾闭环】分支 ${branch} 已推送（${sha}）但还没有 PR，所有者看不到：先开草稿 PR（描述写「改了什么」并 @SMG562 或 @MDD1102、勾风险类别），再用 bash tools/pr_say.sh <PR号> 交接 ${sha} "@对方 做了什么 / 待对方什么 / 下一步" 留言。`;
-  if (comments.some(b => b.includes(`nbq-say:交接:${sha}:`))) return null;
+  const say = comments.filter(b => b.includes(`nbq-say:交接:${sha}:`));
+  if (say.length && (!lessons || say.some(b => /经验更新[：:]/.test(b)))) return null;
+  if (say.length) return `【收尾闭环】本提交改了经验文档（逃逸缺陷 / 技能 / 开发规矩 / ADR），交接留言里还缺一行「经验更新：<一句话：教训 + 做成了什么拦截>」，对方才会自动看到：bash tools/pr_say.sh ${pr.number} 交接 ${sha} "@对方 …经验更新：…"（对方开新会话时，开工提示也会列出这些文件的变化）。`;
   return `【收尾闭环】PR #${pr.number} 还没有针对最新提交 ${sha} 的「交接」留言，所有者收不到通知：bash tools/pr_say.sh ${pr.number} 交接 ${sha} "@SMG562 做了什么 / 待所有者什么（没有写「无」）/ 下一步 / 踩过的坑：…"。发完再结束；这条只提醒一次。`;
 }
 const sh = (c, a) => execFileSync(c, a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -22,7 +24,8 @@ function collect() {
   const prs = JSON.parse(sh('gh', ['api', `repos/${R}/pulls?state=all&head=${owner}:${branch}`]));
   if (prs.length) { const p0 = prs.find(x => x.state === 'open') || prs[0]; pr = { number: p0.number, draft: p0.draft, merged: !!p0.merged_at };
     comments = JSON.parse(sh('gh', ['api', `repos/${R}/issues/${pr.number}/comments?per_page=100`, '--jq', '[.[].body]'])) }
-  return { branch, sha, ahead, pushed, pr, comments };
+  let lessons = false; try { lessons = !!sh('git', ['diff', '--name-only', 'origin/main...HEAD', '--', '逃逸缺陷.md', '.claude/skills', '开发规矩.md', 'docs/adr']) } catch (_) { }
+  return { branch, sha, ahead, pushed, pr, comments, lessons };
 }
 export function stopReason(input) {                                                           // 给 role_guard 的 Stop 钩子用：出任何错 → null
   try { return decide({ ...collect(), stopHookActive: !!input.stop_hook_active, off: process.env.NBQ_CLOSE_GUARD === '0' }) } catch (_) { return null }
