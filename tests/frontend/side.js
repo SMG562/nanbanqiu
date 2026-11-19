@@ -1,6 +1,6 @@
 // 第八批 F1a：手机端接入场边（只看部分）。底栏 发现 / 球局 / ＋ / 场边 / 我的；消息移到右上角（各页同一个红点）；
 // 场边页是设计稿 v35 的 App（放在 Shadow DOM 里），话题 / 今日推荐 / 底栏问题来自内置的第 1 版配置；盖在上面的页面要盖住底栏；
-// 从「我的」进场边相册，返回回到「我的」；看不见场边时不自动冒新消息；没有脚本错误。
+// 从「我的」进我发布的场边，返回回到「我的」；看不见场边时不自动冒新消息；没有脚本错误。
 const { chromium } = require('playwright');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 400))) };
 (async () => {
@@ -94,10 +94,10 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
 
   // 从「我的」进相册
   await pg.click('#tabbar [data-tab="me"]'); await W(250);
-  T('「我的」页有场边相册入口', await E(() => !!document.querySelector('#scr-me [data-a="sbAlbum"]')));
+  T('「我的」页有我发布的场边入口', await E(() => !!document.querySelector('#scr-me [data-a="sbAlbum"]')));
   await pg.click('#scr-me [data-a="sbAlbum"]'); await W(1000);
   const al = await E(new Function(`const r=${SR};return {tab:UI.tab,in:r.querySelector('.dev').classList.contains('inalbum'),top:document.querySelector('#scr-side').classList.contains('top'),n:r.querySelectorAll('.album [data-ln],.album .tn,.album img,.album .ag>*').length}`));
-  T('点「场边相册」→ 场边的相册（盖住底栏）', al.tab === 'side' && al.in && al.top, al);
+  T('点「我发布的场边」→ 场边的相册（盖住底栏）', al.tab === 'side' && al.in && al.top, al);
   await E(new Function(`${SR}.querySelector('[data-aback]').click()`)); await W(800);
   T('相册返回 → 回到「我的」', await E(() => UI.tab === 'me'));
 

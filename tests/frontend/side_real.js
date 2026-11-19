@@ -45,11 +45,14 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       if (p === '/api/profiles') return J(r, 200, { profiles: {} });
       if (p === '/api/sideline/config') { const v = +u.searchParams.get('v') || 0; S.cfgGets = (S.cfgGets || 0) + 1; if (v >= S.cfgV) return J(r, 200, { version: S.cfgV, same: true }); return J(r, 200, { version: S.cfgV, published_at: iso(60), config: S.cfg }) }
       if (p === '/api/sideline/feed') { S.feedGets++; if (S.feedDown) return r.abort(); if (S.pendingNew) { S.posts = [S.pendingNew, ...S.posts]; S.pendingNew = null } return J(r, 200, feedOut()) }
+      if (p === '/api/sideline/mine') { S.log.push('GET /api/sideline/mine'); return J(r, 200, { posts: S.mine || [], next: null, topics: feedOut().topics, profiles: prof }) }
       const mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})$/);
-      if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); return J(r, 200, { post: { ...x, status: 'visible', public: true }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
+      if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]) || (S.extra || []).find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); return J(r, 200, { post: { ...x, status: 'visible', public: !x.old }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
       return J(r, 404, { error: 'not_found' }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
     if (p === '/api/sideline/posts' && m === 'POST') { if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
+    if ((p === '/api/reports' || p === '/api/blocks') && m === 'POST') { S.log.push(m + ' ' + p); S.bodies[m + ' ' + p] = body; if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
+    if (/\/hide$/.test(p) && m === 'POST') { if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     let mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/ball$/);
     if (mm) { if (S.failBall) return J(r, 429, { error: 'rate_limited' }); const x = S.posts.find(q => q.id === mm[1]); if (m === 'PUT' && !x.my_ball) { x.my_ball = true; x.balls++ } if (m === 'DELETE' && x.my_ball) { x.my_ball = false; x.balls-- } return J(r, 200, { balls: x.balls }) }
     mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/replies$/);
@@ -135,9 +138,12 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await until(() => E(() => { const r = SBV.L.find(x => x.x === '今晚七点有人打吗'); return r && !r.tmp && r.id === '88888888-8888-4888-8888-888888888888' }));
   T('发布成功：本地临时 id 换成服务器 id', await E(() => { const r = SBV.L.find(x => x.x === '今晚七点有人打吗'); return !!r && !r.tmp && r.id === '88888888-8888-4888-8888-888888888888' }));
   // 撤回 = DELETE
-  S.log.length = 0; await pg.settle(400); await sr('[data-undo]').click(); await until(() => S.log.some(x => x.startsWith('DELETE')));
+  T('发布提示：「已发布，保质期 24h」，没有撤回按钮', (await SRQ('.undo', 'r.textContent')).includes('保质期 24h') && !(await SRQ('.undo', 'r.querySelector("[data-undo]")')), await SRQ('.undo', 'r.textContent'));
+  const dc = sel => E(q => { const r = document.querySelector('#sbHost').shadowRoot.querySelector(q); if (r) r.click(); return !!r }, sel);
+  const acts = async (id, act, ex) => { await dc('[data-s="home"] [data-ln="' + id + '"] .tx'); await until(async () => (await SRQ('.sheet', 'r.textContent')).length > 0); await pg.settle(600); await dc('.sheet [data-menu]'); await pg.settle(300); await pg.settle(400); await sr('.acts [data-act="' + act + '"]').click(); if (ex) { await pg.settle(300); await sr('.acts ' + ex).click(); await pg.settle(300) } };
+  S.log.length = 0; await acts(P5, 'del'); await until(() => S.log.some(x => x.startsWith('DELETE')));
   await until(async () => !(await rows()).some(x => x.includes('今晚七点有人打吗')));
-  T('撤回：DELETE /posts/:id，列表里拿掉', S.log.join() === 'DELETE /api/sideline/posts/P5' && !(await rows()).some(x => x.includes('今晚七点有人打吗')), [S.log, await rows()]);
+  T('删除（帖子菜单）：DELETE /posts/:id，列表里拿掉', S.log.join() === 'DELETE /api/sideline/posts/P5' && !(await rows()).some(x => x.includes('今晚七点有人打吗')), [S.log, await rows()]);
   // 限频
   S.failPost = 'sb_post_hourly_limit'; await sr('[data-in]').fill('连发的第六条'); await sr('[data-send]').click();
   await until(async () => /发得有点多/.test(await toast()));
@@ -165,6 +171,26 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const cached = await rows();
   T('刷新 + feed 读不到：用本机缓存画，不是空白', cached.length >= 4 && cached.some(x => x.includes('红土 3、4 号空着')), cached);
   T('刷新后配置仍是 v2（内置 v1 没盖掉它）', await E(() => !SB.CFG.topics.some(t => t.id === 'ootd') && SB.today() === 'brain'));
+  // ---- 举报 / 不感兴趣 / 屏蔽（PR-C）：打到真接口，失败回滚 ----
+  S.log.length = 0; await acts(P1, 'report', '[data-rr="harass"]'); await until(() => S.log.includes('POST /api/reports'));
+  T('举报：POST /api/reports 带对象和原因', S.bodies['POST /api/reports'] && S.bodies['POST /api/reports'].target_type === 'sb_post' && S.bodies['POST /api/reports'].target_id === P1 && S.bodies['POST /api/reports'].reason === 'harass', S.bodies['POST /api/reports']);
+  await pg.settle(500); S.log.length = 0; await acts(P1, 'block'); await until(() => S.log.includes('POST /api/blocks'));
+  T('屏蔽：POST /api/blocks 带对方 id，画面立刻拿掉 TA 的帖子', S.bodies['POST /api/blocks'].user_id === MIA && !(await rows()).some(x => x.includes('红土 3、4 号空着')), [S.bodies['POST /api/blocks'], await rows()]);
+  S.log.length = 0; await acts(P2, 'less'); await until(() => S.log.some(x => /\/hide$/.test(x)));
+  T('不感兴趣：POST /hide', S.log.join() === 'POST /api/sideline/posts/P2/hide', S.log);
+  await dc('.acts [data-act="l0"]');
+  // ---- 我发过的（PR-C）：相册读 /mine，含已过 24 小时的；通知点开：不在已读列表里的那条单独读一条 ----
+  const P6 = U('7'), P7 = U('6');
+  const mk = (id, body, old) => ({ id, user_id: ME, city: 'melb', body, topic_id: null, floor: 0, venue_id: null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: iso(old ? 3000 : 5), balls: 0, replies: 0, mine: true, my_ball: false, old: !!old });
+  S.mine = [mk(P6, '上周发的那一条', true)]; S.extra = [mk(P7, '通知里的那一条', false), { ...mk(P6, 'x', true), user_id: MIA, mine: false }]; S.log.length = 0;
+  await E(() => SBV.api.album()); await until(() => S.log.includes('GET /api/sideline/mine'));
+  await until(async () => (await SRQ('.album', 'r.textContent')).includes('上周发的那一条'));
+  T('相册（我发过的）：读 /mine，已过 24 小时的那条在里面', (await SRQ('.album', 'r.textContent')).includes('上周发的那一条'), await SRQ('.album', 'r.textContent'));
+  await E(() => { const h = document.querySelector('#sbHost').shadowRoot; h.querySelector('[data-aback]').click() });
+  T('通知点开：不在已读列表里的 → 先读那一条再打开', await E(async id => { const ok = await SBV.api.ensure(id); SBV.api.open(id); return ok }, P7) && await until(async () => (await SRQ('.sheet', 'r.textContent')).includes('通知里的那一条')) !== false, await SRQ('.sheet', 'r.textContent'));
+  T('通知点开：读不到的（已删 / 看不到）→ 不打开、说已经不在了', (await E(id => SBV.api.ensure(id), U('5'))) === false);
+  T('通知过时检查：真实模式没读进来的不当成已不在', await E(id => sbGone({ kind: 'sb_ball', sb_post_id: id }), U('4')) === null);
+
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
 })();

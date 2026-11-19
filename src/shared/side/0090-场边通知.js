@@ -11,8 +11,8 @@ SB_NK.forEach(k=>NR_LOW.add(k));
 // 规则（合并、文字）在 0085-场边通知规则.js（纯函数，Node 直接测）
 // 回复提醒的时间 = 那条回复的时间（数据库里两者同一个事务）：不然差一毫秒，合并时第一个回复的人就不算了
 function sbPost(id){return SBV&&SBV.api.get(id)}
-// 过时：发布不在了（删除 / 隐藏）、回复不在了、屏蔽了对方
-function sbGone(n){const p=sbPost(n.sb_post_id);if(!p)return '发布已不在';if(n.kind!=='sb_ball'&&!p.reply(n.sb_reply_id))return '回复已不在';
+// 过时：发布不在了（真实模式：没读进来的不一定没了，点开时再读那一条）（删除 / 隐藏）、回复不在了、屏蔽了对方
+function sbGone(n){const p=sbPost(n.sb_post_id);if(!p)return SBV&&SBV.api.real()?null:'发布已不在';if(n.kind!=='sb_ball'&&!p.reply(n.sb_reply_id))return '回复已不在';
   if(SBV.bl&&SBV.bl.has(n.an))return '有屏蔽关系';return null}
 // 列表、横幅都要重画：合并只改数字和名字，不再提醒
 function sbRefresh(){nrBadge();sbNtfRedraw()}
@@ -35,5 +35,6 @@ function sbNtf(o){if(!ME||!o||!o.post)return;const uid=ME.id,x=o.post,now=Date.n
 {const _s=nrStale;nrStale=function(n){if(!n||!SB_NK.includes(n.kind))return _s.apply(this,arguments);return n.read?'已经看过':sbGone(n)}}
 // 点开（横幅、列表、系统推送同一个入口）
 {const _o=nrOpen;nrOpen=function(n){if(!n||!SB_NK.includes(n.kind))return _o.apply(this,arguments);n.read=true;nrBadge();
-  sbBoot();if(!sbPost(n.sb_post_id)){toast('这条已经不在了');return}
-  sbShow(n.sb_post_id,n.kind==='sb_ball'?null:n.sb_reply_id)};ntfOpen=nrOpen}
+  sbBoot();const go=()=>sbShow(n.sb_post_id,n.kind==='sb_ball'?null:n.sb_reply_id);
+  if(sbPost(n.sb_post_id)){go();return}
+  if(SBV.api.real())SBV.api.ensure(n.sb_post_id).then(ok=>ok?go():toast('这条已经不在了'));else toast('这条已经不在了')};ntfOpen=nrOpen}

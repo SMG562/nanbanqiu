@@ -136,7 +136,7 @@ function App(el,init){
         ${x.mine&&x.pend&&x.pend.length?`<div class="scr"><div class="scr-h">${ic('lock')}<b>${x.pend.length} 条回复等你确认</b><span>来自第一次和你说话的人，只有你看得到</span></div>${x.pend.map((r,i)=>{const u=uOf('s'+r.x);return `<div class="scr-r">${av(u,28)}<div><b>${esc(u.n)}</b><p>${esc(r.x)}</p></div><button data-scok="${i}">显示</button><button data-scno="${i}">忽略</button></div>`}).join('')}</div>`:''}<div class="rs">${x.r.map(r=>replyHTML(r,x)).join('')}</div></div>
       ${x.closed?'':`<div class="bar"><div class="box"><span class="hint" style="right:60px">回复…</span><input maxlength="${CFG.settings.post_max_len}" data-rin><button class="send" data-rsend disabled>${ic('up')}</button></div></div>`}`;
     const hs=$('.sheet .hs');if(hs)hs.onscroll=()=>{const k=Math.round(hs.scrollLeft/hs.clientWidth);el.querySelectorAll('.sheet .hd2 i').forEach((d,i)=>d.classList.toggle('on',i===k))};
-    if(x.mine){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
+    if(x.mine&&!x.real){const v=$('[data-views]'),t0=performance.now();const f=t=>{const p=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-p,3);v.textContent=Math.round(x.views*e);if(p<1)requestAnimationFrame(f)};setTimeout(()=>requestAnimationFrame(f),350)}
     const ri=$('[data-rin]'),rb=$('[data-rsend]'),rh=$('.sheet .hint');
     if(ri){S.rto=null;ri.oninput=()=>{rb.disabled=!ri.value.trim();rh.style.display=ri.value?'none':'block'};ri.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!rb.disabled)rb.click()};
       ri.onblur=()=>setTimeout(()=>{if(S.rto&&!ri.value&&AE()!==ri)clearRto()},220)}};
@@ -229,14 +229,14 @@ function App(el,init){
   const keepRow=x=>`<div class="keep" data-keep="${x.id}"><div><b>${x.keep?'会留下来':'到期就消失'}</b><p>${x.keep?'24 小时后收进「我的」，只有你看得到':'想留下来？打开就好，只有你看得到'}</p></div><span class="tg${x.keep?' on':''}"></span></div>`;
   const drawAlbum=()=>{const pend=S.L.filter(x=>x.mine&&Date.now()-x.t<24*H),MO={};S.A.forEach(x=>{const m=new Date(x.t).getMonth()+1;(MO[m]=MO[m]||[]).push(x)});
     $('.album').innerHTML=`<div class="cnav"><button class="ib" data-aback>${ic('back')}</button></div>
-      <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我的相册</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
+      <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我发布的场边</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
       ${pend.length?`<div class="pend">${pend[0].pic?`<span class="th">${PIC(pend[0].pic,'hero',pend[0].tone)}</span>`:''}<div>公开中 <b>${pend.length} 条</b>，${life(pend[0].t).txt.replace('还剩 ','')}后存到这里</div></div>`:''}
       ${Object.keys(MO).sort((a,b)=>b-a).map(m=>`<div class="mon">${['','一','二','三','四','五','六','七','八','九','十','十一','十二'][m]}月</div><div class="ag">${MO[m].map(x=>x.pic?`<div class="at" data-pic="${x.id}">${PIC(x.pic,'hero',x.tone)}<em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`:`<div class="at tx3"><p>${esc(x.x)}</p><em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`).join('')}</div>`).join('')}</div>`};
   const showRemind=id=>{const x=find(id);if(!x)return;const r=$('.remind'),mins=Math.max(1,Math.round((24*H-(Date.now()-x.t))/M));
     r.innerHTML=`${x.pic?`<span class="th">${PIC(x.pic,'hero',x.tone)}</span>`:''}<div><p>「${esc(x.x.length>12?x.x.slice(0,12)+'…':x.x)}」还剩 <b>${mins} 分钟</b>，刚刚又有 3 个人点了网球。</p><div class="bt"><button class="k1" data-keep1="${x.id}">留下来</button><button data-letgo>让它走</button></div></div>`;
     r.classList.add('show')};
   let undoT;
-  const showUndo=msg=>{const u=$('.undo'),D=S.undoHold?6e5:8000;u.innerHTML=`<span>${msg}</span><button data-undo>撤回</button><i></i>`;u.classList.add('show');
+  const showUndo=msg=>{const u=$('.undo'),D=S.undoHold?6e5:8000;u.innerHTML=S.real?`<span>已发布，保质期 24h 😊</span><i></i>`:`<span>${msg}</span><button data-undo>撤回</button><i></i>`;u.classList.add('show');
     u.querySelector('i').animate([{transform:'scaleX(1)'},{transform:'scaleX(0)'}],{duration:D,easing:'linear',fill:'forwards'});clearTimeout(undoT);undoT=setTimeout(()=>u.classList.remove('show'),D)};
   const collapse=row=>{const n=row.closest('.slot')||row.closest('.it')||row,h=n.offsetHeight;n.style.overflow='hidden';
     n.animate([{height:h+'px',opacity:1},{height:'0px',opacity:0,marginTop:'0px',marginBottom:'0px'}],{duration:440,easing:'cubic-bezier(.4,0,.2,1)'}).onfinish=()=>n.remove()};
@@ -399,19 +399,21 @@ function App(el,init){
     if('shut' in d){shut();return}
     if('menu' in d){const x=find(S.open),u=U(x);
       $('.acts .g').innerHTML=x.mine?`<p class="ah2">你发的</p>${x.pic?'<button data-act="share">分享图片</button>':''}<button data-act="mute">${x.closed?'允许回复':'关闭回复'}</button><button class="warn" data-act="del">删除</button>`
-        :`<p class="ah2">${u.anon?'一位球友发的':esc(u.n)+' 发的'}</p><button data-act="less">不感兴趣<small>以后少给你看类似的</small></button>${u.anon||u.off?'':`<button data-act="block" data-un="${esc(u.n)}">屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button>`}<button class="warn" data-act="report">举报</button>`;
+        :`<p class="ah2">${u.anon?'一位球友发的':esc(u.n)+' 发的'}</p><button data-act="less">不感兴趣<small>以后少给你看类似的</small></button>${u.anon||u.off?'':`<button data-act="block" data-un="${esc(u.n)}"${u.real&&u.id?` data-uid="${esc(u.id)}"`:''}>屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button>`}<button class="warn" data-act="report">举报</button>`;
       el.classList.add('acting');return}
     if(d.act&&['less','block','report','r'].includes(d.act)&&!S.gok){need(d.act==='less'?'less':d.act==='block'?'block':'report',()=>again(t));return}
     if(d.act){const A=d.act,drop=f=>{S.L.filter(f).forEach(y=>S.gone.add(String(y.id)));S.L=S.L.filter(y=>!f(y));if(S.open&&!find(S.open))shut();drawHome();if(S.court)drawCourt()};
       if(A==='report'){$('.acts .g').innerHTML=`<p class="ah2">举报的原因</p><button data-act="r" data-rr="harass">骚扰或冒犯</button><button data-act="r" data-rr="photo">不当照片</button><button data-act="r" data-rr="fraud">虚假交易</button><button data-act="r" data-rr="other">其他</button>`;
         track('report_open',{target_type:'sb_post',via:'sideline'});return}
       el.classList.remove('acting');
-      if(A==='r'){const id=S.open,R=S.rep||(S.rep=new Set());if(R.has(String(id))){say('report_duplicate');return}const c=sbRate(S,'sb_report');if(c){say(c);return}R.add(String(id));track('report_submit',{target_type:'sb_post',reason:d.rr||'other',has_note:false,via:'sideline'});toast('已收到，我们会尽快处理')}
-      if(A==='less'){const x=find(S.open),c=catOf(x),n=U(x).n;S._lx={id:x.id,c,n};track('sb_hide',{post_id:x.id,reason:'none'});shut();drop(y=>String(y.id)===String(x.id));el.classList.add('acting');
+      if(A==='r'){const id=S.open,R=S.rep||(S.rep=new Set());if(R.has(String(id))){say('report_duplicate');return}const c=sbRate(S,'sb_report');if(c){say(c);return}R.add(String(id));track('report_submit',{target_type:'sb_post',reason:d.rr||'other',has_note:false,via:'sideline'});toast('已收到，我们会尽快处理');
+        rlSafe('/api/reports',{target_type:'sb_post',target_id:String(id),reason:d.rr||'other',via:'sideline'},()=>R.delete(String(id)))}
+      if(A==='less'){const x=find(S.open),c=catOf(x),n=U(x).n;S._lx={id:x.id,c,n};track('sb_hide',{post_id:x.id,reason:'none'});shut();drop(y=>String(y.id)===String(x.id));rlSafe('/api/sideline/posts/'+x.id+'/hide',{reason:'none'},()=>{S.gone.delete(String(x.id));loadFeed()});el.classList.add('acting');
         $('.acts .g').innerHTML=`<p class="ah2">这一条已隐藏。想告诉我们原因吗？</p><button data-act="lc">少看「${esc(c)}」<small>同类内容会排得更靠后</small></button><button data-act="lu">少看 ${esc(n)} 的<small>${esc(n)} 发的会排得更靠后</small></button><button data-act="lf">离我太远<small>远处的内容会排得更靠后</small></button><button data-act="l0">只是这一条</button>`;return}
-      if(['lc','lu','lf','l0'].includes(A)){const L=S._lx;if(A!=='l0')track('sb_hide',{post_id:L.id,reason:{lc:'topic',lu:'user',lf:'far'}[A]});if(A==='lc')S.lc[L.c]=1;if(A==='lu')S.lu[L.n]=1;if(A==='lf')S.lf=true;shut();drop(y=>String(y.id)===String(L.id));
+      if(['lc','lu','lf','l0'].includes(A)){const L=S._lx;if(A!=='l0'){const rs={lc:'topic',lu:'user',lf:'far'}[A];track('sb_hide',{post_id:L.id,reason:rs});rlSafe('/api/sideline/posts/'+L.id+'/hide',{reason:rs})}if(A==='lc')S.lc[L.c]=1;if(A==='lu')S.lu[L.n]=1;if(A==='lf')S.lf=true;shut();drop(y=>String(y.id)===String(L.id));
         toast(A==='lc'?`好的，会少给你看「${L.c}」`:A==='lu'?`好的，会少给你看 ${L.n} 的`:A==='lf'?'好的，会多给你看近处的':'好的，这一条不会再出现')}
-      if(A==='block'){const n=d.un;S.bl.add(n);track('user_block',{target_uid:'sb:'+hsh(n)});shut();drop(y=>U(y).n===n&&!y.mine);toast('已屏蔽 '+n)}
+      if(A==='block'){const n=d.un,uid=d.uid;S.bl.add(n);track('user_block',{target_uid:'sb:'+hsh(n)});shut();drop(y=>(uid?y.uid===uid:U(y).n===n)&&!y.mine);toast('已屏蔽 '+n);
+        if(uid)rlSafe('/api/blocks',{user_id:uid},()=>{S.bl.delete(n);loadFeed()})}
       if(A==='del'){const id=S.open,dx=find(id);track('sb_post_delete',{post_id:id});shut();drop(y=>String(y.id)===String(id));toast('已删除');if(S.real&&dx)sendDelete(dx)}
       if(A==='mute'){const x=find(S.open);x.closed=!x.closed;track('sb_replies_toggle',{post_id:x.id,open:!x.closed});drawSheet();toast(x.closed?'已关闭回复':'已允许回复')}
       if(A==='share'){S.share='photo';drawShare();state()}
@@ -462,7 +464,7 @@ function App(el,init){
     if(d.cmt){openSheet(d.cmt);setTimeout(()=>{const r=$('.sheet [data-rh]'),c=$('.sh-sc');if(r&&c)c.scrollTo({top:r.offsetTop-12,behavior:'smooth'})},380);return}
     if(d.home2){S.court=S.home=d.home2;S.cpend=null;drawCourt();track('sb_court_view',{venue:d.home2,via:'page'});return}
     if('bell' in d){S.bell&&S.bell();return}
-    if('me' in d){S.album=true;drawAlbum();state();return}
+    if('me' in d){S.album=true;drawAlbum();state();if(S.real)loadMine();return}
     if('aback' in d){S.album=false;state();return}
     if(d.keep){const x=find(d.keep);x.keep=!x.keep;t.querySelector('.tg').classList.toggle('on',x.keep);setTimeout(()=>{t.outerHTML=keepRow(x)},380);toast(x.keep?'好，到期后收进「我的」':'好，到期就让它走');return}
     if(d.keep1){const x=find(d.keep1);x.keep=true;$('.remind').classList.remove('show');toast('留下来了，只有你看得到');return}
@@ -529,7 +531,9 @@ function App(el,init){
   const paintBall=x=>el.querySelectorAll(`[data-ball="${x.id}"] .odo`).forEach(o=>{const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:''});
   const refreshRow=(x,old)=>el.querySelectorAll(`[data-s] [data-ln="${old==null?x.id:old}"]`).forEach(row=>{const tmp=document.createElement('div');tmp.innerHTML=LH(x,{court:!!row.closest('[data-s="court"]')});const nr=tmp.querySelector('.ln');if(nr)row.replaceWith(nr)});
   const useFeed=d=>{const posts=d.posts||[];rlTopics(d,posts);const c=rlCtx(d.profiles||{});
+    const was=new Map(S.L.map(x=>[String(x.id),x]));
     S.L=S.L.filter(x=>x.tmp).concat(posts.map(p=>sbFromPost(p,c)).filter(x=>!S.gone.has(String(x.id))));   // 还在发送中的留着
+    S.L.forEach(n=>{const o=was.get(String(n.id));if(o&&o!==n&&o._bn>0){n._bn=o._bn;n._bq=o._bq;n.my=o.my;n.b=o.b}});   // 网球还在路上：新读回来的不能盖掉刚点的
     S.pend=null;S.loaded=true;S.loadErr=null;recount();render()};
   const loadFeed=async()=>{const net=rlNet();if(!net)return false;const ep=S.ep=(S.ep||0)+1,all=[],prof={},tops={};let before=null;
     for(let i=0;i<5;i++){const r=await net.get('/api/sideline/feed',before?{before}:{},{anon:true});
@@ -558,28 +562,43 @@ function App(el,init){
     if(!find(x.id))return;
     if(!r.ok){if(r.status===404){const was=String(S.open)===String(x.id);S.L=S.L.filter(y=>y!==x);S.gone.add(String(x.id));if(was)shut();drawHome();toast('这条已经不在了')}return}
     const d=r.data,c=rlCtx(d.profiles||{});rlTopics(d,[d.post]);
-    x.r=(d.replies||[]).filter(q=>!q.hidden||q.mine).map(q=>sbFromReply(q,d.post,c)).concat(x.r.filter(q=>q.tmp));x.rl=1;x.rn=x.r.length;
+    const srv=(d.replies||[]).filter(q=>!q.hidden||q.mine).map(q=>sbFromReply(q,d.post,c)),mineN=new Map();srv.filter(q=>q.me).forEach(q=>mineN.set(q.x,(mineN.get(q.x)||0)+1));
+    // 刚发出去、接口已收下但还没拿到编号的回复（同一句话）：以接口读回来的为准，不画两遍
+    x.r=srv.concat(x.r.filter(q=>q.tmp&&!(q.sent&&mineN.get(q.x)>0&&(mineN.set(q.x,mineN.get(q.x)-1),1))));x.rl=1;x.rn=x.r.length;
     if(!x._bn){x.b=Math.max(0,(+d.post.balls||0)-(d.post.my_ball?1:0));x.my=!!d.post.my_ball}
     x.closed=d.post.replies_open===false;refreshRow(x);paintBall(x);
     if(String(S.open)===String(x.id)){const ri=$('[data-rin]'),v=ri&&ri.value;drawSheet();if(v){const n=$('[data-rin]');if(n){n.value=v;if(n.oninput)n.oninput()}}}};
   // 发布：body 里不带照片（一期纯文字）；topic_title = 大家发起的新话题（二期入口关着）
   const realBody=(v,tp,lk,o={})=>{const b={body:v};if(tp){const T=S.T[tp];if(T&&T.fresh)b.topic_title=T.t;else b.topic_id=tp}const c=lk&&COURTS[lk];if(c&&c.vid)b.venue_id=c.vid;if(o.later)b.later=true;if(o.closed)b.replies_open=false;if(o.tone)b.tone=o.tone;return b};
+  // 举报 / 不感兴趣 / 屏蔽：画面先动，接口失败再回滚并说人话（#369 PR-C）
+  const rlSafe=async(path,b,undo)=>{const net=rlNet();if(!net)return;const r=await net.post(path,b);if(!r.ok){if(undo)undo();if(r.code!=='login_required')say(r.code)}};
   const sendDelete=async x=>{const net=rlNet();if(!net||!x)return;if(x.tmp){x.cancel=1;return}S.gone.add(String(x.id));const r=await net.del('/api/sideline/posts/'+x.id);
     if(!r.ok&&r.status!==404){S.gone.delete(String(x.id));if(r.code!=='login_required')say(r.code);loadFeed()}};
-  const realSend=async(x,b,restore)=>{const net=rlNet();if(!net)return;const k=NBQ_IDEM.key('sbpost',b),r=await net.post('/api/sideline/posts',b,{idem:k});NBQ_IDEM.done('sbpost',r);
+  const realSend=async(x,b,restore)=>{const net=rlNet();if(!net)return;const slot='sbpost'+(x?x.id:''),k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts',b,{idem:k});NBQ_IDEM.done(slot,r);
     if(!r.ok){if(x){const old=x.id;S.L=S.L.filter(y=>y!==x);S.pend=(S.pend||[]).filter(y=>y!==x);el.querySelectorAll(`[data-s] [data-ln="${old}"],.wall [data-ln="${old}"]`).forEach(collapse);S.lastMine=null;$('.undo').classList.remove('show');setCnt();pillSync()}
       if(r.code!=='login_required')say(r.code);if(restore)restore();return}
     if(!x)return;const old=x.id;x.id=r.data.id;x.floor=+r.data.floor||x.floor;x.t=sbTs(r.data.publish_at);delete x.tmp;
     if(r.data.topic_id&&r.data.topic_id!==x.topic){x.topic=r.data.topic_id;sbTopicEnsure(S.T,x.topic);sbTopicEnsure(TOPICS,x.topic)}
     refreshRow(x,old);recount();if(x.cancel){x.cancel=0;sendDelete(x)}};
-  const sendReply=async(x,r0,v,toId,restore)=>{const net=rlNet();if(!net)return;const b={body:v};if(toId)b.to=toId;const slot='sbr'+x.id,k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts/'+x.id+'/replies',b,{idem:k});NBQ_IDEM.done(slot,r);
+  const sendReply=async(x,r0,v,toId,restore)=>{const net=rlNet();if(!net)return;r0.sent=1;const b={body:v};if(toId)b.to=toId;const slot='sbr'+x.id+'_'+r0.id,k=NBQ_IDEM.key(slot,b),r=await net.post('/api/sideline/posts/'+x.id+'/replies',b,{idem:k});NBQ_IDEM.done(slot,r);
     if(!r.ok){x.r=x.r.filter(q=>q!==r0);x.rn=Math.max(0,(x.rn||1)-1);if(String(S.open)===String(x.id))drawSheet();refreshRow(x);if(r.code!=='login_required')say(r.code);if(restore)restore();return}
+    if(x.r.some(q=>q!==r0&&String(q.id)===String(r.data.id))){x.r=x.r.filter(q=>q!==r0);if(String(S.open)===String(x.id))drawSheet();refreshRow(x);return}   // 详情已先读回来了
     r0.id=r.data.id;delete r0.tmp};
-  const ballNet=x=>{const on=x.my;x._bn=(x._bn||0)+1;x._bq=(x._bq||Promise.resolve()).then(async()=>{const net=rlNet();
-    try{if(!net||!find(x.id))return;const r=await net[on?'put':'del']('/api/sideline/posts/'+x.id+'/ball');
-      if(!r.ok){if(x.my===on)tapBall(x.id,{noNet:1});if(r.code!=='login_required')say(r.code);return}
+  const ballNet=x0=>{const id=x0.id,cur=()=>find(id)||x0,on=x0.my;x0._bn=(x0._bn||0)+1;x0._bq=(x0._bq||Promise.resolve()).then(async()=>{const net=rlNet();
+    try{if(!net||!find(id))return;const r=await net[on?'put':'del']('/api/sideline/posts/'+id+'/ball');const x=cur();
+      if(!r.ok){if(x.my===on)tapBall(id,{noNet:1});if(r.code!=='login_required')say(r.code);return}
       x.b=Math.max(0,(+r.data.balls||0)-(x.my?1:0));paintBall(x)}
-    finally{x._bn--}})};
+    finally{const x=cur();x._bn--;if(x!==x0)x0._bn--}})};
+  // 我发过的（#369 PR-C）：相册读 /api/sideline/mine，含已过 24 小时、被隐藏、还没公开的；进相册时读一次
+  const loadMine=async()=>{const net=rlNet();if(!net||!rlMe())return;const all=[],prof={};let before=null;
+    for(let i=0;i<4;i++){const r=await net.get('/api/sideline/mine',before?{before}:{});if(!r.ok||!rlNet())return;all.push(...(r.data.posts||[]));Object.assign(prof,r.data.profiles||{});rlTopics(r.data,r.data.posts);before=r.data.next;if(!before)break}
+    const c=rlCtx(prof),inL=new Set(S.L.map(x=>String(x.id)));
+    S.A=all.filter(p=>!inL.has(String(p.id))&&!S.gone.has(String(p.id))).map(p=>{const x=sbFromPost(p,c);x.mine=true;x.album=1;if(p.status==='hidden')x.hid=1;return x});
+    if(S.album)drawAlbum()};
+  // 通知点开：那条不在已读的列表里（超过读的页数 / 已过 24 小时）→ 单独读一条放进去再打开；读不到 = 已经不在了
+  const ensurePost=async id=>{if(find(id))return true;const net=rlNet();if(!net)return false;const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||find(id))return !!find(id);
+    const c=rlCtx(r.data.profiles||{});rlTopics(r.data,[r.data.post]);const x=sbFromPost(r.data.post,c);
+    if(r.data.post.public===false){x.album=1;S.A.push(x)}else{S.L.push(x);S.L.sort((a,b)=>b.t-a.t)}return true};
   const rlBoot=()=>{S.sig=sigNow();const c=sbLS(SB_FEED_KEY);
     if(c&&c.u===rlMe()&&c.d&&Date.now()-c.at<24*H){try{useFeed(c.d)}catch(e){}}
     loadFeed();cfgLoad();
@@ -596,13 +615,13 @@ function App(el,init){
   S.api={hint:id=>{const T=S.T[id];if(!T)return null;showHint(HQ(T.ask||`说说 #${T.t}`,id));return S.hq.t},get:id=>{const x=find(id);if(gone(x))return null;const ps=x.pics||(x.pic?[x.pic]:[]);
       return {id:x.id,mine:!!x.mine,body:x.x==='（一张照片）'?'':x.x,photos:ps.length,balls:(x.bu||[]).slice(),reply:rid=>x.r.find(r=>r.id===rid)||null,
         replies:x.r.map(r=>{const u=RU(r,x);return {id:r.id,t:r.t,me:!!r.me,to:r.to||null,n:u.n,c:u.c}})}},
-    me:ME_U.n,
+    me:ME_U.n,real:()=>!!S.real,ensure:id=>ensurePost(id),
     // 从通知打开：盖在上面的先收起，打开那条；回复类滚到那条回复并闪一下
     open:(id,rid)=>{const x=find(id);if(gone(x))return false;S.view=null;S.court=null;S.wall=null;S.album=false;S.share=null;el.classList.remove('acting');openSheet(x.id,'notif');
       const i=rid==null?-1:x.r.findIndex(r=>r.id===rid);setTimeout(()=>{const c=$('.sh-sc'),row=i>=0?$('.sheet .rs').children[i]:null;if(!c)return;
         if(row){c.scrollTo({top:Math.max(0,row.offsetTop-c.clientHeight/3),behavior:'smooth'});row.animate([{background:'rgba(198,234,61,.35)'},{background:'transparent'}],{duration:1600,easing:'ease-out'})}},380);return true},
     others:{ball:(id,n,on)=>otherBall(id,n,on),reply:(id,text,f)=>addReply(id,text,f||{})},
-    album:()=>{S.open=null;S.court=null;S.wall=null;S.album=true;drawAlbum();state();track('sb_album_open',{})},badge:n=>{const b=$('[data-bn]');if(b){b.hidden=!n;b.textContent=n||''}},setHome:h=>{S.homes=h?h.split(','):[];S.home=S.homes[0]||null;S.filt=null;drawHome();S.open=null;if(S.court)drawCourt();state()}};
+    album:()=>{S.open=null;S.court=null;S.wall=null;S.album=true;drawAlbum();state();if(S.real)loadMine();track('sb_album_open',{})},badge:n=>{const b=$('[data-bn]');if(b){b.hidden=!n;b.textContent=n||''}},setHome:h=>{S.homes=h?h.split(','):[];S.home=S.homes[0]||null;S.filt=null;drawHome();S.open=null;if(S.court)drawCourt();state()}};
   sc.addEventListener('scroll',()=>{el.classList.toggle('cond',sc.scrollTop>14);},{passive:true});
   if(S.real)rlBoot();
   setInterval(setCnt,30000);
