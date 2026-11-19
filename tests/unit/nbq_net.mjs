@@ -8,7 +8,7 @@ const pure = src.slice(0, src.indexOf('/* ---- 页面接线'));
 // 印色名单（nbqColor 要用）：和页面里同一份，从源码取
 const rdS = f => fs.readFileSync(path.join(DIR, 'src/shared/script', f), 'utf8'), lineOf = (s, a) => { const i = s.indexOf(a); return s.slice(i, s.indexOf('\n', i)) };
 const COLORS = lineOf(rdS('0050-印章头像.js'), 'const ZAVC=') + '\n' + lineOf(rdS('0040-工具.js'), 'const AVC=[') + '\n';
-const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqIdemMake,nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic,nbqUpdNeeded}', ctx);
+const ctx = vm.createContext({ JSON, String, Math, Date, Promise, Object, Array, Set, encodeURIComponent, atob, Uint8Array, Number, AbortController }); vm.runInContext(COLORS + pure + '\n;globalThis.__x={nbqIdemMake,nbqFromNotif,nbqNtfList,nbqNtfNeedGames,nbqUnsyncedReads,nbqKeyBytes,nbqNetMake,nbqFromUser,nbqFromVenue,nbqFromGame,nbqFromPart,nbqFromInvite,nbqInvVenues,nbqFromThread,nbqThreadLast,nbqFromMsg,nbqLoadAll,nbqLoadPublic,nbqUpdNeeded}', ctx);
 const X = ctx.__x;
 T('纯逻辑部分在空沙盒里能载入', typeof X.nbqNetMake === 'function' && typeof X.nbqLoadAll === 'function');
 T('仓库里没有 service_role', !/service_role/.test(src));
@@ -208,5 +208,26 @@ T('带 idem → 请求头 Idempotency-Key；不带 → 没有这个头（opt-in�
   T('正常返回：不受超时影响，定时器已清掉', r2.ok === true && tm.n === 0, [r2, tm.n]);
   const off = X.nbqNetMake({ fetch: async () => ({ ok: true, status: 200, json: async () => ({}), headers: { get: () => null } }), base: '', token: async () => 'AT', timeout: 0, timer: tm });
   T('timeout = 0：不设超时', (await off.get('/api/me')).ok === true && tm.n === 0) }
+
+// 二进制上传（#393 P4）：putRaw 原样发送字节、不转 JSON；可单独设超时；调用方的 signal 能中途取消
+{ const bytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xD9]), e = mk({ 'PUT /api/sideline/photos/abc-f': { s: 200, d: { key: 'k' } } });
+  const r = await e.net.putRaw('/api/sideline/photos/abc-f', bytes);
+  T('putRaw：200 成功，请求体是原始字节（不是 JSON 字符串）', r.ok && e.calls[0].o.body === bytes && e.calls[0].o.method === 'PUT', r);
+  T('putRaw：Content-Type 是 image/jpeg，带登录令牌', e.calls[0].o.headers['Content-Type'] === 'image/jpeg' && e.calls[0].o.headers.Authorization === 'Bearer AT');
+  const e2 = mk({ 'PUT /api/sideline/photos/abc-f': { s: 429, d: { error: 'photo_hourly_limit', retry_after: 7 } } }), r2 = await e2.net.putRaw('/api/sideline/photos/abc-f', bytes);
+  T('putRaw：错误码与 retry_after 照常带出', !r2.ok && r2.code === 'photo_hourly_limit' && r2.retry_after === 7, r2);
+  const e3 = mk({}, null), r3 = await e3.net.putRaw('/api/sideline/photos/abc-f', bytes);
+  T('putRaw：没登录 → login_required，不发请求', r3.code === 'login_required' && e3.calls.length === 0, r3);
+  const j = await e.net.put('/api/x', { a: 1 }); T('普通 put 仍发 JSON（没被 raw 影响）', e.calls[1].o.body === '{"a":1}' && e.calls[1].o.headers['Content-Type'] === 'application/json', j);
+  // 单次超时覆盖全局：全局 20 秒，这次 30 毫秒
+  const tm2 = { set: (f, ms) => setTimeout(f, ms), clear: t => clearTimeout(t) }, hang2 = X.nbqNetMake({ fetch: () => new Promise(() => { }), base: '', token: async () => 'AT', timer: tm2 });
+  const t0 = Date.now(), r4 = await hang2.putRaw('/x', bytes, { timeout: 30 });
+  T('putRaw：opt.timeout 覆盖全局超时，到点按断网报', r4.status === 0 && r4.code === 'network' && Date.now() - t0 < 2000, r4);
+  // signal：中途取消 → 底层 fetch 的 signal 被 abort，按断网报；已取消的不发请求
+  let seen = null; const h3 = X.nbqNetMake({ fetch: (u, o) => { seen = o.signal; return new Promise((_, no) => o.signal.addEventListener('abort', () => no(new Error('abort')))) }, base: '', token: async () => 'AT', timeout: 0, timer: tm2 });
+  const ac = new AbortController(), pr = h3.putRaw('/x', bytes, { signal: ac.signal }); await new Promise(r => setTimeout(r, 10)); ac.abort();
+  const r5 = await pr; T('putRaw：调用方 signal 取消 → 底层请求被中止，返回断网', seen && seen.aborted && r5.status === 0, r5);
+  const ac2 = new AbortController(); ac2.abort(); let n = 0; const h4 = X.nbqNetMake({ fetch: async () => { n++; return { ok: true, status: 200, json: async () => ({}), headers: { get: () => null } } }, base: '', token: async () => 'AT', timer: tm2 });
+  const r6 = await h4.putRaw('/x', bytes, { signal: ac2.signal }); T('putRaw：signal 已取消 → 不发请求', n === 0 && r6.status === 0, r6) }
 
 console.log(`\nnbq_net: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
