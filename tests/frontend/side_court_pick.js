@@ -15,7 +15,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     const W = ms => pg.waitForTimeout(ms), E = (f, a) => pg.evaluate(f, a);
     const q = f => E(new Function(`const r=document.querySelector('#sbHost').shadowRoot;return (${f})(r)`));
     const open = async (keepLoc) => { await E(k => { LOC.asked = true; closeSheet(); setWho('jason', true); if (!k) { LOC = { ...LOC, lat: CITY.lat, lng: CITY.lng, label: CITY.center, source: 'default' } } }, keepLoc); await W(300); await pg.click('#tabbar [data-tab="side"]'); await W(500);
-      const bb = await q(`r=>{const e=r.querySelector('.bar .box').getBoundingClientRect();return {x:e.left,y:e.top,w:e.width,h:e.height}}`); await pg.touchscreen.tap(bb.x + bb.w * .5, bb.y + bb.h / 2); await W(900); await q(`r=>{r.querySelector('.compose [data-cpl]').click()}`); await W(900) };
+      const bb = await q(`r=>{const e=r.querySelector('.bar .box').getBoundingClientRect();return {x:e.left,y:e.top,w:e.width,h:e.height}}`); await pg.touchscreen.tap(bb.x + bb.w * .5, bb.y + bb.h / 2); await W(900); await q(`r=>{r.querySelector('.compose [data-cpl2]').click()}`); await W(900) };
     const pick = () => q(`r=>{const p=r.querySelector('.pick');return {on:p.classList.contains('on'),text:p.textContent,names:[...p.querySelectorAll('.pk-b .pi:not([data-clocate]) b')].map(e=>e.textContent),groups:[...p.querySelectorAll('.pk-l')].map(e=>e.textContent),loc:!!p.querySelector('[data-clocate]')}}`);
     const type = v => q(`r=>{const i=r.querySelector('[data-cq]');i.value=${JSON.stringify(v)};i.dispatchEvent(new Event('input',{bubbles:true}))}`);
     const N = 'side/' + mode;
@@ -32,7 +32,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     await q(`r=>{r.querySelector('.pick [data-loc]:not([data-loc=none])').click()}`); await W(1100);
     const lab = await q(`r=>({loc:(r.querySelector('.compose [data-cpl] span')||{}).textContent||'',pickOn:r.querySelector('.pick').classList.contains('on')})`);
     T(N + ' 选中搜索结果：标签显示它的名字（不是内部编号）', !lab.pickOn && !/^v\d+$/i.test(lab.loc) && real.includes(lab.loc), lab);
-    await q(`r=>{r.querySelector('.compose [data-cpl]').click()}`); await W(900);
+    await q(`r=>{r.querySelector('.compose [data-cpl2]').click()}`); await W(900);
     await type(''); s = await pick();
     T(N + ' 选过的球场再打开：「已选」里还在', s.groups.includes('已选') || s.groups.includes('我的球场'), s.groups);
     await q(`r=>{r.querySelector('[data-clocate]').click()}`); await W(600);

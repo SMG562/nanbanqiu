@@ -186,25 +186,34 @@ function App(el,init){
   const closeSh=()=>{const was=S.cmp.sh;S.cmp.sh=null;$('.csh').classList.remove('on');setTimeout(()=>{drawCompose();if(was==='topic')topicIn()},380)};
   const topicIn=()=>{const h=$('.compose .ctop'),st=$('.compose .sts');if(h)h.animate([{opacity:0,transform:'translateY(-4px)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.8,.3,1)'});
     if(st)[...st.children].forEach((n,i)=>n.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:260,delay:60+i*45,easing:'cubic-bezier(.2,.8,.3,1)',fill:'backwards'}))};
-  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
+  // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
+  const cqHTML=C=>{const ks=[];locGroups(C.loc).forEach(G=>G.a.forEach(k=>{if(!ks.includes(k))ks.push(k)}));
+    return ks.slice(0,6).map(k=>`<button class="cq${C.loc===k?' on':''}" data-ql="${esc(k)}">${esc(COURTS[k].n)}</button>`).join('')+`<button class="cq${C.loc?'':' on'}" data-ql="none">不选</button><button class="cq" data-cpl2>搜索…</button>`};
+  const cqPatch=()=>{const C=S.cmp,q=$('.cqk'),b=$('[data-cpl]'),n=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'';
+    if(q){q.innerHTML=cqHTML(C);q.classList.toggle('on',!!C.cq)}if(b){b.classList.toggle('set',!!n);const sp=b.querySelector('span');if(sp)sp.textContent=n||'球场'}};
+  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0,ae=$('[data-ctext]'),had=!!ae&&el.getRootNode().activeElement===ae,ss=had?ae.selectionStart:0,se=had?ae.selectionEnd:0;
     $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
         ${stHTML(C)}
-        <div class="phs">${C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${C.pics.length<3?`<button class="phadd" data-lib>${ic('plus')}</button>`:''}</div>
+        <div class="phs">${C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}</div>
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
         ${pic?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
       </div>
       <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
-      <div class="ctool"><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
+      <div class="cqk${C.cq?' on':''}">${cqHTML(C)}</div>
+      <div class="ctool"><button class="chip ico${C.pics.length||C.lib?' set':''}" data-lib title="照片">${ic('cam')}</button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
       <div class="pick${C.pick?' on':''}">${pickHTML(C)}</div>
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
-    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''}};
+    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''};
+    if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null},o);
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
     drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
+    // 打开即聚焦（要在点击这一下的调用栈里，iOS 才肯弹键盘）；选照片进来时不聚焦，免得键盘盖住照片格
+    if(!S.cmp.lib&&!S.cmp.sh){const t=$('[data-ctext]');if(t)try{t.focus({preventScroll:true})}catch(e){}}
     // 照片最重，等卡片到位后再放进已经留好的格子里
     if(S.cmp.lib)S.libT=setTimeout(libFill,440)};
   const libFill=()=>{const C=S.cmp;if(!C||C.libReady)return;C.libReady=true;el.querySelectorAll('.compose .pkb').forEach(b=>{const q=b.dataset.pk;b.insertAdjacentHTML('afterbegin',PIC(q,'band'));const v=b.firstElementChild;if(v)v.animate([{opacity:0},{opacity:1}],{duration:180,easing:'ease-out'})})};
@@ -392,7 +401,8 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.cbot button:not([data-cset])'))e.preventDefault()});
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-cpl2],[data-ql],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
@@ -447,7 +457,9 @@ function App(el,init){
     if('cx' in d){S.cmp=null;state();return}
     if(d.pk){const C=S.cmp,i=C.pics.indexOf(d.pk);if(i>=0)C.pics.splice(i,1);else if(C.pics.length<3)C.pics.push(d.pk);else{toast('最多三张');return}drawCompose();return}
     if(d.tone){S.cmp.tone=d.tone==='none'?'':d.tone;el.querySelectorAll('.ph1 .tn').forEach(pv=>pv.className='tn'+(S.cmp.tone?' t-'+S.cmp.tone:''));el.querySelectorAll('[data-tone]').forEach(b=>b.classList.toggle('on',b===t));return}
-    if('cpl' in d){S.cmp.pick=true;kbDown(()=>{if(S.cmp&&S.cmp.pick)$('.pick').classList.add('on')});return}
+    if('cpl' in d){S.cmp.cq=!S.cmp.cq;cqPatch();return}
+    if('cpl2' in d){S.cmp.cq=false;cqPatch();S.cmp.pick=true;kbDown(()=>{if(S.cmp&&S.cmp.pick)$('.pick').classList.add('on')});return}
+    if(d.ql!==undefined){S.cmp.loc=d.ql==='none'?'':d.ql;setLoc(S.cmp.loc);S.cmp.cq=false;cqPatch();return}
     if(d.loc!==undefined){S.cmp.loc=d.loc==='none'?'':d.loc;setLoc(S.cmp.loc);el.querySelectorAll('[data-loc]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{S.cmp.pick=false;$('.pick').classList.remove('on');setTimeout(drawCompose,450)},260);return}
     if('pkx' in d){S.cmp.pick=false;$('.pick').classList.remove('on');setTimeout(drawCompose,450);return}
     if(d.tg){const C=S.cmp;C[d.tg]=!C[d.tg];t.querySelector('.tg').classList.toggle('on',C[d.tg]);return}
