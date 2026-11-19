@@ -79,6 +79,8 @@ const FLAG = () => { try { localStorage.setItem('nbq_ff_intro', '1') } catch (_)
     T(f + ' 昨天看过：今天又显示', await has(p)); const r1 = await seen(p); T(f + ' 今天显示后额度记成今天', r1 && r1.days[SURF] === await today(p) && r1.n === 2, r1); await p.context().close();
     p = await open({ init: seed(0, 2, SURF) });
     T(f + ' 今天已看过：不显示', !(await has(p))); await p.context().close();
+    p = await open({ init: seed(0, 2, SURF), hash: '?intro=1' });
+    T(f + ' 今天已看过 + 网址带 ?intro=1（测试用）：仍显示', await has(p)); const rf = await seen(p); T(f + ' ?intro=1 不占额度（次数不增加）', rf && rf.n === 1, rf); await p.context().close();
     p = await open({ init: seed(0, 2, OTHER) });
     T(f + ' 另一端今天看过：这一端仍显示', await has(p)); await p.context().close();
     p = await open({ init: seed(3, 1) });

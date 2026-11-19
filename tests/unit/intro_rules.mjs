@@ -17,6 +17,8 @@ T('两端今天都看过 → 两端都不显示', D({ ...base, days: { pwa: '202
 T('不认识的端（既不是 pwa 也不是 web）→ 不显示', D({ ...base, surface: '' }) === 'off' && D({ ...base, surface: 'x' }) === 'off');
 T('已登录 / 主屏幕打开不再影响显示（传了也不看）', D({ ...base, loggedIn: true, standalone: true, seen: true }) === 'show');
 T('什么都没传 → 不显示（开关默认关）', D() === 'off' && D({}) === 'off');
+T('force（测试用 ?intro=1）：今天看过也显示', D({ ...base, force: true, days: { pwa: '2026-11-19' } }) === 'show');
+T('force 不越过开关和深链', D({ ...base, force: true, on: false }) === 'off' && D({ ...base, force: true, deep: true }) === 'off');
 // 以后曝光够了只给新用户看：audience = 'new'
 const NEW = { ...base, audience: 'new' };
 T('audience=new：新用户 → 显示', D({ ...NEW, isNew: true }) === 'show');
@@ -33,9 +35,14 @@ T('nbqIntroIsNew：第一次显示 15 天前 → 老用户', ctx.nbqIntroIsNew({
   const i = src.indexOf('const NBQ_INTRO='), j = src.indexOf('})();', i) + 5;
   const on = (env, ff) => { const c = vm.createContext({ NBQ_ENV: env, localStorage: { getItem: k => k === 'nbq_ff_intro' ? ff : null }, location: { hash: '', pathname: '/' } });
     vm.runInContext(src.slice(i, j) + ';this.r=NBQ_INTRO.on', c); return c.r };
+  const force = (env, search) => { const c = vm.createContext({ NBQ_ENV: env, localStorage: { getItem: () => null }, location: { hash: '', pathname: '/', search } });
+    vm.runInContext(src.slice(i, j) + ';this.r=NBQ_INTRO.force', c); return c.r };
   T('开关：源码里找得到 NBQ_INTRO', i > 0 && j > i);
   for (const e of ['prod', 'staging', 'preview']) T('开关：' + e + ' 默认开', on(e, null) === true);
   T('开关：本地 / 测试域名（none）默认关', on('none', null) === false);
   T('开关：本地设 nbq_ff_intro=1 打开', on('none', '1') === true);
+  T('?intro=1：预览 / 本地有效', force('staging', '?intro=1') === true && force('preview', '?a=1&intro=1') === true && force('none', '?intro=1') === true);
+  T('?intro=1：正式站无效', force('prod', '?intro=1') === false);
+  T('没带 ?intro=1 或值不是 1：不强制', force('staging', '') === false && force('staging', '?intro=10') === false && force('staging', '?intro=0') === false);
   T('受众默认「所有人」（要收窄只改这一行）', /NBQ_INTRO_AUDIENCE='all'/.test(src)); }
 console.log(`intro_rules: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

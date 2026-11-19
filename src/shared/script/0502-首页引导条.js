@@ -9,10 +9,12 @@
  * 开关：正式站（#203）、分支预览（staging）、预览站默认开；本地 / 测试域名关，localStorage nbq_ff_intro=1 单独打开。
  * 不单独埋点（加事件要改库里的事件表）：效果用现有的 session_start + game_view 做上线前后对比。 */
 const NBQ_INTRO_K='nbq_intro',NBQ_INTRO_AUDIENCE='all';
-const NBQ_INTRO=(()=>{const s={on:false,deep:false,state:null,K:1,hover:false,t:0,anims:[]};
+const NBQ_INTRO=(()=>{const s={on:false,deep:false,force:false,state:null,K:1,hover:false,t:0,anims:[]};
   try{s.on=typeof NBQ_ENV!=='undefined'&&(NBQ_ENV==='prod'||NBQ_ENV==='staging'||NBQ_ENV==='preview')||localStorage.getItem('nbq_ff_intro')==='1'}catch(_){}
   // 落地网址在启动路由改写 hash 之前记下
   try{s.deep=/^#\/./.test(location.hash)||/\/(g|u|p)\//.test(location.pathname)||(typeof AN!=='undefined'&&(AN.entry==='share'||AN.entry==='push'))}catch(_){}
+  // 测试用：网址带 ?intro=1 强制显示且不占额度（仅预览 / 本地；正式站无效）
+  try{s.force=typeof NBQ_ENV!=='undefined'&&NBQ_ENV!=='prod'&&/[?&]intro=1(&|$)/.test(location.search)}catch(_){}
   try{if(window.__NBQ_INTRO_K>0)s.K=window.__NBQ_INTRO_K}catch(_){}   // 测试用：把时间整体缩短
   return s})();
 const nbqIntroSurface=()=>typeof AN_BUILD!=='undefined'&&AN_BUILD==='web'?'web':'pwa';
@@ -23,7 +25,7 @@ function nbqIntroShowing(){
   if(NBQ_INTRO.state==='done')return false;
   if(NBQ_INTRO.state==='show')return true;
   const rec=nbqIntroRec();
-  if(nbqIntroDecide({on:NBQ_INTRO.on,deep:NBQ_INTRO.deep,surface:nbqIntroSurface(),today:nbqIntroDay(),days:rec&&rec.days,audience:NBQ_INTRO_AUDIENCE,isNew:nbqIntroIsNew(rec)})!=='show')return false;
+  if(nbqIntroDecide({on:NBQ_INTRO.on,deep:NBQ_INTRO.deep,force:NBQ_INTRO.force,surface:nbqIntroSurface(),today:nbqIntroDay(),days:rec&&rec.days,audience:NBQ_INTRO_AUDIENCE,isNew:nbqIntroIsNew(rec)})!=='show')return false;
   NBQ_INTRO.state='show';return true}
 const nbqIntroRM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(_){return false}};
 function nbqIntroDone(by){
@@ -72,7 +74,7 @@ function nbqIntroPlay(el){
 function nbqIntroStart(el){
   if(el._ni)return;el._ni=1;
   el.addEventListener('pointerenter',()=>{NBQ_INTRO.hover=true});el.addEventListener('pointerleave',()=>{NBQ_INTRO.hover=false});
-  const go=()=>{if(NBQ_INTRO.state!=='show'||!el.isConnected)return;nbqIntroMark();nbqIntroPlay(el)};   // 页面可见时才开始并记当天额度
+  const go=()=>{if(NBQ_INTRO.state!=='show'||!el.isConnected)return;if(!NBQ_INTRO.force)nbqIntroMark();nbqIntroPlay(el)};   // 页面可见时才开始并记当天额度
   if(document.hidden){const f=()=>{if(!document.hidden){document.removeEventListener('visibilitychange',f);go()}};document.addEventListener('visibilitychange',f)}else go()}
 function nbqIntroHTML(){const city=typeof CITY!=='undefined'&&CITY.zh?CITY.zh:'';
   return `<section class="nbq-intro" id="nbqIntro" aria-label="南伴球"><div class="ni-wrap"><div class="ni-box">
