@@ -49,6 +49,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   { const foc = () => q(`r=>{const a=r.activeElement,t=r.querySelector('.compose [data-ctext]');return {on:a===t,v:t.value,pickOn:r.querySelector('.pick').classList.contains('on'),shOn:r.querySelector('.csh').classList.contains('on'),cq:r.querySelector('.cqk').classList.contains('on'),lab:r.querySelector('.compose [data-cpl] span').textContent}}`);
     await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
     let f = await foc(); T('写页打开即聚焦输入框', f.on, f);
+    const hid = await q(`r=>({vh:innerHeight,sh:Math.round(r.querySelector('.csh-p').getBoundingClientRect().top),pk:Math.round(r.querySelector('.pick').getBoundingClientRect().top)})`); T('矮屏 / 键盘上方：没打开的话题 / 设置面板、选球场页整个藏在屏幕外，不露白边', hid.sh >= hid.vh && hid.pk >= hid.vh, hid);
     const pb = await q(`r=>parseFloat(getComputedStyle(r.querySelector('.compose .ctool')).paddingBottom)`); T('聚焦（键盘在）时工具条下方只留很小空隙，紧贴键盘', pb <= 10, pb);
     await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.value='今天打得不错';t.dispatchEvent(new Event('input'))}`);
     await q(`r=>{r.querySelector('.compose [data-cpl]').click()}`); await W(200); f = await foc();
