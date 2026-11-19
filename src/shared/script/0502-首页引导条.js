@@ -38,10 +38,10 @@ function nbqIntroDone(by){
     ['#niGlow','#niLens'].forEach(s=>B(q(s),[{opacity:1},{opacity:.08}],{duration:auto?1000:420,fill:'forwards'}));
     setTimeout(()=>el.classList.add('shut'),auto?650:350);setTimeout(()=>el.remove(),auto?1500:1100)}
   else{el.classList.add('shut');setTimeout(()=>el.remove(),500)}}
-// 球：从右进场，按真实弹跳规律跳四次（下落二次缓入、上升二次缓出，弹高 ×0.68 递减），越跳越近越大，落在中线前方
-const NI_FX=205,NI_T=1700,NI_FALL='cubic-bezier(.55,.085,.68,.53)',NI_RISE='cubic-bezier(.25,.46,.45,.94)';
-const NI_KF=[[0,335,96,NI_FALL],[333,291,0,NI_RISE],[564,269,46,NI_FALL],[795,247,0,NI_RISE],[951,235,21,NI_FALL],[1107,223,0,NI_RISE],[1212,217,9.5,NI_FALL],[1317,211,0,NI_RISE],[1388,208.5,4.4,NI_FALL],[1459,206.5,0,'linear'],[1700,205,0,'linear']];
-const NI_SQ={333:.17,795:.12,1107:.08,1317:.05,1459:.025};
+// 球：从右进场，按真实弹跳规律跳三下（下落二次缓入、上升二次缓出，弹高约 ×0.6 递减、时长随 √高度），最后一小跳后不再弹，减速滚停；越跳越近越大，落在中线前方
+const NI_FX=205,NI_T=1750,NI_FALL='cubic-bezier(.55,.085,.68,.53)',NI_RISE='cubic-bezier(.25,.46,.45,.94)';
+const NI_KF=[[0,335,100,NI_FALL],[357,296,0,NI_RISE],[588,272,46,NI_FALL],[819,248,0,NI_RISE],[955,235,16,NI_FALL],[1091,222,0,NI_RISE],[1157,217,5.5,NI_FALL],[1223,212.8,0,'cubic-bezier(.2,.6,.3,1)'],[1750,205,0,'linear']];
+const NI_SQ={357:.15,819:.10,1091:.045};
 const niGnd=x=>-14*(x-NI_FX)/140,niK=x=>1-.2*(x-NI_FX)/140;
 function nbqIntroPlay(el){
   const q=s=>el.querySelector(s),K=NBQ_INTRO.K,L=NBQ_INTRO.anims=[],F={fill:'both'},SOFT='cubic-bezier(.4,0,.3,1)';

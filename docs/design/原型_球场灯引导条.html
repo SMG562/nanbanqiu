@@ -155,12 +155,12 @@ function reset(){clear();banner.classList.remove('out');banner.style.transition=
 const OUT='cubic-bezier(.1,.5,.4,1)',IN='cubic-bezier(.5,0,.9,.5)',SOFT='cubic-bezier(.45,0,.25,1)';
 const HOLD=2800;
 // 球：从右进场，跳三下，越跳越矮、越来越近（变大、落点下移），落在球场中间偏前（C 位）
-const FX=205,T=1700;
+const FX=205,T=1750;
 // 重力下落 ≈ 二次缓入，上升 ≈ 二次缓出；弹高按恢复系数 0.68 递减（96 → 46 → 21 → 9.5 → 4.4），时长随 √高度 缩短
 const FALL='cubic-bezier(.55,.085,.68,.53)',RISE='cubic-bezier(.25,.46,.45,.94)';
-const kfs=[[0,335,96,FALL],[333,291,0,RISE],[564,269,46,FALL],[795,247,0,RISE],[951,235,21,FALL],[1107,223,0,RISE],[1212,217,9.5,FALL],[1317,211,0,RISE],[1388,208.5,4.4,FALL],[1459,206.5,0,'linear'],[1700,205,0,'linear']];
+const kfs=[[0,335,100,FALL],[357,296,0,RISE],[588,272,46,FALL],[819,248,0,RISE],[955,235,16,FALL],[1091,222,0,RISE],[1157,217,5.5,FALL],[1223,212.8,0,'cubic-bezier(.2,.6,.3,1)'],[1750,205,0,'linear']];
 const gnd=x=>-14*(x-FX)/140, kk=x=>1-.2*(x-FX)/140;
-const squash={333:.17,795:.12,1107:.08,1317:.05,1459:.025};
+const squash={357:.15,819:.10,1091:.045};
 function intro(){reset();done=false;placeLight();
   if(reduce){dim.style.setProperty('--r','var(--rmax)');return}
   const F={fill:'both'},D=900;
