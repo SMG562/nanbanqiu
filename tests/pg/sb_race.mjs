@@ -35,15 +35,15 @@ try {
     const p1 = first(async () => { await gate });
     await sleep(60); const p2 = second(); await sleep(150); release();
     return [await p1, await p2] }
-  const runAll = async (name, setup, A, B, check) => {
+  const runAll = async (name, setup, A, B, check, nFree = FREE) => {
     const res = [];
-    for (const mode of ['A先', 'B先', ...Array(FREE).fill('并发')]) {
+    for (const mode of ['A先', 'B先', ...Array(nFree).fill('并发')]) {
       await q(`delete from rate_hits`);
       const x = await setup();
       const [ra, rb] = mode === 'A先' ? await ordered(h => A(x, h), () => B(x)) : mode === 'B先' ? (await ordered(h => B(x, h), () => A(x))).reverse() : await Promise.all([A(x), B(x)]);
       res.push([mode, await check(x, ra, rb), ra, rb]) }
     const bads = res.filter(z => z[1]);
-    T(`${name}（A 先 / B 先 / 并发 ${FREE} 次）`, !bads.length, bads.slice(0, 2).map(z => ({ mode: z[0], why: z[1], a: z[2], b: z[3] })));
+    T(`${name}（A 先 / B 先 / 并发 ${nFree} 次）`, !bads.length, bads.slice(0, 2).map(z => ({ mode: z[0], why: z[1], a: z[2], b: z[3] })));
   };
   const api = (uid, sql, params) => hold => tx(uid, cl => cl.query(sql, params), hold);
   const post = (uid, p) => api(uid, `select api_sb_post($1::jsonb)`, [JSON.stringify(p)]);
@@ -96,7 +96,8 @@ try {
   const reply = (uid, x, body = '好') => api(uid, `select api_sb_reply($1,$2)`, [x.p, body]);
   const repOK = async x => { const s = await counts(x.p); return s.replies === s.nr ? null : ['回复数和实际不一致', s] };
   await runAll('Q8 两人同时回复：回复数 2', async () => ({ p: await newPost() }), (x, h) => reply(U(2), x)(h), (x, h) => reply(U(3), x)(h),
-    async (x, a, b) => !a.ok || !b.ok ? ['都应成功', a.err, b.err] : (await repOK(x)) || ((await counts(x.p)).replies === 2 ? null : ['应是 2', await counts(x.p)]));
+    async (x, a, b) => !a.ok || !b.ok ? ['都应成功', a.err, b.err] : (await repOK(x)) || ((await counts(x.p)).replies === 2 ? null : ['应是 2', await counts(x.p)]),
+    Math.max(FREE, 200));   // #153：热门帖同时回复曾偶发死锁（外键共享锁升级），并发次数拉到 200 当不复发的证明
   await runAll('Q9 一人回复、另一人同时删自己的回复：回复数 = 实际', async () => { const p = await newPost(); const r = await reply(U(4), { p })(); return { p, r: r.v } },
     (x, h) => reply(U(2), x)(h), (x, h) => api(U(4), `select api_sb_reply_delete($1)`, [x.r])(h),
     async (x, a, b) => !a.ok || !b.ok ? ['都应成功', a.err, b.err] : repOK(x));

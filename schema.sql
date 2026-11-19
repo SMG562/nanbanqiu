@@ -6404,6 +6404,8 @@ begin
     perform nbq_err('invalid', 'to');
   end if;
   perform nbq_rate(u::text, 'sb_reply');
+  -- #153：先锁帖子行再 insert。否则 insert 的外键先拿共享锁、触发器再升级成 for update，两人同时回复会互相等待（死锁）
+  perform 1 from sb_posts where id = p_post for update;
   insert into sb_replies(post_id, user_id, to_user, body) values (p_post, u, p_to, b) returning id into rid;
   perform sb_notify_reply(rid);   -- 通知（S2b+）
   return rid;
