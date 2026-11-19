@@ -29,20 +29,18 @@ const nbqIntroRM=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').
 function nbqIntroDone(by){
   if(NBQ_INTRO.state!=='show')return;NBQ_INTRO.state='done';clearTimeout(NBQ_INTRO.t);
   const el=document.getElementById('nbqIntro');if(!el)return;
-  const dim=el.querySelector('.ni-dim');if(dim)dim.style.setProperty('--nir','var(--nrmax)');   // 取消动画前先定住，免得夜色闪回来
-  NBQ_INTRO.anims.forEach(a=>a.cancel());NBQ_INTRO.anims=[];
-  const loud=(by==='x'||by==='auto')&&!nbqIntroRM(),q=s=>el.querySelector(s),B=(e,kf,o)=>e&&e.animate(kf,o);
-  if(loud){const auto=by==='auto',T=auto?900:560;el.classList.add('out');
-    B(q('#niBX'),[{transform:'translateX(0)'},{transform:'translateX(240px)'}],{duration:T,delay:auto?150:0,easing:'cubic-bezier(.5,0,.9,.6)',fill:'forwards'});
-    B(q('#niBSpin'),[{transform:'rotate(0)'},{transform:'rotate(900deg)'}],{duration:T,delay:auto?150:0,fill:'forwards'});
-    ['#niGlow','#niLens'].forEach(s=>B(q(s),[{opacity:1},{opacity:.08}],{duration:auto?1000:420,fill:'forwards'}));
+  if((by==='x'||by==='auto')&&!nbqIntroRM()){const auto=by==='auto';el.classList.add('out');   // 像关灯 / 谢幕：整条渐隐，再向上折叠；球不动
     setTimeout(()=>el.classList.add('shut'),auto?650:350);setTimeout(()=>el.remove(),auto?1500:1100)}
   else{el.classList.add('shut');setTimeout(()=>el.remove(),500)}}
-// 球：从右进场，按真实弹跳规律跳三下（下落二次缓入、上升二次缓出，弹高约 ×0.6 递减、时长随 √高度），最后一小跳后不再弹，减速滚停；越跳越近越大，落在中线前方
-const NI_FX=205,NI_T=1750,NI_FALL='cubic-bezier(.55,.085,.68,.53)',NI_RISE='cubic-bezier(.25,.46,.45,.94)';
-const NI_KF=[[0,335,100,NI_FALL],[357,296,0,NI_RISE],[588,272,46,NI_FALL],[819,248,0,NI_RISE],[955,235,16,NI_FALL],[1091,222,0,NI_RISE],[1157,217,5.5,NI_FALL],[1223,212.8,0,'cubic-bezier(.2,.6,.3,1)'],[1750,205,0,'linear']];
-const NI_SQ={357:.15,819:.10,1091:.045};
+// 球：从右进场，真实弹跳 + 一条连续的减速曲线（没有折角）：
+//   水平：x(t)=205+135·(1-t/T)²，一路自然减速、滚到停；竖直：先自由下落 100，再三次抛物线弹跳（40 → 14.4 → 5.2，恢复系数约 0.6，时长随 √高度），最后一小跳后只滚不弹
+//   远小近大、落点越来越靠下（随 x）；落地挤压随冲击递减；滚动方向与前进方向一致（向左前进 = 逆时针）
+const NI_FX=205,NI_T=1750,NI_LAND=[340,770,1028,1183],NI_HP=[40,14.4,5.2],NI_H0=100,NI_SQ={340:.14,770:.09,1028:.04};
+const niX=t=>NI_FX+135*Math.pow(1-t/NI_T,2);
+const niH=t=>{if(t<=0)return NI_H0;if(t>=NI_LAND[3])return 0;if(t<NI_LAND[0]){const s=t/NI_LAND[0];return NI_H0*(1-s*s)}
+  for(let i=0;i<3;i++)if(t<NI_LAND[i+1]){const s=(t-NI_LAND[i])/(NI_LAND[i+1]-NI_LAND[i]);return 4*NI_HP[i]*s*(1-s)}return 0};
 const niGnd=x=>-14*(x-NI_FX)/140,niK=x=>1-.2*(x-NI_FX)/140;
+const NI_TS=(()=>{const a=new Set(NI_LAND);for(let t=0;t<=NI_T;t+=25)a.add(t);a.add(NI_T);return[...a].sort((x,y)=>x-y)})();
 function nbqIntroPlay(el){
   const q=s=>el.querySelector(s),K=NBQ_INTRO.K,L=NBQ_INTRO.anims=[],F={fill:'both'},SOFT='cubic-bezier(.4,0,.3,1)';
   const A=(e,kf,o)=>{const a=e.animate(kf,{...o,duration:o.duration*K,delay:(o.delay||0)*K});L.push(a);return a};
@@ -52,14 +50,14 @@ function nbqIntroPlay(el){
   dim.style.setProperty('--nrmax',(Math.hypot(Math.max(lx,b.width-lx),Math.max(ly,b.height-ly))+260)+'px');
   if(nbqIntroRM()){dim.style.setProperty('--nir','var(--nrmax)');q('#niEb').style.opacity=1;const h=q('#niH');h.style.opacity=1;h.style.transform='none';h.style.filter='none';arm(5000);return}
   const D=900,T=NI_T;
-  A(q('#niBX'),NI_KF.map(([t,x])=>({offset:t/T,transform:`translateX(${x-NI_FX}px)`,easing:'linear'})),{duration:T,delay:D,...F});
-  A(q('#niBSpin'),NI_KF.map(([t,x])=>({offset:t/T,transform:`rotate(${-(x-NI_FX)*2.4}deg)`,easing:'linear'})),{duration:T,delay:D,...F});
-  A(q('#niBY'),NI_KF.map(([t,x,h,e])=>({offset:t/T,transform:`translateY(${(niGnd(x)-h).toFixed(1)}px)`,easing:e})),{duration:T,delay:D,...F});
-  const sq=[];NI_KF.forEach(([t,x])=>{const k=niK(x),s=NI_SQ[t];
-    if(s){sq.push([Math.max(0,t-30),k,k],[t,k*(1+s),k*(1-s*1.15)],[t+90,k*(1-s*.2),k*(1+s*.25)],[t+170,k,k])}else sq.push([t,k,k])});
-  const fr=[];sq.sort((a,c)=>a[0]-c[0]).forEach(([t,x,y])=>{if(fr.length&&t<=fr[fr.length-1][0])t=fr[fr.length-1][0]+1;if(t<=T)fr.push([t,x,y])});
+  const kf=f=>NI_TS.map(t=>({offset:t/T,easing:'linear',...f(t,niX(t),niH(t))}));
+  A(q('#niBX'),kf((t,x)=>({transform:`translateX(${(x-NI_FX).toFixed(2)}px)`})),{duration:T,delay:D,...F});
+  A(q('#niBSpin'),kf((t,x)=>({transform:`rotate(${((x-NI_FX)*2.4).toFixed(1)}deg)`})),{duration:T,delay:D,...F});
+  A(q('#niBY'),kf((t,x,h)=>({transform:`translateY(${(niGnd(x)-h).toFixed(2)}px)`})),{duration:T,delay:D,...F});
+  const sq=[];Object.entries(NI_SQ).forEach(([t,s])=>{t=+t;const k=niK(niX(t));sq.push([t-30,k,k],[t,k*(1+s),k*(1-s*1.15)],[t+80,k*(1-s*.2),k*(1+s*.25)],[t+160,niK(niX(t+160)),niK(niX(t+160))])});
+  const fr=[[0,niK(niX(0)),niK(niX(0))]];sq.sort((a,c)=>a[0]-c[0]).forEach(([t,x,y])=>{if(t<=fr[fr.length-1][0])t=fr[fr.length-1][0]+1;if(t<T)fr.push([t,x,y])});fr.push([T,niK(NI_FX),niK(NI_FX)]);
   A(q('#niBSq'),fr.map(([t,x,y])=>({offset:t/T,transform:`scale(${x.toFixed(3)},${y.toFixed(3)})`})),{duration:T,delay:D,...F});
-  A(q('#niBSh'),NI_KF.map(([t,x,h])=>{const p=Math.min(1,h/46);return{offset:t/T,transform:`translateY(${niGnd(x).toFixed(1)}px) scale(${(niK(x)*(1-.5*p)).toFixed(3)})`,opacity:.6*(1-.55*p),easing:'linear'}}),{duration:T,delay:D,...F});
+  A(q('#niBSh'),kf((t,x,h)=>{const p=Math.min(1,h/46);return{transform:`translateY(${niGnd(x).toFixed(2)}px) scale(${(niK(x)*(1-.5*p)).toFixed(3)})`,opacity:.6*(1-.55*p)}}),{duration:T,delay:D,...F});
   // 球落稳、静半拍，灯由暗到亮（单调上升，不闪）；光从灯处向外铺开，夜色退去，回到主题深绿
   const Ls=D+T+700;
   A(q('#niLens'),[{opacity:.06},{opacity:1}],{duration:3200,delay:Ls,easing:SOFT,...F});

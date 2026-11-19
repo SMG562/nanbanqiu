@@ -155,26 +155,23 @@ function reset(){clear();banner.classList.remove('out');banner.style.transition=
 const OUT='cubic-bezier(.1,.5,.4,1)',IN='cubic-bezier(.5,0,.9,.5)',SOFT='cubic-bezier(.45,0,.25,1)';
 const HOLD=2800;
 // 球：从右进场，跳三下，越跳越矮、越来越近（变大、落点下移），落在球场中间偏前（C 位）
-const FX=205,T=1750;
-// 重力下落 ≈ 二次缓入，上升 ≈ 二次缓出；弹高按恢复系数 0.68 递减（96 → 46 → 21 → 9.5 → 4.4），时长随 √高度 缩短
-const FALL='cubic-bezier(.55,.085,.68,.53)',RISE='cubic-bezier(.25,.46,.45,.94)';
-const kfs=[[0,335,100,FALL],[357,296,0,RISE],[588,272,46,FALL],[819,248,0,RISE],[955,235,16,FALL],[1091,222,0,RISE],[1157,217,5.5,FALL],[1223,212.8,0,'cubic-bezier(.2,.6,.3,1)'],[1750,205,0,'linear']];
+const FX=205,T=1750,LAND=[340,770,1028,1183],HP=[40,14.4,5.2],H0=100,SQ={340:.14,770:.09,1028:.04};
+const xAt=t=>FX+135*Math.pow(1-t/T,2);
+const hAt=t=>{if(t<=0)return H0;if(t>=LAND[3])return 0;if(t<LAND[0]){const s=t/LAND[0];return H0*(1-s*s)}
+  for(let i=0;i<3;i++)if(t<LAND[i+1]){const s=(t-LAND[i])/(LAND[i+1]-LAND[i]);return 4*HP[i]*s*(1-s)}return 0};
 const gnd=x=>-14*(x-FX)/140, kk=x=>1-.2*(x-FX)/140;
-const squash={357:.15,819:.10,1091:.045};
+const TS=(()=>{const a=new Set(LAND);for(let t=0;t<=T;t+=25)a.add(t);a.add(T);return[...a].sort((x,y)=>x-y)})();
 function intro(){reset();done=false;placeLight();
   if(reduce){dim.style.setProperty('--r','var(--rmax)');return}
   const F={fill:'both'},D=900;
-  A($('#bX'),kfs.map(([t,x])=>({offset:t/T,transform:`translateX(${x-FX}px)`,easing:'linear'})),{duration:T,delay:D,...F});
-  A($('#bSpin'),kfs.map(([t,x])=>({offset:t/T,transform:`rotate(${-(x-FX)*2.4}deg)`,easing:'linear'})),{duration:T,delay:D,...F});
-  A($('#bY'),kfs.map(([t,x,h,e])=>({offset:t/T,transform:`translateY(${(gnd(x)-h).toFixed(1)}px)`,easing:e})),{duration:T,delay:D,...F});
-  // 挤压 + 远小近大
-  let sqk=[];kfs.forEach(([t,x])=>{const k=kk(x),q=squash[t];
-    if(q){sqk.push([Math.max(0,t-30),k,k]);sqk.push([t,k*(1+q),k*(1-q*1.15)]);sqk.push([t+90,k*(1-q*.2),k*(1+q*.25)]);sqk.push([t+170,k,k])}
-    else sqk.push([t,k,k])});
-  sqk.sort((a,b)=>a[0]-b[0]);
-  const fr=[];sqk.forEach(([t,x,y])=>{if(fr.length&&t<=fr[fr.length-1][0])t=fr[fr.length-1][0]+1;if(t<=T)fr.push([t,x,y])});
+  const kf=f=>TS.map(t=>({offset:t/T,easing:'linear',...f(t,xAt(t),hAt(t))}));
+  A($('#bX'),kf((t,x)=>({transform:`translateX(${(x-FX).toFixed(2)}px)`})),{duration:T,delay:D,...F});
+  A($('#bSpin'),kf((t,x)=>({transform:`rotate(${((x-FX)*2.4).toFixed(1)}deg)`})),{duration:T,delay:D,...F});
+  A($('#bY'),kf((t,x,h)=>({transform:`translateY(${(gnd(x)-h).toFixed(2)}px)`})),{duration:T,delay:D,...F});
+  const sq=[];Object.entries(SQ).forEach(([t,s])=>{t=+t;const k=kk(xAt(t));sq.push([t-30,k,k],[t,k*(1+s),k*(1-s*1.15)],[t+80,k*(1-s*.2),k*(1+s*.25)],[t+160,kk(xAt(t+160)),kk(xAt(t+160))])});
+  const fr=[[0,kk(xAt(0)),kk(xAt(0))]];sq.sort((a,c)=>a[0]-c[0]).forEach(([t,x,y])=>{if(t<=fr[fr.length-1][0])t=fr[fr.length-1][0]+1;if(t<T)fr.push([t,x,y])});fr.push([T,kk(FX),kk(FX)]);
   A($('#bSq'),fr.map(([t,x,y])=>({offset:t/T,transform:`scale(${x.toFixed(3)},${y.toFixed(3)})`})),{duration:T,delay:D,...F});
-  A($('#bSh'),kfs.map(([t,x,h])=>{const q=Math.min(1,h/46);return{offset:t/T,transform:`translateY(${gnd(x).toFixed(1)}px) scale(${(kk(x)*(1-.5*q)).toFixed(3)})`,opacity:.6*(1-.55*q),easing:'linear'}}),{duration:T,delay:D,...F});
+  A($('#bSh'),kf((t,x,h)=>{const q=Math.min(1,h/46);return{transform:`translateY(${gnd(x).toFixed(2)}px) scale(${(kk(x)*(1-.5*q)).toFixed(3)})`,opacity:.6*(1-.55*q)}}),{duration:T,delay:D,...F});
   // 球落稳，静半拍，灯头预热 → 微暗 → 再亮；光从灯处向外铺开
   const L=D+T+700;
   A($('#lens'),[{opacity:.06},{opacity:1}],{duration:3200,delay:L,easing:'cubic-bezier(.4,0,.3,1)',...F});

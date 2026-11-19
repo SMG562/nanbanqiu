@@ -26,6 +26,8 @@
 .nbq-intro .ni-x:hover{opacity:1}.nbq-intro .ni-x:hover::before{background:rgba(255,255,255,.18);transform:scale(1.1)}
 .nbq-intro .ni-x svg{position:relative;width:11px;height:11px}
 .nbq-intro .ni-x:focus-visible{outline:2px solid #C6EA3D;outline-offset:-4px;border-radius:50%}
+/* 退场：整条像关灯 / 谢幕一样渐隐（球和灯都不动），随后向上折叠 */
+.nbq-intro.out .ni-box{opacity:0;transition:opacity .6s .15s}
 .nbq-intro.out .ni-txt,.nbq-intro.out .ni-x{transition:opacity .4s,transform .5s,filter .4s;opacity:0!important;transform:translateY(-6px);filter:blur(3px)}
 @media (min-width:720px){
   .nbq-intro .ni-box{min-height:156px}
