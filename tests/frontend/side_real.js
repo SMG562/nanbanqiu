@@ -225,9 +225,9 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const LAY = "(() => { const g = x => { const e = r.querySelector(x); if (!e) return null; const b = e.getBoundingClientRect(); return [b.top, b.height, b.width].map(Math.round).join() }; return [g('[data-ctext]'), g('.phs'), g('.ph1'), g('.phadd'), g('.ctop')].join('|') })()";
   const lay0 = await SRQ('.compose', LAY);
   await sr('[data-ctext]').focus(); await pg.settle(300);
-  T('打字时：版面不动（输入框 / 照片格 / 相机框位置尺寸不变）、底栏（照片 / 球场 / 设置工具条）仍显示在键盘上方、输入框完整可见', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "(() => { const t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity !== '0' && t.height >= 100 && t.bottom <= innerHeight })()"));
+  T('打字时：版面不动（输入框 / 照片格 / 相机框位置尺寸不变）、键盘上方没有固定的工具条、输入框完整可见', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "(() => { const t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && !r.querySelector('.cbot') && getComputedStyle(r.querySelector('.ctool')).position !== 'fixed' && t.height >= 100 && t.bottom <= innerHeight })()"));
   await sr('[data-ctext]').evaluate(e => e.blur()); await pg.settle(300);
-  T('失焦后：底栏仍在、版面仍不动', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "!r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity !== '0'"));
+  T('失焦后：版面仍不动', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "!r.classList.contains('cmp-ty')"));
   T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
   await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
   const pb = S.bodies['POST /api/sideline/posts'];

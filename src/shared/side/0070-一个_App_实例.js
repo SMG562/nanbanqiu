@@ -223,23 +223,22 @@ function App(el,init){
     $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
-        ${phReal()?phBlk(C):''}
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
         ${stHTML(C)}
-        ${phReal()?'':phBlk(C)}
+        <p class="cnote"${C.text?' style="display:none"':''}>${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
+        ${phBlk(C)}
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
         ${SB_TONES_ON()&&(pic||C.ups.length)?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
+        <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div>
+        <div class="cqk${C.cq?' on':''}">${cqHTML(C)}</div>
       </div>
       <input type="file" accept="image/*" multiple hidden data-cfile>
-      <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
-      <div class="cqk${C.cq?' on':''}">${cqHTML(C)}</div>
-      <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
       <div class="pick${C.pick?' on':''}">${pickHTML(C)}</div>
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
     const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
     const cp=$('.compose');cp.classList.remove('cmp-ty');
-    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''};
+    const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
     if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
@@ -433,7 +432,7 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.cbot button:not([data-cset])'))e.preventDefault()});
+  el.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.compose .ctool button:not([data-cset]),.compose .cqk button'))e.preventDefault()});
   el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-pu],[data-pr],[data-tone],[data-cpl],[data-cpl2],[data-ql],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
