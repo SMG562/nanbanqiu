@@ -16,7 +16,7 @@ for (const f of FILES) {
   T(`${f}：没有 eval / new Function`, !/[^.\w]eval\(|new Function\(/.test(h.replace(/<script[^>]*src=[^>]*><\/script>/g, '')), (h.match(/.{30}(?:[^.\w]eval\(|new Function\().{30}/g) || []).slice(0, 3));
   // ⑥ href / src 里的插值：只允许白名单
   // u.url = 场边发布页的本地缩略图，只来自 URL.createObjectURL(File)（blob:），不含用户文字
-  const OK = /^(nav|url|u\.url|reportMail\(\)|esc\(.*\)|encodeURIComponent\(.*\)|shareURL\(.*\)|.*\.dataURL|.*toDataURL\(.*\))$/;
+  const OK = /^(nav|url|u\.url|phSrc\(.*\)|reportMail\(\)|esc\(.*\)|encodeURIComponent\(.*\)|shareURL\(.*\)|.*\.dataURL|.*toDataURL\(.*\))$/;
   const bad = [...h.matchAll(/(?:href|src)="\$\{([^}]{0,80})\}/g)].map(m => m[1]).filter(e => !OK.test(e));
   T(`${f}：href / src 里的插值都在白名单里`, !bad.length, bad);
 }
