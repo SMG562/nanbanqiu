@@ -13,6 +13,8 @@ B=$(git rev-parse --abbrev-ref HEAD)
 case "$B" in main|staging|HEAD) echo "❌ 不在功能分支上（现在是 $B）"; exit 1;; esac
 [ -z "$(git status --porcelain)" ] || { echo "❌ 工作区有没提交的改动，先提交或处理"; exit 1; }
 git fetch -q origin main
+# 11-19（#410 试点 ③）：浅克隆里 HEAD..origin/main 会把没连上的历史也数进去（谎报「多 N 个提交」）→ 先加深再数
+[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ] && { git fetch -q --depth=300 origin main "$B" 2>/dev/null || true; }
 n=$(git rev-list --count HEAD..origin/main)
 [ "$n" -gt 0 ] || { echo "✅ $B 已包含最新 main，不用合"; exit 0; }
 base=$(git merge-base HEAD origin/main 2>/dev/null) || { git fetch -q --deepen=200 origin main "$B" 2>/dev/null || true; base=$(git merge-base HEAD origin/main); }

@@ -23,5 +23,9 @@ g('reset', '-q', '--hard', 'HEAD');
 g('merge', '--no-commit', '-q', 'origin/main'); r = pc(); T('正常合并（MERGE_HEAD 在）→ 放行', r.code === 0, r.out); g('commit', '-qm', 'merge main');
 // ④ 合并之后（main 已是祖先）再改 b.txt：不是照抄 main → 放行
 W('b.txt', 'b-pr\n'); g('add', 'b.txt'); r = pc(); T('main 已是祖先后自己改同一个文件 → 放行', r.code === 0, r.out);
+// ⑤ 测试断言净减少 → 只提醒不拦（11-19 教训）
+fs.mkdirSync(path.join(repo, 'tests/pg'), { recursive: true }); W('tests/pg/x.mjs', "T('a',1);\nT('b',2);\n"); g('add', '-A'); g('commit', '-qm', 'add test');
+W('tests/pg/x.mjs', "T('a',1);\n"); g('add', '-A'); r = pc(); T('暂存区净删 1 条断言 → 提醒但放行', r.code === 0 && /断言.*多 1 条/.test(r.out), r.out);
+W('tests/pg/x.mjs', "T('a',1);\nT('b',2);\nT('c',3);\n"); g('add', '-A'); r = pc(); T('净增断言 → 不提醒', r.code === 0 && !/断言/.test(r.out), r.out);
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`precommit_merge_state: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
