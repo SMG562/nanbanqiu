@@ -8301,5 +8301,6 @@ insert into schema_migrations(version) values
   ('20261122_racket_held'),
   ('20261123_racket_aliases'),
   ('20261124_admin_games'),
-  ('20261124_sb_photo_upload')
+  ('20261124_sb_photo_upload'),
+  ('20261124_sb_reply_lock')
 on conflict do nothing;
