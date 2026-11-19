@@ -139,12 +139,14 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体）
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
-          [ "$NBQ_LITE" = true ] && exit 0   # pglast 只有 schema 套件用（快速档跳过）
-          pip install --break-system-packages -q pglast || pip install -q pglast
+      # 11-19（#432 ③b）：慢的是个别 runner 外网极慢（超时重试 / 换镜像无效，#438），改成缓存 .deb、命中就本地装（含 Playwright 的 chromium 系统库）；细节见 .github/actions/ci-apt/action.yml
+      - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体、Playwright 系统库）
+        uses: ./.github/actions/ci-apt
+        with:
+          name: full
+          packages: postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
+          playwright: '1.63.0'
+          pip: ${{ env.NBQ_LITE != 'true' && 'pglast' || '' }}   # pglast 只有 schema 套件用（快速档跳过）
 
       - name: 依赖缓存（PGlite、pg、Playwright 浏览器）
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -157,7 +159,10 @@ jobs:
       - name: Playwright
         run: |
           npm i -g playwright@1.63.0
-          npx -y playwright@1.63.0 install --with-deps chromium
+          npx -y playwright@1.63.0 install chromium   # 系统库已由上面的「系统依赖」装好（--with-deps 会再走一遍 apt）
+          # 保险：缓存的 deb 不全（Playwright 升级 / 镜像变）→ 浏览器缺库，补装系统库，别等测试启动浏览器时才红
+          miss=$(find "$HOME/.cache/ms-playwright" -type f \( -name chrome -o -name chrome-headless-shell -o -name headless_shell \) -exec ldd {} \; 2>/dev/null | grep -c 'not found' || true)
+          if [ "${miss:-0}" != 0 ]; then echo "::warning title=Playwright 系统库::浏览器缺 $miss 个库，补装"; npx -y playwright@1.63.0 install-deps chromium; fi
 
       - name: 重拍截图基准（只在手动选 visual-baseline 时：用 CI 的字体重拍；提交由下面的 baseline-commit 任务做，这里没有写权限）
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline'
