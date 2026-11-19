@@ -151,7 +151,7 @@ function App(el,init){
   // 地点：发布时定位一次，从球场库里找附近的球场
   const scFills=(k,C)=>{const c=C.loc||'';if(c&&(k==='court'||k==='lost'))return (CFG.starters[k]||[]).map(s=>s.split('{球场}').join(c));return k==='court'?[`${c?c+' ':'这边'}现在有空场，`,c?`${c} 风好大，`:'今天风好大，',`刚下过雨，${c?c+' 的':''}场地`]:k==='lost'?[c?`在 ${c} 捡到一个`:'在球场捡到一个',c?`有没有人在 ${c} 看到一个`:'有没有人在球场看到一个']:[]};
   const sugTopics=C=>[...new Set([PSUG[C.pics[0]],TODAY,...SLOTT[slotNow()]].filter(Boolean))].slice(0,3);
-  const stHTML=C=>{const hide=C.text?' style="display:none"':'',F=C.topic?S.T[C.topic].fills:C.sc?scFills(C.sc,C):[];
+  const stHTML=C=>{if(!SB_FILLS_ON())return '';const hide=C.text?' style="display:none"':'',F=C.topic?S.T[C.topic].fills:C.sc?scFills(C.sc,C):[];
     if(F.length)return `<div class="sts"${hide}>${F.map(f=>`<button class="st" data-fill="${esc(f)}">${esc(f)}<i>…</i></button>`).join('')}</div>`;
     if(C.topic)return '';
     return `<div class="sts"${hide}><div class="tsg">${sugTopics(C).map(id=>`<button data-tp="${id}"><b>#${esc(S.T[id].t)}</b><span>${esc(S.T[id].ask)}</span></button>`).join('')}<button class="more" data-ctp>看看别的话题${ic('chev','cv')}</button></div></div>`};
@@ -192,7 +192,7 @@ function App(el,init){
   const phsHTML=C=>C.ups.map(u=>{const bad=u.st==='fail';return `<div class="ph1 pt"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${bad?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%'}</div>`}</div>`}).join('');
   const phAddBtn=C=>phReal()&&!C.ups.length?`<button class="phadd big" data-lib>${ic('cam')}<b>添加照片</b><small>最多 3 张</small></button>`:`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
   const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
-  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;h.innerHTML=phsHTML(C)+(C.ups.length<3?phAddBtn(C):'');phGo(C);const t=$('.compose .tones2');if(!t&&C.ups.length)drawCompose()};
+  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;h.innerHTML=phsHTML(C)+(C.ups.length<3?phAddBtn(C):'');phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
   const phUpMsg=c=>c==='login_required'?'登录过期了，重新登录后点「重试」':c==='photos_unavailable'?'照片服务还没开通，稍后再试':c==='photos_paused'?'照片功能暂时关闭了':c==='photo_net'?'网络不稳，点「重试」再传一次':'没传上去（'+(c||'未知')+'），点「重试」';
   const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){const was=u.st;u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;if(u.st==='fail'&&was!=='fail')toast(phUpMsg(u.code));phPaint(C)}}}));
   const phMsg=c=>c==='photo_not_image'||c==='photo_decode'||c==='photo_empty'?'这张格式暂时不支持，换一张或截图再发':c==='photo_too_big'?'这张图太大了，换一张试试':'这张图没处理好，换一张试试';
@@ -202,7 +202,7 @@ function App(el,init){
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
   const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(C.q&&u.name)C.q.cancel(u.name)})};
   const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
-  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=phReal()&&C.ups.length&&!C.text?'配一句话（可不写）':C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
+  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':phReal()?'今天打得怎么样？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
     $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
@@ -211,7 +211,7 @@ function App(el,init){
         ${stHTML(C)}
         ${phReal()?'':phBlk(C)}
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
-        ${pic||C.ups.length?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
+        ${SB_TONES_ON()&&(pic||C.ups.length)?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
       </div>
       <input type="file" accept="image/*" multiple hidden data-cfile>
       <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>

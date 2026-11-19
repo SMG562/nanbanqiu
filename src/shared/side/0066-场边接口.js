@@ -7,6 +7,8 @@ const sbFlag=(k,d)=>{try{const v=typeof window!=='undefined'?window[k]:undefined
 // 照片发布开关（#393 P4）：默认关；预览站用 ?sbphoto=1 打开，P5 真机通过后默认改 true
 const SB_PHOTO_POST=()=>sbFlag('NBQ_SB_PHOTO_POST',false)||(typeof location!=='undefined'&&/[?&]sbphoto=1/.test(location.search||''));
 const SB_PHOTOS_ON=()=>sbFlag('NBQ_SB_PHOTOS_ON',true),SB_LATER_ON=()=>sbFlag('NBQ_SB_LATER_ON',false),SB_NEWTOPIC_ON=()=>sbFlag('NBQ_SB_NEWTOPIC_ON',false);
+// 11-19 发布页减负（所有者定）：话题的「开头」三行、照片色调（原片 / 暖阳 / 胶片 / 清晨）先关，往后再决定开不开；设 true 才显示
+const SB_FILLS_ON=()=>sbFlag('NBQ_SB_FILLS_ON',false),SB_TONES_ON=()=>sbFlag('NBQ_SB_TONES_ON',false);
 const SB_CFG_KEY='nbq_sb_cfg',SB_FEED_KEY='nbq_sb_feed',SB_POLL_MS=30000;
 const sbLS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
 // ---- 配置：只往前走。内置第 1 版（SB_CONFIG）不能盖掉后台发布的 v2：版本号不比手上的大就不用 ----
