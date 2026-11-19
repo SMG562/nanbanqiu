@@ -232,6 +232,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
   const pb = S.bodies['POST /api/sideline/posts'];
   T('P4b：发布请求带 photos（键 sb/<本人>/<名>.jpg + 宽高），正文可为空', !!pb && Array.isArray(pb.photos) && pb.photos.length === 1 && new RegExp('^sb/' + ME + '/[A-Za-z0-9_-]{16,24}\\.jpg$').test(pb.photos[0].key) && pb.photos[0].w > 0 && pb.photos[0].h > 0 && pb.body === '', pb);
+  T('P4b：发布后列表里刚发的那条显示了照片（<img>），不是空白（#450：发出去看不到图）', await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; const i = r.querySelector('.it .bg img, .it img'); return !!i && /^blob:|^https?:/.test(i.getAttribute('src') || '') }));
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);

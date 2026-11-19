@@ -32,6 +32,9 @@ const sbTopicEnsure=(T,id,info)=>{if(!id)return;if(!T[id])T[id]={t:(info&&info.t
 const sbFromPost=(p,c)=>{const x={id:p.id,uid:p.user_id,t:sbTs(p.publish_at),x:p.body||'',w:'',km:null,b:Math.max(0,(+p.balls||0)-(p.my_ball?1:0)),my:!!p.my_ball,r:[],rn:+p.replies||0,
     floor:+p.floor||0,closed:p.replies_open===false,mine:!!p.mine,tone:p.tone||'',u:sbUser(c.prof[p.user_id],c.me),real:1};
   if(p.topic_id)x.topic=p.topic_id;
+  // 照片（§14.17）：ok 给 url / t / b；blurred 只给 b；removed / 没地址不画。地址 15–30 分钟过期，前台不缓存，等下一次读列表换新
+  const ph=(p.photos||[]).filter(q=>q&&(q.state==='ok'||q.state==='blurred')&&(q.t||q.b)).map(q=>({ph:1,t:q.t||q.b,u:q.url||q.t||q.b,b:q.b,w:q.w,h:q.h}));
+  if(ph.length){x.pics=ph.slice(0,3);if(!x.x)x.x='（一张照片）'}
   const k=p.venue_id&&c.vk?c.vk(p.venue_id):'';if(k){x.w=k;x.km=c.km?c.km(k):null}
   return x};
 const sbFromReply=(r,post,c)=>({id:r.id,uid:r.user_id,x:r.body||'',t:sbTs(r.created_at),me:!!r.mine,op:r.user_id===post.user_id,

@@ -48,5 +48,6 @@ const BODY={
 const PM={outfit:1,shadow:1,shoes:1,gear:1};
 const VB={band:{sunset:'0 222 400 157',rain:'0 170 400 157',night:'0 140 400 157',clay:'0 170 400 157',cup:'0 150 400 157'},
           hero:{sunset:'0 150 400 300',rain:'0 100 400 300',night:'0 60 400 300',clay:'0 100 400 300',cup:'0 110 400 300'}};
-const PIC=(n,crop='full',tone)=>`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
+// 真照片（#450）：n 是 {ph:1,t,u,b} 对象时画 <img>（band / hero 用缩略 t，full 用原图 u；打码的只有 b）；字符串键仍走内置插画
+const PIC=(n,crop='full',tone)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${(crop==='full'?n.u||n.t:n.t||n.u)||n.b}" alt="" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block"></div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
 
