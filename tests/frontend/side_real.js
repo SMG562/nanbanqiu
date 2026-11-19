@@ -50,13 +50,13 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]) || (S.extra || []).find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); return J(r, 200, { post: { ...x, status: 'visible', public: !x.old }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
       return J(r, 404, { error: 'not_found' }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
-    if (p === '/api/sideline/posts' && m === 'POST') { if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
+    if (p === '/api/sideline/posts' && m === 'POST') { if (S.drop === 'POST ' + p) { S.drop = null; return r.abort() } if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
     if ((p === '/api/reports' || p === '/api/blocks') && m === 'POST') { S.log.push(m + ' ' + p); S.bodies[m + ' ' + p] = body; if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     if (/\/hide$/.test(p) && m === 'POST') { if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     let mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/ball$/);
     if (mm) { if (S.failBall) return J(r, 429, { error: 'rate_limited' }); const x = S.posts.find(q => q.id === mm[1]); if (m === 'PUT' && !x.my_ball) { x.my_ball = true; x.balls++ } if (m === 'DELETE' && x.my_ball) { x.my_ball = false; x.balls-- } return J(r, 200, { balls: x.balls }) }
     mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/replies$/);
-    if (mm && m === 'POST') { if (S.failReply) return J(r, 409, { error: 'replies_closed' }); const x = S.posts.find(q => q.id === mm[1]); x.replies++; (S.replies[x.id] ||= []).push({ id: 900 + x.replies, user_id: ME, to_user: body.to || null, body: body.body, created_at: new Date(NOW).toISOString(), mine: true, hidden: false }); return J(r, 200, { id: 900 + x.replies }) }
+    if (mm && m === 'POST') { if (S.drop === 'POST /replies') { S.drop = null; return r.abort() } if (S.failReply) return J(r, 409, { error: 'replies_closed' }); const x = S.posts.find(q => q.id === mm[1]); x.replies++; (S.replies[x.id] ||= []).push({ id: 900 + x.replies, user_id: ME, to_user: body.to || null, body: body.body, created_at: new Date(NOW).toISOString(), mine: true, hidden: false }); return J(r, 200, { id: 900 + x.replies }) }
     mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})$/);
     if (mm && m === 'DELETE') { S.posts = S.posts.filter(q => q.id !== mm[1]); return J(r, 200, { ok: true }) }
     return J(r, 404, { error: 'not_found' }) });
@@ -125,6 +125,12 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await until(async () => /关闭了回复/.test(await toast()));
   await pg.settle(300);
   T('回复被拒（作者关了回复）：提示是人话，那句从列表里拿掉，输入框里文字还在', /关闭了回复/.test(await toast()) && !(await SRQ('.sheet', 'r.textContent')).includes('再来一句') && await SRQ('.sheet [data-rin]', 'r.value') === '再来一句', [await toast(), await SRQ('.sheet [data-rin]', 'r.value')]); S.failReply = false;
+  // 重复提交（#291）：回复断网后再点沿用同一个 key；成功后再回 = 新 key
+  S.drop = 'POST /replies'; S.idk[rk] = []; await sr('.sheet [data-rin]').fill('断网回复'); await sr('.sheet [data-rin]').dispatchEvent('input'); await sr('.sheet [data-rsend]').click();
+  await until(() => S.idk[rk].length >= 1); await pg.settle(500);
+  await sr('.sheet [data-rin]').fill('断网回复'); await sr('.sheet [data-rin]').dispatchEvent('input'); await sr('.sheet [data-rsend]').click(); await until(() => S.idk[rk].length >= 2); await pg.settle(500);
+  await sr('.sheet [data-rin]').fill('再回一句'); await sr('.sheet [data-rin]').dispatchEvent('input'); await sr('.sheet [data-rsend]').click(); await until(() => S.idk[rk].length >= 3);
+  T('回复：断网那次失败，再点沿用同一个 key；成功后再回换新 key', !!S.idk[rk][0] && S.idk[rk][1] === S.idk[rk][0] && !!S.idk[rk][2] && S.idk[rk][2] !== S.idk[rk][0], S.idk[rk]);
   await sr('.sheet [data-shut]').first().click(); await pg.settle(500);
 
   // ---- 发布 ----
@@ -144,6 +150,13 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   S.log.length = 0; await acts(P5, 'del'); await until(() => S.log.some(x => x.startsWith('DELETE')));
   await until(async () => !(await rows()).some(x => x.includes('今晚七点有人打吗')));
   T('删除（帖子菜单）：DELETE /posts/:id，列表里拿掉', S.log.join() === 'DELETE /api/sideline/posts/P5' && !(await rows()).some(x => x.includes('今晚七点有人打吗')), [S.log, await rows()]);
+  // 重复提交（#291）：断网后再点「发布」沿用同一个 Idempotency-Key；成功后再发 = 新 key
+  S.drop = pk; S.idk[pk] = []; await sr('[data-in]').fill('断网重发那条'); await sr('[data-send]').click();
+  await until(() => S.idk[pk].length >= 1); await until(async () => !(await rows()).some(x => x.includes('断网重发那条'))); await pg.settle(400);
+  await sr('[data-in]').fill('断网重发那条'); await sr('[data-send]').click();
+  await until(() => S.idk[pk].length >= 2); await until(async () => (await rows()).some(x => x.includes('断网重发那条'))); await pg.settle(300);
+  await sr('[data-in]').fill('下一条新的'); await sr('[data-send]').click(); await until(() => S.idk[pk].length >= 3);
+  T('发布：断网那次失败，再点沿用同一个 key；成功后再发换新 key', !!S.idk[pk][0] && S.idk[pk][1] === S.idk[pk][0] && !!S.idk[pk][2] && S.idk[pk][2] !== S.idk[pk][0], S.idk[pk]);
   // 限频
   S.failPost = 'sb_post_hourly_limit'; await sr('[data-in]').fill('连发的第六条'); await sr('[data-send]').click();
   await until(async () => /发得有点多/.test(await toast()));
