@@ -139,12 +139,14 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体）
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
-          [ "$NBQ_LITE" = true ] && exit 0   # pglast 只有 schema 套件用（快速档跳过）
-          pip install --break-system-packages -q pglast || pip install -q pglast
+      # 11-19（#432 ③b 第二步）：个别 runner 外网极慢，apt 一步 25 分钟以上（超时重试 / 换镜像无效，#438）→ 改成缓存 .deb、命中就本地装；Playwright 的系统库（原 --with-deps）也走这里；细节见 .github/actions/ci-apt/action.yml
+      - name: 系统依赖（PostgreSQL 16 + PostGIS、中文字体、Playwright 系统库；pglast）
+        uses: ./.github/actions/ci-apt
+        with:
+          name: full
+          packages: postgresql-16 postgresql-16-postgis-3 fonts-noto-cjk fonts-noto-color-emoji   # 快速档也要：e2e_fullstack / e2e_admin_login 起真实 PostgreSQL + PostGIS
+          playwright: '1.63.0'
+          pip: ${{ env.NBQ_LITE != 'true' && 'pglast' || '' }}   # pglast 只有 schema 套件用（快速档跳过）
 
       - name: 依赖缓存（PGlite、pg、Playwright 浏览器）
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -157,7 +159,7 @@ jobs:
       - name: Playwright
         run: |
           npm i -g playwright@1.63.0
-          npx -y playwright@1.63.0 install --with-deps chromium
+          npx -y playwright@1.63.0 install chromium   # 系统库已在上面「系统依赖」装好（原 --with-deps 走 apt，慢 runner 上要几十分钟）
 
       - name: 重拍截图基准（只在手动选 visual-baseline 时：用 CI 的字体重拍；提交由下面的 baseline-commit 任务做，这里没有写权限）
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'visual-baseline'
