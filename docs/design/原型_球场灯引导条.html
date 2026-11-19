@@ -1,0 +1,213 @@
+<title>南伴球引导条</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700&display=swap">
+<style>
+/* 布局：工具条 → 画框（首页）→ 引导条 + 球局卡片。引导条从比主题色更暗的夜色开始，球先滚进来，灯“发现”了它并慢慢亮起，最后回到网站主题深绿，停留几秒后自然收起。 */
+:root{
+  --bg:#F3F5F1;--fg:#13241B;--mut:#6B7B72;--card:#FFFFFF;--line:rgba(19,36,27,.08);--chip:#E6ECE6;--chipOn:#13241B;--chipFg:#FFFFFF;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1411;--fg:#E6EEE8;--mut:#8CA095;--card:#16201A;--line:rgba(255,255,255,.07);--chip:#1D2922;--chipOn:#E6EEE8;--chipFg:#0E1411;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0E1411;--fg:#E6EEE8;--mut:#8CA095;--card:#16201A;--line:rgba(255,255,255,.07);--chip:#1D2922;--chipOn:#E6EEE8;--chipFg:#0E1411;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);margin:0;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1020px;margin:0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:18px}
+.seg{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px}
+.seg button,.btn{font:600 13px/1 var(--sans);border:0;background:none;color:var(--mut);padding:8px 12px;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--chipOn);color:var(--chipFg)}
+.btn{background:var(--chip);color:var(--fg)}
+button:focus-visible{outline:2px solid #5E9E1E;outline-offset:2px}
+.lab{font-size:12px;color:var(--mut);margin-right:-6px}
+.frame{margin:0 auto;max-width:100%;transition:width .4s cubic-bezier(.3,.7,.2,1);border:1px solid var(--line);border-radius:26px;padding:18px;background:var(--bg)}
+.frame[data-dev="m"]{width:390px;padding:14px}.frame[data-dev="d"]{width:980px}
+.head{display:flex;justify-content:space-between;align-items:baseline;margin:2px 4px 12px}
+.head b{font-size:20px;letter-spacing:-.01em}.head span{font-size:13px;color:var(--mut)}
+.slot{display:grid;grid-template-rows:1fr;margin-bottom:14px;transition:grid-template-rows .6s cubic-bezier(.3,.7,.2,1),opacity .5s,margin .6s}
+.slot.shut{grid-template-rows:0fr;opacity:0;margin-bottom:0;pointer-events:none}
+.slot>.inner{min-height:0;overflow:hidden;container-type:inline-size;border-radius:20px}
+
+.banner{position:relative;isolation:isolate;overflow:hidden;border-radius:20px;min-height:124px;display:flex;align-items:center;color:#F7EBD6;
+  background:linear-gradient(180deg,#0B3B2A,#12482F)}
+/* 场景固定不变（就是原来的球场 + 灯 + 球）；只有“整体亮度”和“灯”会变 */
+.scene{position:absolute;right:0;top:0;height:100%;aspect-ratio:300/170;z-index:-1;-webkit-mask:linear-gradient(90deg,transparent 0,#000 24%);mask:linear-gradient(90deg,transparent 0,#000 24%)}
+.scene svg{display:block;width:100%;height:100%;overflow:visible}
+@property --r{syntax:'<length>';inherits:false;initial-value:0px}
+/* 夜色遮罩：从灯处向外“被光推开”，球层在它上面，所以球一直是亮的 */
+.dim{--r:0px;--lx:70%;--ly:20%;position:absolute;inset:0;background:rgba(2,18,12,.7);z-index:0;pointer-events:none;
+  -webkit-mask:radial-gradient(circle at var(--lx) var(--ly),transparent 0,transparent calc(var(--r) - 240px),#000 var(--r));
+  mask:radial-gradient(circle at var(--lx) var(--ly),transparent 0,transparent calc(var(--r) - 240px),#000 var(--r))}
+.balls{position:absolute;right:0;top:0;height:100%;aspect-ratio:300/170;z-index:0;pointer-events:none}
+.balls svg{display:block;width:100%;height:100%;overflow:visible}
+.balls .ball-hit{pointer-events:auto}
+.lens,.glow{transform-box:fill-box;transform-origin:center}
+.ball-hit{cursor:pointer}
+.txt{position:relative;z-index:1;padding:22px 0 22px 20px;max-width:calc(100% - 36px)}
+.eb{font-size:10.5px;font-weight:700;letter-spacing:.16em;color:#C6EA3D;opacity:0}
+h2{margin:9px 0 0;font:700 22px/1.28 var(--sans);letter-spacing:.04em;color:#F7EBD6}
+h2 em{font-style:normal;color:#C6EA3D}
+.ln{display:block;overflow:hidden;padding-bottom:3px;margin-bottom:-3px}
+.ln>span{display:block;transform:translateY(110%);filter:blur(5px);opacity:0}
+.x{position:absolute;top:6px;right:6px;width:40px;height:40px;border:0;background:none;color:#CFE0D6;cursor:pointer;display:grid;place-items:center;padding:0;z-index:3;opacity:.75}
+.x::before{content:"";position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);transition:background .2s,transform .2s}
+.x:hover{opacity:1}.x:hover::before{background:rgba(255,255,255,.18);transform:scale(1.1)}
+.x svg{position:relative;width:11px;height:11px}
+.x:focus-visible{outline:2px solid #C6EA3D;outline-offset:-4px;border-radius:50%}
+.banner.out .txt,.banner.out .x{transition:opacity .4s,transform .5s,filter .4s;opacity:0!important;transform:translateY(-6px);filter:blur(3px)}
+.banner.out{transition:opacity .6s .15s;opacity:0}
+@container (min-width:640px){
+  .banner{min-height:156px}
+  .txt{padding:26px 0 26px 38px}
+  h2{font-size:32px;margin-top:11px}.eb{font-size:11.5px}
+  .x{top:10px;right:10px}
+}
+.reduced .eb{opacity:1}.reduced .ln>span{transform:none;filter:none;opacity:1}.reduced .dim{display:none}
+
+.cards{display:grid;gap:10px}
+.g{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.g .d{width:46px;text-align:center;flex:none}.g .d b{display:block;font-size:20px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.g .d span{font-size:11px;color:var(--mut)}
+.g .m{flex:1;min-width:0}.g .m b{display:block;font-size:15px}.g .m span{font-size:12.5px;color:var(--mut)}
+.g .tag{font-size:12px;font-weight:600;color:#2B6B18;background:rgba(120,190,40,.16);padding:5px 9px;border-radius:99px;white-space:nowrap}
+.note{margin:22px auto 0;max-width:980px;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.note div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.65;color:var(--mut)}
+.note b{display:block;color:var(--fg);font-size:13.5px;margin-bottom:3px}
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="seg" id="segD"><button data-d="d" aria-pressed="true">电脑</button><button data-d="m" aria-pressed="false">手机</button></div>
+    <span class="lab">节奏</span><div class="seg" id="segK"><button data-k="1" aria-pressed="true">舒缓</button><button data-k=".7" aria-pressed="false">紧凑</button></div>
+    <span class="lab">自动消失</span><div class="seg" id="segA"><button data-a="1" aria-pressed="true">开</button><button data-a="0" aria-pressed="false">关</button></div>
+    <button class="btn" id="replay">▶ 重播</button>
+    <button class="btn" id="quiet">模拟：往下滑 / 点开球局</button>
+  </div>
+
+  <div class="frame" id="frame" data-dev="d">
+    <div class="head"><b>发现</b><span>墨尔本 · 本周</span></div>
+    <div class="slot" id="slot"><div class="inner">
+      <section class="banner" id="banner" aria-label="第一次来南伴球">
+        <div class="scene" aria-hidden="true">
+          <svg viewBox="0 0 300 170" preserveAspectRatio="xMaxYMid meet">
+            <defs>
+              <radialGradient id="gl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF4C8" stop-opacity=".72"/><stop offset=".5" stop-color="#FFF4C8" stop-opacity=".22"/><stop offset="1" stop-color="#FFF4C8" stop-opacity="0"/></radialGradient>
+              <radialGradient id="bl" cx=".36" cy=".3" r=".85"><stop offset="0" stop-color="#F0FC9E"/><stop offset=".42" stop-color="#D0F04A"/><stop offset=".8" stop-color="#B2D62B"/><stop offset="1" stop-color="#7F9E10"/></radialGradient>
+              <radialGradient id="bs" cx=".34" cy=".28" r=".9"><stop offset=".5" stop-color="#2B4300" stop-opacity="0"/><stop offset="1" stop-color="#1D3000" stop-opacity=".42"/></radialGradient>
+              <filter id="fz" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 .75  0 0 0 .9 -.34" result="s"/><feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="s2"/></feMerge></filter>
+              <clipPath id="bc"><circle r="13"/></clipPath>
+            </defs>
+            <path d="M0 85H300V170H0Z" fill="#164F35"/>
+            <g stroke="#E8F1E9" stroke-opacity=".42" stroke-width="1.2" fill="none"><path d="M150 88H260L330 178H80Z"/><path d="M118 116H292M205 116V178"/></g>
+            <line x1="110" y1="85" x2="110" y2="30" stroke="#062A1D" stroke-width="2.4"/>
+            <circle class="glow" id="glow" cx="110" cy="30" r="38" fill="url(#gl)"/>
+            <rect class="lens" id="lens" x="103" y="28" width="14" height="5" rx="1.5" fill="#FFF8DC"/>
+            </svg>
+        </div>
+        <div class="dim" id="dim"></div>
+        <div class="balls" aria-hidden="true"><svg viewBox="0 0 300 170" preserveAspectRatio="xMaxYMid meet">
+          <g id="bX">
+            <ellipse id="bSh" cx="205" cy="149.4" rx="17" ry="3.3" fill="#04170F" opacity=".6" style="transform-origin:205px 149.4px"/>
+            <g id="bY"><g id="bSq" style="transform-origin:205px 148px"><g transform="translate(205 132.4) scale(1.2)" class="ball-hit" id="ball">
+              <circle r="13" fill="url(#bl)"/>
+              <g clip-path="url(#bc)"><g id="bSpin"><g fill="none" stroke-linecap="round"><path d="M-12.2 -4.5C-4.5 -1.5 -4.5 6.5 -8 10.3M12.2 4.5C4.5 1.5 4.5 -6.5 8 -10.3" stroke="#5B7400" stroke-opacity=".35" stroke-width="2" transform="translate(.4 .5)"/><path d="M-12.2 -4.5C-4.5 -1.5 -4.5 6.5 -8 10.3M12.2 4.5C4.5 1.5 4.5 -6.5 8 -10.3" stroke="#F7FBE6" stroke-width="1.5"/></g></g></g>
+              <circle r="13" fill="url(#bs)"/>
+              <circle r="13" fill="url(#bl)" filter="url(#fz)" opacity=".45"/>
+              <ellipse cx="-4.6" cy="-5.6" rx="3.3" ry="1.9" transform="rotate(-35 -4.6 -5.6)" fill="#fff" opacity=".42"/>
+            </g></g></g>
+          </g></svg></div>
+        <button class="x" id="x" aria-label="知道了，关闭"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+        <div class="txt">
+          <div class="eb" id="eb">墨尔本华人网球约局</div>
+          <h2><span class="ln" id="l1"><span>挑一场，<em>加入。</em></span></span></h2>
+        </div>
+      </section>
+    </div></div>
+    <div class="cards">
+      <div class="g"><div class="d"><b>20</b><span>周六</span></div><div class="m"><b>Albert Park · 双打</b><span>09:00–11:00 · 3.5–4.0 · 已有 2 人</span></div><span class="tag">缺 2 人</span></div>
+      <div class="g"><div class="d"><b>21</b><span>周日</span></div><div class="m"><b>Melbourne Park · 单打</b><span>18:30–20:00 · 3.0–3.5</span></div><span class="tag">缺 1 人</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div><b>节奏（舒缓约 10.5 秒）</b>静 0.9 秒 → 球跳进场（1.7 秒）→ 再静半拍 → 灯头平滑地由暗到亮（3.2 秒，不闪）→ 光从灯处向外铺开，夜色退去，回到主题深绿 → 文字浮现 → 停约 3 秒 → 淡出收起。每一步之间都留了呼吸。</div>
+    <div><b>球一直是亮的</b>整个场景一开始是暗的，只有球保持原本的亮度，它是主角。</div>
+    <div><b>球的动线</b>从右侧进场，按真实弹跳的规律：下落越来越快、上升越来越慢，弹高按 0.68 倍逐次递减，跳四次，逐次变矮，一路向左朝镜头走近、越来越大，最后落在球场中间偏前，也就是场地的 C 位。</div>
+    <div><b>其他</b>悬停暂停计时；点 ×、按 Esc、往下滑、点开球局会提前收起；系统开了“减少动态效果”则直接显示最终画面。</div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const banner=$('#banner'),slot=$('#slot'),frame=$('#frame');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(reduce)document.documentElement.classList.add('reduced');
+let anims=[],timers=[],done=false,K=1,auto=true,hover=false,autoT=null;
+const later=(f,t)=>timers.push(setTimeout(f,t*K));
+const A=(el,kf,o)=>{const a=el.animate(kf,{...o,duration:o.duration*K,delay:(o.delay||0)*K});anims.push(a);return a};
+const B=(el,kf,o)=>{const a=el.animate(kf,o);anims.push(a);return a};
+function clear(){anims.forEach(a=>a.cancel());anims=[];timers.forEach(clearTimeout);timers=[];clearTimeout(autoT)}
+const dim=$('#dim');
+function placeLight(){const r=banner.getBoundingClientRect(),g=$('#glow').getBoundingClientRect();
+  const x=g.left+g.width/2-r.left,y=g.top+g.height/2-r.top;dim.style.setProperty('--lx',x+'px');dim.style.setProperty('--ly',y+'px');
+  dim.style.setProperty('--rmax',(Math.hypot(Math.max(x,r.width-x),Math.max(y,r.height-y))+260)+'px')}
+function reset(){clear();banner.classList.remove('out');banner.style.transition='none';banner.style.opacity='';void banner.offsetWidth;banner.style.transition='';
+  dim.style.removeProperty('--r');$('#eb').style.opacity='';const e=$('#l1>span');e.style.transform='';e.style.opacity='';e.style.filter=''}
+const OUT='cubic-bezier(.1,.5,.4,1)',IN='cubic-bezier(.5,0,.9,.5)',SOFT='cubic-bezier(.45,0,.25,1)';
+const HOLD=2800;
+// 球：从右进场，跳三下，越跳越矮、越来越近（变大、落点下移），落在球场中间偏前（C 位）
+const FX=205,T=1700;
+// 重力下落 ≈ 二次缓入，上升 ≈ 二次缓出；弹高按恢复系数 0.68 递减（96 → 46 → 21 → 9.5 → 4.4），时长随 √高度 缩短
+const FALL='cubic-bezier(.55,.085,.68,.53)',RISE='cubic-bezier(.25,.46,.45,.94)';
+const kfs=[[0,335,96,FALL],[333,291,0,RISE],[564,269,46,FALL],[795,247,0,RISE],[951,235,21,FALL],[1107,223,0,RISE],[1212,217,9.5,FALL],[1317,211,0,RISE],[1388,208.5,4.4,FALL],[1459,206.5,0,'linear'],[1700,205,0,'linear']];
+const gnd=x=>-14*(x-FX)/140, kk=x=>1-.2*(x-FX)/140;
+const squash={333:.17,795:.12,1107:.08,1317:.05,1459:.025};
+function intro(){reset();done=false;placeLight();
+  if(reduce){dim.style.setProperty('--r','var(--rmax)');return}
+  const F={fill:'both'},D=900;
+  A($('#bX'),kfs.map(([t,x])=>({offset:t/T,transform:`translateX(${x-FX}px)`,easing:'linear'})),{duration:T,delay:D,...F});
+  A($('#bSpin'),kfs.map(([t,x])=>({offset:t/T,transform:`rotate(${-(x-FX)*2.4}deg)`,easing:'linear'})),{duration:T,delay:D,...F});
+  A($('#bY'),kfs.map(([t,x,h,e])=>({offset:t/T,transform:`translateY(${(gnd(x)-h).toFixed(1)}px)`,easing:e})),{duration:T,delay:D,...F});
+  // 挤压 + 远小近大
+  let sqk=[];kfs.forEach(([t,x])=>{const k=kk(x),q=squash[t];
+    if(q){sqk.push([Math.max(0,t-30),k,k]);sqk.push([t,k*(1+q),k*(1-q*1.15)]);sqk.push([t+90,k*(1-q*.2),k*(1+q*.25)]);sqk.push([t+170,k,k])}
+    else sqk.push([t,k,k])});
+  sqk.sort((a,b)=>a[0]-b[0]);
+  const fr=[];sqk.forEach(([t,x,y])=>{if(fr.length&&t<=fr[fr.length-1][0])t=fr[fr.length-1][0]+1;if(t<=T)fr.push([t,x,y])});
+  A($('#bSq'),fr.map(([t,x,y])=>({offset:t/T,transform:`scale(${x.toFixed(3)},${y.toFixed(3)})`})),{duration:T,delay:D,...F});
+  A($('#bSh'),kfs.map(([t,x,h])=>{const q=Math.min(1,h/46);return{offset:t/T,transform:`translateY(${gnd(x).toFixed(1)}px) scale(${(kk(x)*(1-.5*q)).toFixed(3)})`,opacity:.6*(1-.55*q),easing:'linear'}}),{duration:T,delay:D,...F});
+  // 球落稳，静半拍，灯头预热 → 微暗 → 再亮；光从灯处向外铺开
+  const L=D+T+700;
+  A($('#lens'),[{opacity:.06},{opacity:1}],{duration:3200,delay:L,easing:'cubic-bezier(.4,0,.3,1)',...F});
+  A($('#glow'),[{opacity:0,transform:'scale(.4)'},{opacity:1,transform:'scale(1)'}],{duration:3600,delay:L,easing:'cubic-bezier(.4,0,.3,1)',...F});
+  A(dim,[{'--r':'0px'},{'--r':'var(--rmax)'}],{duration:4400,delay:L+300,easing:'cubic-bezier(.45,.05,.35,1)',fill:'forwards'});
+  later(()=>dim.style.setProperty('--r','var(--rmax)'),L+4800);
+  later(()=>A($('#glow'),[{opacity:1},{opacity:.92}],{duration:6000,direction:'alternate',iterations:Infinity,easing:'ease-in-out'}),L+3600);
+  // 文字 → 停顿 → 结束
+  A($('#eb'),[{opacity:0},{opacity:1}],{duration:1100,delay:L+3700,...F});
+  A($('#l1>span'),[{transform:'translateY(110%)',filter:'blur(5px)',opacity:0},{transform:'none',filter:'blur(0)',opacity:1}],{duration:1300,delay:L+4000,easing:'cubic-bezier(.16,1,.3,1)',...F});
+  armAuto((L+4000+1300)*K+HOLD);
+}
+function armAuto(ms){clearTimeout(autoT);if(!auto||done)return;autoT=setTimeout(()=>{if(hover){armAuto(1500);return}close('auto')},ms)}
+banner.addEventListener('pointerenter',()=>{hover=true});banner.addEventListener('pointerleave',()=>{hover=false});
+$('#ball').addEventListener('click',()=>{if(reduce||done)return;
+  B($('#bY'),[{transform:'translateY(0)',easing:OUT},{transform:'translateY(-26px)',offset:.45,easing:IN},{transform:'translateY(0)'}],{duration:480});
+  B($('#bSq'),[{transform:'scale(1,1)'},{transform:'scale(1,1)',offset:.86},{transform:'scale(1.1,.88)',offset:.92},{transform:'scale(1,1)'}],{duration:480});
+  B($('#bSpin'),[{transform:'rotate(0)'},{transform:'rotate(200deg)'}],{duration:480,easing:'ease-out'});
+});
+function collapse(delay){setTimeout(()=>{slot.classList.add('shut');setTimeout(()=>{slot.style.visibility='hidden'},800)},delay)}
+function close(kind){if(done)return;done=true;clearTimeout(autoT);
+  if(reduce||kind==='quiet'){slot.classList.add('shut');setTimeout(()=>{slot.style.visibility='hidden'},600);return}
+  clear();banner.classList.add('out');collapse(kind==='auto'?650:350);
+}
+$('#x').addEventListener('click',()=>close('x'));
+addEventListener('keydown',e=>{if(e.key==='Escape')close('x')});
+$('#quiet').addEventListener('click',()=>close('quiet'));
+$('#replay').addEventListener('click',()=>{clear();slot.style.visibility='';slot.classList.remove('shut');setTimeout(intro,60)});
+$$('#segK button').forEach(b=>b.addEventListener('click',()=>{K=+b.dataset.k;$$('#segK button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('#replay').click()}));
+$$('#segA button').forEach(b=>b.addEventListener('click',()=>{auto=b.dataset.a==='1';$$('#segA button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('#replay').click()}));
+$$('#segD button').forEach(b=>b.addEventListener('click',()=>{frame.dataset.dev=b.dataset.d;$$('#segD button').forEach(x=>x.setAttribute('aria-pressed',x===b));setTimeout(placeLight,450)}));
+if(innerWidth<520){frame.dataset.dev='m';$$('#segD button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.d==='m'))}
+addEventListener('resize',placeLight);
+intro();
+})();
+</script>
