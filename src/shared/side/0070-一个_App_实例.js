@@ -151,7 +151,7 @@ function App(el,init){
   // 地点：发布时定位一次，从球场库里找附近的球场
   const scFills=(k,C)=>{const c=C.loc||'';if(c&&(k==='court'||k==='lost'))return (CFG.starters[k]||[]).map(s=>s.split('{球场}').join(c));return k==='court'?[`${c?c+' ':'这边'}现在有空场，`,c?`${c} 风好大，`:'今天风好大，',`刚下过雨，${c?c+' 的':''}场地`]:k==='lost'?[c?`在 ${c} 捡到一个`:'在球场捡到一个',c?`有没有人在 ${c} 看到一个`:'有没有人在球场看到一个']:[]};
   const sugTopics=C=>[...new Set([PSUG[C.pics[0]],TODAY,...SLOTT[slotNow()]].filter(Boolean))].slice(0,3);
-  const stHTML=C=>{const hide=C.text?' style="display:none"':'',F=C.topic?S.T[C.topic].fills:C.sc?scFills(C.sc,C):[];
+  const stHTML=C=>{if(!SB_FILLS_ON())return '';const hide=C.text?' style="display:none"':'',F=C.topic?S.T[C.topic].fills:C.sc?scFills(C.sc,C):[];
     if(F.length)return `<div class="sts"${hide}>${F.map(f=>`<button class="st" data-fill="${esc(f)}">${esc(f)}<i>…</i></button>`).join('')}</div>`;
     if(C.topic)return '';
     return `<div class="sts"${hide}><div class="tsg">${sugTopics(C).map(id=>`<button data-tp="${id}"><b>#${esc(S.T[id].t)}</b><span>${esc(S.T[id].ask)}</span></button>`).join('')}<button class="more" data-ctp>看看别的话题${ic('chev','cv')}</button></div></div>`};
@@ -186,30 +186,62 @@ function App(el,init){
   const closeSh=()=>{const was=S.cmp.sh;S.cmp.sh=null;$('.csh').classList.remove('on');setTimeout(()=>{drawCompose();if(was==='topic')topicIn()},380)};
   const topicIn=()=>{const h=$('.compose .ctop'),st=$('.compose .sts');if(h)h.animate([{opacity:0,transform:'translateY(-4px)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.8,.3,1)'});
     if(st)[...st.children].forEach((n,i)=>n.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:260,delay:60+i*45,easing:'cubic-bezier(.2,.8,.3,1)',fill:'backwards'}))};
+  // ---- 发布页真选图（#393 P4b）：选 → 压缩（逐张）→ 三变体入上传队列 → 格子里显示缩略图 + 进度 / 重试 / 移除；全部传完才能发布 ----
+  const phReal=()=>S.real&&SB_PHOTOS_ON()&&SB_PHOTO_POST();
+  const phPend=C=>C.ups.filter(u=>u.st!=='ok').length,phFail=C=>C.ups.some(u=>u.st==='fail');
+  const phStIn=u=>u.st==='fail'?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%';
+  const phOne=(C,u)=>`<div class="ph1 pt" data-u="${u.id}"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${phStIn(u)}</div>`}</div>`;
+  const phsHTML=C=>C.ups.map(u=>phOne(C,u)).join('');
+  const phAddBtn=C=>phReal()&&!C.ups.length?`<button class="phadd big" data-lib>${ic('cam')}<b>添加照片</b><small>最多 3 张</small></button>`:`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
+  const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
+  // 进度 / 状态变化只改变化的那一小块：整排重写会让每张图重播入场动画并重载图片，真机上 33% / 67% 时闪三下（#443）
+  const phPatch=(h,C)=>{const old=new Map([...h.querySelectorAll('.ph1[data-u]')].map(n=>[n.dataset.u,n])),add=h.querySelector('.phadd');
+    C.ups.forEach(u=>{const n=old.get(u.id);old.delete(u.id);
+      if(!n){const t=document.createElement('template');t.innerHTML=phOne(C,u);h.insertBefore(t.content.firstElementChild,add);return}
+      const im=n.querySelector('img');if(im&&im.getAttribute('src')!==u.url)im.setAttribute('src',u.url);
+      const tn=n.querySelector('.tn');if(tn)tn.className='tn'+(C.tone?' t-'+C.tone:'');
+      let st=n.querySelector('.phst');if(u.st==='ok'){if(st)st.remove()}else{const h2=phStIn(u);if(!st)n.insertAdjacentHTML('beforeend',`<div class="phst">${h2}</div>`);else if(st.innerHTML!==h2)st.innerHTML=h2}});
+    old.forEach(n=>n.remove());
+    const want=C.ups.length<3?phAddBtn(C):'',cur=h.querySelector('.phadd');
+    if(!want){if(cur)cur.remove()}else{const t=document.createElement('template');t.innerHTML=want;const nb=t.content.firstElementChild;if(!cur)h.appendChild(nb);else if(cur.outerHTML!==nb.outerHTML)cur.replaceWith(nb)}};
+  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;phPatch(h,C);phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
+  const phUpMsg=c=>c==='login_required'?'登录过期了，重新登录后点「重试」':c==='photos_unavailable'?'照片服务还没开通，稍后再试':c==='photos_paused'?'照片功能暂时关闭了':c==='photo_net'?'网络不稳，点「重试」再传一次':'没传上去（'+(c||'未知')+'），点「重试」';
+  const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){const was=u.st;u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;if(u.st==='fail'&&was!=='fail')toast(phUpMsg(u.code));phPaint(C)}}}));
+  const phMsg=c=>c==='photo_not_image'||c==='photo_decode'||c==='photo_empty'?'这张格式暂时不支持，换一张或截图再发':c==='photo_too_big'?'这张图太大了，换一张试试':'这张图没处理好，换一张试试';
+  const phAdd=async files=>{const C=S.cmp;if(!C)return;const k=sbPhPick(files,C.ups.length);if(k.skip)toast('最多三张');
+    for(const f of k.take){const u={id:'u'+(++UID),st:'proc',p:0,url:URL.createObjectURL(f)};C.ups.push(u);phPaint(C);
+      try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);phQueue(C).add(r.name,r.parts)}
+      catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
+  const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(C.q&&u.name)C.q.cancel(u.name)})};
+  const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
   // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
   const cqHTML=C=>{const ks=[];locGroups(C.loc).forEach(G=>G.a.forEach(k=>{if(!ks.includes(k))ks.push(k)}));
     return ks.slice(0,6).map(k=>`<button class="cq${C.loc===k?' on':''}" data-ql="${esc(k)}">${esc(COURTS[k].n)}</button>`).join('')+`<button class="cq${C.loc?'':' on'}" data-ql="none">不选</button><button class="cq" data-cpl2>搜索…</button>`};
   const cqPatch=()=>{const C=S.cmp,q=$('.cqk'),b=$('[data-cpl]'),n=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'';
     if(q){q.innerHTML=cqHTML(C);q.classList.toggle('on',!!C.cq)}if(b){b.classList.toggle('set',!!n);const sp=b.querySelector('span');if(sp)sp.textContent=n||'球场'}};
-  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0,ae=$('[data-ctext]'),had=!!ae&&el.getRootNode().activeElement===ae,ss=had?ae.selectionStart:0,se=had?ae.selectionEnd:0;
+  const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'今天打得怎么样？'),old=$('.cmp-sc'),top=old?old.scrollTop:0,ae=$('[data-ctext]'),had=!!ae&&el.getRootNode().activeElement===ae,ss=had?ae.selectionStart:0,se=had?ae.selectionEnd:0;
     $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
+        ${phReal()?phBlk(C):''}
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
         ${stHTML(C)}
-        <div class="phs">${C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}</div>
+        ${phReal()?'':phBlk(C)}
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
-        ${pic?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
+        ${SB_TONES_ON()&&(pic||C.ups.length)?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
       </div>
+      <input type="file" accept="image/*" multiple hidden data-cfile>
       <div class="cbot"><p class="cnote">${C.later?'2 小时后公开':'公开 24 小时'}${C.replyOn?'':' · 不允许回复'}，之后存进你的相册</p>
       <div class="cqk${C.cq?' on':''}">${cqHTML(C)}</div>
-      <div class="ctool"><button class="chip ico${C.pics.length||C.lib?' set':''}" data-lib title="照片">${ic('cam')}</button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
+      <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div></div>
       <div class="pick${C.pick?' on':''}">${pickHTML(C)}</div>
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
-    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''};
+    const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
+    const cp=$('.compose');cp.classList.remove('cmp-ty');
+    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''};
     if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
-  const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null},o);
+  const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
     drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
     // 打开即聚焦（要在点击这一下的调用栈里，iOS 才肯弹键盘）；选照片进来时不聚焦，免得键盘盖住照片格
@@ -402,7 +434,7 @@ function App(el,init){
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
   el.addEventListener('mousedown',e=>{if(e.target.closest&&e.target.closest('.cbot button:not([data-cset])'))e.preventDefault()});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-cpl2],[data-ql],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-pu],[data-pr],[data-tone],[data-cpl],[data-cpl2],[data-ql],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
@@ -439,7 +471,7 @@ function App(el,init){
     if('clocate' in d){vpLocate(locRefresh);return}
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
-    if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:true})}else fromBar({lib:true});return}
+    if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:!phReal()})}else fromBar({lib:!phReal()});if(phReal()){const cf=$('[data-cfile]');if(cf)cf.click()}return}
     if('more' in d){flushNew();sc.scrollTop=0;return}
     if('cmore' in d){flushCourt();return}
     if('wmore' in d){flushWall();return}
@@ -454,7 +486,9 @@ function App(el,init){
     if('sx' in d){S.share=null;S.shTopic=null;state();return}
     if('tshare' in d){if(!S.f||S.f.k!=='topic')return;S.shTopic=S.f.v;S.share='wall';drawShare();state();return}
     if(d.sv){const w=S.share==='wall';track('sb_share',{post_id:w?null:S.open,topic:w?tcode(S.shTopic||S.wall):null,what:w?'topic':'photo',to:/相册/.test(d.sv)?'save':/Instagram/.test(d.sv)?'instagram':'xhs'});toast(d.sv);return}
-    if('cx' in d){S.cmp=null;state();return}
+    if('cx' in d){phDrop(S.cmp);S.cmp=null;state();return}
+    if(d.pu){const C=S.cmp,i=C.ups.findIndex(u=>u.id===d.pu);if(i>=0){const u=C.ups.splice(i,1)[0];URL.revokeObjectURL(u.url);if(C.q&&u.name)C.q.cancel(u.name)}phPaint(C);if(!C.ups.length)drawCompose();return}
+    if(d.pr){const C=S.cmp,u=C.ups.find(x=>x.id===d.pr);if(u&&C.q)C.q.retry(u.name);return}
     if(d.pk){const C=S.cmp,i=C.pics.indexOf(d.pk);if(i>=0)C.pics.splice(i,1);else if(C.pics.length<3)C.pics.push(d.pk);else{toast('最多三张');return}drawCompose();return}
     if(d.tone){S.cmp.tone=d.tone==='none'?'':d.tone;el.querySelectorAll('.ph1 .tn').forEach(pv=>pv.className='tn'+(S.cmp.tone?' t-'+S.cmp.tone:''));el.querySelectorAll('[data-tone]').forEach(b=>b.classList.toggle('on',b===t));return}
     if('cpl' in d){S.cmp.cq=!S.cmp.cq;cqPatch();return}
@@ -464,13 +498,14 @@ function App(el,init){
     if('pkx' in d){S.cmp.pick=false;$('.pick').classList.remove('on');setTimeout(drawCompose,450);return}
     if(d.tg){const C=S.cmp;C[d.tg]=!C[d.tg];t.querySelector('.tg').classList.toggle('on',C[d.tg]);return}
     if(d.rp){S.cmp.reply=d.rp;el.querySelectorAll('[data-rp]').forEach(b=>b.classList.toggle('on',b===t));return}
-    if('cgo' in d){const C=S.cmp;if(!C.text.trim()&&!C.pics.length){toast('写点什么，或者选一张照片');return}if(S.real&&!C.text.trim()){toast('写一句再发吧');return}
+    if('cgo' in d){const C=S.cmp,np=C.ups.length;if(!C.text.trim()&&!C.pics.length&&!np){toast('写点什么，或者选一张照片');return}if(S.real&&!C.text.trim()&&!np){toast('写一句再发吧');return}
+      if(np&&phPend(C)){toast(phFail(C)?'有一张没传上去，点「重试」或移除它':'图片还在上传，稍等一下');return}
       if(!S.gok){need('post',()=>again(t));return}
       const tk=tkind(C.topic);
       {const nt=C.topic&&S.T[C.topic]&&S.T[C.topic].fresh,c=SB_LINK.test(C.text)?'message_link':(nt&&sbRate(S,'sb_topic',true))||sbRate(S,'sb_post',true);if(c){say(c);return}sbRate(S,'sb_post');if(nt){sbRate(S,'sb_topic');S.T[C.topic].fresh=0}}
-      const lk=C.loc;S.cmp=null;state();const pid=S.real?'t'+(++UID):++UID,txt=C.text.trim();subEv(pid,C.pics.length,tk,lk,C.later,'compose');
-      if(C.later){if(S.real)realSend(null,realBody(txt,C.topic,lk,{later:true,closed:!C.replyOn,tone:C.tone}),()=>{});toast('好的，2 小时后公开');return}
-      sc.scrollTop=0;const co={tone:C.tone,closed:!C.replyOn};setTimeout(()=>{const nx=norm([{id:pid,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep,...(S.real?{u:meUser(),real:1,tmp:1,pics:undefined,pic:undefined}:{})}])[0];insertPost(nx,true);if(S.real)realSend(nx,realBody(txt,C.topic,lk,co),()=>{inp.value=txt;drawComposer()})},420);
+      const lk=C.loc;S.cmp=null;state();const pid=S.real?'t'+(++UID):++UID,txt=C.text.trim();subEv(pid,C.pics.length+np,tk,lk,C.later,'compose');
+      if(C.later){if(S.real)realSend(null,realBody(txt,C.topic,lk,{later:true,closed:!C.replyOn,tone:C.tone,ups:C.ups}),()=>{});toast('好的，2 小时后公开');return}
+      sc.scrollTop=0;const co={tone:C.tone,closed:!C.replyOn,ups:C.ups};setTimeout(()=>{const nx=norm([{id:pid,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep,...(S.real?{u:meUser(),real:1,tmp:1,pics:undefined,pic:undefined}:{})}])[0];insertPost(nx,true);if(S.real)realSend(nx,realBody(txt,C.topic,lk,co),()=>{inp.value=txt;drawComposer()})},420);
       inp.value='';drawComposer();setTimeout(()=>showUndo(C.topic?`已发布 · No.${S.T[C.topic].n}`:'已发布'),480);return}
     if(d.user){const u=UREG[d.user];if(!u)return;$('.acts .g').innerHTML=`<div class="uc">${av(u,56)}<b>${esc(u.n)}</b><p>${u.me?'这是你':u.real?'':`水平 ${u.lv} · 常在 ${esc(u.area)} 一带 · 打过 ${u.g} 场球局`}</p><small>场边没有私信。想一起打，可以在「球局」里约。</small></div>${u.me?'':`<button data-act="block" data-un="${esc(u.n)}">屏蔽 ${esc(u.n)}<small>互相看不到对方发的内容</small></button><button class="warn" data-act="report">举报</button>`}`;el.classList.add('acting');return}
     if(d.rto!==undefined&&t.matches('.rr')){if(!d.rto)return;if(S.rto===d.rto){clearRto();return}setRto(d.rto,t);return}
@@ -501,6 +536,7 @@ function App(el,init){
     if('ctp' in d){openSh('topic');return}
     if('cset' in d){openSh('set');return}
     if('cshx' in d){closeSh();return}
+    if('lib' in d&&phReal()){if(S.cmp.ups.length>=3){toast('最多三张');return}const ta=$('[data-ctext]');if(ta)ta.blur();$('[data-cfile]').click();return}
     if('lib' in d){S.cmp.lib=!S.cmp.lib;S.cmp.libReady=true;drawCompose();return}
     if(d.fill){S.cmp.text=d.fill;drawCompose();const ct=$('[data-ctext]');ct.focus({preventScroll:true});ct.setSelectionRange(ct.value.length,ct.value.length);return}
     if(d.ln&&!t.classList.contains('pc')){openSheet(d.ln);return}
@@ -586,7 +622,7 @@ function App(el,init){
     x.closed=d.post.replies_open===false;refreshRow(x);paintBall(x);
     if(String(S.open)===String(x.id)){const ri=$('[data-rin]'),v=ri&&ri.value;drawSheet();if(v){const n=$('[data-rin]');if(n){n.value=v;if(n.oninput)n.oninput()}}}};
   // 发布：body 里不带照片（一期纯文字）；topic_title = 大家发起的新话题（二期入口关着）
-  const realBody=(v,tp,lk,o={})=>{const b={body:v};if(tp){const T=S.T[tp];if(T&&T.fresh)b.topic_title=T.t;else b.topic_id=tp}const c=lk&&COURTS[lk];if(c&&c.vid)b.venue_id=c.vid;if(o.later)b.later=true;if(o.closed)b.replies_open=false;if(o.tone)b.tone=o.tone;return b};
+  const realBody=(v,tp,lk,o={})=>{const b={body:v};if(tp){const T=S.T[tp];if(T&&T.fresh)b.topic_title=T.t;else b.topic_id=tp}const c=lk&&COURTS[lk];if(c&&c.vid)b.venue_id=c.vid;if(o.later)b.later=true;if(o.closed)b.replies_open=false;if(o.tone)b.tone=o.tone;if(o.ups&&o.ups.length)b.photos=o.ups.map(u=>({key:'sb/'+rlMe()+'/'+u.name+'.jpg',w:u.w,h:u.h}));return b};
   // 举报 / 不感兴趣 / 屏蔽：画面先动，接口失败再回滚并说人话（#369 PR-C）
   const rlSafe=async(path,b,undo)=>{const net=rlNet();if(!net)return;const r=await net.post(path,b);if(!r.ok){if(undo)undo();if(r.code!=='login_required')say(r.code)}};
   const sendDelete=async x=>{const net=rlNet();if(!net||!x)return;if(x.tmp){x.cancel=1;return}S.gone.add(String(x.id));const r=await net.del('/api/sideline/posts/'+x.id);

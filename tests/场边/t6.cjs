@@ -1,6 +1,7 @@
 const {open,ok,lab,W,done}=require('./lib.cjs');
 (async()=>{const {b,pg,errs}=await open();console.log('T6 发布页');
 const E='#d2';const ev=(f,a)=>pg.evaluate(f,a);
+await pg.evaluate(()=>{window.NBQ_SB_FILLS_ON=true;window.NBQ_SB_TONES_ON=true});   // 11-19：开头三行 / 色调默认关，这份设计稿测试要看它们，显式打开
 // 设计稿里这台手机一开始就在 OOTD 的发布页；正式页面从话题进发布页（和「我也发一张」同一个入口 data-jie）
 await ev(async()=>{const el=document.querySelector('#d2');const b=document.createElement('button');b.dataset.jie='ootd';b.hidden=true;el.appendChild(b);b.click();b.remove();await new Promise(r=>setTimeout(r,900))});
 let r=await ev(E=>{const el=document.querySelector(E);return {cmp:el.classList.contains('composing'),top:el.querySelector('.ctop').textContent,ph:el.querySelector('[data-ctext]').placeholder,st:[...el.querySelectorAll('.st')].map(s=>s.textContent)}},E);

@@ -32,7 +32,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const J = (r, s, d, h) => r.fulfill({ status: s, contentType: 'application/json', headers: h || {}, body: JSON.stringify(d) });
   const feedOut = () => ({ posts: S.posts, next: null, topics: { brain: { id: 'brain', title: '脑子会了，身体没会', kind: 'evergreen' } }, profiles: prof });
   await pg.route('https://nanbanqiu.app/**', async r => {
-    const u = new URL(r.request().url()), m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd ? JSON.parse(pd) : null;
+    const u = new URL(r.request().url()), m = r.request().method(), p = u.pathname, pd = r.request().postData(), body = pd && !p.startsWith('/api/sideline/photos/') ? JSON.parse(pd) : null;
     if (!p.startsWith('/api/')) return r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(DIR, '南伴球_PWA.html')) });
     if (p === '/api/events') return J(r, 200, { ok: true });
     if (p.startsWith('/api/sideline/') && m !== 'GET') { const k = m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [P1]: 'P1', [P2]: 'P2', [P3]: 'P3', [P4]: 'P4', [P5]: 'P5' })[x] || x); S.log.push(k); S.bodies[k] = body; (S.idk[k] ||= []).push(r.request().headers()['idempotency-key'] || null) }
@@ -49,6 +49,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       const mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})$/);
       if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]) || (S.extra || []).find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); return J(r, 200, { post: { ...x, status: 'visible', public: !x.old }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
       return J(r, 404, { error: 'not_found' }) }
+    if (p.startsWith('/api/sideline/photos/') && m === 'PUT') { S.putN = (S.putN || 0) + 1; return J(r, 200, { key: p.split('/').pop(), size: 1 }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
     if (p === '/api/sideline/posts' && m === 'POST') { if (S.drop === 'POST ' + p) { S.drop = null; return r.abort() } if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
     if ((p === '/api/reports' || p === '/api/blocks') && m === 'POST') { S.log.push(m + ' ' + p); S.bodies[m + ' ' + p] = body; if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
@@ -210,6 +211,28 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('一期：发布设置里没有「2 小时后再公开」，有「允许回复」', await SRQ('.csh', "r.textContent.includes('允许回复') && !r.textContent.includes('2 小时后再公开')"), await SRQ('.csh', 'r.textContent'));
   T('一期：照片开关默认开，稍后公开 / 新话题默认关', await E(() => SB.flags.photos() === true && SB.flags.later() === false && SB.flags.newTopic() === false));
   T('一期：照片开关能紧急关', await E(() => { window.NBQ_SB_PHOTOS_ON = false; const o = SB.flags.photos(); delete window.NBQ_SB_PHOTOS_ON; return o === false }));
+  // ---- #393 P4b：发布页真选图 → 压缩 → 上传 → 发布带 photos（开关 NBQ_SB_PHOTO_POST）----
+    await E(() => { window.NBQ_SB_PHOTO_POST = true }); await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(800);
+  T('P4b：发布页有选图入口（隐藏的文件框 + 加号）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.phadd')"));
+  const jpg = Buffer.from(await E(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#c60'; g.fillRect(0, 0, 600, 400); return c.toDataURL('image/jpeg', .9).split(',')[1] }), 'base64');
+  S.failPost = null; S.putN = 0; S.log.length = 0;
+  await SRQ('.compose', "(window.__phRm = [], new MutationObserver(m => m.forEach(x => x.removedNodes.forEach(n => n.classList && n.classList.contains('ph1') && window.__phRm.push(n.dataset.u)))).observe(r.querySelector('.phs'), { childList: true }), 1)");
+  await pg.setInputFiles('#sbHost >> [data-cfile]', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.settle(3000);
+  T('P4b：一张图传完（b / t / full 各一个 PUT），格子里有缩略图、没有「重试」', S.putN === 3 && await SRQ('.compose', "r.querySelectorAll('.ph1 img').length === 1 && !r.querySelector('[data-pr]') && !r.querySelector('.phst')"), [S.putN, S.log]);
+  T('P4b：上传进度 / 状态变化不重建缩略图格子（否则每格重播入场动画、图重载 = 真机闪三下）', await E(() => window.__phRm.length === 0), await E(() => window.__phRm));
+  // 打字时：只留 取消 / 发布 + 输入框，底栏（照片 / 球场 / 设置）收起，输入框在可视区内；失焦后底栏回来
+  // 聚焦前后版面必须一模一样（11-19：聚焦时收起相机框 / 缩缩略图，输入区上下跳 = 用户眼里的「抖动」）；底栏仍显示
+  const LAY = "(() => { const g = x => { const e = r.querySelector(x); if (!e) return null; const b = e.getBoundingClientRect(); return [b.top, b.height, b.width].map(Math.round).join() }; return [g('[data-ctext]'), g('.phs'), g('.ph1'), g('.phadd'), g('.ctop')].join('|') })()";
+  const lay0 = await SRQ('.compose', LAY);
+  await sr('[data-ctext]').focus(); await pg.settle(300);
+  T('打字时：版面不动（输入框 / 照片格 / 相机框位置尺寸不变）、底栏（照片 / 球场 / 设置工具条）仍显示在键盘上方、输入框完整可见', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "(() => { const t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity !== '0' && t.height >= 100 && t.bottom <= innerHeight })()"));
+  await sr('[data-ctext]').evaluate(e => e.blur()); await pg.settle(300);
+  T('失焦后：底栏仍在、版面仍不动', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "!r.classList.contains('cmp-ty') && getComputedStyle(r.querySelector('.cbot')).opacity !== '0'"));
+  T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
+  await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
+  const pb = S.bodies['POST /api/sideline/posts'];
+  T('P4b：发布请求带 photos（键 sb/<本人>/<名>.jpg + 宽高），正文可为空', !!pb && Array.isArray(pb.photos) && pb.photos.length === 1 && new RegExp('^sb/' + ME + '/[A-Za-z0-9_-]{16,24}\\.jpg$').test(pb.photos[0].key) && pb.photos[0].w > 0 && pb.photos[0].h > 0 && pb.body === '', pb);
+  await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
 })();
