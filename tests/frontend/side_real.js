@@ -216,8 +216,15 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('P4b：发布页有选图入口（隐藏的文件框 + 加号）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.phadd')"));
   const jpg = Buffer.from(await E(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#c60'; g.fillRect(0, 0, 600, 400); return c.toDataURL('image/jpeg', .9).split(',')[1] }), 'base64');
   S.failPost = null; S.putN = 0; S.log.length = 0;
+  await SRQ('.compose', "(window.__phRm = [], new MutationObserver(m => m.forEach(x => x.removedNodes.forEach(n => n.classList && n.classList.contains('ph1') && window.__phRm.push(n.dataset.u)))).observe(r.querySelector('.phs'), { childList: true }), 1)");
   await pg.setInputFiles('#sbHost >> [data-cfile]', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.settle(3000);
   T('P4b：一张图传完（b / t / full 各一个 PUT），格子里有缩略图、没有「重试」', S.putN === 3 && await SRQ('.compose', "r.querySelectorAll('.ph1 img').length === 1 && !r.querySelector('[data-pr]') && !r.querySelector('.phst')"), [S.putN, S.log]);
+  T('P4b：上传进度 / 状态变化不重建缩略图格子（否则每格重播入场动画、图重载 = 真机闪三下）', await E(() => window.__phRm.length === 0), await E(() => window.__phRm));
+  // 打字时：只留 取消 / 发布 + 输入框，底栏（照片 / 球场 / 设置）收起，输入框在可视区内；失焦后底栏回来
+  await sr('[data-ctext]').focus(); await pg.settle(300);
+  T('打字时：底栏收起、缩略图变小、输入框完整可见', await SRQ('.compose', "(() => { const cs = x => getComputedStyle(r.querySelector(x)), t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('typing') && cs('.cbot').display === 'none' && r.querySelector('.ph1').getBoundingClientRect().width <= 60 && t.height >= 100 && t.bottom <= innerHeight })()"));
+  await sr('[data-ctext]').evaluate(e => e.blur()); await pg.settle(300);
+  T('失焦后：底栏回来、缩略图恢复', await SRQ('.compose', "!r.classList.contains('typing') && getComputedStyle(r.querySelector('.cbot')).display !== 'none' && r.querySelector('.ph1').getBoundingClientRect().width > 90"));
   T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
   await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
   const pb = S.bodies['POST /api/sideline/posts'];

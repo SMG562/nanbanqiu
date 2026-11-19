@@ -189,10 +189,22 @@ function App(el,init){
   // ---- 发布页真选图（#393 P4b）：选 → 压缩（逐张）→ 三变体入上传队列 → 格子里显示缩略图 + 进度 / 重试 / 移除；全部传完才能发布 ----
   const phReal=()=>S.real&&SB_PHOTOS_ON()&&SB_PHOTO_POST();
   const phPend=C=>C.ups.filter(u=>u.st!=='ok').length,phFail=C=>C.ups.some(u=>u.st==='fail');
-  const phsHTML=C=>C.ups.map(u=>{const bad=u.st==='fail';return `<div class="ph1 pt"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${bad?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%'}</div>`}</div>`}).join('');
+  const phStIn=u=>u.st==='fail'?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%';
+  const phOne=(C,u)=>`<div class="ph1 pt" data-u="${u.id}"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${phStIn(u)}</div>`}</div>`;
+  const phsHTML=C=>C.ups.map(u=>phOne(C,u)).join('');
   const phAddBtn=C=>phReal()&&!C.ups.length?`<button class="phadd big" data-lib>${ic('cam')}<b>添加照片</b><small>最多 3 张</small></button>`:`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
   const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
-  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;h.innerHTML=phsHTML(C)+(C.ups.length<3?phAddBtn(C):'');phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
+  // 进度 / 状态变化只改变化的那一小块：整排重写会让每张图重播入场动画并重载图片，真机上 33% / 67% 时闪三下（#443）
+  const phPatch=(h,C)=>{const old=new Map([...h.querySelectorAll('.ph1[data-u]')].map(n=>[n.dataset.u,n])),add=h.querySelector('.phadd');
+    C.ups.forEach(u=>{const n=old.get(u.id);old.delete(u.id);
+      if(!n){const t=document.createElement('template');t.innerHTML=phOne(C,u);h.insertBefore(t.content.firstElementChild,add);return}
+      const im=n.querySelector('img');if(im&&im.getAttribute('src')!==u.url)im.setAttribute('src',u.url);
+      const tn=n.querySelector('.tn');if(tn)tn.className='tn'+(C.tone?' t-'+C.tone:'');
+      let st=n.querySelector('.phst');if(u.st==='ok'){if(st)st.remove()}else{const h2=phStIn(u);if(!st)n.insertAdjacentHTML('beforeend',`<div class="phst">${h2}</div>`);else if(st.innerHTML!==h2)st.innerHTML=h2}});
+    old.forEach(n=>n.remove());
+    const want=C.ups.length<3?phAddBtn(C):'',cur=h.querySelector('.phadd');
+    if(!want){if(cur)cur.remove()}else{const t=document.createElement('template');t.innerHTML=want;const nb=t.content.firstElementChild;if(!cur)h.appendChild(nb);else if(cur.outerHTML!==nb.outerHTML)cur.replaceWith(nb)}};
+  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;phPatch(h,C);phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
   const phUpMsg=c=>c==='login_required'?'登录过期了，重新登录后点「重试」':c==='photos_unavailable'?'照片服务还没开通，稍后再试':c==='photos_paused'?'照片功能暂时关闭了':c==='photo_net'?'网络不稳，点「重试」再传一次':'没传上去（'+(c||'未知')+'），点「重试」';
   const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){const was=u.st;u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;if(u.st==='fail'&&was!=='fail')toast(phUpMsg(u.code));phPaint(C)}}}));
   const phMsg=c=>c==='photo_not_image'||c==='photo_decode'||c==='photo_empty'?'这张格式暂时不支持，换一张或截图再发':c==='photo_too_big'?'这张图太大了，换一张试试':'这张图没处理好，换一张试试';
@@ -220,7 +232,8 @@ function App(el,init){
       <div class="csh${C.sh?' on':''}"><div class="csh-b" data-cshx></div><div class="csh-p">${C.sh?shHTML(C.sh):''}</div></div>`;
     $('.cmp-sc').scrollTop=top;
     const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
-    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''}};
+    const cp=$('.compose');cp.classList.remove('typing');
+    const ct=$('[data-ctext]'),fl=$('.compose .sts');ct.onfocus=()=>cp.classList.add('typing');ct.onblur=()=>cp.classList.remove('typing');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':''}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
     drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
