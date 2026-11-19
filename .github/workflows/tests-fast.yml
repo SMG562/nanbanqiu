@@ -69,12 +69,14 @@ jobs:
       #   键含 runner 镜像版本（镜像一换就重存）。用 restore / save 分开：测试失败也要存。
       - name: apt 缓存键
         id: aptkey
-        run: echo "k=apt-fast-v1-${ImageVersion:-x}" >> "$GITHUB_OUTPUT"
+        run: echo "k=apt-fast-v2-${ImageVersion:-x}" >> "$GITHUB_OUTPUT"
       - name: apt 包缓存（恢复）
         id: aptc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/apt-debs/*.deb
+          path: |
+            ~/apt-debs/*.deb
+            ~/pip-wheels/*.whl
           key: ${{ steps.aptkey.outputs.k }}
       - name: 系统依赖（PostgreSQL 16 + PostGIS）
         run: |
@@ -87,12 +89,20 @@ jobs:
             sudo apt-get install -y -q -o Dir::Cache::archives="$D" postgresql-16 postgresql-16-postgis-3
             echo "::notice title=apt::下载安装 $(( $(date +%s) - T0 ))s，$(du -sh "$D" | cut -f1)"
           fi
-          pip install --break-system-packages -q pglast || pip install -q pglast
+          # pglast 也走缓存的 wheel（命中那次实测 pip 单步 110s，也是同一种「个别 runner 外网慢」）
+          W=$HOME/pip-wheels; mkdir -p "$W"; T1=$(date +%s)
+          if ! { ls "$W"/*.whl >/dev/null 2>&1 && { pip install --break-system-packages -q --no-index --find-links "$W" pglast || pip install -q --no-index --find-links "$W" pglast; }; }; then
+            pip download -q -d "$W" pglast || true
+            pip install --break-system-packages -q pglast || pip install -q pglast
+          fi
+          echo "::notice title=pip::pglast $(( $(date +%s) - T1 ))s"
       - name: apt 包缓存（保存：只在没命中时）
         if: steps.aptc.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/apt-debs/*.deb
+          path: |
+            ~/apt-debs/*.deb
+            ~/pip-wheels/*.whl
           key: ${{ steps.aptkey.outputs.k }}
       - name: 依赖缓存（PGlite、pg）
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
