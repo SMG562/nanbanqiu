@@ -69,7 +69,7 @@ jobs:
       #   键含 runner 镜像发布日（ImageVersion 取点号前，后面的 .370.1 每台不同）。用 restore / save 分开：测试失败也要存。
       - name: apt 缓存键
         id: aptkey
-        run: echo "k=apt-fast-v3-${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
+        run: echo "k=apt-fast-v4-${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
       - name: apt 包缓存（恢复）
         id: aptc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -78,10 +78,11 @@ jobs:
             ~/apt-debs/*.deb
             ~/pip-wheels/*.whl
           key: ${{ steps.aptkey.outputs.k }}
+          restore-keys: apt-fast-v4-   # runner 镜像版本同时有好几个在轮换（实测相隔几分钟就是不同发布日）；换镜像的缓存也先试，装不上就退回 apt
       - name: 系统依赖（PostgreSQL 16 + PostGIS）
         run: |
           D=$HOME/apt-debs; mkdir -p "$D/partial"; T0=$(date +%s)
-          if [ "${{ steps.aptc.outputs.cache-hit }}" = true ] && ls "$D"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$D"/*.deb; then
+          if [ -n "${{ steps.aptc.outputs.cache-matched-key }}" ] && ls "$D"/*.deb >/dev/null 2>&1 && sudo dpkg -i "$D"/*.deb; then
             echo "::notice title=apt::命中缓存，$(ls "$D"/*.deb | wc -l) 个 deb，本地安装 $(( $(date +%s) - T0 ))s，没下载"
           else
             echo "::notice title=apt::未命中缓存（或本地安装失败），走 apt 下载"
