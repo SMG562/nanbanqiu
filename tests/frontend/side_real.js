@@ -17,7 +17,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1 });
-  const pg = await ctx.newPage(), errs = []; await pg.addInitScript('window.NBQ_SB_K=.25');   // #504 入场编排所有时间乘 0.25，测试跑得快；比例不变 pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
+  const pg = await ctx.newPage(), errs = []; await pg.addInitScript('window.NBQ_SB_K=.25'); pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));   // 入场编排所有时间乘 0.25，测试跑得快；比例不变
   const iso = m => new Date(NOW - m * 60e3).toISOString();
   const S = { log: [], bodies: {}, idk: {}, cfgV: 2, feedDown: false, cfg: null, pendingNew: null, failPost: null, failBall: false, failReply: false, detailGets: 0, feedGets: 0,
     me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString(), seal_roll: 1, home_club_ids: [] } };
