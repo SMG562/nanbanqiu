@@ -275,6 +275,12 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     S.freshPh = false; S.phGets = []; S.detailGets = 0; await open();
     T('#488 读回的还是旧地址（服务端没换新）：这条 2 分钟内只读一次，不循环', S.detailGets <= 1 && S.phGets.length <= 4, { dg: S.detailGets, gets: S.phGets });
     S.phMock = false; S.freshPh = false; }
+  // ---- #492 ①打码态提示：blurred 的图是 48px 小图拉满卡片，要写明「已打码」，别让人以为图坏了 ----
+  { const mk = (i, st) => ({ id: 'e1e1e1e1-0000-4000-8000-0000000003' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [st === 'blurred' ? { idx: 0, w: 1200, h: 1600, state: 'blurred', b: `/api/sideline/photo/u9/z${i}-b?x=1` } : { idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/z${i}-t?x=1`, url: `/api/sideline/photo/u9/z${i}-f?x=1`, b: `/api/sideline/photo/u9/z${i}-b?x=1` }] });
+    S.posts = [mk(0, 'blurred'), mk(1, 'ok')];
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+    const bl = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc')].map(c => { const h = c.querySelector('.blh'); return { hint: h ? h.textContent : null, vis: h ? h.getBoundingClientRect().width > 20 : false } }));
+    T('#492 打码的图：卡片上有「已打码」提示且看得见；正常图没有', bl.length === 2 && bl[0].hint === '已打码' && bl[0].vis && bl[1].hint === null, bl); }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);

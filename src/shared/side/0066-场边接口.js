@@ -33,7 +33,7 @@ const sbFromPost=(p,c)=>{const x={id:p.id,uid:p.user_id,t:sbTs(p.publish_at),x:p
     floor:+p.floor||0,closed:p.replies_open===false,mine:!!p.mine,tone:p.tone||'',u:sbUser(c.prof[p.user_id],c.me),real:1};
   if(p.topic_id)x.topic=p.topic_id;
   // 照片（§14.17）：ok 给 url / t / b；blurred 只给 b；removed / 没地址不画。地址 15–30 分钟过期，前台不缓存，等下一次读列表换新
-  const ph=(p.photos||[]).filter(q=>q&&(q.state==='ok'||q.state==='blurred')&&(q.t||q.b)).map(q=>({ph:1,t:q.t||q.b,u:q.url||q.t||q.b,b:q.b,w:q.w,h:q.h}));
+  const ph=(p.photos||[]).filter(q=>q&&(q.state==='ok'||q.state==='blurred')&&(q.t||q.b)).map(q=>({ph:1,t:q.t||q.b,u:q.url||q.t||q.b,b:q.b,w:q.w,h:q.h,bl:q.state==='blurred'?1:0}));
   if(ph.length){x.pics=ph.slice(0,3);x.pic=x.pics[0];if(!x.x)x.x='（一张照片）'}
   const k=p.venue_id&&c.vk?c.vk(p.venue_id):'';if(k){x.w=k;x.km=c.km?c.km(k):null}
   return x};
