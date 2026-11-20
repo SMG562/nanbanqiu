@@ -111,14 +111,16 @@ description: 协作者（非所有者）在南伴球仓库开工、提交、开 
    | `block:pr_state_branch` `pr_state ready/draft` 报错直接给 checkout 命令（#418/#419 先踩后补） | 11-19 | 同类命中次数 |
    | `warn:overlap` 转 Ready 前提醒别的 PR 同改这些文件（#426×#427 冲突重跑） | 11-19 | 冲突后重推次数 |
    | `warn:repush` 非草稿 PR 的 tests 在跑时再推提醒（tests 30–43 分钟，推一次重算一次） | 11-19 | 每 PR 推送次数 |
-5. **云会话 / 浅克隆四件事**（11-19，#410 交接教训，证据 #333 #427 #433）：① 新会话先 `add_repo`（access:push）→ 浅克隆 → `register_repo_root`（「直接做 / 不读进度」只免交接卡，不免这一步；先 `git rev-parse` 确认目录里真有仓库再动手）；② 浅克隆跑 `gate.sh` 会误报 smoke ❌（`--depth 1` 时 `diff-tree --root` 把整个提交当新增）：先 `git fetch --depth=3 origin main` 再跑；`git fetch origin <分支>` 不更新远端引用，要 `git fetch --depth=50 origin +refs/heads/<b>:refs/remotes/origin/<b>`；③ `ci_wait.sh` 前台一轮 ≤10 分钟，tests 要连调 3–4 次，环境重启会杀后台等待，重调即可；④ 合并后实查 main 自己的 CI：smoke 红先看日志是不是「线上版本没换」（部署延迟）；tests「取消」多半是 main 又前进了（concurrency），改对新 HEAD 跑 `gate.sh`，别据此说没过。
+5. **云会话 / 浅克隆四件事**（11-19，#410 交接教训，证据 #333 #427 #433）：① 新会话先 `add_repo`（access:push）→ 浅克隆 → `register_repo_root`（「直接做 / 不读进度」只免交接卡，不免这一步；先 `git rev-parse` 确认目录里真有仓库再动手）；② 浅克隆跑 `gate.sh` 会误报 smoke ❌（`--depth 1` 时 `diff-tree --root` 把整个提交当新增）：先 `git fetch --depth=3 origin main` 再跑；`git fetch origin <分支>` 不更新远端引用，要 `git fetch --depth=50 origin +refs/heads/<b>:refs/remotes/origin/<b>`；③ `ci_wait.sh` 前台一轮 ≤10 分钟，tests 要连调 3–4 次，环境重启会杀后台等待，重调即可；④ 合并后实查 main 自己的 CI：smoke 红先看日志是不是「线上版本没换」（部署延迟）；tests「取消」：11-20 起 main 上不再互相取消（#481），`gate.sh` 会自动认「被后续 main 绿灯覆盖」；仍 ❌ 就改对新 HEAD 再跑，别据此说没过。
 8. **开会话常驻规矩自动注入**（#346，11-17）：SessionStart 钩子输出 `START_NOTE`（授权前置、等复核的 PR 不订阅、一件事一会话、查状态只用脚本），不占 CLAUDE.md 预算；订阅 / 唤醒拦截见第 6 条。 **做省 token 机制的取舍原则**（#346，11-17）：能在「工具调用前」拦一次的才做成钩子；靠 Stop 退回回复纠正的要慎做（多一整轮历史重读，常比纠正的事更贵）。想法先问「必要吗 / 合理吗 / 提效吗」，不全是就写进二期并给触发条件（跑一周看 `token_report.mjs` 的通知回合占比、收尾提问数，没降再做）。 **新闸门默认先 warn（带 `[nbq:warn:…]`），同一闸门 7 天 ≥2 次由 digest ③b 升级成 block；30 天零命中进清理候选（11-19，#410）。**
 9. **CI 慢先量「慢在哪一步、哪台机器」，外部下载别靠超时重试**（11-19，#432 #438 #442 #446）：慢的是个别 runner 整台外网慢（同分支 apt 步骤 18s～2027s），超时 + 换镜像无效；对策 = 缓存 .deb + 本地 `dpkg -i`（共用 `.github/actions/ci-apt`：命中只装「没装 / 比缓存旧」的包、本地装失败退回 apt、键含 Playwright 版本、**不含** `ImageVersion` 的每台后缀、加 restore-keys；实测命中后 tests 整次 41→7 分钟）。加超时必须留「最后一次不限时」；验证用 `workflow_dispatch` 做「未命中 + 命中」两次，别信单次；缓存按分支隔离，PR 读不到别的 PR 的，要 main 跑一次存。**两个会话同做一题**（#446 与 #447 撞车）：开工前 `gh api repos/…/pulls?state=open` 和 #432 末几条评论都看，撞了就一方退草稿、另一方合完再补加固。
 
 ## 十二、叠加 PR 被 squash 后的残枝（11-20，#443/#451/#453→#456；#358→#357）
 - 叠加链里后一个 PR 被 squash 合并，前面的分支就成了「内容已在 main、历史不在」的残枝：再 sync_main 只会冲突，还可能把已被否掉的取向倒灌回来。**接手旧 PR 先做三步**：`git rev-list --count origin/main..origin/<分支>` 看领先数 → `git merge-tree --write-tree origin/main origin/<分支>` 看合进去净改多少 → 只剩几行就挑出自己的那个提交到新分支重放，或直接关并留说明。
 - 超长单行源码（`src/shared/side/*.js`）冲突：取 main 版本 + 脚本重放分支的小改动，别手解冲突标记；重放后必须 `node tools/lint.mjs`（漏一行会少个 `}`，lint 报 scopeManager 空）。
-- 前台「草稿」判断要覆盖所有存放处（文字 `text`、旧图 `pics`、真上传 `ups`），丢弃路径统一走既有的 `phDrop`（独立复核在 #462 抓到）。沙盒里全量 run_all 会被代理拦住超时：只跑相关套件 + 交 CI。
+- 前台「草稿」判断要覆盖所有存放处（`text` / 旧图 `pics` / 真上传 `ups`），丢弃统一走 `phDrop`（#462）。沙盒全量 run_all 会被代理拦超时：只跑相关套件 + 交 CI；并行跑偶发 e2e_admin_ops / sb_login 失败，单独重跑再判（浏览器测要 `node tests/run_all.mjs <套件名>`，直接 `node tests/frontend/x.js` 会报 `pg.settle is not a function`）。
+- **按字面读约束、卡住前先查数**（11-20，#480）：「在制品 ≤3」只算非草稿 PR（当时为 0），误读成 5 个草稿差点把两行修复挂 24h；本地存储草稿恢复（#472）要注意：服务器若将来清孤儿图，保留时长须 ≥ 草稿窗口 24h，恢复时要重校签名地址（二期）。
+- 发布页图片交互（#475/#478，11-20）：`<img>` 默认可拖，会打断 pointer 排序，要 `draggable="false"`；新增 CSS 圆角会撞「场边 radii 预算」，用已有值（12px）；话题建议整块受 `NBQ_SB_FILLS_ON` 管，测试里发布页自带话题，浏览器测要先清话题才看得到建议块；`pr_state ready` 只认分支所属会话，被拦就 `git checkout -B <分支> origin/<分支>` 再重跑。
 
 ## 十一、经验自动提炼（11-17，#346；不靠人记）
 - **收集（脚本）**：每周一定时会话先跑 `node tools/lib/lessons_digest.mjs 7`；素材 = 交接评论里固定的「**踩过的坑**」一行（handoff-protocol §一.4）+ 近期经验文档提交 + 规则体检。

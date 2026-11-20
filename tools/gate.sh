@@ -20,9 +20,18 @@ tests_triggered() {
   git -c core.quotepath=off diff-tree --no-commit-id --name-only -r --root "$SHA" 2>/dev/null \
     | grep -vE "$TESTS_EXCL" | grep -qE "$TESTS_RE"
 }
+# 11-20（#480）：某提交的运行被取消、但更新的 main 提交（包含它）同一工作流已绿 = 被后者覆盖，算过；找不到才仍按没过。
+covered_by() {
+  git merge-base --is-ancestor "$SHA" origin/main 2>/dev/null || return 1
+  for N in $(git rev-list --reverse --max-count=5 "$SHA..origin/main"); do
+    C=$(gh api "repos/$R/actions/runs?head_sha=$N&per_page=100" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$1.yml\")]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null)
+    [ "$C" = "completed success" ] && { echo "${N:0:7}"; return 0; }
+  done; return 1
+}
 for W in tests-fast tests smoke; do
   L=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=100" --jq "[.workflow_runs[]|select(.path==\".github/workflows/$W.yml\" and ((.display_title // \"\")|test(\"visual-baseline|未测：草稿\")|not))]|sort_by(.created_at)|last|\"\(.status) \(.conclusion // \"\")\"" 2>/dev/null); [ "$L" = "null " ] && L=""
   if [ "$L" = "completed success" ]; then echo "✅ $W"
+  elif [ "$L" = "completed cancelled" ] && CB=$(covered_by "$W"); then echo "✅ $W（本轮被取消，由后续 main 提交 $CB 的绿灯覆盖）"
   elif [ -z "$L" ] && [ "$W" = smoke ] && ! smoke_triggered; then echo "⚪ smoke：不适用（这个提交没改会触发 smoke 的文件，见 smoke.yml 的 paths；定时冒烟另跑）"
   elif [ -z "$L" ] && [ "$W" != smoke ] && ! tests_triggered; then echo "⚪ $W：不适用（这个提交没改会触发测试的文件，见 $W.yml 的 paths）"
   else echo "❌ $W：${L:-没有运行记录}"; ok=1; fi
