@@ -59,5 +59,5 @@ const phSrc=(n,crop)=>phOk((n.u||n.t)||n.b);
 const PHE={t:960,u:1600};
 const phW=(n,k)=>{const w=+n.w,h=+n.h;return w>0&&h>0?Math.max(1,Math.round(w*Math.min(1,PHE[k]/Math.max(w,h)))):0};
 const phSet=(n,o)=>{if(!o||!o.sz)return '';const a=phOk(n.t),b=phOk(n.u),wt=phW(n,'t'),wu=phW(n,'u');return a&&b&&a!==b&&!/^blob:/.test(a+b)&&wt&&wu>wt?` srcset="${a} ${wt}w, ${b} ${wu}w" sizes="${esc(o.sz)}"`:''};
-const PIC=(n,crop='full',tone,o)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block"></div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
+const PIC=(n,crop='full',tone,o)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block">${n.bl?'<span class="blh">已打码</span>':''}</div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
 
