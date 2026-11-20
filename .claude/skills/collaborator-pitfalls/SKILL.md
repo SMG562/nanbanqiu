@@ -118,6 +118,7 @@ description: 协作者（非所有者）在南伴球仓库开工、提交、开 
 ## 十二、叠加 PR 被 squash 后的残枝（11-20，#443/#451/#453→#456；#358→#357）
 - 叠加链里后一个 PR 被 squash 合并，前面的分支就成了「内容已在 main、历史不在」的残枝：再 sync_main 只会冲突，还可能把已被否掉的取向倒灌回来。**接手旧 PR 先做三步**：`git rev-list --count origin/main..origin/<分支>` 看领先数 → `git merge-tree --write-tree origin/main origin/<分支>` 看合进去净改多少 → 只剩几行就挑出自己的那个提交到新分支重放，或直接关并留说明。
 - 超长单行源码（`src/shared/side/*.js`）冲突：取 main 版本 + 脚本重放分支的小改动，别手解冲突标记；重放后必须 `node tools/lint.mjs`（漏一行会少个 `}`，lint 报 scopeManager 空）。
+- **11-20 #475/#478/#485 补充**：① 命令链 `A && B; pr_say …` 里 A 失败后面照跑，交接 / 留言必须放在提交推送成功之后（`sed` 模式含 `#` 时别用 `#` 作分隔符，改 python）；② 图糊先查 `phSrc` 取哪一档（列表卡片曾取 `t` 480 档拉大，改成取原图档）；③ 用旧开关验新功能会把已下线 UI 带回来（`NBQ_SB_FILLS_ON` 带回二级话题），验收前先确认开关范围，价值不明就先问所有者再做；④ main 一动 workflow / gate，放宽无效，`sync_main` 后 tests 必须重跑；叠加 PR 冲突取「两边都留」，再 build + lint + 跑相关单测；⑤ 拖动类交互换位只挪 DOM（`insertBefore`），草稿等松手再存。
 - 前台「草稿」判断要覆盖所有存放处（`text` / 旧图 `pics` / 真上传 `ups`），丢弃统一走 `phDrop`（#462）。沙盒全量 run_all 会被代理拦超时：只跑相关套件 + 交 CI；并行跑偶发 e2e_admin_ops / sb_login 失败，单独重跑再判（浏览器测要 `node tests/run_all.mjs <套件名>`，直接 `node tests/frontend/x.js` 会报 `pg.settle is not a function`）。
 - **按字面读约束、卡住前先查数**（11-20，#480）：「在制品 ≤3」只算非草稿 PR（当时为 0），误读成 5 个草稿差点把两行修复挂 24h；本地存储草稿恢复（#472）要注意：服务器若将来清孤儿图，保留时长须 ≥ 草稿窗口 24h，恢复时要重校签名地址（二期）。
 - 发布页图片交互（#475/#478，11-20）：`<img>` 默认可拖，会打断 pointer 排序，要 `draggable="false"`；新增 CSS 圆角会撞「场边 radii 预算」，用已有值（12px）；话题建议整块受 `NBQ_SB_FILLS_ON` 管，测试里发布页自带话题，浏览器测要先清话题才看得到建议块；`pr_state ready` 只认分支所属会话，被拦就 `git checkout -B <分支> origin/<分支>` 再重跑。
