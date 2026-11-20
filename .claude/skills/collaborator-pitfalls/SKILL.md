@@ -136,5 +136,8 @@ description: 协作者（非所有者）在南伴球仓库开工、提交、开 
 - **草稿 PR 不跑 `tests`**：`pr_merge --check` 报「tests 还没有运行记录」多半是草稿；真机通过后才 `pr_state.sh <号> ready`。
 - **接手另一个分支的 PR**：`pr_state.sh <号> mine` 会拒绝；按提示 `git checkout -B <分支> origin/<分支>` 再 `mine`/`ready`。
 - **勾 PR 描述里的真机项**（所有者在对话里说「真机通过」后）：`gh api repos/SMG562/nanbanqiu/pulls/<号> --jq .body | sed 's/- \[ \] 前台改动：真机/- [x] 前台改动：真机/'` 写临时文件，再 `gh api -X PATCH … -F body=@文件`。
-- **本地单跑测试**：`node -r ./tests/lib/preload.js tests/frontend/side_real.js`（要 `./`）；全量 `node tests/run_all.mjs --changed=origin/main` 超 10 分钟会转后台，等通知再推。
+- **本地单跑测试**：`node -r ./tests/lib/preload.js tests/frontend/side_real.js`（要 `./`，否则缺 `pg.settle`）；全量 `node tests/run_all.mjs --changed=origin/main` 超 10 分钟会转后台，等通知再推。**全量里偶发红先单跑**：`node tests/run_all.mjs --grep=<测试名>`（`--only` 是按套件名，写测试名会跑 0 项还报「全部通过」）；单跑过 + CI 绿 = 并发偶发，同一个测试第二次再出才开提案（#504：`e2e_admin_ops`、`sb_login` 各一次，没开）。
+- **行尾 `//` 注释会吞掉同一行后面的代码**：#504 里 `pg.on('pageerror')` 被吞，「全程没有页面报错」成空测试；写完用 `node --check` 之外，凡改「监听 / 断言」顺手把它故意弄坏一次看测试会不会红。
+- **交接说「未开 PR」不等于没开**：先 `list_pull_requests head=<分支>`（#504 其实已有草稿 #506）；PR 描述门禁：较大风险的 PR 必须有「刷新后还在」「换设备登录还在」两项，纯动效写「不涉及用户数据」并勾上，别硬造真机步骤。
+- **GitHub 工具别混用**：关 PR 用 `update_pull_request`，`issue_write update` 会覆盖**整个正文**（#504 误覆盖，靠正文右上角「Last edited by ▾」→ 最早一版找回；粘贴会带 `[+]` / `[/+]` diff 标记，要清掉）。动手前先 `get` 一次看它是 Issue 还是 PR；改正文前先把原文存到临时文件。
 - **动效 PR 必须出真实截图**：`overflow:hidden` 的 flex 子项被压扁、浅色主题下暖白不可见，计时和读代码都发现不了（见 `docs/design/列表入场编排.md` §七）。
