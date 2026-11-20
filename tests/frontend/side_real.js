@@ -263,7 +263,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const fp = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return { n: r.querySelectorAll('[data-s="home"] .ln').length, first: (r.querySelector('[data-s="home"] .ln')||{}).outerHTML && r.querySelector('[data-s="home"] .ln').outerHTML.slice(0, 200), src: i && i.getAttribute('src'), stack: r.querySelectorAll('[data-s="home"] .ln.pc .mst i').length, pt: !!r.querySelector('[data-s="home"] .ln.pc.pt'), ar: !!r.querySelector('[data-s="home"] .ln.pc.lnar') } });
   T('真照片帖（别人发的，2 张）：列表画成带图卡片，用原图档（#483：缩略图拉到大卡片会糊），不叠小图，竖图是 4:5 高卡片（设计稿）', /a-f/.test(fp.src || '') && fp.stack === 0 && fp.pt && !fp.ar, fp);
   // ---- #488 列表卡片图：srcset 两档 + sizes 不低估渲染宽 + 首屏 2 张之外懒加载 ----
-  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.getBoundingClientRect().width, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
+  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.offsetWidth, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
   T('#488 列表卡片图：srcset = 缩略 t（720w）+ 原图 u（1200w），竖图 1200×1600 按变体真实宽算', !!im && im.srcset === '/api/sideline/photo/u9/a-t?x=1 720w, /api/sideline/photo/u9/a-f?x=1 1200w', im);
   T('#488 sizes 不低估卡片渲染宽（写窄会选到小一档的图而发糊）：渲染宽 ≤ min(712, 视口 − 28)', !!im && im.sizes === 'min(712px,calc(100vw - 28px))' && im.w <= Math.min(712, im.vw - 28) + 0.5 && im.w > 300, im);
   T('#488 第一张不懒加载；DPR 1 的 362 宽卡片选缩略档（原图 1.5MB 档留给 3 倍屏）', !!im && im.loading !== 'lazy' && (im.dpr !== 1 || /a-t/.test(im.cur)), im);
@@ -303,6 +303,11 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     T('#492 v2 慢网中间态：主图没到时透明、氛围底在；不出现空白或破图', mid.length === 2 && mid.every(x => +x.op < 0.5 && !x.ld && x.amb), mid);
     S.phDelay = 0; await pg.waitForTimeout(2500);
     T('#492 v2 慢网：主图到了之后淡入完成', await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc img.mi')].every(i => i.classList.contains('ld') && +getComputedStyle(i).opacity > 0.9)));
+    // 柔和出图：先后到的图不同时「刷」出来——相邻显影起点至少隔 ~60ms、整体 ≤ 420ms；显过的图重画时直接就位
+    const rv = await pg.evaluate(() => { const im = [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc img.mi')], d = im.map(i => parseFloat(i.style.transitionDelay) || 0).sort((a, b) => a - b); const sr = im[0].getAttribute('src'); return { d, tr: getComputedStyle(im[0]).transitionDuration, again: SB.pic({ ph: true, u: sr, b: 'https://x.test/b.jpg', w: 1200, h: 800 }, 'full', '', { sz: '100vw' }), fresh: SB.pic({ ph: true, u: 'https://x.test/never-seen.jpg', b: 'https://x.test/b.jpg', w: 1200, h: 800 }, 'full', '', { sz: '100vw' }) } });
+    T('#492 柔和出图：两张图的显影起点错开 ≥ 60ms 且 ≤ 420ms', rv.d.length === 2 && rv.d[1] - rv.d[0] >= 60 && rv.d[1] <= 420, rv);
+    T('#492 柔和出图：显影时长 ≥ 0.6s（不是一闪）', parseFloat(rv.tr) >= 0.6, rv.tr);
+    T('#492 柔和出图：显过的图重画直接就位（class 带 ld），没见过的仍从透明显影', /class="mi ld"/.test(rv.again) && /class="mi"/.test(rv.fresh), rv);
     S.phMock = false; }
   // ---- #492 ② 大图弹层里的图过期（410）：读新地址后整格重画，图真的显示 ----
   { const pv = { id: 'e1e1e1e1-0000-4000-8000-000000000501', user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: '/api/sideline/photo/u9/v1-t?x=new', url: '/api/sideline/photo/u9/v1-f?x=new', b: '/api/sideline/photo/u9/v1-b?x=new' }] };

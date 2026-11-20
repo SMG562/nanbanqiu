@@ -689,7 +689,9 @@ function App(el,init){
     if(vw&&String(S.view)===String(id)){const cs=[...el.querySelectorAll('.viewer .img>div')];cs.forEach((c,i)=>{if(x.pics[i])c.innerHTML=PIC(x.pics[i],'full',x.tone)})}  // 大图弹层：按已更新的 x.pics 整格重画（读回前别处可能已换过地址，不能只靠新旧对照）
     const sw=s=>s&&m.reduce((a,[o,v])=>a.split(o).join(v),s);
     [...el.querySelectorAll('[data-ln],[data-pic]')].filter(c=>(c.dataset.ln||c.dataset.pic)===id).forEach(c=>c.querySelectorAll('img').forEach(i=>{['src','srcset'].forEach(k=>{const a=i.getAttribute(k),b=sw(a);if(a&&b!==a)i.setAttribute(k,b)})}))};
-  el.addEventListener('load',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.classList.contains('mi'))i.classList.add('ld')},true);
+  // 显影排队（柔和出图）：图到一张放一张，相邻两张至少隔 70ms（最多等 420ms），不管网络谁先到；已显过的图重画时直接就位，不再重演
+  const REV={at:0};
+  el.addEventListener('load',e=>{const i=e.target;if(!(i&&i.tagName==='IMG'&&i.classList.contains('mi')))return;const n=performance.now(),w=Math.min(Math.max(REV.at-n,0),420);REV.at=n+w+70;i.style.transitionDelay=w+'ms';i.classList.add('ld');sbRevSeen(i.getAttribute('src'))},true);
   el.addEventListener('error',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.closest('.tn'))phFix(i)},true);
   // 通知点开：那条不在已读的列表里（超过读的页数 / 已过 24 小时）→ 单独读一条放进去再打开；读不到 = 已经不在了
   const ensurePost=async id=>{if(find(id))return true;const net=rlNet();if(!net)return false;const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||find(id))return !!find(id);
@@ -725,7 +727,7 @@ function App(el,init){
   return S;
 }
 
-return {App,CFG,flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
+return {App,CFG,pic:PIC,flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
   photo:{env:sbPhEnv,run:sbPhRun,pick:sbPhPick,queue:sbPhQueue,draft:{get:sbPhDraftGet,set:sbPhDraftSet,clear:sbPhDraftClear},limits:SB_PH}};   // 照片管线（P3）：P4 发布页接线用；测试也从这里取
 })();
 
