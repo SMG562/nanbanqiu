@@ -271,7 +271,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     S.jpg = jpg; S.phMock = true; S.freshPh = true; S.phGets = []; S.posts = [ph(0)]; S.detailGets = 0; await open();
     const a = await st();
     T('#488 地址过期（410）：读这一条的新地址，src / srcset 换成新的，图真的显示出来', a.length === 1 && /x=new/.test(a[0].s) && /x=new/.test(a[0].ss) && !/x=old/.test(a[0].ss) && a[0].ok && S.detailGets === 1, { a, gets: S.phGets, dg: S.detailGets });
-    T('#488 过期恢复：先 410 再用新地址 200，各一次，不反复请求', S.phGets.filter(x => /410$/.test(x)).length === 1 && S.phGets.filter(x => /200$/.test(x)).length >= 1, S.phGets);
+    T('#488 过期恢复：先 410 再用新地址 200，各一次，不反复请求', S.phGets.filter(x => /-[tf]\?.*410$/.test(x)).length === 1 && S.phGets.filter(x => /-[tf]\?.*200$/.test(x)).length >= 1, S.phGets);
     S.freshPh = false; S.phGets = []; S.detailGets = 0; await open();
     T('#488 读回的还是旧地址（服务端没换新）：这条 2 分钟内只读一次，不循环', S.detailGets <= 1 && S.phGets.length <= 4, { dg: S.detailGets, gets: S.phGets });
     S.phMock = false; S.freshPh = false; }
@@ -281,6 +281,13 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
     const bl = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc')].map(c => { const h = c.querySelector('.blh'); return { hint: h ? h.textContent : null, vis: h ? h.getBoundingClientRect().width > 20 : false } }));
     T('#492 打码的图：卡片上有「已打码」提示且看得见；正常图没有', bl.length === 2 && bl[0].hint === '已打码' && bl[0].vis && bl[1].hint === null, bl); }
+  // ---- #492 ③④ v2 观感：氛围底（b 图）+ 显影淡入 + 小图（原图宽 < 600）摆成相框，不满铺拉糊 ----
+  { const mk = (i, w) => ({ id: 'e1e1e1e1-0000-4000-8000-0000000004' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [{ idx: 0, w, h: Math.round(w * 4 / 3), state: 'ok', t: `/api/sideline/photo/u9/y${i}-t?x=1`, url: `/api/sideline/photo/u9/y${i}-f?x=1`, b: `/api/sideline/photo/u9/y${i}-b?x=1` }] });
+    S.jpg = jpg; S.phMock = true; S.feedDown = false; S.posts = [mk(0, 1200), mk(1, 500)];
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1500);
+    const v2 = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc')].map(c => { const t = c.querySelector('.tn'), i = c.querySelector('img.mi'); return { am: t.classList.contains('am'), sm: t.classList.contains('sm'), amb: !!c.querySelector('.amb'), w: i.getBoundingClientRect().width, cw: c.getBoundingClientRect().width, op: getComputedStyle(i).opacity } }));
+    T('#492 v2：列表卡片有氛围底；高清图（宽 1200）满铺，低清图（宽 500）摆成相框（渲染宽 < 卡片宽的 80%）', v2.length === 2 && v2.every(x => x.am && x.amb) && !v2[0].sm && v2[0].w > v2[0].cw * 0.95 && v2[1].sm && v2[1].w < v2[1].cw * 0.8, v2);
+    T('#492 v2：主图加载后「显影」淡入到可见（opacity 1）', v2.every(x => +x.op > 0.9), v2); S.phMock = false; }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
