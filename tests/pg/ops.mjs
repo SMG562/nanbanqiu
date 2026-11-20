@@ -17,6 +17,16 @@ T('加密备份：解密后和原文件一模一样，密文里看不到原文',
 let bad = await BK.decryptFile(enc, back + '2', BK.newKey()).then(() => 'ok', e => e.message); T('密钥不对解不开', bad !== 'ok', bad);
 const t2 = fs.readFileSync(enc); t2[100] ^= 1; fs.writeFileSync(enc + 'x', t2); bad = await BK.decryptFile(enc + 'x', back + '3', K).then(() => 'ok', e => e.message); T('文件被改过一个字节也解不开', bad !== 'ok', bad);
 bad = await BK.encryptFile(plain, enc + 'k', 'short').then(() => 'ok', e => e.message); T('密钥长度不对直接拒绝', bad === 'backup_key_invalid', bad);
+// #473：启动判断（中文目录）、平台对象过滤、报错归类（不用数据库）
+{ const cn = path.join(tmpd, '备份 演练'); fs.mkdirSync(cn); fs.copyFileSync(path.join(DIR, 'server/ops/backup.mjs'), path.join(cn, 'backup.mjs'));
+  const r = require('child_process').spawnSync(process.execPath, [path.join(cn, 'backup.mjs')], { encoding: 'utf8' });
+  T('目录含中文时直接运行脚本有输出（不再静默退出）', r.status === 2 && /用法：node server\/ops\/backup\.mjs drill/.test(r.stdout), r); }
+{ const toc = ['; Archive created', '1; 3079 1 EXTENSION - pg_cron', '2; 2615 1 SCHEMA - cron postgres', '3; 1259 1 TABLE cron job postgres', '4; 1259 2 TABLE vault secrets supabase_admin', '5; 1259 3 TABLE public users postgres', '6; 1259 4 TABLE public cron_log postgres', '7; 3079 5 EXTENSION - pg_stat_statements'].join('\n');
+  const f = BK.filterToc(toc);
+  T('本机恢复过滤平台对象：cron / vault / pg_stat_statements 去掉，业务表（含 cron_log）保留', f.skipped === 5 && /public users/.test(f.list) && /cron_log/.test(f.list) && !/pg_cron|vault|pg_stat/.test(f.list), f); }
+{ const by = BK.classifyErrors(['ERROR:  role "supabase_admin" does not exist', 'ERROR:  role "supabase_admin" does not exist', 'ERROR:  role "nbq_user" does not exist', 'ERROR:  schema "cron" does not exist', 'ERROR:  function public.lockrow(text, text, text) does not exist', 'ERROR:  function public.addauth(text) does not exist'].join('\n'));
+  T('忽略的报错按类型归类：角色名保留、函数合并、其余名字合并', by['role "supabase_admin" does not exist'] === 2 && by['role "nbq_user" does not exist'] === 1 && by['schema "X" does not exist'] === 1 && by['function public.X() does not exist'] === 2, by); }
+bad = await BK.restore(enc, 'postgresql://postgres@db.abc.supabase.co/postgres', K, { skipPlatform: true }).then(() => 'ok', e => e.message); T('目标是 Supabase 时拒绝跳过平台对象（真出事恢复不能过滤）', bad === 'skip_platform_not_for_supabase', bad);
 const m = MON.alertMail([{ code: 'push_fail_rate', label: '推送失败率', level: 'crit', value: 0.35, kind: 'escalate' }, { code: 'signup_drop', label: '新注册骤降', level: 'ok', value: 0.9, kind: 'resolved' }]);
 T('报警邮件：标题按最严重的、百分比显示、写明升级和处理手册', m.subject === '[南伴球] 严重：推送失败率、新注册骤降' && /35\.0%/.test(m.text) && /从警告升为严重/.test(m.text) && /出事处理手册/.test(m.text), m);
 
@@ -131,15 +141,30 @@ try {
   // ---------- 真实的恢复演练 ----------
   c.createdb('drill');
   const conn = db => `postgresql://postgres@localhost/${db}?host=${encodeURIComponent(c.host)}&port=${c.port}`;
-  const dr = await BK.drill({ pg, source: conn('nbq'), target: conn('drill'), key: K, pgbin: c.bin, env: c.env });
+  const dr = await BK.drill({ pg, source: conn('nbq'), target: conn('drill'), key: K, pgbin: c.bin, env: c.env, log() { } });
   T('演练：导出 → 加密 → 恢复到新库 → 逐表对数一致 → 自检全过', dr.ok && Object.values(dr.detail.tables).every(([a, b]) => a === b) && dr.detail.tables.users[0] > 50 && dr.detail.verify.length === 6 && dr.detail.verify.every(v => v.ok), dr);
   T('演练记到 ops_drills；「恢复演练」变正常', !!(await one(`select 1 x from ops_drills where ok and at > now()-interval '1 minute'`)) && await lv('restore_drill') === 'ok');
-  const dr2 = await BK.drill({ pg, source: conn('nbq'), target: conn('drill'), key: K, pgbin: c.bin, env: c.env });
+  const dr2 = await BK.drill({ pg, source: conn('nbq'), target: conn('drill'), key: K, pgbin: c.bin, env: c.env, log() { } });
   T('恢复到非空库失败 → 记一条失败（不算成功的演练）', !dr2.ok && /pg_restore|already exists|Command failed/.test(dr2.detail.error || '') && !!(await one(`select 1 x from ops_drills where not ok and at > now()-interval '1 minute'`)), dr2.detail.error);
   await q(`update admin_users set disabled=true where role='owner'`); c.createdb('drill2');
-  const dr3 = await BK.drill({ pg, source: conn('nbq'), target: conn('drill2'), key: K, pgbin: c.bin, env: c.env });
+  const dr3 = await BK.drill({ pg, source: conn('nbq'), target: conn('drill2'), key: K, pgbin: c.bin, env: c.env, log() { } });
   T('恢复出来的库自检不过（没有在职 owner）→ 演练算失败', !dr3.ok && dr3.detail.verify.some(x => !x.ok && /超级管理员/.test(x.item)), dr3.detail.verify);
   await q(`update admin_users set disabled=false where email in ('han@x.com','bk@x.com')`);
+  // #473：本机演练跳过平台对象（cron 表被跳过、业务表对数一致、归类并存日志）
+  await q(`create schema cron; create table cron.job(id int); insert into cron.job values (1)`); c.createdb('drill4'); const logs = [];
+  const dr4 = await BK.drill({ pg, source: conn('nbq'), target: conn('drill4'), key: K, pgbin: c.bin, env: c.env, skipPlatform: true, log: (...a) => logs.push(a.join(' ')), workdir: tmpd });
+  await q(`drop schema cron cascade`);
+  T('跳过平台对象的演练：通过、跳过 cron、有归类和日志文件', dr4.ok && dr4.detail.restore.skipped >= 1 && typeof dr4.detail.restore.ignored === 'number' && fs.existsSync(dr4.detail.restore.log), dr4.detail);
+  T('先打印结果再写库；detail 记进了跳过数', /演练通过/.test(logs[0] || '') && dr4.recorded === 'nbq_service' && +(await one(`select detail->'restore'->>'skipped' s from ops_drills order by at desc limit 1`)).s >= 1, [logs, dr4.recorded]);
+  // 记录回退：postgres 无权 set role（42501）→ 退回当前账号插入；写库全失败 → 不抛错、结果已打印
+  const wrap = f => ({ Client: class extends pg.Client { async query(sql, p) { f(sql); return super.query(sql, p) } } });
+  const deny = sql => { if (/set local role nbq_service/.test(sql)) throw Object.assign(new Error('permission denied to set role "nbq_service"'), { code: '42501' }) };
+  c.createdb('drill5'); const l5 = [];
+  const dr5 = await BK.drill({ pg: wrap(deny), source: conn('nbq'), target: conn('drill5'), key: K, pgbin: c.bin, env: c.env, log: (...a) => l5.push(a.join(' ')) });
+  T('无权切换角色 → 退回当前账号记进 ops_drills，结果不丢', dr5.ok && dr5.recorded === 'current_user' && /演练通过/.test(l5[0]) && !!(await one(`select 1 x from ops_drills where ok and at > now()-interval '1 minute' and minutes = $1`, [dr5.minutes])), [dr5.recorded, l5]);
+  c.createdb('drill6'); const l6 = [];
+  const dr6 = await BK.drill({ pg: wrap(sql => { if (/insert into ops_drills/.test(sql)) throw new Error('boom') }), source: conn('nbq'), target: conn('drill6'), key: K, pgbin: c.bin, env: c.env, log: (...a) => l6.push(a.join(' ')) });
+  T('写库两次都失败 → 不抛错，返回结果，先已打印，并提示没记上', dr6.ok && dr6.recorded === null && /演练通过/.test(l6[0]) && /没能记进 ops_drills/.test(l6[1] || ''), l6);
   const v = (await q(`select * from ops_verify()`)).rows; T('源库自检也全过', v.every(x => x.ok), v);
 
   // ---------- 权限 ----------
