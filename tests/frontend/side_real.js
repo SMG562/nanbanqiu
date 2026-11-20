@@ -38,6 +38,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     if (p.startsWith('/api/sideline/') && m !== 'GET') { const k = m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [P1]: 'P1', [P2]: 'P2', [P3]: 'P3', [P4]: 'P4', [P5]: 'P5' })[x] || x); S.log.push(k); S.bodies[k] = body; (S.idk[k] ||= []).push(r.request().headers()['idempotency-key'] || null) }
     if (m === 'GET') {
       if (p === '/api/venues') return J(r, 200, { venues: VENUES });
+      if (p === '/api/switches') return J(r, 200, { switches: { photos_paused: !!S.paused } });
       if (S.phMock && p.startsWith('/api/sideline/photo/')) { if (S.phDelay) await new Promise(q => setTimeout(q, S.phDelay)); const old = u.searchParams.get('x') === 'old'; (S.phGets ||= []).push(p.split('/').pop() + '?x=' + u.searchParams.get('x') + ' ' + (old ? 410 : 200)); return old ? J(r, 410, { error: 'photo_expired' }) : r.fulfill({ status: 200, contentType: 'image/jpeg', body: S.jpg }) }
       if (p === '/api/me') return J(r, 200, { registered: true, user: S.me });
       if (p === '/api/games') return J(r, 200, { games: [] });
@@ -217,6 +218,11 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   // ---- #393 P4b：发布页真选图 → 压缩 → 上传 → 发布带 photos（开关 NBQ_SB_PHOTO_POST）----
     await E(() => { window.NBQ_SB_PHOTO_POST = true }); await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(800);
   T('P4b：发布页有选图入口（隐藏的文件框 + 正文下的「照片」按钮；没图时不画大加号框）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.ctool [data-lib]') && !r.querySelector('.phadd')"));
+  // #492 第5项：停传照片（photos_paused）= 发布页不画相机按钮 / 「＋」；关掉后恢复；读不到开关不误藏
+  S.paused = true; await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(900);
+  T('#492 photos_paused 开：发布页没有相机按钮、没有「＋」，文字框还在', await SRQ('.compose', "!r.querySelector('[data-lib]') && !r.querySelector('.phadd') && !!r.querySelector('[data-ctext]')"));
+  S.paused = false; await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(900);
+  T('#492 photos_paused 关：相机按钮回来', await SRQ('.compose', "!!r.querySelector('.ctool [data-lib]')"));
   const jpg = Buffer.from(await E(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#c60'; g.fillRect(0, 0, 600, 400); return c.toDataURL('image/jpeg', .9).split(',')[1] }), 'base64');
   S.failPost = null; S.putN = 0; S.log.length = 0;
   await SRQ('.compose', "(window.__phRm = [], new MutationObserver(m => m.forEach(x => x.removedNodes.forEach(n => n.classList && n.classList.contains('ph1') && window.__phRm.push(n.dataset.u)))).observe(r.querySelector('.phs'), { childList: true }), 1)");

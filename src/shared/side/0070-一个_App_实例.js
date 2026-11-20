@@ -196,7 +196,8 @@ function App(el,init){
   const phStIn=u=>u.st==='fail'?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%';
   const phOne=(C,u)=>`<div class="ph1 pt${C.ups[0]===u&&C.ups.length>1?' cov':''}" data-u="${u.id}"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" draggable="false" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${phStIn(u)}</div>`}</div>`;
   const phsHTML=C=>C.ups.map(u=>phOne(C,u)).join('');
-  const phAddBtn=C=>phReal()&&!C.ups.length?'':`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
+  const phOff=()=>phReal()&&S.phOff===true;
+  const phAddBtn=C=>phOff()?'':phReal()&&!C.ups.length?'':`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
   const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
   // 进度 / 状态变化只改变化的那一小块：整排重写会让每张图重播入场动画并重载图片，真机上 33% / 67% 时闪三下（#443）
   const phPatch=(h,C)=>{const old=new Map([...h.querySelectorAll('.ph1[data-u]')].map(n=>[n.dataset.u,n])),add=h.querySelector('.phadd');
@@ -248,7 +249,7 @@ function App(el,init){
         ${phBlk(C)}
         ${C.lib?`<div class="lib">${['outfit','shoes','gear','shadow','sunset'].map(q=>{const i=C.pics.indexOf(q);return `<button class="pkb${i>=0?' on':''}" data-pk="${q}">${C.libReady?PIC(q,'band'):''}<i>${i>=0?i+1:''}</i></button>`}).join('')}</div>`:''}
         ${SB_TONES_ON()&&(pic||C.ups.length)?`<div class="tones2">${TONES.map(t=>`<button class="${C.tone===t[0]?'on':''}" data-tone="${t[0]||'none'}">${t[1]}</button>`).join('')}</div>`:''}
-        <div class="ctool"><button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button><button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div>
+        <div class="ctool">${phOff()?'':`<button class="chip ico${(phReal()?C.ups.length:C.pics.length)?' set':' pri'}" data-lib aria-label="添加照片">${ic('cam')}<span>${(phReal()?C.ups.length:C.pics.length)?(phReal()?C.ups.length:C.pics.length)+'/3':'照片'}</span></button>`}<button class="chip${plab?' set':''}" data-cpl>${ic('pin')}<span>${esc(plab||'球场')}</span></button><span class="sp"></span><button class="chip ico${C.later||!C.replyOn?' set':''}" data-cset title="发布设置">${ic('sliders')}</button></div>
         <div class="cqk${C.cq?' on':''}">${cqHTML(C)}</div>
       </div>
       <input type="file" accept="image/*" multiple hidden data-cfile>
@@ -259,11 +260,12 @@ function App(el,init){
     const cp=$('.compose');cp.classList.remove('cmp-ty');
     const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;clearTimeout(C.dt);C.dt=setTimeout(()=>phDraftSave(C),300);if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
     if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
+  const phChk=()=>{if(!phReal())return;const C=S.cmp;sbPhotosPaused((u,o)=>fetch(u,o)).then(v=>{if(S.phOff!==v){S.phOff=v;if(S.cmp&&S.cmp===C)drawCompose()}})};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     if(phReal()&&!o.redo&&!(o.text||'').trim()&&!(o.ups&&o.ups.length)){const d=sbPhDraftGet(meUser().id);if(d){const C=S.cmp;C.text=d.text||'';C.tone=d.tone||'';if(!C.topic&&d.topic&&S.T[d.topic])C.topic=d.topic;if(d.loc&&COURTS[d.loc])C.loc=d.loc;
       C.ups=(d.ups||[]).slice(0,3).map(x=>({id:'u'+(++UID),st:'ok',p:1,url:x.th,name:x.name,w:x.w,h:x.h,th:x.th}));if(C.ups.length||C.text.trim())setTimeout(()=>toast('已恢复上次没发完的内容'),600)}}
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
-    drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
+    phChk();drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
     // 打开即聚焦（要在点击这一下的调用栈里，iOS 才肯弹键盘）；选照片进来时不聚焦，免得键盘盖住照片格
     if(!S.cmp.lib&&!S.cmp.sh){const t=$('[data-ctext]');if(t)try{t.focus({preventScroll:true})}catch(e){}}
     // 照片最重，等卡片到位后再放进已经留好的格子里
