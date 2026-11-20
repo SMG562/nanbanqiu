@@ -65,6 +65,11 @@ const SB_DRAFT_KEY='nbq_sb_draft';
 const sbPhDraftGet=uid=>{const d=sbLS(SB_DRAFT_KEY);if(!d)return null;if(!uid||d.u!==uid||!(Date.now()-d.at<864e5)){sbLS(SB_DRAFT_KEY,null);return null}return d};
 const sbPhDraftSet=(uid,d)=>{if(uid)sbLS(SB_DRAFT_KEY,{...d,u:uid,at:Date.now()})};
 const sbPhDraftClear=()=>sbLS(SB_DRAFT_KEY,null);
+// 发布页 C → 草稿内容：只收已传成功且带缩略图的图（键 + 宽高 + 小图 data URL）；文字 / 图都没有 = null（调用方据此清草稿）。判断覆盖 text 与 ups（旧演示图 pics 不进真实草稿）
+const sbPhDraftOf=C=>{const ups=((C&&C.ups)||[]).filter(u=>u.st==='ok'&&u.name&&u.th).slice(0,3).map(u=>({name:u.name,w:u.w,h:u.h,th:u.th})),text=(C&&C.text)||'';
+  return !text.trim()&&!ups.length?null:{text,tone:C.tone||'',topic:C.topic||null,loc:C.loc||null,ups}};
+// 小图 → data URL（草稿恢复时直接当缩略图用，不依赖网络）
+const sbPhThumb=b=>new Promise(ok=>{try{const r=new FileReader();r.onload=()=>ok(String(r.result||''));r.onerror=()=>ok('');r.readAsDataURL(b)}catch(e){ok('')}});
 // 剥掉画布导出的 JPEG 里的元数据段：iOS 的画布编码器会自带 APP1（EXIF：尺寸 / 色彩）和 APP2（ICC，常有 0.5–3KB，会把 4KB 的极小图撑爆），
 //   服务端对任何 APP1 都拒（photo_exif，二道防线），所以导出后必须在客户端剥干净：留 APP0 与图像数据，丢 APP1–APP15 和注释。只处理到 SOS 之前的段，之后的图像数据原样拷贝。
 const sbPhStrip=u=>{if(u.length<4||u[0]!==0xFF||u[1]!==0xD8)return u;const out=[u.subarray(0,2)];let i=2;

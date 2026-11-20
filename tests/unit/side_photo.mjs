@@ -8,7 +8,7 @@ const store = {}, sbLS = (k, v) => { if (v === undefined) return store[k] ?? nul
 let now = 1e12;
 const { checkJpeg } = await import(path.join(DIR, 'server/api/photo_jpeg.mjs')), { seg, asc, jpeg } = await import(path.join(HERE, '..', 'lib', 'jpeg_sample.mjs'));
 const ctx = vm.createContext({ sbLS, Date: { now: () => now }, Promise, setTimeout, clearTimeout, AbortController, Math, Array, Object, Error, Uint8Array });
-vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear,sbPhStrip}', ctx);
+vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear,sbPhDraftOf,sbPhStrip}', ctx);
 const X = ctx.__x, code = async p => { try { await p; return null } catch (e) { return e.code } };
 T('文件在空沙盒里能载入，两端都拼进去了', !!X.sbPhQueue && ['pwa', 'web'].every(e => rd(`src/${e}.list`).includes('shared/side/0068-照片管线.js')));
 
@@ -101,6 +101,11 @@ X.sbPhDraftSet('u1', { text: 'x', keys: [] }); now += 25 * 36e5;
 T('草稿：超过 24 小时作废', X.sbPhDraftGet('u1') === null);
 X.sbPhDraftSet('u1', { text: 'x', keys: [] }); X.sbPhDraftClear();
 T('草稿：发布 / 取消后清掉', X.sbPhDraftGet('u1') === null);
+const ok1 = { st: 'ok', name: 'k1', w: 9, h: 8, th: 'data:image/jpeg;base64,AA' };
+T('草稿内容：只收已传成功且带缩略图的图', (d => d && d.ups.length === 1 && d.ups[0].name === 'k1' && d.text === '')(X.sbPhDraftOf({ text: '', ups: [ok1, { st: 'up', name: 'k2', th: 'x' }, { st: 'ok', name: 'k3' }] })));
+T('草稿内容：只有文字也留', (d => d && d.text === '你好' && d.ups.length === 0)(X.sbPhDraftOf({ text: '你好', ups: [] })));
+T('草稿内容：文字 / 图都没有 = null（调用方清草稿）', X.sbPhDraftOf({ text: '  ', ups: [{ st: 'up', name: 'k2' }] }) === null && X.sbPhDraftOf({ text: '', ups: [] }) === null);
+T('草稿内容：最多 3 张，带上色调', (d => d.ups.length === 3 && d.tone === 'warm')(X.sbPhDraftOf({ text: '', tone: 'warm', ups: [ok1, ok1, ok1, ok1] })));
 X.sbPhDraftSet('', { text: 'x' }); T('草稿：没有账号 id 不写', Object.keys(store).length === 0);
 
 // ---- 上传适配 sbPhPutMake：变体名映射、成功 / 失败形状、与队列配合 ----
