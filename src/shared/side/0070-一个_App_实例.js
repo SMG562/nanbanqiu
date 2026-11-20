@@ -679,11 +679,12 @@ function App(el,init){
     S.A=all.filter(p=>!inL.has(String(p.id))&&!S.gone.has(String(p.id))).map(p=>{const x=sbFromPost(p,c);x.mine=true;x.album=1;if(p.status==='hidden')x.hid=1;return x});
     if(S.album)drawAlbum()};
   // 图片地址只有 15–30 分钟有效（#488）：页面久放后再画 / 懒加载才请求的图会 410。图出错 → 读这一条（/posts/:id 带新签名地址）→ 把页面里这条的图地址换成新的，让浏览器重试；同一条 2 分钟内只读一次（失败也不循环）
-  const phFix=async img=>{const n=img.closest('[data-ln],[data-pic]');if(!n)return;const id=n.dataset.ln||n.dataset.pic,x=find(id),net=rlNet();
+  const phFix=async img=>{const n=img.closest('[data-ln],[data-pic]'),vw=img.closest('.viewer');const id=n?n.dataset.ln||n.dataset.pic:vw&&S.view;if(!id)return;const x=find(id),net=rlNet();
     if(!x||x.tmp||!x.pics||!net)return;const F=S.phFix||(S.phFix={}),now=Date.now();if(now-(F[id]||0)<12e4)return;F[id]=now;
     const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||!rlNet()||!r.data.post)return;
     const f=sbFromPost(r.data.post,rlCtx(r.data.profiles||{})),m=[];if(!f.pics)return;
     x.pics.forEach((p,i)=>{const q=f.pics[i];if(q)['t','u','b'].forEach(k=>{if(p[k]&&q[k]&&p[k]!==q[k])m.push([p[k],q[k]]);if(q[k])p[k]=q[k]})});
+    if(vw&&String(S.view)===String(id)){const cs=[...el.querySelectorAll('.viewer .img>div')];cs.forEach((c,i)=>{if(x.pics[i])c.innerHTML=PIC(x.pics[i],'full',x.tone)})}  // 大图弹层：按已更新的 x.pics 整格重画（读回前别处可能已换过地址，不能只靠新旧对照）
     const sw=s=>s&&m.reduce((a,[o,v])=>a.split(o).join(v),s);
     [...el.querySelectorAll('[data-ln],[data-pic]')].filter(c=>(c.dataset.ln||c.dataset.pic)===id).forEach(c=>c.querySelectorAll('img').forEach(i=>{['src','srcset'].forEach(k=>{const a=i.getAttribute(k),b=sw(a);if(a&&b!==a)i.setAttribute(k,b)})}))};
   el.addEventListener('load',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.classList.contains('mi'))i.classList.add('ld')},true);
