@@ -53,6 +53,14 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
   await q(`r=>{r.querySelector('.compose [data-gohome]').click()}`); await W(700);
   T('没草稿：不弹确认，直接回主页', dialogs.length === 0 && (await cls()).length === 0, { dialogs, c: await cls() });
 
+  // 真实模式只选了照片（在 C.ups、没写字）：也算草稿，要确认；确认后走 phDrop 清理
+  await tapBox(); dialogs = []; accept = false;
+  await E(() => { SBV.cmp.text = ''; SBV.cmp.ups = SBV.cmp.ups || []; SBV.cmp.ups.push({ id: 'x1', url: 'blob:fake' }) }); await W(100);
+  await q(`r=>{r.querySelector('.compose [data-gohome]').click()}`); await W(500);
+  T('只有照片（ups）：也弹确认，取消仍留在发布页', dialogs.length === 1 && (await cls()).includes('composing'), { dialogs, c: await cls() });
+  accept = true; await q(`r=>{r.querySelector('.compose [data-gohome]').click()}`); await W(700);
+  T('只有照片（ups）：确认 → 回主页', (await cls()).length === 0 && dialogs.length === 2, { dialogs, c: await cls() });
+
   // 键盘：Tab 聚焦标题，Enter 触发
   await q(`r=>{r.querySelector('[data-ln]').click()}`); await W(700);
   await q(`r=>{r.querySelector('.hd h3[data-gohome]').focus()}`);

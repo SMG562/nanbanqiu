@@ -407,9 +407,9 @@ function App(el,init){
     if(x)track('sb_post_view',{post_id:x.id,own:!!x.mine,via:via||(S.album?'album':S.court?'court':S.wall||(S.f&&S.f.k==='topic')?'topic':'feed')})};
   const shut=()=>{S.open=null;el.classList.remove('acting');state()};
   // 左上「场边」：任何一层一点就回主页（收掉所有盖着的层、清筛选）；发布页有没发出的内容先确认（#460 第 1 步）
-  const goHome=()=>{const C=S.cmp;if(C&&((C.text||'').trim()||C.pics.length)&&!window.confirm('发布页还有没发出的内容，回主页会丢掉。要回去吗？'))return false;
+  const goHome=()=>{const C=S.cmp;if(C&&((C.text||'').trim()||C.pics.length||(C.ups&&C.ups.length))&&!window.confirm('发布页还有没发出的内容，回主页会丢掉。要回去吗？'))return false;
     const a=el.getRootNode&&el.getRootNode().activeElement;if(a&&a.blur)a.blur();
-    S.cmp=null;S.view=null;S.open=null;S.court=null;S.cpend=null;S.wall=null;S.wpend=null;S.album=false;S.share=null;S.shTopic=null;S.rto=null;el.classList.remove('acting');
+    clearTimeout(S.libT);phDrop(S.cmp);S.cmp=null;S.view=null;S.open=null;S.court=null;S.cpend=null;S.wall=null;S.wpend=null;S.album=false;S.share=null;S.shTopic=null;S.rto=null;el.classList.remove('acting');
     if(S.f||S.mineOnly){S.mineOnly=false;setF(null)}else{state();if(desk)drawRail()}
     drawHome();sc.scrollTop=0;return true};
   // 帖子卡片：手机上可以从顶部条往下拖，或内容已经在最上面时往下拉关闭（跟手；松手超过 110px 或甩得够快就收起，否则弹回）
