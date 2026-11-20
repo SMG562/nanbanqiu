@@ -70,7 +70,7 @@ permissions:
 
 concurrency:                    # 同一分支 / 同一 PR 连续推送时，只跑最新的那次
   group: tests-${{ github.event_name == 'pull_request' && format('pr{0}', github.event.pull_request.number) || github.ref }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'x' }}   # 手动触发各自独立，不互相取消
-  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main') }}   # main 上每个合并提交都要有自己完整的一轮，不被下一次合并顶掉（#480）
 
 jobs:
   reuse:                 # 推到 main 时：同一提交已通过 → 下面的 test 跳过（跳过 = 本次运行仍是 success，上线闸门认它）
