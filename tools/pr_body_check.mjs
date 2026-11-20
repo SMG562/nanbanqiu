@@ -5,7 +5,7 @@ import { execFileSync } from 'child_process'; import { fileURLToPath } from 'url
 const CODE = /^(src\/|server\/|schema\.sql|sw\.js|worker\/)/;
 const ticked = (b, re) => new RegExp(`- \\[[xX]\\][^\\n]*${re}`).test(b);
 const has = (b, re) => new RegExp(`- \\[[ xX]\\][^\\n]*${re}`).test(b);
-export function checkBody(body, files, { merge = false } = {}) {
+export function checkBody(body, files, { merge = false, created = '' } = {}) {
   const b = body || '', bad = [], code = (files || []).some(f => CODE.test(f)), front = (files || []).some(f => /^src\//.test(f));
   if (code) {
     const sec = /入口清单[^\n]*\n([\s\S]*?)(?=\n#{1,3} |\n## |$)/.exec(b), txt = sec ? sec[1] : '';
@@ -25,6 +25,8 @@ export function checkBody(body, files, { merge = false } = {}) {
     const synced = (/已同步到电脑[:：]([^\n]*)/.exec(b) || [])[1] || '';
     const miss = need.filter(f => !synced.includes(f));
     if (miss.length) bad.push(`「你来做」用到本 PR 才有的文件，没写「已同步到电脑」：${miss.join('、')}（先 bash tools/sync_files.sh --branch=<分支> ${miss.join(' ')}，写到电脑并 sync_verify.sh --branch 回读核对）`) }
+  // 11-20（#465 D）：前台 + 较大风险 → 要写「真机怎么测：点哪几下、期望看到什么」（≥ 8 个字）；只管 11-22 起开的 PR，在途的不卡
+  if (front && ticked(b, '较大风险') && Date.parse(created) >= Date.parse('2026-11-22T00:00:00Z') && !/真机怎么测\s*[:：]\s*\S[^\n]{7,}/.test(b)) bad.push('缺「真机怎么测：点哪几下、期望看到什么」一行（较大风险的前台改动，所有者按它在预览站测，不用猜）');
   if (!ticked(b, '(较大风险|小修小补)')) bad.push('风险类别没勾（较大风险 / 小修小补）');
   if (merge) {
     if (ticked(b, '较大风险') && has(b, '刷新后还在') && !ticked(b, '刷新后还在')) bad.push('真机项「刷新后还在」没勾');
@@ -39,7 +41,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   if (!n) { console.error('用法：node tools/pr_body_check.mjs <PR号> [--merge]'); process.exit(2) }
   const gh = a => JSON.parse(execFileSync('gh', ['api', ...a], { encoding: 'utf8', maxBuffer: 1 << 26 }));
   const pr = gh([`repos/${R}/pulls/${n}`]), files = gh(['--paginate', `repos/${R}/pulls/${n}/files?per_page=100`]).map(f => f.filename);
-  const bad = checkBody(pr.body, files, { merge });
+  const bad = checkBody(pr.body, files, { merge, created: pr.created_at });
   bad.forEach(x => console.log('❌ ' + x)); if (!bad.length) console.log('✅ PR 描述核对通过' + (merge ? '（含真机项）' : ''));
   process.exit(bad.length ? 1 : 0);
 }

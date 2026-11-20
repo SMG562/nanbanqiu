@@ -65,11 +65,20 @@ const SB_DRAFT_KEY='nbq_sb_draft';
 const sbPhDraftGet=uid=>{const d=sbLS(SB_DRAFT_KEY);if(!d)return null;if(!uid||d.u!==uid||!(Date.now()-d.at<864e5)){sbLS(SB_DRAFT_KEY,null);return null}return d};
 const sbPhDraftSet=(uid,d)=>{if(uid)sbLS(SB_DRAFT_KEY,{...d,u:uid,at:Date.now()})};
 const sbPhDraftClear=()=>sbLS(SB_DRAFT_KEY,null);
+// 剥掉画布导出的 JPEG 里的元数据段：iOS 的画布编码器会自带 APP1（EXIF：尺寸 / 色彩）和 APP2（ICC，常有 0.5–3KB，会把 4KB 的极小图撑爆），
+//   服务端对任何 APP1 都拒（photo_exif，二道防线），所以导出后必须在客户端剥干净：留 APP0 与图像数据，丢 APP1–APP15 和注释。只处理到 SOS 之前的段，之后的图像数据原样拷贝。
+const sbPhStrip=u=>{if(u.length<4||u[0]!==0xFF||u[1]!==0xD8)return u;const out=[u.subarray(0,2)];let i=2;
+  while(i+4<=u.length){if(u[i]!==0xFF)return u;const m=u[i+1];if(m===0xFF){i++;continue}
+    if(m===0xDA||m===0xD9){out.push(u.subarray(i));break}
+    const L=(u[i+2]<<8)|u[i+3];if(L<2||i+2+L>u.length)return u;
+    if(!((m>=0xE1&&m<=0xEF)||m===0xFE))out.push(u.subarray(i,i+2+L));i+=2+L}
+  const n=out.reduce((a,x)=>a+x.length,0),r=new Uint8Array(n);let o=0;for(const x of out){r.set(x,o);o+=x.length}return r};
 // ---- 浏览器环境（真实画布）：iOS 画布有像素上限，用完立刻释放（宽高置 0）----
 const sbPhEnv=()=>({
   bitmap:(f,d)=>createImageBitmap(f,Object.assign({imageOrientation:'from-image'},d?{resizeWidth:d.w,resizeHeight:d.h,resizeQuality:'high'}:{})),
   img:f=>new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no(new Error('img'))};i.src=u}),
   enc:(src,w,h,q)=>new Promise((ok,no)=>{const cv=document.createElement('canvas');cv.width=w;cv.height=h;const c=cv.getContext('2d');
     c.fillStyle='#fff';c.fillRect(0,0,w,h);c.imageSmoothingQuality='high';c.drawImage(src,0,0,w,h);   // 先铺白底：透明 PNG 不变黑
-    cv.toBlob(b=>b?ok({blob:b,cv}):no(sbPhErr('photo_decode')),'image/jpeg',q)}),
+    cv.toBlob(async b=>{if(!b)return no(sbPhErr('photo_decode'));
+      try{ok({blob:new Blob([sbPhStrip(new Uint8Array(await b.arrayBuffer()))],{type:'image/jpeg'}),cv})}catch(e){no(sbPhErr('photo_decode'))}},'image/jpeg',q)}),
   free:s=>{if(!s)return;if(s.close)s.close();else if(s.getContext){s.width=0;s.height=0}}});
