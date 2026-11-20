@@ -275,6 +275,13 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     S.freshPh = false; S.phGets = []; S.detailGets = 0; await open();
     T('#488 读回的还是旧地址（服务端没换新）：这条 2 分钟内只读一次，不循环', S.detailGets <= 1 && S.phGets.length <= 4, { dg: S.detailGets, gets: S.phGets });
     S.phMock = false; S.freshPh = false; }
+  // ---- #488 我的相册 3 列方格：用缩略档（srcset+sizes）+ 懒加载，不再拿 1.5MB 原图画一百多像素的格子 ----
+  { const mine = i => ({ id: 'e1e1e1e1-0000-4000-8000-0000000003' + String(i).padStart(2, '0'), user_id: ME, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: true, status: 'visible', publish_at: new Date(Date.now() - (i + 40) * 36e5).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/m${i}-t?x=1`, url: `/api/sideline/photo/u9/m${i}-f?x=1`, b: `/api/sideline/photo/u9/m${i}-b?x=1` }] });
+    S.posts = []; S.mine = [0, 1, 2, 3].map(mine); await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+    S.log.length = 0; await E(() => SBV.api.album()); await until(() => S.log.includes('GET /api/sideline/mine')); await pg.settle(1000);
+    const al = await SRQ('.album', "[...r.querySelectorAll('.at img')].map(i => ({ ss: i.getAttribute('srcset'), sz: i.getAttribute('sizes'), lz: i.getAttribute('loading'), w: i.getBoundingClientRect().width, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc }))");
+    T('#488 相册方格：4 张都带 srcset（t 720w + u 1200w）+ sizes + loading=lazy', al.length === 4 && al.every(x => /m\d-t\?x=1 720w, \S+m\d-f\?x=1 1200w/.test(x.ss || '') && x.sz === 'min(240px,calc((100vw - 34px)/3))' && x.lz === 'lazy'), al);
+    T('#488 相册方格：sizes 不低估渲染宽（≤ (视口−34)/3 + 0.5）；DPR 1 选缩略档', al.length === 4 && al.every(x => x.w > 50 && x.w <= (x.vw - 34) / 3 + 0.5 && (x.dpr !== 1 || /-t\?/.test(x.cur))), al); }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
