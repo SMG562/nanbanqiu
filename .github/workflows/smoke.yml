@@ -1,5 +1,6 @@
 # 南伴球 · 上线后冒烟测试（11-03）：推送到 main 后等线上换成这一版，再检查接口和手机端 / 网页端能不能正常打开。
 #   也每 6 小时跑一次（不等版本），线上出问题能尽早发现。结果在 Actions 页面；失败会让这一项变红。
+#   L3 外部探测（#50，11-20）：另有每 5 分钟的 probe 任务（只用 curl，不依赖线上系统自己报警）；失败 = 这次运行变红，GitHub 会通知触发者（邮件 / 手机端 GitHub App）。
 name: smoke
 on:
   push:
@@ -7,12 +8,30 @@ on:
     paths: ['src/**', '**.html', 'sw.js', 'functions/**', 'server/**', 'tools/site.mjs', 'tools/smoke_prod.mjs']
   schedule:
     - cron: '0 */6 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 concurrency:
-  group: smoke-${{ github.event_name }}-${{ github.ref }}
+  group: smoke-${{ github.event_name }}-${{ github.event.schedule }}-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
+  probe:
+    # 每 5 分钟：/version.json、/api/version（发送程序心跳 ≤ 5 分钟）、只读业务接口 /api/venues。每项失败重试一次再判红
+    if: github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: 探测正式站
+        run: |
+          fail=0
+          get() { for _ in 1 2; do code=$(curl -s -m 15 -o /tmp/b -w '%{http_code}' -H 'Cache-Control: no-cache' "https://nanbanqiu.app$1?_=$RANDOM") && [ "$code" = 200 ] && return 0; sleep 5; done; return 1; }
+          get /version.json && grep -q '"sha"' /tmp/b && echo "✅ /version.json $(grep -o '"sha":"[^"]*"' /tmp/b)" || { echo "❌ /version.json（$code）"; fail=1; }
+          if get /api/version; then age=$(grep -oE '"heartbeat_age_s":[0-9]+' /tmp/b | grep -oE '[0-9]+$'); { [ -n "$age" ] && [ "$age" -le 300 ]; } && echo "✅ /api/version 发送程序心跳 ${age}s 前" || { echo "❌ 发送程序心跳 ${age:-无}s（要求 ≤ 300）"; fail=1; }; else echo "❌ /api/version（$code）"; fail=1; fi
+          get /api/venues && echo "✅ /api/venues 200" || { echo "❌ /api/venues（$code）"; fail=1; }
+          exit $fail
   smoke:
+    if: github.event.schedule != '*/5 * * * *'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
