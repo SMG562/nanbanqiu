@@ -230,6 +230,18 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('打字时：版面不动（输入框 / 照片格 / 相机框位置尺寸不变）、键盘上方没有固定的工具条、输入框完整可见', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "(() => { const t = r.querySelector('[data-ctext]').getBoundingClientRect(); return r.classList.contains('cmp-ty') && !r.querySelector('.cbot') && getComputedStyle(r.querySelector('.ctool')).position !== 'fixed' && t.height >= 100 && t.bottom <= innerHeight })()"));
   await sr('[data-ctext]').evaluate(e => e.blur()); await pg.settle(300);
   T('失焦后：版面仍不动', (await SRQ('.compose', LAY)) === lay0 && await SRQ('.compose', "!r.classList.contains('cmp-ty')"));
+  // ---- #393 P4c：长按拖动换图片顺序，第一张 = 封面；短按移动 = 滚动，不换 ----
+  await pg.setInputFiles('#sbHost >> [data-cfile]', [{ name: 'b.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.settle(3000);
+  const IDS = "[...r.querySelectorAll('.ph1[data-u]')].map(n => n.dataset.u).join()", BOX = i => SRQ('.compose', `(() => { const b = r.querySelectorAll('.ph1[data-u]')[${i}].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2] })()`);
+  const ids0 = await SRQ('.compose', IDS), c0 = await BOX(0), c1 = await BOX(1);
+  T('P4c：两张图时第一张有「封面」标记、第二张没有', await SRQ('.compose', "r.querySelectorAll('.ph1.cov').length === 1 && r.querySelector('.ph1[data-u]').classList.contains('cov')"), ids0);
+  await pg.mouse.move(c0[0], c0[1]); await pg.mouse.down(); await pg.mouse.move(c0[0] + 20, c0[1], { steps: 3 }); await pg.mouse.up(); await pg.settle(300);
+  T('P4c：没长按就移动（= 滚动）不换位置', (await SRQ('.compose', IDS)) === ids0);
+  await pg.mouse.move(c0[0], c0[1]); await pg.mouse.down(); await pg.waitForTimeout(480); await pg.mouse.move(c1[0], c1[1], { steps: 6 }); await pg.mouse.up(); await pg.settle(300);
+  const ids1 = await SRQ('.compose', IDS);
+  T('P4c：长按第一张拖到第二张 = 两张换位，封面跟着换，没有残留拖动样式', ids1 === ids0.split(',').reverse().join() && await SRQ('.compose', "r.querySelectorAll('.ph1.cov').length === 1 && r.querySelector('.ph1[data-u]').dataset.u === '" + ids0.split(',')[1] + "' && !r.querySelector('.ph1.drag')"), [ids0, ids1]);
+  await sr('.ph1[data-u] >> nth=1').locator('[data-pu]').click(); await pg.settle(300);
+  T('P4c：移除一张后只剩一张、封面标记消失', await SRQ('.compose', "r.querySelectorAll('.ph1[data-u]').length === 1 && !r.querySelector('.ph1.cov')"));
   T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
   await sr('[data-cgo]').click(); await pg.settle(1500);   // 真实点击：again() 里的二次 click 在 element.click() 期间会被浏览器忽略
   const pb = S.bodies['POST /api/sideline/posts'];
