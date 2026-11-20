@@ -38,6 +38,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     if (p.startsWith('/api/sideline/') && m !== 'GET') { const k = m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [P1]: 'P1', [P2]: 'P2', [P3]: 'P3', [P4]: 'P4', [P5]: 'P5' })[x] || x); S.log.push(k); S.bodies[k] = body; (S.idk[k] ||= []).push(r.request().headers()['idempotency-key'] || null) }
     if (m === 'GET') {
       if (p === '/api/venues') return J(r, 200, { venues: VENUES });
+      if (p === '/api/switches') return J(r, 200, { switches: { photos_paused: !!S.paused } });
       if (S.phMock && p.startsWith('/api/sideline/photo/')) { if (S.phDelay) await new Promise(q => setTimeout(q, S.phDelay)); const old = u.searchParams.get('x') === 'old'; (S.phGets ||= []).push(p.split('/').pop() + '?x=' + u.searchParams.get('x') + ' ' + (old ? 410 : 200)); return old ? J(r, 410, { error: 'photo_expired' }) : r.fulfill({ status: 200, contentType: 'image/jpeg', body: S.jpg }) }
       if (p === '/api/me') return J(r, 200, { registered: true, user: S.me });
       if (p === '/api/games') return J(r, 200, { games: [] });
@@ -217,6 +218,11 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   // ---- #393 P4b：发布页真选图 → 压缩 → 上传 → 发布带 photos（开关 NBQ_SB_PHOTO_POST）----
     await E(() => { window.NBQ_SB_PHOTO_POST = true }); await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(800);
   T('P4b：发布页有选图入口（隐藏的文件框 + 正文下的「照片」按钮；没图时不画大加号框）', await SRQ('.compose', "!!r.querySelector('[data-cfile]') && !!r.querySelector('.ctool [data-lib]') && !r.querySelector('.phadd')"));
+  // #492 第5项：停传照片（photos_paused）= 发布页不画相机按钮 / 「＋」；关掉后恢复；读不到开关不误藏
+  S.paused = true; await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(900);
+  T('#492 photos_paused 开：发布页没有相机按钮、没有「＋」，文字框还在', await SRQ('.compose', "!r.querySelector('[data-lib]') && !r.querySelector('.phadd') && !!r.querySelector('[data-ctext]')"));
+  S.paused = false; await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(900);
+  T('#492 photos_paused 关：相机按钮回来', await SRQ('.compose', "!!r.querySelector('.ctool [data-lib]')"));
   const jpg = Buffer.from(await E(() => { const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'); g.fillStyle = '#c60'; g.fillRect(0, 0, 600, 400); return c.toDataURL('image/jpeg', .9).split(',')[1] }), 'base64');
   S.failPost = null; S.putN = 0; S.log.length = 0;
   await SRQ('.compose', "(window.__phRm = [], new MutationObserver(m => m.forEach(x => x.removedNodes.forEach(n => n.classList && n.classList.contains('ph1') && window.__phRm.push(n.dataset.u)))).observe(r.querySelector('.phs'), { childList: true }), 1)");
@@ -235,12 +241,15 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await pg.setInputFiles('#sbHost >> [data-cfile]', [{ name: 'b.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.settle(3000);
   const IDS = "[...r.querySelectorAll('.ph1[data-u]')].map(n => n.dataset.u).join()", BOX = i => SRQ('.compose', `(() => { const b = r.querySelectorAll('.ph1[data-u]')[${i}].getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2] })()`);
   const ids0 = await SRQ('.compose', IDS), c0 = await BOX(0), c1 = await BOX(1);
+  const DN = () => pg.evaluate(() => { try { return JSON.parse(localStorage.getItem('nbq_sb_draft')).ups.map(x => x.name).join() } catch (e) { return null } }); const dn0 = await DN();
   T('P4c：两张图时第一张有「封面」标记、第二张没有', await SRQ('.compose', "r.querySelectorAll('.ph1.cov').length === 1 && r.querySelector('.ph1[data-u]').classList.contains('cov')"), ids0);
   await pg.mouse.move(c0[0], c0[1]); await pg.mouse.down(); await pg.mouse.move(c0[0] + 20, c0[1], { steps: 3 }); await pg.mouse.up(); await pg.settle(300);
   T('P4c：没长按就移动（= 滚动）不换位置', (await SRQ('.compose', IDS)) === ids0);
   await pg.mouse.move(c0[0], c0[1]); await pg.mouse.down(); await pg.waitForTimeout(480); await pg.mouse.move(c1[0], c1[1], { steps: 6 }); await pg.mouse.up(); await pg.settle(300);
   const ids1 = await SRQ('.compose', IDS);
   T('P4c：长按第一张拖到第二张 = 两张换位，封面跟着换，没有残留拖动样式', ids1 === ids0.split(',').reverse().join() && await SRQ('.compose', "r.querySelectorAll('.ph1.cov').length === 1 && r.querySelector('.ph1[data-u]').dataset.u === '" + ids0.split(',')[1] + "' && !r.querySelector('.ph1.drag')"), [ids0, ids1]);
+  const dn1 = await DN();
+  T('P4c 二期：拖动换位后草稿也按新顺序存（杀页重进恢复的顺序 = 拖后的顺序）', !!dn0 && dn0.split(',').length === 2 && dn1 === dn0.split(',').reverse().join(), [dn0, dn1]);
   await sr('.ph1[data-u] >> nth=1').locator('[data-pu]').click(); await pg.settle(300);
   T('P4c：移除一张后只剩一张、封面标记消失', await SRQ('.compose', "r.querySelectorAll('.ph1[data-u]').length === 1 && !r.querySelector('.ph1.cov')"));
   T('P4b：只有图、没写字也能点发布', await SRQ('.compose', "r.querySelector('[data-cgo]').textContent === '发布'"));
@@ -312,6 +321,18 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     const v = await pg.evaluate(() => { const i = document.querySelector('#sbHost').shadowRoot.querySelector('.viewer .img img'); return i && { s: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0 } });
     T('#492 ② 大图弹层图 410：读新地址重画，src 换新且图显示出来', before && v && /x=new/.test(v.s) && v.ok && S.detailGets === 1 && S.phGets.some(x => /v1-f\?x=old 410/.test(x)), { before, v, dg: S.detailGets, gets: S.phGets });
     S.phMock = false; S.freshPh = false; }
+  // ---- #492 ③ 话题照片墙方格 / 相册「公开中」胶囊缩略：只拿缩略档（srcset+sizes），方格首屏外懒加载；不带氛围底 / 相框 ----
+  { const mk = (i, mine) => ({ id: 'e1e1e1e1-0000-4000-8000-0000000006' + String(i).padStart(2, '0'), user_id: mine ? ME : JAY, city: 'melb', body: '', topic_id: 'brain', floor: 40 + i, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: !!mine, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/g${i}-t?x=1`, url: `/api/sideline/photo/u9/g${i}-f?x=1`, b: `/api/sideline/photo/u9/g${i}-b?x=1` }] });
+    S.jpg = jpg; S.phMock = true; S.posts = [0, 1, 2, 3, 4, 5].map(i => mk(i, i === 0)); S.mine = [];
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-topic="brain"]').click()); await pg.settle(1200);
+    const gd = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('.itg .wt img.mi')].map(i => ({ ss: i.getAttribute('srcset'), sz: i.getAttribute('sizes'), lz: i.getAttribute('loading'), am: !!i.parentElement.querySelector('.amb'), w: i.getBoundingClientRect().width, vw: innerWidth })));
+    T('#492 ③ 话题方格：6 张都带 srcset（t 720w + u 1200w）+ sizes；第 5 张起懒加载；无氛围底', gd.length === 6 && gd.every(x => /g\d-t\?x=1 720w, \S+g\d-f\?x=1 1200w/.test(x.ss || '') && x.sz && !x.am) && gd.slice(0, 4).every(x => x.lz !== 'lazy') && gd.slice(4).every(x => x.lz === 'lazy'), gd);
+    T('#492 ③ 话题方格：sizes 不低估渲染宽（渲染宽 ≤ min(338,(视口−36)/2) + 0.5）', gd.length === 6 && gd.every(x => x.w > 50 && x.w <= Math.min(338, (x.vw - 36) / 2) + 0.5), gd);
+    await E(() => SBV.api.album()); await pg.settle(1200);
+    const cp = await pg.evaluate(() => { const i = document.querySelector('#sbHost').shadowRoot.querySelector('.album .pend .th img'); return i && { ss: i.getAttribute('srcset'), sz: i.getAttribute('sizes'), am: !!i.parentElement.querySelector('.amb') } });
+    T('#492 ③ 相册胶囊缩略：srcset + sizes=48px，不带氛围底', cp && /g0-t\?x=1 720w/.test(cp.ss || '') && cp.sz === '48px' && !cp.am, cp);
+    S.phMock = false; S.mine = []; }
   // ---- #488 我的相册 3 列方格：用缩略档（srcset+sizes）+ 懒加载，不再拿 1.5MB 原图画一百多像素的格子 ----
   { const mine = i => ({ id: 'e1e1e1e1-0000-4000-8000-0000000003' + String(i).padStart(2, '0'), user_id: ME, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: true, status: 'visible', publish_at: new Date(Date.now() - (i + 40) * 36e5).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/m${i}-t?x=1`, url: `/api/sideline/photo/u9/m${i}-f?x=1`, b: `/api/sideline/photo/u9/m${i}-b?x=1` }] });
     S.posts = []; S.mine = [0, 1, 2, 3].map(mine); await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);

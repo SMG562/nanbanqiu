@@ -34,6 +34,13 @@ try {
   r = await call('GET', '/api/version'); T('version：没有发送程序心跳时也 200，版本为空', r.s === 200 && r.j.sender.version === null && r.j.sender.heartbeat_age_s === null, r);
   await admin.query(`insert into ops_heartbeats(name, at) values ('sender', now() - interval '20 seconds'), ('sender@abc123def0', now() - interval '20 seconds') on conflict (name) do update set at = excluded.at`);
   r = await call('GET', '/api/version'); T('version：读到心跳里的代码指纹和心跳年龄，不需要登录', r.s === 200 && r.j.sender.version === 'abc123def0' && r.j.sender.heartbeat_age_s >= 19 && r.j.sender.heartbeat_age_s < 60, r);
+  r = await call('GET', '/api/health?db=1&sender=1'); T('health?sender=1：心跳 20 秒前 → 200、带心跳年龄', r.s === 200 && r.j.ok === true && r.j.sender.heartbeat_age_s >= 19 && r.j.sender.heartbeat_age_s < 60, r);
+  await admin.query(`update ops_heartbeats set at = now() - interval '301 seconds' where name = 'sender'`);
+  r = await call('GET', '/api/health?db=1&sender=1'); T('health?sender=1：心跳超过 300 秒 → 503、why sender_stale', r.s === 503 && r.j.why === 'sender_stale' && r.j.sender.heartbeat_age_s >= 301, r);
+  r = await call('GET', '/api/health?db=1'); T('不带 sender=1：心跳再旧也不影响（接口只加不改）', r.s === 200 && r.j.sender === undefined, r);
+  await admin.query(`delete from ops_heartbeats where name = 'sender'`);
+  r = await call('GET', '/api/health?sender=1'); T('health?sender=1：从没写过心跳 → 503、年龄 null', r.s === 503 && r.j.why === 'sender_stale' && r.j.sender.heartbeat_age_s === null, r);
+  await admin.query(`insert into ops_heartbeats(name, at) values ('sender', now() - interval '20 seconds') on conflict (name) do update set at = excluded.at`);
   { const post = async (body, ip) => { const x = await handleApi(new Request('https://x.test/api/client-errors', { method: 'POST', headers: { 'cf-connecting-ip': ip || '1.1.1.1' }, body: typeof body === 'string' ? body : JSON.stringify(body) }), deps); return x.status };
     const rows = async () => (await admin.query(`select build, device, msg, src, line, n from client_errors order by msg`)).rows;
     T('页面报错：204，记进 client_errors', await post({ build: 'web', device: 'mobile', msg: 'TypeError: x', src: 'a.js', line: 7 }) === 204 && (await rows()).some(r => r.msg === 'TypeError: x' && r.build === 'web' && r.device === 'mobile' && r.line === 7));
