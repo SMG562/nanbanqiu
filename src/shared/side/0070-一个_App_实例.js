@@ -219,13 +219,13 @@ function App(el,init){
       try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts);sbPhThumb(r.parts.t).then(th=>{if(th&&C.ups.includes(u)){u.th=th;phDraftSave(C)}})}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
   // 拖拽排序（P4c）：长按某张图 0.35 秒后在图之间拖动换位，第一张 = 封面；没长按就动 = 横向滚动（不抢滚动）
-  let PG=null;const pgEnd=()=>{if(!PG)return;clearTimeout(PG.t);PG.n.classList.remove('drag');PG=null};
+  let PG=null;const pgEnd=()=>{if(!PG)return;clearTimeout(PG.t);if(PG.mv)phDraftSave(S.cmp);PG.n.classList.remove('drag');PG=null};
   el.addEventListener('pointerdown',e=>{const n=e.target.closest&&e.target.closest('.compose .ph1[data-u]');if(!n||e.target.closest('button')||!S.cmp||S.cmp.ups.length<2)return;pgEnd();
     PG={n,id:n.dataset.u,x:e.clientX,y:e.clientY,on:0,pid:e.pointerId,t:setTimeout(()=>{if(!PG||PG.n!==n)return;PG.on=1;n.classList.add('drag');try{n.setPointerCapture(PG.pid)}catch(_){}if(navigator.vibrate)try{navigator.vibrate(8)}catch(_){}},350)}});
   el.addEventListener('pointermove',e=>{if(!PG)return;if(!PG.on){if(Math.hypot(e.clientX-PG.x,e.clientY-PG.y)>10)pgEnd();return}
     const C=S.cmp;if(!C)return pgEnd();const from=C.ups.findIndex(u=>u.id===PG.id);let to=from;
     PG.n.parentNode.querySelectorAll('.ph1[data-u]').forEach(m=>{if(m===PG.n)return;const r=m.getBoundingClientRect();if(e.clientX>r.left&&e.clientX<r.right)to=C.ups.findIndex(u=>u.id===m.dataset.u)});
-    if(to!==from&&to>=0){C.ups=sbPhMove(C.ups,from,to);phPatch(PG.n.parentNode,C);phDraftSave(C)}});
+    if(to!==from&&to>=0){C.ups=sbPhMove(C.ups,from,to);const p=PG.n.parentNode,ms=[...p.querySelectorAll('.ph1[data-u]')],tg=ms[to];p.insertBefore(PG.n,to>from?tg.nextSibling:tg);[...p.querySelectorAll('.ph1[data-u]')].forEach((n,i)=>n.classList.toggle('cov',i===0&&ms.length>1));PG.mv=1}});
   el.addEventListener('touchmove',e=>{if(PG&&PG.on)e.preventDefault()},{passive:false});
   ['pointerup','pointercancel'].forEach(k=>el.addEventListener(k,pgEnd));
   // 草稿（P4c）：每步写本机，微信 / iOS 杀页重进能恢复文字和已传的图；丢弃 / 发出去 / 换账号（sbPhDraftGet 比对 uid）都会清
