@@ -296,7 +296,7 @@ function App(el,init){
   const tapBall=(id,opt={})=>{const x=find(id),a=x.b+(x.my?1:0);x.my=!x.my;if(S.real&&!opt.noNet)ballNet(x);const b=x.b+(x.my?1:0),up=b>a;
     el.querySelectorAll(`[data-ball="${x.id}"]`).forEach(btn=>{btn.classList.toggle('on',x.my);btn.querySelector('use').setAttribute('href',x.my?'#ball':'#ball0');
       const o=btn.querySelector('.odo');o.innerHTML=`<span class="roll"><b>${F99(up?a:b)||'&nbsp;'}</b><b>${F99(up?b:a)||'&nbsp;'}</b></span>`;
-      o.firstChild.animate(up?[{transform:'translateY(0)'},{transform:'translateY(-50%)'}]:[{transform:'translateY(-50%)'},{transform:'translateY(0)'}],{duration:420,delay:x.my?ANI.L1-20:0,easing:'cubic-bezier(.3,1.3,.5,1)',fill:'both'}).onfinish=()=>{o.innerHTML=b?`<b>${F99(b)}</b>`:''};
+      o.firstChild.animate(up?[{transform:'translateY(0)'},{transform:'translateY(-50%)'}]:[{transform:'translateY(-50%)'},{transform:'translateY(0)'}],{duration:420,delay:x.my?ANI.L1-20:0,easing:'cubic-bezier(.3,1.3,.5,1)',fill:'both'}).onfinish=()=>{const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:''};
       const sv=btn.querySelector('svg'),bw=btn.querySelector('.bw');
       if(!x.my){sv.getAnimations().forEach(a=>a.cancel());bw.querySelectorAll('.bsh,.ring').forEach(n=>n.remove())}
       if(x.my)tossSync(sv,bw);
@@ -533,7 +533,7 @@ function App(el,init){
   const rlCtx=prof=>({prof,me:rlMe(),vk:rlVk,km:k=>KM[k]??null});
   const rlTopics=(d,posts)=>{const t=(d&&d.topics)||{};(posts||[]).forEach(p=>{if(p&&p.topic_id){sbTopicEnsure(TOPICS,p.topic_id,t[p.topic_id]);sbTopicEnsure(S.T,p.topic_id,t[p.topic_id])}})};
   const recount=()=>{S.L.forEach(x=>{if(x.topic&&S.T[x.topic]&&x.floor>S.T[x.topic].n)S.T[x.topic].n=x.floor})};
-  const paintBall=x=>el.querySelectorAll(`[data-ball="${x.id}"] .odo`).forEach(o=>{const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:''});
+  const paintBall=x=>el.querySelectorAll(`[data-ball="${x.id}"] .odo`).forEach(o=>{if(o.querySelector('.roll'))return;const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:''});
   const refreshRow=(x,old)=>el.querySelectorAll(`[data-s] [data-ln="${old==null?x.id:old}"]`).forEach(row=>{const tmp=document.createElement('div');tmp.innerHTML=LH(x,{court:!!row.closest('[data-s="court"]')});const nr=tmp.querySelector('.ln');if(nr)row.replaceWith(nr)});
   const useFeed=d=>{const posts=d.posts||[];rlTopics(d,posts);const c=rlCtx(d.profiles||{});
     const was=new Map(S.L.map(x=>[String(x.id),x]));
