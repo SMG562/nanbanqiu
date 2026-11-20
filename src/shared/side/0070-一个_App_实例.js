@@ -216,7 +216,7 @@ function App(el,init){
       try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts);sbPhThumb(r.parts.t).then(th=>{if(th&&C.ups.includes(u)){u.th=th;phDraftSave(C)}})}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
   // 草稿（P4c）：每步写本机，微信 / iOS 杀页重进能恢复文字和已传的图；丢弃 / 发出去 / 换账号（sbPhDraftGet 比对 uid）都会清
-  const phDraftSave=C=>{if(!C||!phReal()||C.redo)return;const me=meUser().id;if(!me)return;const d=sbPhDraftOf(C);if(d)sbPhDraftSet(me,d);else sbPhDraftClear()};
+  const phDraftSave=C=>{if(!C||S.cmp!==C||!phReal()||C.redo)return;const me=meUser().id;if(!me)return;const d=sbPhDraftOf(C);if(d)sbPhDraftSet(me,d);else sbPhDraftClear()};
   const phDrop=C=>{sbPhDraftClear();if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)})};
   const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${isPt(q)?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
   // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
@@ -243,7 +243,7 @@ function App(el,init){
     $('.cmp-sc').scrollTop=top;
     const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
     const cp=$('.compose');cp.classList.remove('cmp-ty');
-    const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;phDraftSave(C);if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
+    const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;clearTimeout(C.dt);C.dt=setTimeout(()=>phDraftSave(C),300);if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
     if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
     if(phReal()&&!o.redo&&!(o.text||'').trim()&&!(o.ups&&o.ups.length)){const d=sbPhDraftGet(meUser().id);if(d){const C=S.cmp;C.text=d.text||'';C.tone=d.tone||'';if(!C.topic&&d.topic&&S.T[d.topic])C.topic=d.topic;if(d.loc&&COURTS[d.loc])C.loc=d.loc;
