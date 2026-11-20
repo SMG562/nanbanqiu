@@ -216,6 +216,14 @@ const ROUTES = {
     if (new URL(req.url).searchParams.get('db') === '1') {
       try { await d.db.asService(q => q('select 1')); out.db = true } catch (e) { out.db = false; out.ok = false; out.why = why(e) }
     }
+    // 可选 sender=1（#50）：发送程序心跳超过 300 秒（或从没写过）→ 503，供外部探测发现「站点 200 但发送程序停了」；不带 = 旧行为
+    if (new URL(req.url).searchParams.get('sender') === '1') {
+      try {
+        const age = await d.db.asService(async q => (await q(`select round(extract(epoch from now() - at))::int as age_s from ops_heartbeats where name = 'sender'`)).rows[0]);
+        out.sender = { heartbeat_age_s: age ? age.age_s : null };
+        if (!age || age.age_s > 300) { out.ok = false; out.why = 'sender_stale' }
+      } catch (e) { out.sender = { heartbeat_age_s: null }; out.ok = false; out.why = why(e) }
+    }
     return send(out.ok ? 200 : 503, out);
   },
   // 线上跑的发送程序是哪一版：部署时写进 Worker 的代码指纹，Worker 每分钟写进心跳表。和仓库里 `node tools/worker_version.mjs` 对得上 = 已是最新
