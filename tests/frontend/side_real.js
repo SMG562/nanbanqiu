@@ -104,6 +104,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   T('点网球：PUT /ball，计数跟着接口走', S.log.join() === 'PUT /api/sideline/posts/P2/ball' && await SRQ('[data-ball="' + P2 + '"]', 'r.classList.contains("on")'), S.log);
   await pg.waitForTimeout(60); T('点网球：接口回来时数字还在向上翻滚，没被直接覆盖', await SRQ('[data-ball="' + P2 + '"] .odo', '!!r.querySelector(".roll")'));
   await until(async () => /1/.test(await SRQ('[data-ball="' + P2 + '"] .odo', 'r.textContent')));
+  T('点亮后数字变品牌绿（不是正文黑）', await until(async () => await SRQ('[data-ball="' + P2 + '"] .odo', 'getComputedStyle(r).color') === 'rgb(23, 107, 77)'));
   S.log.length = 0; await sr('[data-s="home"] [data-ball="' + P2 + '"]').click(); await until(() => S.log.some(x => x.startsWith('DELETE')));
   T('再点一下取消：DELETE /ball', S.log.join() === 'DELETE /api/sideline/posts/P2/ball', S.log);
   S.failBall = true; await sr('[data-s="home"] [data-ball="' + P2 + '"]').click();

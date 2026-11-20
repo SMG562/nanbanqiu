@@ -296,7 +296,7 @@ function App(el,init){
   const tapBall=(id,opt={})=>{const x=find(id),a=x.b+(x.my?1:0);x.my=!x.my;if(S.real&&!opt.noNet)ballNet(x);const b=x.b+(x.my?1:0),up=b>a;
     el.querySelectorAll(`[data-ball="${x.id}"]`).forEach(btn=>{btn.classList.toggle('on',x.my);btn.querySelector('use').setAttribute('href',x.my?'#ball':'#ball0');
       const o=btn.querySelector('.odo');o.innerHTML=`<span class="roll"><b>${F99(up?a:b)||'&nbsp;'}</b><b>${F99(up?b:a)||'&nbsp;'}</b></span>`;
-      o.firstChild.animate(up?[{transform:'translateY(0)'},{transform:'translateY(-50%)'}]:[{transform:'translateY(-50%)'},{transform:'translateY(0)'}],{duration:420,delay:x.my?ANI.L1-20:0,easing:'cubic-bezier(.3,1.3,.5,1)',fill:'both'}).onfinish=()=>{const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:''};
+      o.firstChild.animate(up?[{transform:'translateY(0)'},{transform:'translateY(-50%)'}]:[{transform:'translateY(-50%)'},{transform:'translateY(0)'}],{duration:420,delay:x.my?ANI.L1-20:0,easing:'cubic-bezier(.3,1.3,.5,1)',fill:'both'}).onfinish=()=>{const v=x.b+(x.my?1:0);o.innerHTML=v?`<b>${F99(v)}</b>`:'';if(x.my&&v&&!btn.closest('.pc,.viewer'))o.animate([{color:'#7FA800'},{color:'#176B4D'}],{duration:400,easing:'ease-out'})};
       const sv=btn.querySelector('svg'),bw=btn.querySelector('.bw');
       if(!x.my){sv.getAnimations().forEach(a=>a.cancel());bw.querySelectorAll('.bsh,.ring').forEach(n=>n.remove())}
       if(x.my)tossSync(sv,bw);
