@@ -4,7 +4,7 @@ const score=x=>{const age=(Date.now()-x.t)/H,heat=Math.log1p(x.b+(x.my?1:0)+2*(x
   return 2.2*Math.exp(-age/.25)+Math.exp(-age/5)*(1+.45*heat)/(1+d/5)};
 const F99=n=>n>99?'99+':n;
 const ballBtn=(x,big)=>{const n=x.b+(x.my?1:0);return `<button class="ball${big?' big':''}${x.my?' on':''}" data-ball="${x.id}"><span class="bw"><svg viewBox="0 0 100 100"><use href="#${x.my?'ball':'ball0'}"/></svg></span><span class="odo">${n?`<b>${F99(n)}</b>`:''}</span></button>`};
-const lineHTML=(x,o={})=>{const last=x.r[x.r.length-1],pt=x.pic&&PM[x.pic],rp=x.pic&&x.pic.ph&&x.pic.w>0&&x.pic.h>0?Math.min(1.6,Math.max(1,x.pic.w/x.pic.h)).toFixed(2):'';
+const lineHTML=(x,o={})=>{const last=x.r[x.r.length-1],pt=isPt(x.pic),rp=!pt&&x.pic&&x.pic.ph&&x.pic.w>0&&x.pic.h>0?Math.min(1.6,Math.max(1.2,x.pic.w/x.pic.h)).toFixed(2):'';
   return `<div class="it${x.pic?' itp':' itt'}"><div class="ln${x.pic?' pc':''}${pt?' pt':''}${rp?' lnar':''}" data-ln="${x.id}" style="--a:${alpha(x.t).toFixed(2)}${rp?';--ar:'+rp:''}">${x.pic?`<div class="bg">${PIC(x.pic,'band',x.tone)}</div>${x.topic?`<span class="flr" data-topic="${x.topic}">#${esc(TOPICS[x.topic].t)} · No.${x.floor}</span>`:''}`:''}
   ${!x.pic&&CIC(x)?`<span class="cic">${ic(CIC(x),'')}</span>`:''}<div class="bd"><div class="t"><span class="tx">${chars(x.x)}</span></div>
   ${last?`<div class="rp" data-cmt="${x.id}"><b>${esc(RU(last,x).n)}</b>${last.op?'<em>作者</em>':''}<span class="tx">${chars(last.x)}</span></div>`:''}

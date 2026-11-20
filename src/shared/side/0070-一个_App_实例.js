@@ -33,7 +33,7 @@ function App(el,init){
   const fOk=x=>S.mineOnly&&S.homes.length?(S.homes.includes(x.w)&&!x.area):!S.f?true:S.f.k==='court'?(x.w===S.f.v&&!x.area):x.topic===S.f.v;
   const fbarHTML=n=>{if(!S.f)return '';const tp=S.f.k==='topic',lab=tp?'#'+esc(S.T[S.f.v].t):esc(COURTS[S.f.v].n);
     return `<div class="fbar"><button class="fchip" data-fx>${lab}${ic('x')}</button><span>今天 ${n} 条</span>${tp?`<button class="fsh" data-tshare title="分享这个话题">${ic('share')}</button><span class="vw"><button data-vw="list" class="${S.vw!=='grid'?'on':''}" title="列表">${ic('i-list')}</button><button data-vw="grid" class="${S.vw==='grid'?'on':''}" title="照片墙">${ic('i-grid')}</button></span>`:''}</div>${tp?`<p class="fq">${esc(S.T[S.f.v].q)}</p>`:''}`};
-  const gridHTML=L=>`<div class="it itg"><div class="wg">${L.map(x=>`<div class="wt${x.pic?'':' tx2'}" data-ln="${x.id}"${x.pic?` style="aspect-ratio:${PM[x.pic]?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.floor?'No.'+x.floor:''}</span></div>`).join('')}</div></div>`;
+  const gridHTML=L=>`<div class="it itg"><div class="wg">${L.map(x=>`<div class="wt${x.pic?'':' tx2'}" data-ln="${x.id}"${x.pic?` style="aspect-ratio:${isPt(x.pic)?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.floor?'No.'+x.floor:''}</span></div>`).join('')}</div></div>`;
   // 手机：信息流里的引导
   const DAYN=()=>{const Cn={},Tn={};S.L.forEach(x=>{if(!pass(x))return;if(x.w&&!x.area&&COURTS[x.w])Cn[x.w]=(Cn[x.w]||0)+1;if(x.topic)Tn[x.topic]=(Tn[x.topic]||0)+1});return {Cn,Tn}};
   const hotHTML=()=>{const top=Object.entries(DAYN().Cn).sort((a,b)=>b[1]-a[1]).slice(0,6);if(top.length<2)return '';
@@ -128,7 +128,7 @@ function App(el,init){
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
     $('.sheet').innerHTML=`<div class="grab"></div>
       <div class="sh-top">${av(U(x),34)}<div class="who">${unb(U(x)).replace('class="un"','')}<small>${x.w?(x.area?`<span class="pl ar">${esc(x.w)} 附近</span>`:`<span class="pl" data-court="${esc(x.w)}">${esc(x.w)}</span>`)+'<i>·</i>':''}${lifeRing(x.t)}<span>${a}</span></small></div><span class="sp"></span>${x.mine&&x.pic?`<button class="ib2" data-share title="分享图片">${ic('share')}</button>`:''}<button class="ib2" data-menu>${ic('dots')}</button><button class="ib2 shx" data-shut>${ic('x')}</button></div>
-      <div class="sh-sc">${ps.length?`<div class="hero${PM[ps[0]]?' pt':''}"><div class="hs">${ps.map((p,i)=>`<div class="hp" data-pic="${x.id}" data-pi="${i}">${PIC(p,'hero',x.tone)}</div>`).join('')}</div>${ps.length>1?`<div class="hd2">${ps.map((_,i)=>`<i${i?'':' class="on"'}></i>`).join('')}</div>`:''}</div>`:''}
+      <div class="sh-sc">${ps.length?`<div class="hero${isPt(ps[0])?' pt':''}"><div class="hs">${ps.map((p,i)=>`<div class="hp" data-pic="${x.id}" data-pi="${i}">${PIC(p,'hero',x.tone)}</div>`).join('')}</div>${ps.length>1?`<div class="hd2">${ps.map((_,i)=>`<i${i?'':' class="on"'}></i>`).join('')}</div>`:''}</div>`:''}
         <div class="sh-t">${esc(x.x)}</div>${x.topic?`<div class="floorbar"><button class="fb1" data-topic="${x.topic}"><b>#${esc(S.T[x.topic].t)}</b><span>No.${x.floor}</span>${ic('chev','')}</button>${x.real?'':`<button class="fb2" data-jie="${x.topic}">${ic('cam')}我也发一张</button>`}</div>`:''}
         
         <div class="life">${x.mine&&!x.real?`<div class="seen">${ic('eye')}<b data-views>0</b> 人看过<span>仅你可见</span></div>`:'<span></span>'}${ballBtn(x,true)}</div>
@@ -216,7 +216,7 @@ function App(el,init){
       try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts)}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
   const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)})};
-  const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${PM[q]?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
+  const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${isPt(q)?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
   // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
   const cqHTML=C=>{const ks=[];locGroups(C.loc).forEach(G=>G.a.forEach(k=>{if(!ks.includes(k))ks.push(k)}));
     return ks.slice(0,6).map(k=>`<button class="cq${C.loc===k?' on':''}" data-ql="${esc(k)}">${esc(COURTS[k].n)}</button>`).join('')+`<button class="cq${C.loc?'':' on'}" data-ql="none">不选</button><button class="cq" data-cpl2>搜索…</button>`};
@@ -300,7 +300,7 @@ function App(el,init){
   const drawWall=()=>{const T=S.T[S.wall];if(!T)return;const P=S.L.filter(x=>x.topic===S.wall&&!heldW(x)&&Date.now()-x.t<24*H).sort((a,b)=>b.floor-a.floor),v=$('.wall'),old=v.querySelector('.scroll'),top=old?old.scrollTop:0;
     v.innerHTML=`<div class="cnav"><button class="ib" data-wback>${ic('back')}</button><button class="ib" data-wshare title="分享这个话题">${ic('share')}</button></div>
       <div class="scroll" style="padding-top:0"><div class="wh"><div class="k">${T.k}</div><h3>#${esc(T.t)}</h3><p>${esc(T.q)}</p><div class="ws"><span class="dot"></span><b>${T.n}</b> 张 · 最新在前</div></div>
-      <div class="wg">${P.map(x=>`<div class="wt${x.ed?' ed tx2':x.pic?'':' tx2'}"${x.ed?'':` data-ln="${x.id}"`}${x.pic?` style="aspect-ratio:${PM[x.pic]?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.ed?'No.1 · 场边出题':'No.'+x.floor}</span></div>`).join('')}</div></div>
+      <div class="wg">${P.map(x=>`<div class="wt${x.ed?' ed tx2':x.pic?'':' tx2'}"${x.ed?'':` data-ln="${x.id}"`}${x.pic?` style="aspect-ratio:${isPt(x.pic)?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.ed?'No.1 · 场边出题':'No.'+x.floor}</span></div>`).join('')}</div></div>
       <button class="wfab" data-wgo>${ic('cam')}我也发一张</button><button class="more" data-wmore></button>`;
     v.querySelector('.scroll').scrollTop=top;wpillSync()};
   const render=()=>{drawHome();drawComposer();if(S.court)drawCourt();if(S.open)drawSheet();if(S.view)drawViewer();if(S.wall)drawWall();if(S.album)drawAlbum();if(S.cmp)drawCompose();if(S.share)drawShare();state()};
