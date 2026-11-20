@@ -64,6 +64,11 @@ const phSet=(n,o)=>{if(!o||!o.sz)return '';const a=phOk(n.t),b=phOk(n.u),wt=phW(
 const phMode=(n,o)=>{if(!(n&&n.ph))return 'cover';const r=+n.h/+n.w;return phAm(n,o)&&+n.w>0&&+n.w<600&&!n.bl&&r>=.6&&r<=1.8?'frame':isPt(n)?'tall':'cover'};
 const phAm=(n,o)=>o&&o.sz&&o.am!==0&&phOk(n.b)?phOk(n.b):'';  // o.am===0：只要 srcset / 懒加载，不要氛围底和相框（话题方格、胶囊缩略）
 const SB_REV=new Set(),sbRevSeen=k=>{if(k){SB_REV.add(k);if(SB_REV.size>400)SB_REV.delete(SB_REV.values().next().value)}};
+// 列表入场编排（#504 静光）：只入场一次的帖子 id（上限 400）；节奏表、图片显影时刻见 docs/design/列表入场编排.md §四
+const SB_ENT=new Set(),sbEntSeen=k=>{if(k){SB_ENT.add(k);if(SB_ENT.size>400)SB_ENT.delete(SB_ENT.values().next().value)}};
+const SB_TEMPO={start:320,gap:[300,240,200,200,220,260],dur:1.5};
+const sbEnterPlan=(n,fresh)=>{let t=SB_TEMPO.start*(fresh?.6:1);return Array.from({length:n},(_,i)=>{const d=Math.round(t);t+=SB_TEMPO.gap[Math.min(i,SB_TEMPO.gap.length-1)];return d})};   // 每张卡片的延迟 ms（自上而下）
+const sbRevealPlan=(ds,has)=>{let last=-1e9;return ds.map((d,i)=>has[i]?(last=Math.max(d+SB_TEMPO.dur*900+240,last+260)):null)};   // 图片显影时刻：晚于自己的卡片、保持上下顺序
 const PIC=(n,crop='full',tone,o)=>{if(!(n&&n.ph))return `<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
   const am=phAm(n,o),sm=phMode(n,o)==='frame';
   return `<div class="tn${tone?' t-'+tone:''}${am?' am':''}${sm?' sm':''}"><img class="mi${am&&SB_REV.has(phSrc(n,crop).replace(/&amp;/g,'&'))?' ld':''}" src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block">${am?`<i class="amb" style="background-image:url(&quot;${am}&quot;)"></i>`:''}${n.bl?'<span class="blh">已打码</span>':''}</div>`};

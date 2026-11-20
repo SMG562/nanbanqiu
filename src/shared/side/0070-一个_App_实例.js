@@ -328,10 +328,23 @@ function App(el,init){
   // 滚动状态：手指在屏幕上，或 250ms 内还在滚（惯性）
   // 把攒着的新动态放进列表：只在用户点了「↑ N 条新动态」胶囊时（#344：新动态一律先攒着，不自己冒出来）。
   // 直接放、没有让高度增长的出现动画；网格视图整块重画（drawHome 不再排除它们）。
-  const flushNew=()=>{const q=S.pend;S.pend=null;S.qn=0;
-    if(S.f&&S.f.k==='topic'&&S.vw==='grid')drawHome();
-    else if(q&&q.length)q.filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).sort((a,b)=>a.t-b.t).forEach(x=>prep(LH(x)));
-    const m=$('[data-more]');if(m)m.classList.remove('show')};
+  // 新帖动线（#504）：胶囊收起 → 平缓回顶 → 新帖组腾位置（高度 0→实高一次）→ 依次亮起 + 新帖强调（约 6.5s 后褪去）
+  const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,reduced=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const entTop=done=>{const from=sc.scrollTop;if(from<6||reduced()){sc.scrollTop=0;done();return}
+    const dur=Math.min(1000,Math.max(520,380+from*.35))*entK(),t0=performance.now();let stop=0;sc.addEventListener('touchstart',()=>{stop=1},{once:true,passive:true});
+    (function step(now){if(stop){sc.scrollTop=0;done();return}const p=Math.min(1,(now-t0)/dur);sc.scrollTop=from*(1-easeIO(p));p<1?requestAnimationFrame(step):done()})(t0)};
+  const entNew=xs=>{if(!xs.length)return;const k=entK(),tmp=document.createElement('div');tmp.innerHTML=xs.map(x=>LH(x)).join('');const its=[...tmp.children];xs.forEach(x=>sbEntSeen(String(x.id)));
+    const ref=list.querySelector(':scope>.it,:scope>.slot'),grp=document.createElement('div');grp.className='slot';its.forEach(e=>grp.append(e));ref?list.insertBefore(grp,ref):list.append(grp);
+    if(reduced()){grp.replaceWith(...its);return}
+    entEnd();const h=grp.offsetHeight,dv=document.createElement('div');dv.className='nwdiv';dv.textContent='刚到 '+xs.length+' 条';grp.after(dv);
+    its.forEach(e=>e.classList.add('fresh'));grp.style.overflow='hidden';
+    grp.animate([{height:'0px'},{height:h+'px'}],{duration:SB_TEMPO.dur*700*k,easing:'cubic-bezier(.19,1,.22,1)'}).onfinish=()=>grp.replaceWith(...grp.children);
+    entRun(its,true,0);setTimeout(()=>dv.classList.add('on'),(SB_TEMPO.start*.6+800)*k);
+    setTimeout(()=>{its.forEach(e=>e.classList.add('settle'));dv.classList.remove('on');setTimeout(()=>{its.forEach(e=>e.classList.remove('fresh','settle'));dv.remove()},3300*k)},6500*k)};
+  const flushNew=()=>{const q=S.pend;S.pend=null;S.qn=0;const m=$('[data-more]');if(m)m.classList.remove('show');
+    if(S.f&&S.f.k==='topic'&&S.vw==='grid'){drawHome();return}
+    const xs=q?q.filter(x=>S.L.includes(x)&&pass(x)&&fOk(x)).sort((a,b)=>b.t-a.t):[];   // 最新的在最上
+    entTop(()=>entNew(xs))};
   // 球场页 / 话题墙的胶囊：点了才放进来，直接放、不做增高动画，回顶、收起
   const flushCourt=()=>{const q=S.cpend;S.cpend=null;const cl=$('[data-s="court"]');
     if(cl&&q&&q.length){cl.querySelector('.empty')?.remove();q.filter(x=>S.L.includes(x)&&x.w===S.court&&!x.area).sort((a,b)=>a.t-b.t).forEach(x=>cl.insertAdjacentHTML('afterbegin',LH(x,{court:1})));$('[data-ccnt]').textContent=`近 3 小时 · ${courtRows().length} 条`}
@@ -503,7 +516,7 @@ function App(el,init){
     if(d.lq!==undefined){const k=d.lq==='none'?'':d.lq;el.querySelectorAll('[data-lq]').forEach(b=>b.classList.toggle('on',b===t));setTimeout(()=>{closeLp();setLoc(k)},140);return}
     if('open' in d){closeLp();fromBar();return}   // 首页输入框不再弹键盘：点一下直接进写动态页（带着当前提示的话题），和点相机一样
     if('cam' in d){closeLp();if(el.classList.contains('qing')||inp.value.trim()){const q=S.qhq||S.hq||{},v=inp.value.trim();inp.value='';drawComposer();qClose();inp.blur();openCompose({text:v,ph:q.t,topic:S.qtp,sc:q.sc,lib:!phReal()})}else fromBar({lib:!phReal()});if(phReal()){const cf=$('[data-cfile]');if(cf)cf.click()}return}
-    if('more' in d){flushNew();sc.scrollTop=0;return}
+    if('more' in d){flushNew();return}
     if('cmore' in d){flushCourt();return}
     if('wmore' in d){flushWall();return}
     if('send' in d){if(!S.gok){need('post',()=>again(t));return}const v=inp.value.trim(),lk=S.loc,tp=el.classList.contains('qing')?S.qtp:null;if(S.real&&!v){toast('写一句再发吧');return}
@@ -618,7 +631,7 @@ function App(el,init){
     const was=new Map(S.L.map(x=>[String(x.id),x]));
     S.L=S.L.filter(x=>x.tmp).concat(posts.map(p=>sbFromPost(p,c)).filter(x=>!S.gone.has(String(x.id))));   // 还在发送中的留着
     S.L.forEach(n=>{const o=was.get(String(n.id));if(o&&o!==n&&o._bn>0){n._bn=o._bn;n._bq=o._bq;n.my=o.my;n.b=o.b}});   // 网球还在路上：新读回来的不能盖掉刚点的
-    S.pend=null;S.loaded=true;S.loadErr=null;recount();render()};
+    S.pend=null;S.loaded=true;S.loadErr=null;recount();render();entFirst()};
   const loadFeed=async()=>{const net=rlNet();if(!net)return false;const ep=S.ep=(S.ep||0)+1,all=[],prof={},tops={};let before=null;
     for(let i=0;i<5;i++){const r=await net.get('/api/sideline/feed',before?{before}:{},{anon:true});
       if(ep!==S.ep)return false;
@@ -689,9 +702,31 @@ function App(el,init){
     if(vw&&String(S.view)===String(id)){const cs=[...el.querySelectorAll('.viewer .img>div')];cs.forEach((c,i)=>{if(x.pics[i])c.innerHTML=PIC(x.pics[i],'full',x.tone)})}  // 大图弹层：按已更新的 x.pics 整格重画（读回前别处可能已换过地址，不能只靠新旧对照）
     const sw=s=>s&&m.reduce((a,[o,v])=>a.split(o).join(v),s);
     [...el.querySelectorAll('[data-ln],[data-pic]')].filter(c=>(c.dataset.ln||c.dataset.pic)===id).forEach(c=>c.querySelectorAll('img').forEach(i=>{['src','srcset'].forEach(k=>{const a=i.getAttribute(k),b=sw(a);if(a&&b!==a)i.setAttribute(k,b)})}))};
-  // 显影排队（柔和出图）：图到一张放一张，相邻两张至少隔 70ms（最多等 420ms），不管网络谁先到；已显过的图重画时直接就位，不再重演
-  const REV={at:0};
-  el.addEventListener('load',e=>{const i=e.target;if(!(i&&i.tagName==='IMG'&&i.classList.contains('mi')))return;const n=performance.now(),w=Math.min(Math.max(REV.at-n,0),420);REV.at=n+w+70;i.style.transitionDelay=w+'ms';i.classList.add('ld');sbRevSeen(i.getAttribute('src'))},true);
+  // 列表入场编排（#504 静光）：首屏卡片自上而下依次亮起（--d 一次写好，时间交给 CSS）；图片显影晚于自己的卡片、按上下顺序；
+  // 任何触摸 / 滚动立刻让路，6 秒兜底；开「减少动态效果」直接终态。屏外的卡片滚进视口时单张柔和上升。
+  const ENT={els:[],pics:[],last:0,t0:0,tm:null,io:null,run:null};
+  const entK=()=>+window.NBQ_SB_K||S.k||1;
+  const entDrain=()=>{const k=entK(),n=performance.now();for(const p of ENT.pics){if(p.shown)continue;if(!p.done&&!p.skip)break;p.shown=1;const t=p.skip?n:Math.max(ENT.t0+p.at*k,ENT.last+260*k,n);ENT.last=t;p.i.style.transitionDelay=(t-n)+'ms';p.i.classList.add('ld')}};
+  const entEnd=()=>{clearTimeout(ENT.tm);ENT.pics.forEach(p=>{p.skip=1});entDrain();ENT.pics=[];ENT.els.forEach(e=>{e.classList.remove('pre','ent-go','lit');e.style.removeProperty('--d')});ENT.els=[];if(ENT.run)ENT.run.done=1};
+  el.addEventListener('load',e=>{const i=e.target;if(!(i&&i.tagName==='IMG'&&i.classList.contains('mi')))return;sbRevSeen(i.getAttribute('src'));const p=ENT.pics.find(q=>q.i===i);if(p){p.done=1;entDrain()}else i.classList.add('ld')},true);
+  const entRun=(its,fresh,off)=>{const k=entK(),ds=sbEnterPlan(its.length,fresh),pics=its.map(e=>e.querySelector('img.mi:not(.ld)')),rv=sbRevealPlan(ds,pics.map(Boolean));
+    el.style.setProperty('--k',k);ENT.pics=[];if(!off)ENT.t0=performance.now();
+    its.forEach((e,i)=>{e.classList.add('pre');e.style.setProperty('--d',(ds[i]-off)+'ms');if(pics[i])ENT.pics.push({i:pics[i],at:rv[i]})});
+    ENT.els=its;its[0]&&its[0].offsetWidth;its.forEach(e=>{e.classList.remove('pre');e.classList.add('ent-go','lit')});   // 先画出 pre 一帧再切 go：强制重排即可
+    clearTimeout(ENT.tm);ENT.tm=setTimeout(entEnd,Math.max(6000*k-off*k,0));
+    ['touchstart','wheel','mousedown'].forEach(t=>sc.addEventListener(t,entEnd,{passive:true,once:true}))};
+  // 首屏入场：useFeed 画完首页后调用；每条帖子只入场一次（SB_ENT）；网络读回重画时接着原来的进度往下走（负延迟），不重头来
+  const entFirst=()=>{const ing=ENT.run&&!ENT.run.done;if(S.ent1&&!ing)return;
+    const ids=ing?ENT.run.ids:new Set(),its=[...list.querySelectorAll(':scope>.it')].filter(e=>{const l=e.querySelector('.ln[data-ln]');return l&&(ids.has(l.dataset.ln)||!SB_ENT.has(l.dataset.ln))});
+    if(!its.length||document.hidden||!sc.clientHeight)return;S.ent1=1;   // 页面还没显示：不记「已入场」，下一次读回再来
+    const mark=()=>{ENT.run=ENT.run&&!ENT.run.done?ENT.run:{ids:new Set(),done:0};its.forEach(e=>{const id=e.querySelector('.ln').dataset.ln;ENT.run.ids.add(id);sbEntSeen(id)})};
+    if(matchMedia('(prefers-reduced-motion:reduce)').matches){mark();ENT.run.done=1;return}
+    const off=ing?(performance.now()-ENT.t0)/entK():0;mark();
+    const H=sc.clientHeight,top=sc.getBoundingClientRect().top,first=its.filter(e=>e.getBoundingClientRect().top-top<H-40),rest=its.filter(e=>!first.includes(e));
+    if(ENT.io)ENT.io.disconnect();
+    if(rest.length&&window.IntersectionObserver){const k=entK();rest.forEach(e=>{e.classList.add('pre');e.style.setProperty('--d','0ms')});
+      ENT.io=new IntersectionObserver(es=>es.forEach(x=>{if(!x.isIntersecting)return;const t=x.target;ENT.io.unobserve(t);t.classList.remove('pre');t.classList.add('ent-go');setTimeout(()=>t.classList.remove('ent-go'),3000*k)}),{root:sc,threshold:.12});rest.forEach(e=>ENT.io.observe(e))}
+    if(first.length)entRun(first,false,off)};
   el.addEventListener('error',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.closest('.tn'))phFix(i)},true);
   // 通知点开：那条不在已读的列表里（超过读的页数 / 已过 24 小时）→ 单独读一条放进去再打开；读不到 = 已经不在了
   const ensurePost=async id=>{if(find(id))return true;const net=rlNet();if(!net)return false;const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||find(id))return !!find(id);
@@ -727,7 +762,7 @@ function App(el,init){
   return S;
 }
 
-return {App,CFG,pic:PIC,flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
+return {App,CFG,pic:PIC,enter:{plan:sbEnterPlan,rev:sbRevealPlan,seen:SB_ENT},flags:{photos:SB_PHOTOS_ON,later:SB_LATER_ON,newTopic:SB_NEWTOPIC_ON},rules:{rate:sbRate,topic:sbTopicResolve,link:SB_LINK},today:sbToday,topics:()=>TOPICS,hints:sbHints,slot:()=>slotNow(),
   photo:{env:sbPhEnv,run:sbPhRun,pick:sbPhPick,queue:sbPhQueue,draft:{get:sbPhDraftGet,set:sbPhDraftSet,clear:sbPhDraftClear},limits:SB_PH}};   // 照片管线（P3）：P4 发布页接线用；测试也从这里取
 })();
 
