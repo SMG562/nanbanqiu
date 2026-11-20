@@ -1,6 +1,6 @@
 // 第八批 F3：网页端接入场边。顶部导航 发现球局 / 我的球局 / 场边（24h）；场边页 = 设计稿 v35 的电脑版（左信息流、右边一列「此刻」），
 // 放在 Shadow DOM 里，宽 1240 居中、占满导航以下；窄于 900 时右边一列收起、信息流居中；切走再回来滚动和草稿还在；
-// 写操作没登录先登录（登录后接着做）、账号状态拦截同手机端；场边通知进通知弹层和桌面横幅，点开 → 场边那条；右上角菜单「场边相册」；
+// 写操作没登录先登录（登录后接着做）、账号状态拦截同手机端；场边通知进通知弹层和桌面横幅，点开 → 场边那条；右上角菜单「我发布的场边」；
 // 看不见场边时不自动冒新消息；场边事件网页端也发；动画结束不留；没有脚本错误。
 const { chromium } = require('playwright');
 let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.log((ok ? '  ✓ ' : 'FAIL ') + n + (ok || x === undefined ? '' : ' ' + JSON.stringify(x).slice(0, 400))) };
@@ -130,12 +130,12 @@ const FAKE = +new Date('2026-10-27T14:00:00+11:00');   // 白天（通知不在�
   T('点开已不在的 → 「这条已经不在了」', (await E(() => _tt)).includes('这条已经不在了'), await E(() => _tt));
   await E(() => togglePop(false));
 
-  // ---- 场边相册 ----
+  // ---- 我发布的场边 ----
   await pg.click('#tabs [data-tab="mine"]'); await W(200);
   await E(() => toggleUmenu()); await W(200);
-  T('右上角菜单有「场边相册」', await E(() => /场边相册/.test(document.querySelector('#umenu').textContent)));
+  T('右上角菜单有「我发布的场边」', await E(() => /我发布的场边/.test(document.querySelector('#umenu').textContent)));
   await pg.locator('#umenu [data-a="sbAlbum"]').click(); await W(700);
-  T('点「场边相册」→ 场边页打开相册，菜单收起', await E(() => UI.tab === 'side' && !document.querySelector('#sbScr').hidden && document.querySelector('#layout').hidden && !!SBV.album && !document.querySelector('#umenu').classList.contains('show')), { tab: await E(() => UI.tab), album: await E(() => SBV.album) });
+  T('点「我发布的场边」→ 场边页打开相册，菜单收起', await E(() => UI.tab === 'side' && !document.querySelector('#sbScr').hidden && document.querySelector('#layout').hidden && !!SBV.album && !document.querySelector('#umenu').classList.contains('show')), { tab: await E(() => UI.tab), album: await E(() => SBV.album) });
   T('sb_album_open 网页端也发', (await ev('sb_album_open')).length >= 1);
 
   T('没有脚本错误', errs.length === 0, errs);

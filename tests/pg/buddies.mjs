@@ -121,6 +121,8 @@ try {
   const src = async f => (await q(`select prosrc from pg_proc where proname=$1`, [f])).rows.map(r => r.prosrc).join('\n---\n');
   const fnBefore = {}; for (const f of ['risk_values', 'job_anonymize_deleted', 'api_card_by_no', 'api_buddy_request', 'api_buddy_respond', 'api_buddies', 'buddy_stats']) fnBefore[f] = await src(f);
   const errs2 = loadSchema(c, 'nbq', path.join(DIR, 'server', 'migrations', '20261108_buddies.sql'));
+  // #377：job_anonymize_deleted 后来被 20261121_racket_series 重新定义；旧迁移重跑会退回旧版，所以按顺序再跑新迁移，才与 schema.sql 一致
+  loadSchema(c, 'nbq', path.join(DIR, 'server', 'migrations', '20261121_racket_series.sql'));
   for (const f of Object.keys(fnBefore)) T(`迁移里的 ${f} 与 schema.sql 一字不差`, (await src(f)) === fnBefore[f]);
   T('迁移后 risk_events 仍接受 buddy_ignored', (await q(`insert into risk_events(user_id,kind,ref) values ($1,'buddy_ignored','x') returning id`, [A])).rowCount === 1); T('迁移在已有库上再跑一遍无错误', !errs2.length, errs2.slice(0, 3));
   T('再跑一遍后数据还在', ids((await list(A)).buddies, 'user_id') === B && +(await q('select count(*) from buddies')).rows[0].count === 1);

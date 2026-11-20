@@ -27,7 +27,7 @@ export const textOf = (issue, d) => ({
   effect: `${marker('effect')}\n✅ **默认方案生效**（${d.by === 'owner' ? '所有者同意' : `${SILENCE_H} 小时静默期内无异议`}）。@${issue.author} 可以按它做了；做完在这里勾一下或关闭。\n\n> ${planOf(issue.body).replace(/\n/g, '\n> ')}`,
   objected: `${marker('objected')}\n⏸ **有异议**（${d.why}）：倒计时停止，请在这里讨论。达成一致后重新打「${LBL.open}」标签，重新计时 ${SILENCE_H} 小时。`,
   needs_owner: `${marker('needs_owner')}\n@${OWNER} 这条${d.why}，不会自动生效。你回复「同意」或「不做」即可；其余事不用你处理。`,
-  malformed: `${marker('malformed')}\n正文里没有「默认方案」，倒计时没开始。请按模板补上：**默认方案**（不回复就按它做）+ 一句理由 + 影响面与回退。`,
+  malformed: `${marker('malformed')}\n@${issue.author} @${OWNER} 正文里没有「默认方案」，倒计时没开始（@${OWNER} 先知道有这条待你看）。请作者按模板补上：**默认方案**（不回复就按它做）+ 一句理由 + 影响面与回退。`,
 }[d.action]);
 export const swap = (labels, to) => [...labels.filter(l => ![LBL.open, LBL.done, LBL.objected, LBL.owner].includes(l) || (to === LBL.owner && l === LBL.open)), to];
 
@@ -67,6 +67,21 @@ export function syncSchedule({ gh, list, R, dry }) {
   gh('-X', 'POST', `repos/${R}/issues/${SCHED.notify}/comments`, '-f', `body=${text}`);
 }
 
+// ---- 11-19（#398 P0）：需所有者拍板的 Issue（带「需所有者」「要你定」标签），无论正文是否合格，第一时间 @ 所有者一次（标记去重）；作者是所有者本人不 @ ----
+export const PING_LABELS = ['需所有者', '要你定'], pingMark = '<!-- nbq-ownerping -->';
+export const pingText = issue => `${pingMark}\n@${OWNER} 这条在等你拍板：「${(issue.title || '').slice(0, 40)}」。看正文里的「默认方案」/「需要所有者决定」即可；你回复「同意」或「不做」就行，不回复则按正文写的默认方案走（红线类除外，不会自动生效）。`;
+export const needsPing = (issue, comments) => issue.author !== OWNER && !comments.some(c => (c.body || '').includes(pingMark));
+function pingOwner({ gh, list, R, dry }) {
+  const seen = new Set();
+  for (const l of PING_LABELS) for (const x of list(`repos/${R}/issues?labels=${encodeURIComponent(l)}&state=open&per_page=100`).filter(i => !i.pull_request && !seen.has(i.number))) {
+    seen.add(x.number);
+    const issue = { number: x.number, title: x.title, author: x.user.login }, comments = list(`repos/${R}/issues/${x.number}/comments?per_page=100`);
+    if (!needsPing(issue, comments)) continue;
+    console.log(`#${x.number} 需拍板，@ 所有者`);
+    if (!dry) gh('-X', 'POST', `repos/${R}/issues/${x.number}/comments`, '-f', `body=${pingText(issue)}`);
+  }
+}
+
 function main() {
   const dry = process.argv.includes('--dry'), R = process.env.GITHUB_REPOSITORY || OWNER + '/nanbanqiu', now = Date.now();
   const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = p => JSON.parse(gh('--paginate', '--slurp', p)).flat();
@@ -82,6 +97,7 @@ function main() {
     if (!sent) gh('-X', 'POST', `repos/${R}/issues/${x.number}/comments`, '-f', `body=${text}`);
     if (to) { for (const l of Object.values(LBL)) { try { gh('-X', 'POST', `repos/${R}/labels`, '-f', `name=${l}`, '-f', 'color=0e8a16') } catch { } } gh('-X', 'PUT', `repos/${R}/issues/${x.number}/labels`, ...swap(x.labels.map(l => l.name), to).flatMap(l => ['-f', `labels[]=${l}`])) }
   }
+  try { pingOwner({ gh, list, R, dry }) } catch (e) { console.log('需拍板提醒失败：' + e.message) }
   try { syncSchedule({ gh, list, R, dry }) } catch (e) { console.log('排期对账失败：' + e.message) }
 }
 if (process.argv[1] && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url))) main();

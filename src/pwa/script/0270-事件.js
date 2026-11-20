@@ -69,12 +69,10 @@ DEV.addEventListener('click',e=>{
     case'ics':downloadICS(g);break;
     case'share':openShare(g);break;
     case'poster':openPoster(g);break;
-    case'wxShare':wxShare(g);break;
-    case'copyText':copy(shareText(api.get(g)),'已复制，去微信群粘贴');break;
-    case'copyLink':copy(shareURL('https://nanbanqiu.app/g/'+api.get(g).share_code,'link'),'链接已复制');break;
     case'sysShare':{const c=api.get(g);if(navigator.share)navigator.share({title:ogTitle(c),text:shareText(c),url:shareURL('https://nanbanqiu.app/g/'+c.share_code,'sys')}).catch(()=>{});else copy(shareText(c),'已复制分享文案');break}
+    case'wxShare':wxShare(g);break;
     case'editClubs':openClubs();break;
-    case'rkSlot':case'rkSwap':case'rkBrand':case'rkOther':case'rkBack':case'rkSeries':case'rkSave':case'rkMain':case'rkDel':rkAct(a);break;   // 我的球拍（0498）
+    case'rkSlot':case'rkEdit':case'rkBrand':case'rkOther':case'rkSeries':case'rkBack':case'rkSave':case'rkMain':case'rkDel':case'rkDelOk':case'rkNo':rkAct(a);break;   // 我的球拍（0498）
     case'utOpen':case'utMode':case'utEst':case'utSave':utAct(a);break;   // 我的 UTR（0499）
     case'saveClubs':(async()=>{if(NBQ_NET){if(await nbqSetClubs(CL)===null)return}else api.setClubs(CL);closeSheet();toast('已更新我的 Club');render()})();break;
     case'addClub':(async()=>{const ids=[...myClubIds(),a.dataset.v];if(ids.length>CLUB_MAX){toast('最多选 '+CLUB_MAX+' 个 Club，请先在「编辑」里去掉一个');return}if(NBQ_NET){if(await nbqSetClubs(ids)===null)return}else api.setClubs(ids);toast('已加入我的 Club');render()})();break;

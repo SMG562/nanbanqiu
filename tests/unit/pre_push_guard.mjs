@@ -31,5 +31,16 @@ try {
   T('远端有我没抓的提交：拦下并提示先 git fetch', r.status !== 0 && /git fetch/.test(r.stdout + r.stderr), r.stdout + r.stderr);
   git(a, {}, 'fetch', '-q', 'origin'); git(a, {}, 'merge', '-q', '--no-edit', 'origin/feat'); r = push(a, {}, '-q', 'origin', 'feat');
   T('抓取并合并之后（快进）：放行', r.status === 0, r.stderr);
+  // 11-19：非草稿 PR 的 tests 正在跑时再推 = 重算约 35 分钟 → 提醒（只提醒不拦）。origin 路径含 SMG562/nanbanqiu 才启用；gh 用桩
+  const rr = path.join(tmp, 'SMG562', 'nanbanqiu.git'), c = path.join(tmp, 'c'), bin = path.join(tmp, 'bin'); fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\ncase "$*" in *"pulls?"*) echo abc1234;; *"actions/runs"*) echo ${GHRUNS:-1};; esac\n', { mode: 0o755 });
+  git(tmp, {}, 'init', '-q', '--bare', rr); git(tmp, {}, 'clone', '-q', rr, c); git(c, {}, 'checkout', '-qb', 'feat2'); commit(c, 'x', '1');
+  const PATHX = { PATH: bin + path.delimiter + process.env.PATH };
+  r = push(c, { ...PATHX, GHRUNS: '1' }, 'origin', 'feat2'); const o1 = r.stdout + r.stderr;
+  T('tests 正在跑时推送：放行，且提醒会重算（nbq:warn:repush）', r.status === 0 && /nbq:warn:repush/.test(o1), o1);
+  commit(c, 'x', '2'); r = push(c, { ...PATHX, GHRUNS: '0' }, 'origin', 'feat2');
+  T('没有在跑的 tests：不提醒', r.status === 0 && !/nbq:warn:repush/.test(r.stdout + r.stderr), r.stdout + r.stderr);
+  commit(c, 'x', '3'); r = push(c, { ...PATHX, GHRUNS: '1', NBQ_REPUSH_CHECK: '0' }, 'origin', 'feat2');
+  T('NBQ_REPUSH_CHECK=0：不提醒', r.status === 0 && !/nbq:warn:repush/.test(r.stdout + r.stderr), r.stdout + r.stderr);
 } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
 console.log(`pre_push_guard: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

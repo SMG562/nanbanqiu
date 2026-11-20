@@ -1,6 +1,7 @@
 const {open,ok,lab,W,done}=require('./lib.cjs');
 (async()=>{const {b,pg,errs}=await open();console.log('T6 发布页');
 const E='#d2';const ev=(f,a)=>pg.evaluate(f,a);
+await pg.evaluate(()=>{window.NBQ_SB_FILLS_ON=true;window.NBQ_SB_TONES_ON=true});   // 11-19：开头三行 / 色调默认关，这份设计稿测试要看它们，显式打开
 // 设计稿里这台手机一开始就在 OOTD 的发布页；正式页面从话题进发布页（和「我也发一张」同一个入口 data-jie）
 await ev(async()=>{const el=document.querySelector('#d2');const b=document.createElement('button');b.dataset.jie='ootd';b.hidden=true;el.appendChild(b);b.click();b.remove();await new Promise(r=>setTimeout(r,900))});
 let r=await ev(E=>{const el=document.querySelector(E);return {cmp:el.classList.contains('composing'),top:el.querySelector('.ctop').textContent,ph:el.querySelector('[data-ctext]').placeholder,st:[...el.querySelectorAll('.st')].map(s=>s.textContent)}},E);
@@ -26,7 +27,7 @@ r=await ev(async E=>{const el=document.querySelector(E);el.querySelector('[data-
  el.querySelector('.phx').click();await new Promise(r=>setTimeout(r,200));a.sel3=el.querySelectorAll('.phs .ph1').length;return a},E);
 ok(r.lib===5&&r.imgs===5,'照片库 5 张都显示',r.imgs);ok(r.sel===3&&r.toast.includes('最多三张'),'最多选三张',r.toast);ok(r.nums==='123'&&r.sel2===2&&r.nums2==='12','取消一张后，序号重新排',`${r.nums}→${r.nums2}`);ok(r.tones>=3&&r.toneOn,'选了照片出现色调，可切换');ok(r.sel3===1,'照片右上 × 去掉一张');
 // 球场
-r=await ev(async E=>{const el=document.querySelector(E);LOC={...LOC,lat:-37.845,lng:145.01,label:'Malvern',source:'manual'};el.querySelector('[data-cpl]').click();await new Promise(r=>setTimeout(r,600));const a={open:el.querySelector('.pick').classList.contains('on'),n:el.querySelectorAll('.pick [data-loc]').length};const bt=el.querySelector('.pick [data-loc]:not([data-loc="none"])');a.nm=bt.querySelector('b').textContent;bt.click();await new Promise(r=>setTimeout(r,900));a.chip=el.querySelector('[data-cpl]').textContent;a.closed=!el.querySelector('.pick').classList.contains('on');return a},E);
+r=await ev(async E=>{const el=document.querySelector(E);LOC={...LOC,lat:-37.845,lng:145.01,label:'Malvern',source:'manual'};el.querySelector('[data-cpl2]').click();await new Promise(r=>setTimeout(r,600));const a={open:el.querySelector('.pick').classList.contains('on'),n:el.querySelectorAll('.pick [data-loc]').length};const bt=el.querySelector('.pick [data-loc]:not([data-loc="none"])');a.nm=bt.querySelector('b').textContent;bt.click();await new Promise(r=>setTimeout(r,900));a.chip=el.querySelector('[data-cpl]').textContent;a.closed=!el.querySelector('.pick').classList.contains('on');return a},E);
 ok(r.open&&r.n>=4,'发布页选球场：打开单子',r.n);global.__chosen=r.nm;ok(r.chip.includes(r.nm)&&r.closed,'选好后单子收起，按钮显示球场',r.chip);
 // 发布设置
 r=await ev(async E=>{const el=document.querySelector(E);el.querySelector('[data-cset]').click();await new Promise(r=>setTimeout(r,500));el.querySelector('[data-tg="later"]').click();await new Promise(r=>setTimeout(r,200));const a={go:el.querySelector('[data-cgo]').textContent};el.querySelector('[data-cshx]').click();await new Promise(r=>setTimeout(r,600));a.go2=el.querySelector('[data-cgo]').textContent;a.note=el.querySelector('.cnote').textContent;el.querySelector('[data-cset]').click();await new Promise(r=>setTimeout(r,500));el.querySelector('[data-tg="later"]').click();el.querySelector('[data-cshx]').click();await new Promise(r=>setTimeout(r,600));a.go3=el.querySelector('[data-cgo]').textContent;return a},E);

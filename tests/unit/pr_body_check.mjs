@@ -25,4 +25,16 @@ T('只同步了一部分 → 仍不过（点名没同步的那个）', (r => r.s
 T('全部写了已同步 → 过', checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2).length === 0, checkBody(TBL + RISK + TODO + '已同步到电脑：server/migrations/x.sql、tools/admin_create.mjs\n', FILES2));
 T('「你来做」只提 main 上已有的文件 → 不要求', checkBody(TBL + RISK + '## 你来做\n- 看 `tools/site.mjs`\n', FILES2).length === 0);
 T('改了技能 / 钩子、描述没 @SMG562 / @MDD1102 → 不过；写其一 → 过；普通文档不要求', (m => checkBody(RISK, ['.claude/skills/x/SKILL.md']).some(m) && !checkBody(RISK + '@SMG562 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK + '@MDD1102 新增一条经验', ['.claude/settings.json']).some(m) && !checkBody(RISK, DOC).some(m))(x => /@SMG562 或 @MDD1102/.test(x)));
+// 11-19（#397 E）：改规则 / 范围要同时追加台账一行
+T('改了业务规则、没动台账 → 不过', checkBody(RISK, ['业务规则.md']).some(x => /台账/.test(x)));
+T('改了路线图、同时改了决定台账 → 过', checkBody(RISK, ['docs/roadmap.md', 'docs/决定台账.md']).length === 0);
+T('改了 ADR、写了「台账：无（理由）」+ @ → 过', checkBody(RISK + '台账：无（只改错别字）\n@MDD1102\n', ['docs/adr/0001-x.md']).length === 0);
+T('「台账：无」没理由 → 不过', checkBody(RISK + '台账：无\n', ['业务规则.md']).length > 0);
+// 11-20（#465 D）：改了前台的「较大风险」PR，描述里要写「真机怎么测：点哪几下、期望看到什么」，所有者不用猜；11-21 之后开的 PR 才要求（在途 PR 不被卡）
+const NEW = '2026-11-22T00:00:00Z', OLD = '2026-11-19T00:00:00Z', HOW = '真机怎么测：打开场边点第 2 张图，期望进大图且是第 2 张\n';
+T('前台较大风险、没写真机怎么测（新 PR）→ 不过', checkBody(TBL + RISK, SRC, { created: NEW }).some(x => /真机怎么测/.test(x)));
+T('写了「真机怎么测：…」→ 过', checkBody(TBL + RISK + HOW, SRC, { created: NEW }).length === 0, checkBody(TBL + RISK + HOW, SRC, { created: NEW }));
+T('「真机怎么测：」只有几个字 → 不过', checkBody(TBL + RISK + '真机怎么测：看看\n', SRC, { created: NEW }).some(x => /真机怎么测/.test(x)));
+T('在途 PR（11-21 前开的）不要求', checkBody(TBL + RISK, SRC, { created: OLD }).length === 0);
+T('小修小补 / 只改文档不要求', checkBody(TBL + '- [ ] 较大风险　- [x] 小修小补\n', SRC, { created: NEW }).length === 0 && checkBody(RISK, DOC, { created: NEW }).length === 0);
 console.log(`\npr_body_check: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

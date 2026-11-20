@@ -96,6 +96,9 @@ add('pg', 'pg/risk', ['node', path.join(HERE, 'pg/risk.mjs')], { pass: [/risk: \
 add('pg', 'pg/privacy', ['node', path.join(HERE, 'pg/privacy.mjs')], { pass: [/privacy: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_schema', ['node', path.join(HERE, 'pg/sb_schema.mjs')], { pass: [/sb_schema: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_api', ['node', path.join(HERE, 'pg/sb_api.mjs')], { pass: [/sb_api: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_read', ['node', path.join(HERE, 'pg/sb_read.mjs')], { pass: [/sb_read: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_photo', ['node', path.join(HERE, 'pg/sb_photo.mjs')], { pass: [/sb_photo: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/sb_photo_read', ['node', path.join(HERE, 'pg/sb_photo_read.mjs')], { pass: [/sb_photo_read: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/sb_config', ['node', path.join(HERE, 'pg/sb_config.mjs')], { pass: [/sb_config: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_api', ['node', path.join(HERE, 'pg/admin_api.mjs')], { pass: [/admin_api: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/admin_reports', ['node', path.join(HERE, 'pg/admin_reports.mjs')], { pass: [/admin_reports: \d+ 通过, 0 失败/], timeout: 300 });
@@ -118,6 +121,7 @@ add('pg', 'pg/admin_sb_config', ['node', path.join(HERE, 'pg/admin_sb_config.mjs
 add('pg', 'pg/api_layer', ['node', path.join(HERE, 'pg/api_layer.mjs')], { pass: [/api_layer: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/api_write', ['node', path.join(HERE, 'pg/api_write.mjs')], { pass: [/api_write: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/rackets', ['node', path.join(HERE, 'pg/rackets.mjs')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });
+add('pg', 'pg/racket_series', ['node', path.join(HERE, 'pg/racket_series.mjs')], { pass: [/racket_series: \d+ 通过, 0 失败/], timeout: 300 });
 add('pg', 'pg/buddies', ['node', path.join(HERE, 'pg/buddies.mjs')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-A
 add('pg', 'pg/admin_buddies', ['node', path.join(HERE, 'pg/admin_buddies.mjs')], { pass: [/admin_buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友统计 #110 PR-A3
 add('pg', 'pg/utr', ['node', path.join(HERE, 'pg/utr.mjs')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
@@ -152,6 +156,7 @@ add('frontend', 'frontend/side', ['node', '-r', PRELOAD, path.join(HERE, 'fronte
 add('frontend', 'frontend/side_write', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_write.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F1b 场边发布与互动
 add('frontend', 'frontend/utr', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/utr.js')], { pass: [/utr: \d+ 通过, 0 失败/], timeout: 300 });   // 我的 UTR #101
 add('frontend', 'frontend/rackets', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/rackets.js')], { pass: [/rackets: \d+ 通过, 0 失败/], timeout: 300 });   // 我的球拍 #60 PR-B
+add('frontend', 'frontend/racket_card', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/racket_card.js')], { pass: [/racket_card: \d+ 通过, 0 失败/], timeout: 300 });   // 球员卡显示球拍 #60 PR-C2
 add('frontend', 'frontend/buddies', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies.js')], { pass: [/buddies: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B1
 add('frontend', 'frontend/buddies_scan', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/buddies_scan.js')], { pass: [/buddies_scan: \d+ 通过, 0 失败/], timeout: 300 });   // 球友 #110 PR-B2 扫码加球友
 add('frontend', 'frontend/logout_race', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/logout_race.js')], { pass: [/logout_race: \d+ 通过, 0 失败/], timeout: 300 });   // 读到一半退出登录（11-09）
@@ -160,7 +165,9 @@ add('frontend', 'frontend/sheet_gestures', ['node', '-r', PRELOAD, path.join(HER
 add('frontend', 'frontend/loc_persist', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/loc_persist.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 定位只问一次 + Club 按字母排序
 add('frontend', 'frontend/late_join', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/late_join.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 开打后 30 分钟内仍可申请（11-04）
 add('frontend', 'frontend/intro', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro.js')], { pass: [/intro: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条（11-08）
+add('frontend', 'frontend/intro_motion', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/intro_motion.js')], { pass: [/intro_motion: \d+ passed, 0 failed/], timeout: 300 });   // 首页引导条运动不变式（11-19）：场景不变 / 球一直亮 / 弹跳平滑 / 灯亮不闪 / 退场球不动
 add('frontend', 'frontend/layout_tz', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/layout_tz.js')], { pass: [/layout_tz: \d+ passed, 0 failed/], timeout: 400 });   // 排版守卫：非墨尔本时区 × 窄屏，卡片文字不压住（11-09 逃逸）
+add('frontend', 'frontend/side_home', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_home.js')], { pass: [/side_home: \d+ passed, 0 failed/], timeout: 300 });   // 场边左上「场边」点一下回主页（#460 第 1 步）：详情 / 相册 / 筛选 / 发布页草稿确认 / 键盘
 add('frontend', 'frontend/side_court_pick', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_court_pick.js')], { pass: [/side_court_pick: \d+ passed, 0 failed/], timeout: 300 });   // 场边选球场接真实球场（#335 B2）：附近 + 距离、搜索、无结果、无权限、刷新后还在、键盘升起
 add('frontend', 'frontend/club_search', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/club_search.js')], { pass: [/club_search: \d+ passed, 0 failed/], timeout: 300 });   // Home Club 列表加搜索（#335 C）：仍按字母序、不显示距离
 add('frontend', 'frontend/venue_pick', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/venue_pick.js')], { pass: [/venue_pick: \d+ passed, 0 failed/], timeout: 300 });   // 通用选球场（#335 B1）：附近 + 距离、无结果、无定位权限、刷新后还在
@@ -169,6 +176,7 @@ add('frontend', 'frontend/input_visible', ['node', '-r', PRELOAD, path.join(HERE
 add('frontend', 'frontend/paper_consistency', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/paper_consistency.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 默认印色纸白：各处真实渲染像素一致
 add('frontend', 'frontend/side_scroll', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_scroll.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 场边整页上移 / 卡顿回归
 add('frontend', 'frontend/side_notif', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_notif.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F2 场边通知 + 埋点
+add('frontend', 'frontend/side_real', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_real.js')], { pass: [/side_real: \d+ 通过, 0 失败/], timeout: 300 });   // #369 PR-B 场边接真后端（真实模式）
 add('frontend', 'frontend/web_side', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/web_side.js')], { pass: [/\d+ passed, 0 failed/], timeout: 300 });   // 第八批 F3 网页端接入场边
 // 第八批 T2：设计稿 v35 的 146 项场边测试（原来读 QA_FILE 设计稿），改测正式页面（手机端 / 网页端），tests/场边/lib.cjs 做转接
 for (const [n, nm] of [[1, '信息流'], [2, '网球点赞'], [3, '筛选'], [4, '详情回复菜单'], [5, '底栏'], [6, '发布页'], [7, '话题墙相册'], [8, '压力边界'], [9, '攒着的新动态'], [10, '选球场行与底栏芯片'], [11, '新动态先攒着']])
@@ -193,6 +201,7 @@ add('frontend', 'frontend/real_safety', ['node', '-r', PRELOAD, path.join(HERE, 
 add('frontend', 'frontend/real_after', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/real_after.js')], { pass: [/real_after: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/dom_integrity', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/dom_integrity.js')], { pass: [/dom_integrity: \d+ 通过, 0 失败/], timeout: 600 });
 add('frontend', 'frontend/img_save', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/img_save.js')], { pass: [/img_save: \d+ 通过, 0 失败/], timeout: 300 });
+add('frontend', 'frontend/side_photo', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/side_photo.js')], { pass: [/side_photo: \d+ 通过, 0 失败/], timeout: 300 });   // #393 P3 照片管线（真实画布）
 add('frontend', 'frontend/shot_fallback', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/shot_fallback.js')], { pass: [/shot_fallback: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/wx_share', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/wx_share.js')], { pass: [/wx_share: \d+ 通过, 0 失败/], timeout: 300 });
 add('frontend', 'frontend/a2hs', ['node', '-r', PRELOAD, path.join(HERE, 'frontend/a2hs.js')], { pass: [/a2hs: \d+ 通过, 0 失败/], timeout: 300 });

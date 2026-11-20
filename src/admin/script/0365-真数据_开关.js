@@ -6,7 +6,8 @@ const RSW={d:null,err:null,loading:false,busy:false};
 const RSW_ITEMS=[
   ['register_paused','暂停注册','开：新号码注册被拒（已有账号照常登录、照常使用）。'],
   ['maintenance','维护页','开：除版本和开关查询外，所有前台接口返回「维护中」；后台不受影响（要靠它关）。'],
-  ['sms_paused','停发短信','开：前台不再向手机发验证码，提示「短信验证码暂时停发」；已登录的人不受影响。']];
+  ['sms_paused','停发短信','开：前台不再向手机发验证码，提示「短信验证码暂时停发」；已登录的人不受影响。'],
+  ['photos_paused','停传照片','开：场边不再接收新照片（上传返回「照片上传暂时关闭」，前台隐藏相机入口）；已发的照片照常显示，文字照常发。']];
 async function rswLoad(){if(RSW.loading)return;RSW.loading=true;const r=await admApi('GET','/switches');RSW.loading=false;
   if(r.status===401)return toLogin('登录已过期，请重新登录');
   if(r.ok&&r.body&&Array.isArray(r.body.switches)){RSW.d=r.body.switches;RSW.err=null}else RSW.err=realErr(r);if(RL.me&&S.page==='switches')render()}

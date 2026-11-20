@@ -136,11 +136,11 @@ function ngFormHTML(){const f=NG,mine=ME.home_club_ids||[],w=ME.gender==='f';
     <div class="iv-l">想对球友说的 <span>选填</span></div>
     <input id="ngNote" class="iv-in" maxlength="80" enterkeyhint="done" autocomplete="off" placeholder="比如：场地已订好，我带新球，灯光费 AA" value="${esc(f.note)}">
     <div class="ntq">${NOTE_Q.map(q=>`<button data-ng="noteQ" data-v="${q}" class="${noteHas(f.note,q)?'on':''}">${noteHas(f.note,q)?'✓ ':'+ '}${q}</button>`).join('')}</div>
-    <div class="kbhide">${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>人满了或到了开打时间，发现页和分享链接里就看不到这局，只有参加的人能看到</small></span><span class="sw${f.hide?' on':''}"></span></div>
+    <div class="kbhide">${ugToggleHTML(f)}<div class="tgl ngrep" data-ng="hide"><span>约满后不再公开<small>约满或开打后，发现页和分享链接里不再出现</small></span><span class="sw${f.hide?' on':''}"></span></div>
     <div class="tgl ngrep" data-ng="rep"${f.edit?' style="display:none"':''}><span>每周重复<small>每周这个时间自动发布一场。仅你可见，球友看到的是普通球局</small></span><span class="sw${f.rep?' on':''}"></span></div>
     </div>
     <button class="iv-go" data-ng="publish">${f.edit?'保存修改':'发布'}</button>
-    ${f.edit?'':'<div class="iv-foot">发布后可以直接分享到微信群、小红书</div>'}</div>`}
+    </div>`}
 function ngPreview(){const v=VEN[NG.venue_id];if(!v)return'';return ogAHTML({v,start:dayAt(NG.o,NG.t),game_type:NG.type,ntrp_min:NG.mn,ntrp_max:NG.mx,spots:NG.type==='doubles'?NG.miss:1,host:ME})}
 function ngKeep(){const n=document.getElementById('ngNote');if(n)NG.note=n.value;const q=document.getElementById('ngQ');if(q)NG.q=q.value;vpKeep('ng',NG)}
 function drawCreate(){CREATE_OPEN(ngFormHTML(),ngPreview())}
@@ -194,10 +194,13 @@ const autoShort=n=>String(n||'').replace(/\s+Lawn Tennis Club$/i,' LTC').replace
 const vpHere=()=>LOC&&LOC.source&&LOC.source!=='default'&&LOC.lat!=null?LOC:null;
 const vpKm=v=>{const h=vpHere();return h?km(h,v):null};
 const vpFmt=d=>d<1?Math.max(10,Math.round(d*100)*10)+' m':d.toFixed(1)+' km';
-function vpLocate(done){const bad=m=>{toast(m);done(false)};if(!navigator.geolocation)return bad('无法获取位置');
-  navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return bad('你目前不在'+CITY.zh+'附近');
-    let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});LOC={...LOC,lat,lng,label:b.name,source:'gps',asked:true};nbqLocSave();done(true)},
-    ()=>bad('没获得位置权限，先按「'+LOC.label+'」附近排'),{timeout:8000,maximumAge:6e5})}
+// 取位置的唯一入口（C，#365）：定位 → 不在本城就失败 → 取最近的区。requestLocation / nbqLocQuiet / vpLocate 共用，失败原因 nogeo / far / denied
+function nbqGeoFix(ok,fail){if(!navigator.geolocation)return fail('nogeo');
+  navigator.geolocation.getCurrentPosition(p=>{const{latitude:lat,longitude:lng}=p.coords;if(km({lat,lng},CITY)>CITY.km+5)return fail('far');
+    let b=SUBURBS[0],d=1e9;SUBURBS.forEach(s=>{const x=km({lat,lng},s);if(x<d){d=x;b=s}});ok(lat,lng,b)},()=>fail('denied'),{timeout:8000,maximumAge:6e5})}
+function vpLocate(done){const bad=m=>{toast(m);done(false)};
+  nbqGeoFix((lat,lng,b)=>{LOC={...LOC,lat,lng,label:b.name,source:'gps',asked:true};nbqLocSave();done(true)},
+    r=>bad(r==='nogeo'?'无法获取位置':r==='far'?'你目前不在'+CITY.zh+'附近':'没获得位置权限，先按「'+LOC.label+'」附近排'))}
 function vpList(a,f,theirs=[]){const q=(f.q||'').trim().toLowerCase(),pool=Object.values(VEN).filter(v=>!v.custom||v.owner===ME.id);
   // 每一行只显示两样：左边球场名，右边所在的区
   const row=v=>`<button class="vp-row${f.venue_id===v.id?' on':''}" data-${a}="pickVen" data-v="${v.id}"><span class="vp-t"><b>${esc(v.short)}</b></span><em>${esc(v.suburb)}${vpKm(v)==null?'':' · '+vpFmt(vpKm(v))}</em></button>`;

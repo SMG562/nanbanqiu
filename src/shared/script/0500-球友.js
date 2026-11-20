@@ -50,7 +50,7 @@ function bdConfirmHTML(r){const u=U(r.from),k=playedCount(ME.id,r.from);
 function bdOpen(id,via){const r=bdIn().find(x=>x.id===id);if(!r){toast('这条申请已经处理过或失效了');render();return}
   track('buddy_request_open',{request_id:id,via});bdShow(bdConfirmHTML(r))}
 function bdListOpen(){const L=bdAll();track('buddy_list_open',{n_buddies:L.filter(x=>x.scan).length,n_played:L.filter(x=>x.n).length});
-  bdShow(`<div class="bd-ls"><div class="bd-h"><b>我的球友</b><small>仅你可见 · ${L.length} 位</small></div>${L.map(x=>{const u=U(x.uid);return `<button class="bd-row" data-user="${x.uid}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>${esc(bdLine(x))}</small></span></button>`}).join('')}</div>`)}
+  bdShow(`<div class="bd-ls"><div class="bd-h"><b>我的球友</b><small>${L.length} 位</small></div>${L.map(x=>{const u=U(x.uid);return `<button class="bd-row" data-user="${x.uid}">${av(u)}<span class="bd-t"><b>${esc(u.name)}</b><small>${esc(bdLine(x))}</small></span></button>`}).join('')}</div>`)}
 
 /* ---- 确认 / 忽略：写服务器，成功后整体重读 ---- */
 async function bdRespond(id,act){const r=BUDDY.incoming.find(x=>x.id===id);if(!r||!ME)return;
@@ -91,7 +91,7 @@ const bdHome=()=>{if(AN_BUILD==='pwa')go('disc');else{UI.landing=null;UI.tab='di
 async function bdLandGo(){const L=BD_LAND;if(!L||L.uid)return;
   if(!ME||NBQ_STALE){
     if((typeof sbaWaiting==='function'&&sbaWaiting())||NBQ_STALE){if(++L.tries<60)setTimeout(bdLandGo,500);else BD_LAND=null;return}   // 正在恢复登录：最多等 30 秒
-    track('buddy_scan_view',{target_uid:null,logged_in:false,source:L.src});openAuth(()=>bdLandGo(),'登录后就能看到 TA 的球员卡，加 TA 为球友');return}
+    track('buddy_scan_view',{target_uid:null,logged_in:false,source:L.src});AN.trig='scan';try{openAuth(()=>bdLandGo(),'登录后就能看到 TA 的球员卡，加 TA 为球友')}finally{AN.trig=null}return}
   const r=await NBQ_NET.get('/api/players/no/'+L.no);if(BD_LAND!==L||!ME)return;
   if(!r.ok||!r.data||!r.data.player){BD_LAND=null;toast(r.code==='not_found'||r.ok?'没找到这位球友，可能已注销':apiErrText(r.code));return}
   const u=nbqFromUser(r.data.player);L.uid=u.id;L.card=r.data.player;if(!USERS[u.id])USERS[u.id]=u;

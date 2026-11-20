@@ -49,7 +49,12 @@ T('Stop：收尾提问被提醒', /要我/.test(sr || ''), sr);
 T('deny / 提醒都带 [nbq:种类] 标签（台账靠它数命中）', /\[nbq:poll\]/.test(G.preDecision({ tool_name: 'Bash', tool_input: { command: 'gh pr view 1' } }).hookSpecificOutput.permissionDecisionReason) && /\[nbq:bigread\]/.test(G.preDecision({ tool_name: 'Read', tool_input: { file_path: big } }).hookSpecificOutput.permissionDecisionReason) && /\[nbq:wake\]/.test(run(JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'mcp__x__send_later', tool_input: {}, transcript_path: tc, session_id: 'wk2' })).stdout) && /\[nbq:ask\]/.test(G.stopReason({ transcript_path: tr, session_id: 's3', last_assistant_message: '要我现在合并吗？' }, { dir: tmp })));
 const lj = [hu('human'), u('l1', 100000), hu('human'), u('l2', 120000), hu('task-notification'), u('l3', 130000), hu('human'), u('l4', 140000), JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', content: '[nbq:wake] x [nbq:wake] y [nbq:bigread] z' }] } })].join('\n');
 const ll = G.ledgerLine(lj, 'MDD1102', new Date('2026-11-18T01:00:00Z'));
-T('台账行：固定格式、含登录名 / 日期 / 回合 / 各闸门命中；不含对话内容', /^NBQ-LEDGER v1 \| MDD1102 \| 2026-11-18 \| human=3 notif=1 \| readPerHuman=\d+ \| notifShare=\d+ \| ctxMax=140K \| asks=\d \| hits=long:0,edits:0,poll:0,wake:2,bigread:1,ask:0$/.test(ll) && !/好|要我/.test(ll), ll);
+T('台账行：固定格式、含登录名 / 日期 / 回合 / 各闸门命中；不含对话内容', /^NBQ-LEDGER v1 \| MDD1102 \| 2026-11-18 \| human=3 notif=1 \| readPerHuman=\d+ \| notifShare=\d+ \| ctxMax=140K \| asks=\d \| hits=long:0,edits:0,poll:0,wake:2,bigread:1,ask:0 \| blocks=-$/.test(ll) && !/好|要我/.test(ll), ll);
+T('台账行末尾 blocks=：按闸门数 [nbq:block:<闸门>] 命中；没有则 -（11-19 #410）', G.blockCounts('[nbq:block:pr_say_review] x [nbq:block:pre_push] y [nbq:block:pr_say_review] [nbq:poll]') === 'pr_say_review:2,pre_push:1' && G.blockCounts('') === '-' && /blocks=pre_push:1$/.test(G.ledgerLine(lj + '\n[nbq:block:pre_push]', 'x')));
+T('gh pr list / gh issue view|list 会 403：手写拒绝并给 REST 替代（11-19）；gh api 放行', ['gh pr list --state open', 'gh issue view 12', 'gh issue list -l x'].every(c => /REST|gh api/.test(G.pollingBlock(c) || '')) && G.pollingBlock('gh api repos/SMG562/nanbanqiu/pulls?state=open') === null);
+T('warn 标签也记账：blockCounts 数 [nbq:warn:x]', G.blockCounts('[nbq:warn:repush] a [nbq:block:pre_push] [nbq:warn:repush]') === 'repush:2,pre_push:1');
+{ const f = x => fs.readFileSync(path.join(DIR, x), 'utf8');   // 闸门接线：脚本里真有这些标签（漂移会红）
+  T('11-19 批次闸门已接线：pr_state（报错带修复命令 / 重叠提醒）与 pre-push（重推提醒）', /nbq:block:pr_state_branch/.test(f('tools/pr_state.sh')) && /git checkout -B/.test(f('tools/pr_state.sh')) && /nbq:warn:overlap/.test(f('tools/pr_state.sh')) && /nbq:warn:repush/.test(f('.githooks/pre-push')) && ['pr_state_branch', 'warn:overlap', 'warn:repush'].every(k => f('.claude/skills/collaborator-pitfalls/SKILL.md').includes(k))); }
 T('台账登录名被清洗（防注入）', !/[|\n<]/.test(G.ledgerLine(lj, 'a|b\n<x>').split(' | ')[1]));
 // postLedger：注入假 gh，不碰网络
 const calls = [], fake = (c, a) => { calls.push(a.join(' ')); return a[1] === 'user' ? { status: 0, stdout: 'MDD1102\n' } : { status: 0, stdout: '777\n' } };
@@ -66,6 +71,8 @@ T('技能 §十 点名 token_report.mjs 与 NBQ_CTX_K', /token_report\.mjs/.test
 T('钩子：SessionStart 注入常驻规矩', /不订阅/.test(run(JSON.stringify({ hook_event_name: 'SessionStart' })).stdout));
 T('settings.json 接了 SessionStart 注入', JSON.stringify(st.hooks.SessionStart).includes('role_guard.mjs'));
 const L = await import(pathToFileURL(path.join(DIR, 'tools/lib/lessons_digest.mjs')));
+const LG = n => `NBQ-LEDGER v1 | a | 2026-11-19 | human=3 notif=1 | readPerHuman=1 | notifShare=0 | ctxMax=1K | asks=0 | hits=long:0 | blocks=${n}`;
+T('③b 闸门命中：跨会话累加，同一闸门 ≥2 次才进升级候选；「-」与单次不进', JSON.stringify(L.gateHits([LG('pr_say_review:1,pre_push:1'), LG('pr_say_review:2'), LG('-'), 'x'])) === '[["pr_say_review",3]]' && L.gateHits([LG('a:1')]).length === 0);
 T('经验收集：只抓踩坑 / 教训行并去标记；重复的识别出来', (p => p.length === 2 && !/\*/.test(p[0]) && L.dupes([...p, p[0]]).length === 1)(L.pitfalls(['**踩过的坑**：A 别重踩\n无关行', '第二次出现 B'])));
 T('规则体检：取 #号 / 脚本名为证据；老且没用到才算候选删除；取 #216 最近一条【规则体检】', JSON.stringify(L.ruleKeys('1. 见 #333 与 `ci_wait.sh`')) === JSON.stringify(['#333', 'ci_wait.sh']) && L.stale(40, 0) && !L.stale(40, 1) && !L.stale(10, 0) && L.latestCheck(['x', '【规则体检】旧', '闲聊', '【规则体检】新']) === '【规则体检】新' && L.latestCheck(['x']) === '');
 T('技能 §十一 点名 lessons_digest.mjs 与「净增 ≤ 0」', /lessons_digest\.mjs/.test(sk) && /净增行数必须 ≤ 0/.test(sk));

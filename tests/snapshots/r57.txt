@@ -3,8 +3,8 @@ PASS toggle hidden far
 PASS toggle on
 PASS published instant {"id":"n103","mode":"instant","ca":true,"mn":3,"mx":4}
 PASS no unfilled reminder for fresh game 0
-PASS host card instant note & no ufc <div class="ugh">不用你确认 · 水平在 3.0–4.0 内的球友可以直接加入</div><div class="ufh">🔒 约满或开打后，这局不再公开，只有参加的人能看到</div>
-PASS button 直接加入 直接加入 | 不用等确认，加入后就定了
+PASS host card instant note & no ufc <div class="ugh">不用你确认 · 水平在 3.0–4.0 内的球友可以直接加入</div><div class="ufh">🔒 约满或开打后不再公开</div>
+PASS button 直接加入（下面不再有说明小字） 直接加入 | true
 PASS join modal
 PASS joined approved & host notified {"st":"approved","at":true,"n":true,"txt":"Jason 加入了你的球局 🎾 / UTR 3.5 · 今天 16:30 · South Camberwell TC","state":"approved"}
 PASS grace leave not late {"t":"刚加入 10 分钟内退出，不算临时退出。","late":0}

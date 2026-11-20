@@ -16,7 +16,7 @@ const KB = () => +process.env.NBQ_SESSION_KB || 1024, MIN_EDITS = () => +process
 // ① 手写轮询 / 会 403 重试的命令 → 直接拒绝并给替代品（PreToolUse）
 export function pollingBlock(cmd) {
   if (typeof cmd !== 'string' || /tools\/(ci_wait|pr_state|pr_merge|gate)\.sh/.test(cmd.split(/[;&|\n]/)[0])) return null;
-  if (/\bgh\s+pr\s+(view|checks|status)\b/.test(cmd)) return '`gh pr view/checks` 在这里会 403 并白白重试。查状态用 `bash tools/pr_state.sh <PR号> status`，或 `gh api repos/SMG562/nanbanqiu/pulls/<号>`；等 CI 用 `bash tools/ci_wait.sh <PR号>`。';
+  if (/\bgh\s+(pr\s+(view|checks|status|list)|issue\s+(view|list))\b/.test(cmd)) return '`gh pr view/checks/list`、`gh issue view/list` 在云会话里走 GraphQL 会 403 并白白重试（11-19 又踩）。查状态用 `bash tools/pr_state.sh <PR号> status`；列表 / 详情用 REST：`gh api "repos/SMG562/nanbanqiu/pulls?state=open"`、`gh api repos/SMG562/nanbanqiu/issues/<号>`；等 CI 用 `bash tools/ci_wait.sh <PR号>`。';
   if (/\b(while|until)\b[\s\S]*\b(sleep|gh|curl)\b[\s\S]*\bdone\b/.test(cmd) || /\bsleep\s+\d+[\s\S]*\bgh\s+(api|run)\b/.test(cmd) || /\bgh\s+(api|run)\b[\s\S]*\bsleep\s+\d+/.test(cmd)) return '别手写轮询循环：等 CI 用 `bash tools/ci_wait.sh [提交号|PR号]`；有 PR 订阅就推完结束本轮，事件会唤醒你。';
   return null;
 }
@@ -72,9 +72,10 @@ export function stopReason(input, { dir = os.tmpdir() } = {}) {
 
 // ④ 机器台账（11-17）：每个会话一行纯数字（无对话内容）写进 Issue #349，所有者与协作者两侧同一份代码；每周一定时任务读它，判每条闸门「有没有效 / 过没过时」。NBQ_LEDGER=0 不上报。
 export const LEDGER_ISSUE = 349, HIT_KINDS = ['long', 'edits', 'poll', 'wake', 'bigread', 'ask'];
+export const blockCounts = jsonl => { const m = {}; for (const [, g] of String(jsonl).matchAll(/\[nbq:(?:block|warn):([\w-]+)\]/g)) m[g] = (m[g] || 0) + 1; return Object.entries(m).map(([g, n]) => `${g}:${n}`).join(',') || '-' };   // 11-19（#410）：各闸门拒绝信息带 [nbq:block:<闸门名>]，这里按闸门数命中，写进台账末尾 blocks=
 export function ledgerLine(jsonl, login, now = new Date()) {   // 格式固定，周任务按它解析；只含数字和登录名
   const r = analyze(jsonl), hits = HIT_KINDS.map(k => `${k}:${(jsonl.match(new RegExp(`\\[nbq:${k}\\]`, 'g')) || []).length}`).join(',');
-  return `NBQ-LEDGER v1 | ${String(login).replace(/[^\w-]/g, '')} | ${now.toISOString().slice(0, 10)} | human=${r.human} notif=${r.notif} | readPerHuman=${r.readPerHuman} | notifShare=${r.read ? Math.round(r.notifRead * 100 / r.read) : 0} | ctxMax=${Math.round(r.ctxMax / 1000)}K | asks=${r.asks} | hits=${hits}`;
+  return `NBQ-LEDGER v1 | ${String(login).replace(/[^\w-]/g, '')} | ${now.toISOString().slice(0, 10)} | human=${r.human} notif=${r.notif} | readPerHuman=${r.readPerHuman} | notifShare=${r.read ? Math.round(r.notifRead * 100 / r.read) : 0} | ctxMax=${Math.round(r.ctxMax / 1000)}K | asks=${r.asks} | hits=${hits} | blocks=${blockCounts(jsonl)}`;
 }
 export function postLedger(input, { dir = os.tmpdir(), run = spawnSync, now = Date.now() } = {}) {
   try {

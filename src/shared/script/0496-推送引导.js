@@ -30,7 +30,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 // 被拒绝后：不再弹系统窗口，指引去系统设置
 function openPushDenied(){const ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Mac/.test(ua)&&navigator.maxTouchPoints>1);
   const steps=ios?['打开 iPhone 的「设置」','点「通知」，找到「南伴球」','打开「允许通知」']:['长按桌面上的南伴球图标，点「应用信息」','点「通知」','打开「允许通知」'];
-  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">${pnV2()?'关着通知，球友同意或回复你时，要打开南伴球才看得到。系统不允许网页再次弹窗，请在手机设置里打开：':'有人申请或回复时，需要通知才能第一时间告诉你。系统不允许网页再次弹窗，请在手机设置里打开：'}</p></div>
+  openSheet(`<div class="center"><div class="sh-t">通知现在是关闭的</div><p class="sh-s">${pnV2()?'球友同意或回复你时，要打开南伴球才看得到。请在手机「设置」里打开：':'需要通知才能第一时间告诉你。请在手机「设置」里打开：'}</p></div>
   <ol class="pdsteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
   <button class="btn btn-p" data-a="pushRecheck">我已打开</button><div style="height:8px"></div><button class="btn btn-s" data-a="close">稍后</button>`)}
 function pushRecheck(){
@@ -129,7 +129,7 @@ let PN_AUTH=null;
     if(!seen&&!(typeof a2hsAdded==='function'&&a2hsAdded())&&typeof NBQ_NET!=='undefined'&&NBQ_NET&&typeof ENV!=='undefined'&&ENV==='safari'&&typeof a2hsKind==='function'&&a2hsKind()==='ios_safari'){
       PN_AUTH={next,why};
       if(typeof a2hsV2==='function'&&a2hsV2()){openA2HS(true);return}   // 新引导的「为什么」屏，下面留「先在浏览器里用」（authAnyway）；hoGuide 和 a2hs_open 埋点都在 openA2HS 里
-      openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">iPhone 上，浏览器和桌面图标不共用登录。先添加到主屏幕，从桌面图标打开后再登录，只需登录一次，也能收到球友的回复提醒。</p></div>
+      openSheet(`<div class="center"><div class="sh-t">先添加到主屏幕，再登录</div><p class="sh-s">浏览器和桌面图标不共用登录，从桌面图标打开后再登录即可。</p></div>
       <button class="btn btn-p" data-a="a2hs">添加到主屏幕</button><div style="height:8px"></div><button class="btn btn-s" data-a="authAnyway">先在浏览器里用</button>`);return}
     return _oa.call(this,next,why)}}}
 // 主屏幕 App 里登录完（没有接着要做的事）：一步开通知。只问一次；系统弹窗只在用户点了「开启通知」之后出现

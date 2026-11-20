@@ -17,6 +17,11 @@ if [ "$BRIEF" = 1 ]; then
   [ "$me" = "?" ] && echo "⚠ gh 读不到（没登录 / 被拦）：下面的「无」都不可信，先修好 gh 再看（不带 --brief 的全量版同样依赖 gh）"
   echo "── 没合并的 PR："; $R api "repos/$REPO/pulls?state=open" --jq '.[]|"  #\(.number)\(if .draft then " [草稿]" else "" end) \(.head.ref)：\(.title)"' 2>/dev/null | head -n 5 | grep . || echo "  无"
   nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft==false and (.user.login|test("dependabot")|not))]|group_by(.user.login)|map("\(.[0].user.login) \(length)")|join("、")' 2>/dev/null); echo "── 在制品（非草稿，每人上限 2）：${nd:-无}"
+# 11-19：交接文档可能只在没合并的 PR / 分支里（本地常只克隆了 main），只看 main 会漏；走 REST 列开着的 PR 里新增的 docs/交接_*
+echo "── 没合并的 PR 里的交接文档（只看 main 会漏）："
+for n in $($R api "repos/$REPO/pulls?state=open&per_page=30" --jq '.[].number' 2>/dev/null); do
+  $R api "repos/$REPO/pulls/$n/files?per_page=100" --jq ".[]|select(.filename|test(\"^docs/交接_\"))|\"  PR #$n：\\(.filename)\"" 2>/dev/null
+done | grep . || echo "  无"
   echo "── 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status=="completed" and .conclusion!="success" and .conclusion!="skipped")|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.conclusion)"' 2>/dev/null | head -n 3 | grep . || echo "  无"
   b65=$($R api "repos/$REPO/issues/65" --jq .body 2>/dev/null)
   d65=$(printf '%s\n' "$b65" | grep -oE '目标上线日 *[:：]? *20[0-9]{2}-[0-9]{2}-[0-9]{2}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1); [ -n "$d65" ] && echo "── 上线倒计时：目标 $d65，还有 $(( ($(TZ=Australia/Melbourne date -d "$d65" +%s) - $(TZ=Australia/Melbourne date -d "$(TZ=Australia/Melbourne date +%F)" +%s)) / 86400 )) 天（#65 倒计时行；排期两侧同一份）"
@@ -31,6 +36,17 @@ nd=$($R api "repos/$REPO/pulls?state=open&per_page=100" --jq '[.[]|select(.draft
 node tools/branch_prune.mjs --summary 2>/dev/null || echo "── 分支：读不到（gh 未登录或 git < 2.38）"
 echo "── 之后合并的 PR："; $R api "repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=10" --jq ".[]|select(.merged_at!=null and .merged_at>\"$when\")|\"  #\(.number) \(.title)（\(.merged_at)）\"" 2>/dev/null | grep . || echo "  无"
 echo "── 还在跑 / 失败 / 被取消的 CI（最近 10 次）："; $R api "repos/$REPO/actions/runs?per_page=10" --jq '.workflow_runs[]|select(.status!="completed" or (.conclusion!="success" and .conclusion!="skipped"))|"  \(.path|split("/")|last) \(.head_sha[0:7]) \(.status) \(.conclusion // "")"' 2>/dev/null | grep . || echo "  无"
+# 11-19：交接文档可能只在没合并的 PR / 分支里（本地常只克隆了 main），只看 main 会漏；走 REST 列开着的 PR 里新增的 docs/交接_*
+echo "── 没合并的 PR 里的交接文档（只看 main 会漏）："
+for n in $($R api "repos/$REPO/pulls?state=open&per_page=30" --jq '.[].number' 2>/dev/null); do
+  $R api "repos/$REPO/pulls/$n/files?per_page=100" --jq ".[]|select(.filename|test(\"^docs/交接_\"))|\"  PR #$n：\\(.filename)\"" 2>/dev/null
+done | grep . || echo "  无"
 echo "── 开着的 PR 之间同改的文件（要串行：先合一个，另一个再 sync_main；开工前 node tools/overlap_check.mjs 查自己的）："; node tools/overlap_check.mjs --prs 2>/dev/null || echo "  读不到"
 echo "── 近 7 天协作规则 / 合并闸门的变化（仅供知悉，不代表记录过时；规则以仓库文件为准）："; git log origin/main --since='7 days ago' --format='  %h %cs %s' -- CLAUDE.md CONTRIBUTING.md 协作实践.md docs/协作分工.md docs/roadmap.md 开发规矩.md tools/pr_merge.sh tools/merge_drift.sh tools/sync_main.sh tools/collab_board.mjs tools/pr_say.sh 2>/dev/null | head -5 | grep . || echo "  无"
+# 11-19（#397 E）文档同步体检：计划 / 台账 / 进度记录有没有漂移（只提示，不拦）
+echo "── 文档同步体检（#397）："; drift=0
+sz=$(wc -c < "$F" | tr -d ' '); [ "$sz" -gt 15360 ] && { echo "  ⚠ $F 有 ${sz} 字节，超过 15KB 目标：把长段原文移到 进度记录_历史.md"; drift=1; }
+for n in $($R api "repos/$REPO/issues/372" --jq .body 2>/dev/null | grep -E '^- \[ \]' | grep -oE '#[0-9]+' | sort -un | tr -d '#'); do st=$($R api "repos/$REPO/issues/$n" --jq .state 2>/dev/null); [ "$st" = "closed" ] && { echo "  ⚠ #372 里 #$n 已关闭但框没打勾"; drift=1; }; done
+if [ -f docs/决定台账.md ]; then old=$(grep -E '^\| [0-9]{2}-[0-9]{2} \|.*\| (生效|待所有者) \|$' docs/决定台账.md | wc -l | tr -d ' '); stale=$(git log -1 --format=%cs -- docs/决定台账.md 2>/dev/null); [ -n "$stale" ] && [ "$(( ($(date +%s) - $(date -d "$stale" +%s)) / 86400 ))" -gt 90 ] && { echo "  ⚠ docs/决定台账.md 已超 90 天没更新（$old 行生效 / 待所有者），复核一遍"; drift=1; }; fi
+[ "$drift" = 0 ] && echo "  无漂移"
 echo "（任何一节不是「无」：记录可能过时——先把这些写进进度记录，再告诉用户「记录比实际落后，以下是我根据 git / PR / CI 补上的」。）"

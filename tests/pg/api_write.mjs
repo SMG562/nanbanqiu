@@ -104,6 +104,20 @@ try {
   T('球拍：按 catalog_id 保存（只转 id）+ 自由文字自动归类，返回带 catalog_id', r.s === 200 && rk(r.j.rackets) === '1:Wilson/Blade 2:Head/Speed' && r.j.rackets[0].catalog_id === blade.id && UUIDre.test(r.j.rackets[1].catalog_id || ''), r);
   r = await call('GET', '/api/me/rackets', tQ); T('球拍：重读带 catalog_id', r.s === 200 && r.j.rackets[0].catalog_id === blade.id, r);
   r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ catalog_id: 'nope' }] }); T('球拍：catalog_id 不是 uuid 又没 series → 422', r.s === 422, r);
+  // 品牌 → 系列库（#377 PR2）：不用登录；新形状保存 / 重读 / 别人卡片带出；老形状仍可用
+  r = await call('GET', '/api/rackets/lib', null); const lb = (r.j && r.j.brands) || [];
+  T('品牌库：没登录能读，7 品牌、每牌有「其他系列」排最后，带缓存头', r.s === 200 && lb.length === 7 && lb.every(b => UUIDre.test(b.id) && b.series.length > 1 && b.series[b.series.length - 1].is_other && b.series.every(x => UUIDre.test(x.id) && Array.isArray(x.aliases))) && /max-age=3600/.test(r.h.get('cache-control') || ''), [r.s, lb.length]);
+  const wil = lb.find(b => b.name === 'Wilson'), ult = wil && wil.series.find(x => x.name === 'Ultra'), oth = wil && wil.series.find(x => x.is_other), head = lb.find(b => b.name === 'HEAD' || b.name === 'Head');
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ brand_id: wil.id, series_id: ult.id, nickname: '主力拍', junk: 1 }, { brand_id: wil.id, other_text: 'Pro Staff 97 V14' }] });
+  T('球拍：新形状保存，返回带 brand_id / series_id / nickname', r.s === 200 && r.j.rackets.length === 2 && r.j.rackets[0].series_id === ult.id && r.j.rackets[0].brand_id === wil.id && r.j.rackets[0].nickname === '主力拍' && r.j.rackets[1].other_text === 'Pro Staff 97 V14' && r.j.rackets[1].series_id === null && !('junk' in r.j.rackets[0]), r);
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：新形状重读 → 还在（含昵称）', r.s === 200 && r.j.rackets[0].series_id === ult.id && r.j.rackets[0].nickname === '主力拍' && r.j.rackets[1].other_text === 'Pro Staff 97 V14', r);
+  for (const [n, el] of [['brand_id 不是 uuid', { brand_id: 'x', series_id: ult.id }], ['系列不属于这个品牌', { brand_id: head.id, series_id: ult.id }], ['series_id 与 other_text 同给', { brand_id: wil.id, series_id: ult.id, other_text: 'x' }],
+    ['昵称超过 12 字符', { brand_id: wil.id, series_id: ult.id, nickname: '一二三四五六七八九十一二三' }], ['昵称不是文字', { brand_id: wil.id, series_id: ult.id, nickname: 5 }], ['series_id 不是文字', { brand_id: wil.id, series_id: 5 }]]) {
+    r = await call('PUT', '/api/me/rackets', tQ, { rackets: [el] }); T('球拍：新形状 ' + n + ' → 422', r.s === 422 && r.j.error === 'invalid', r) }
+  r = await call('GET', '/api/me/rackets', tQ); T('球拍：新形状失败后原来的还在', r.s === 200 && r.j.rackets.length === 2 && r.j.rackets[0].series_id === ult.id, r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ brand_id: wil.id, series_id: oth.id }] }); T('球拍：选「其他系列」不带自填 → 可保存（series_id 指向其他系列）', r.s === 200 && r.j.rackets[0].series_id === oth.id, r);
+  r = await call('PUT', '/api/me/rackets', tQ, { rackets: [{ brand_id: wil.id, series_id: ult.id, nickname: '小黑' }] });
+  const card = await call('GET', '/api/me/rackets', tP); T('球拍：别人读不到我的（新形状）', card.s === 200 && card.j.rackets.length === 0, card);
   r = await call('GET', '/api/me/badges', null); T('徽章：没登录 → 401', r.s === 401, r);
   r = await call('POST', '/api/games', tQ, await NG({ starts_at: await slot(3, '18:00') })); T('确认后 Q 能发局', r.s === 200, r);
 

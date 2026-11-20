@@ -1,15 +1,13 @@
 /* =====================================================================
  * 真登录与真模式外壳（#27 PR-B1）。必须排在所有包装 render / drawNav / logout 的脚本之后（后面的 03xx 真数据页只登记 REAL_PAGES、不包装）：下面三处包住 render / drawNav / logout，要在所有前面的包装之外。
  *   模式只在 page 里的一处判定（data-mode）：默认「真」；本机文件（file:）和预览站根域名才是「演示」。
- *   真模式的铁律：不显示任何模拟数字。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
+ *   真模式的铁律：不显示任何模拟数字，也不生成模拟数据（0130 的 NOMOCK，#415）。做法是「默认拒绝」——只有登记在 REAL_PAGES 里的页面才画；其余一律画占位，
  *   新加的页面不用记得去标，天然是占位。导航角标（待审核数、风险数）也来自模拟数据，真模式下不画。
  *   登录：邮箱 + 密码 + 验证码（或恢复码）→ POST /admin/api/login；令牌只在 httpOnly Cookie 里，这里拿不到也不存任何凭证。
  * ===================================================================== */
-const NBQ_MODE=document.documentElement.getAttribute('data-mode')==='demo'?'demo':'real';
 const RL={me:null,busy:false,recovery:false,touchAt:0};
 const REAL_RESET=[];   // 退出 / 过期时各真数据页清自己的状态（后面的文件 push 进来）
 const REAL_PAGES={account:()=>realAccountPage(),review:()=>realReviewPage(),venues:()=>realVenuesPage(),users:()=>realUsersPage(),games:()=>realGamesPage()};
-const REAL_NOTE={};   // 个别页面的占位说明（没有就用通用的）
 if(NBQ_MODE==='real'){PAGES.unshift(['h','账号'],['account','我的账号']);TITLES.account='我的账号';IC.account='<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'}
 
 // ---------- 接口 ----------
@@ -79,7 +77,7 @@ if(NBQ_MODE==='real'){
 }
 
 // ---------- 页面 ----------
-function realPlaceholder(k){return `<div class="card nodata"><h2>${esc(TITLES[k]||'这一页')}：还没接真数据</h2><p>这一页现在不显示任何数字，免得把演示数据当成真的。${esc(REAL_NOTE[k]||'接入计划见 Issue #27。')}</p></div>`}
+function realPlaceholder(k){return `<div class="card nodata"><h2>${esc(TITLES[k]||'这一页')}：还没接真数据</h2><p>这一页现在不显示任何数字，免得把演示数据当成真的。接入计划见 Issue #27。</p></div>`}
 function realAccountPage(){const m=RL.me,perms=Array.isArray(m.perms)?m.perms:[],nm=String(m.name||'').trim()||'管理员';
   return `<div class="grid g12"><div class="card"><div class="acct-top"><span class="av">${esc([...nm][0]||'?')}</span><div><b>${esc(nm)}</b><br><span class="pill nodot">${esc(ROLE_NAME[S.role]||S.role)}</span></div></div>
   <p class="cap" style="margin:0 0 14px">登录有效期 12 小时，闲置 1 小时要重新登录。所有操作都会记录在操作日志。</p>
@@ -187,7 +185,7 @@ if(NBQ_MODE==='real'){document.addEventListener('click',e=>{const b=e.target.clo
 
 
 // ---------- 球友（#27 第 3 步，只读）：搜索 · 按状态筛 · 每页 50 ----------
-const UP={rows:[],counts:{},more:false,q:'',st:'',loading:false,loaded:false,err:null,gen:0,tm:0};
+const UP={rows:[],counts:{},more:false,q:'',st:'',loading:false,loaded:false,err:null,gen:0,tm:0,act:null,actErr:'',busy:false,why:''};
 // 我的 UTR（#101）：球友页顶上一张卡片（概况 + 需要留意的人）；列表里 UTR 带类型（自评 ≈）和「已关联」✓。主页编号只在「同一主页多个账号」时显示
 const UTP={d:null,loading:false,err:null};
 async function utpLoad(){UTP.loading=true;UTP.err=null;const r=await admApi('GET','/utr');UTP.loading=false;
@@ -261,20 +259,43 @@ function realGamesPage(){
     <td>${g.visibility==='private'?'<small style="color:var(--mut)">私人球局</small>':esc(g.venue||'—')}${g.note?'<br><small style="color:var(--mut)">'+esc(g.note)+'</small>':''}</td>
     <td>${esc(GP_TYPE[g.game_type]||g.game_type)}</td><td>${g.host?esc(g.host)+' <small class="mono" style="color:var(--mut)">#'+String(g.host_no).padStart(4,'0')+'</small>':'—'}</td>
     <td>${g.joined} / ${g.capacity}${g.pending?'<br><small style="color:var(--mut)">待处理申请 '+g.pending+'</small>':''}</td><td>${esc(GP_ST[g.status]||g.status)}${g.status==='cancelled'&&g.cancelled_at?'<br><small style="color:var(--mut)">'+esc(gpTime(g.cancelled_at,g.city))+'</small>':''}</td>
-    <td class="mono">${esc(g.share_code)}</td></tr>`;
+    <td class="mono">${esc(g.share_code)}${g.admin_hidden?'<br><small style="color:var(--mut)">已隐藏</small>':''}</td><td>${gpActs(g)}</td></tr>`;
   return `<div class="card"><div class="ch"><b>球局</b><small>${GP.loaded?'共 '+total+' 场':'读取中…'}</small></div>
   <div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${whens}</div><div class="rowacts" style="margin:6px 0;flex-wrap:wrap">${chips}</div>
   <input class="search" data-gpq style="width:100%;max-width:320px" placeholder="搜发起人、球场或分享码" value="${esc(GP.q)}">
   ${GP.err?`<p class="cap" style="color:var(--crit)">${esc(GP.err)} <button class="btn sm" data-gp="reload">重试</button></p>`:''}
-  ${GP.loaded?(GP.rows.length?`<table><thead><tr><th>时间</th><th>球场</th><th>类型</th><th>发起人</th><th>人数</th><th>状态</th><th>分享码</th></tr></thead><tbody>${GP.rows.map(row).join('')}</tbody></table>`:'<div class="empty">没有符合条件的球局</div>'):''}
+  ${GP.loaded?(GP.rows.length?`<table><thead><tr><th>时间</th><th>球场</th><th>类型</th><th>发起人</th><th>人数</th><th>状态</th><th>分享码</th><th></th></tr></thead><tbody>${GP.rows.map(row).join('')}</tbody></table>`:'<div class="empty">没有符合条件的球局</div>'):''}
   ${GP.more?`<div class="rowacts" style="margin-top:8px"><button class="btn sm" data-gp="more"${GP.loading?' disabled':''}>再加载 50 场</button></div>`:''}
-  <p class="cap">这里只读。私人球局不显示场地和备注；取消 / 隐藏等操作在后面的步骤接入。</p></div>`}
+  ${gpForm()}
+  <p class="cap">私人球局不显示场地和备注。取消只限未开始的球局，会通知发起人和球友；隐藏后球局不再出现在公开列表，可以恢复。操作都需要写理由并记进操作日志。</p></div>`}
+function gpActs(g){const can=a=>realCan(a),upcoming=new Date(g.starts_at)>new Date();
+  const cancel=(g.status==='open'||g.status==='full')&&upcoming?`<button class="btn sm" data-gpa="cancel" data-code="${esc(g.share_code)}"${can('game.cancel')?'':' disabled title="需要运营权限"'}>取消</button>`:'';
+  const hide=g.admin_hidden?`<button class="btn sm" data-gpa="show" data-code="${esc(g.share_code)}"${can('game.hide')?'':' disabled title="需要运营权限"'}>恢复公开</button>`
+    :g.visibility==='public'&&g.status!=='cancelled'?`<button class="btn sm" data-gpa="hide" data-code="${esc(g.share_code)}"${can('game.hide')?'':' disabled title="需要运营权限"'}>隐藏</button>`:'';
+  return `<span class="rowacts">${cancel}${hide}</span>`}
+function gpForm(){const a=GP.act;if(!a)return '';const T={cancel:'取消球局',hide:'隐藏球局',show:'恢复公开'}[a.k];
+  return `<div class="ud-f" style="margin-top:10px"><div class="ud-fl">${T} · ${esc(a.code)}</div>
+    <label>理由（必填，至少 4 个字；记进操作日志）</label><input class="search" id="gpWhy" maxlength="200" style="width:100%" placeholder="比如：发起人要求取消 / 内容违规" value="${esc(GP.why)}">
+    <p class="cap">${a.k==='cancel'?'会通知发起人和所有球友「球局已取消」，不能撤销':a.k==='hide'?'发起人和已加入的人仍能看到，其他人看不到':'球局重新出现在公开列表'}</p>
+    <div class="admr-e" id="gpErr">${esc(GP.actErr||'')}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn p" data-gp="go"${GP.busy?' disabled':''}>${GP.busy?'提交中…':'确认'}</button><button class="btn" data-gp="x"${GP.busy?' disabled':''}>取消操作</button></div></div>`}
+async function gpGo(){const a=GP.act,w=document.getElementById('gpWhy');if(!a||GP.busy)return;const why=w?w.value.trim():'';GP.why=why;
+  if(why.length<4){GP.actErr='请写理由（至少 4 个字）';return render()}
+  GP.busy=true;GP.actErr='';render();
+  const r=await admApi('POST',a.k==='cancel'?'/games/cancel':'/games/hide',a.k==='cancel'?{code:a.code,reason:why}:{code:a.code,hide:a.k==='hide',reason:why});
+  GP.busy=false;if(r.status===401)return toLogin('登录已过期，请重新登录');
+  if(r.ok){GP.act=null;GP.why='';GP.loaded=false;GP.rows=[];gpLoad(false);return}
+  GP.actErr=r.status===409?'球局状态已变（可能刚被取消、已开打或别人处理过），请刷新后再看':realErr(r);render()}
 if(NBQ_MODE==='real'){
   document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gp]');if(!b||b.disabled)return;const k=b.dataset.gp;
     if(k==='when'){GP.when=b.dataset.v;gpReload()}
     else if(k==='st'){GP.st=b.dataset.v;gpReload()}
     else if(k==='more')gpLoad(true);
-    else if(k==='reload'){GP.err=null;gpReload()}});
+    else if(k==='reload'){GP.err=null;gpReload()}
+    else if(k==='x'){GP.act=null;GP.actErr='';render()}
+    else if(k==='go')gpGo()});
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gpa]');if(!b||b.disabled)return;
+    GP.act={k:b.dataset.gpa,code:b.dataset.code};GP.actErr='';GP.why='';render();setTimeout(()=>{const w=document.getElementById('gpWhy');w&&w.focus()},0)});
   const gpQ=e=>{const i=e.target.closest&&e.target.closest('[data-gpq]');if(!i||e.isComposing)return;GP.q=i.value;clearTimeout(GP.tm);GP.tm=setTimeout(()=>{GP.loaded=false;GP.rows=[];gpLoad(false)},350)};
   document.addEventListener('input',gpQ);document.addEventListener('compositionend',gpQ)}
 

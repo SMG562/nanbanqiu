@@ -46,6 +46,9 @@ const SB = 'https://abc.supabase.co';
     T(tag('埋点：任何事件都不带手机号'), !JSON.stringify(await pg.evaluate(() => window.AN_LOG)).includes('412345678'));
     await pg.evaluate(() => sbaClosePrompt()); await pg.settle(300);
     const ab = await evs('login_abandon'); T(tag('埋点：停在验证码页关掉 = login_abandon{step:otp,n:2}'), ab.length === 1 && ab[0].step === 'otp' && ab[0].n === 2, ab);
+    // login_open 的 trigger 不再 98% 是 other（#365）：没点击 / 点的不在白名单，用「为什么」文案归类
+    const wt = await pg.evaluate(() => ['登录后才能聊天', '登录后才能打开设置', '登录后才能设置通知', '登录后才能设置性别', '举报前，先用手机号验证一下', '登录后就可以约 TA 打球', '登录后查看这场球局', '登录后查看你的球员卡', '随便一句'].map(AN_WHY_TRIG));
+    T(tag('埋点：login_open trigger 按文案归类，不再一律 other'), JSON.stringify(wt) === JSON.stringify(['chat', 'settings', 'settings', 'create', 'report', 'invite', 'link', 'card', 'other']), wt);
     await startLogin();   // 关掉了：重新开登录、发码，回到验证码页继续下面的步骤
     // 验证码对：新号码 → 填资料
     R.verify = OKV('u-new'); await typeCode('222222');

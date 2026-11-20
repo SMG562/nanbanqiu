@@ -3,6 +3,8 @@
 //   错误一律 { error: '<码>' }，码和前台 API_ERR 对照；没登录 401 unauthorized；数据库没配 / 连不上 503 db_unavailable。
 //   后续步骤在 ROUTES 里加路由（球局、申请……），都经过同一个 auth + db 流程。
 import { OWN_ISS, issOf } from './jwt.mjs';
+import { checkJpeg, PHOTO_VARIANTS } from './photo_jpeg.mjs';
+import { VIEWS, expiryAt, photoUrl, verifyPhoto } from './photo_sign.mjs';
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const send = (status, body, extra) => new Response(JSON.stringify(body), { status, headers: { ...JSON_H, ...extra } });
 const CE_HITS = new Map();   // 页面报错上报的按 IP 限流（每个实例各算各的，够挡刷）
@@ -97,7 +99,11 @@ const CARD_SQL = `select pc.user_id as id, pc.member_no, pc.nickname, pc.last_in
     pc.card_venue_id, pc.played::int as played, pc.hosted::int as hosted, pc.kudos::int as kudos, pc.level, pp.gone
   from player_cards pc join public_profiles pp on pp.id = pc.user_id where pc.user_id = any($1::uuid[])`;
 const cardsOf = async (q, ids) => { const u = [...new Set(ids.filter(Boolean))]; if (!u.length) return {};
-  return Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r])) };
+  const cards = Object.fromEntries((await q(CARD_SQL, [u])).rows.map(r => [r.id, r]));
+  // 球拍（#60 PR-C1）：只加不改（ADR 0013）；注销 / 封禁的人库函数不返回 → 空数组
+  const have = Object.keys(cards).filter(i => !cards[i].gone); for (const i of Object.keys(cards)) cards[i].rackets = [];
+  if (have.length) for (const r of (await q('select user_id, slot, brand, series, catalog_id, brand_id, series_id, other_text, other_brand_text, nickname from api_player_rackets2($1::uuid[])', [have])).rows) { const { user_id, ...x } = r; cards[user_id]?.rackets.push(x) }   // 新字段只加不改（#377 PR2）
+  return cards };
 // 参与记录：留言、婉拒原因只有发起人和本人看得到；改动确认只给本人
 const PART_SQL = `select gp.game_id, gp.user_id, gp.role, gp.status::text as status, gp.created_at, gp.approved_at, gp.left_at,
     case when gp.user_id = nbq_uid() or game_host(gp.game_id, nbq_uid()) then gp.message end as message,
@@ -116,6 +122,58 @@ const rnd = n => { let s = ''; for (const b of crypto.getRandomValues(new Uint8A
 const HO_CODE = /^[A-Za-z0-9_-]{40,64}$/, HO_TTL = 3600;
 const hoTokens = async (d, who, refresh) => ({ access_token: await d.session.sign({ sub: who.auth_id, phone: who.phone }, HO_TTL), refresh_token: refresh, expires_in: HO_TTL, user: { id: who.auth_id, phone: who.phone } });
 const hoOff = () => send(404, { error: 'handoff_unavailable' });   // 没配签名密钥 = 不启用，前台安静跳过
+
+// ---- 场边读接口（PR-A，#369）：一期纯文字；行级权限在库里（sb_post_public / sb_post_readable / sb_reply_read），这里只拼查询、分页、整理返回 ----
+//   photo_count / photos 从第一天就在返回里（一期恒为 0 / 空数组），二期加照片不用改接口形状。没登录也能看公开的（anon）；SQL 也导出给 tests/pg/sb_read.mjs 逐条跑
+const SB_CUR = `to_char(p.publish_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') || '_' || p.id::text`;   // 游标 = 公开时间（微秒）+ id，不会因毫秒截断丢帖 / 重复
+const SB_POST_COLS = `p.id, p.user_id, p.city, p.body, p.topic_id, p.floor, p.venue_id, p.photo_count, p.tone, p.replies_open, p.publish_at, p.balls, p.replies,
+    coalesce(p.user_id = nbq_uid(), false) as mine,
+    exists (select 1 from sb_balls b where b.post_id = p.id and b.user_id = nbq_uid()) as my_ball`;
+export const SB_FEED_SQL = `select ${SB_POST_COLS}, ${SB_CUR} as cur from sb_posts p
+   where p.city = $1 and p.status = 'visible' and p.deleted_at is null and p.publish_at <= now() and p.publish_at > now() - interval '48 hours'   -- 上限 48 小时 = public_hours 的最大值；让部分索引能用、帖子少时也不扫旧帖
+     and sb_post_public(p.id, nbq_uid()) and ($2::text is null or p.topic_id = $2)
+     and ($3::timestamptz is null or (p.publish_at, p.id) < ($3::timestamptz, $4::uuid))
+   order by p.publish_at desc, p.id desc limit $5`;
+export const SB_MINE_SQL = `select ${SB_POST_COLS}, p.status, sb_post_public(p.id, nbq_uid()) as public, ${SB_CUR} as cur from sb_posts p
+   where p.user_id = nbq_uid() and p.deleted_at is null
+     and ($1::timestamptz is null or (p.publish_at, p.id) < ($1::timestamptz, $2::uuid))
+   order by p.publish_at desc, p.id desc limit $3`;
+export const SB_POST_SQL = `select ${SB_POST_COLS}, p.status, sb_post_public(p.id, nbq_uid()) as public from sb_posts p where p.id = $1`;   // 行级权限：看不到 = 没有这一行 = 404
+export const SB_REPLIES_SQL = `select r.id::float8 as id, r.user_id, r.to_user, r.body, r.created_at, coalesce(r.user_id = nbq_uid(), false) as mine, (r.status = 'hidden') as hidden
+   from sb_replies r where r.post_id = $1 and r.deleted_at is null and (r.status = 'visible' or r.user_id = nbq_uid()) order by r.created_at, r.id limit 200`;
+export const SB_TOPICS_SQL = `select id, title, kind from sb_topics where id = any($1::text[])`;
+export const SB_PROFILES_SQL = `select id, member_no, nickname, last_initial, avatar_kind, avatar_animal, avatar_color, seal_roll, card_theme, level, gone from public_profiles where id = any($1::uuid[])`;
+const SB_CURSOR = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const sbPage = req => {   // 查询参数：before（游标）、limit（1–max，默认 def）；格式不对一律 422 invalid
+  const u = new URL(req.url).searchParams, lim = u.get('limit'), before = u.get('before'), m = before === null ? null : SB_CURSOR.exec(before);
+  if (lim !== null && !/^\d{1,3}$/.test(lim)) throw bad(); if (before !== null && !m) throw bad();
+  return { u, lim: lim === null ? null : Math.min(Math.max(+lim, 1), 50), ts: m ? m[1] : null, id: m ? m[2] : null };
+};
+// 一页帖子 → { posts, next, topics, profiles }：多取 1 条判断还有没有下一页；作者名片和话题名一并带上（前台不用再逐条查）
+// 帖子的 photos（#393 P2，只加不改）：[{ idx, w, h, state, url?, t?, b? }]；url / t / b 是签名地址（photo_sign.mjs），缺省 = 不可见：
+//   ok 给 url（原图）/ t / b；blurred（打码）只给 b；removed（行级权限只让作者读到）一个都不给。没配密钥 = 都不给，只剩 state / 宽高。
+//   仅作者可见的帖子（public = false：过 24 小时 / 被后台隐藏）的地址带 p=1。只查有图的帖子（photo_count > 0），没图的一条都不多查。
+async function sbPhotos(q, d, posts) {
+  const withPh = posts.filter(x => x.photo_count > 0), by = new Map();
+  if (withPh.length) {
+    const rows = (await q('select post_id, idx, storage_key, width, height, review from sb_photos where post_id = any($1::uuid[]) order by post_id, idx', [withPh.map(x => x.id)])).rows;
+    const e = expiryAt(Math.floor(Date.now() / 1000)), owner = new Map(withPh.map(x => [x.id, x]));
+    for (const r of rows) {
+      const post = owner.get(r.post_id), priv = post.public === false, nm = r.storage_key.replace(/^sb\/[^/]+\//, '').replace(/\.(jpg|webp)$/, ''), u = v => photoUrl(d.photoKey, post.user_id, nm, v, e, priv);   // 库里存的是完整键 sb/<uid>/<名>.jpg，读图地址要 <名>（#450：别人看不到图）
+      const o = { idx: r.idx, w: r.width, h: r.height, state: r.review };
+      if (d.photoKey && r.review !== 'removed') { o.b = await u('b'); if (r.review === 'ok') { o.url = await u('full'); o.t = await u('t') } }
+      (by.get(r.post_id) || by.set(r.post_id, []).get(r.post_id)).push(o);
+    }
+  }
+  return posts.map(x => ({ ...x, photos: by.get(x.id) || [] }));
+}
+async function sbPosts(q, d, rows, lim) {
+  const more = rows.length > lim, page = rows.slice(0, lim), next = more ? page[page.length - 1].cur : null;
+  const posts = await sbPhotos(q, d, page.map(({ cur, ...r }) => r));
+  const tids = [...new Set(posts.map(x => x.topic_id).filter(Boolean))], uids = [...new Set(posts.map(x => x.user_id))];
+  return { posts, next, topics: Object.fromEntries((tids.length ? (await q(SB_TOPICS_SQL, [tids])).rows : []).map(t => [t.id, t])),
+    profiles: Object.fromEntries((uids.length ? (await q(SB_PROFILES_SQL, [uids])).rows : []).map(x => [x.id, x])) };
+}
 
 const ROUTES = {
   // 已登录的页面要一个一次性交接码（明文只在这次响应里出现一次，库里只存 sha256；24 小时内有效，每人每天 5 个）
@@ -383,15 +441,26 @@ const ROUTES = {
     if (typeof b.code !== 'string' || b.code.length > 20) throw bad();
     await q('select api_badge_seen($1)', [b.code]); return { ok: true } }),
   // 我的球拍（#60）：读自己的（RLS）；整组替换只走 api_set_rackets（清洗 / 长度 / 链接 / @ / 连续数字 / 重复都在数据库里判，detail 指出哪项）
-  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
+  'GET /api/me/rackets': (req, d, p) => act(req, d, p, async q => ({ rackets: (await q('select slot, brand, series, catalog_id, brand_id, series_id, other_text, other_brand_text, nickname from user_rackets where user_id = nbq_uid() order by slot')).rows }), { body: false }),
   // 球拍产品库（选择列表）：不用登录，只给可选的（active）；改动不频繁，缓存 1 小时
   'GET /api/rackets/catalog': async (req, d) => {
     const rows = await d.db.asService(async q => (await q(`select id, brand, series from racket_catalog where status = 'active' order by sort, brand, series`)).rows);
     return send(200, { catalog: rows }, { 'Cache-Control': 'public, max-age=3600' });
   },
+  // 品牌 → 系列库（#377 PR2，ADR 0014）：不用登录，只给 active；别名给前台搜索用；缓存 1 小时
+  'GET /api/rackets/lib': async (req, d) => {
+    const rows = await d.db.asService(async q => (await q(`select b.id as bid, b.name as bname, s.id as sid, s.name as sname, s.is_other,
+        coalesce((select array_agg(a.alias order by a.alias) from racket_aliases a where a.series_id = s.id), '{}') as aliases
+      from brands b join racket_series s on s.brand_id = b.id where b.status = 'active' and s.status = 'active' order by b.sort, b.name, s.is_other, s.sort, s.name`)).rows);
+    const m = new Map(); for (const r of rows) { if (!m.has(r.bid)) m.set(r.bid, { id: r.bid, name: r.bname, series: [] }); m.get(r.bid).series.push({ id: r.sid, name: r.sname, is_other: r.is_other, aliases: r.aliases }) }
+    return send(200, { brands: [...m.values()] }, { 'Cache-Control': 'public, max-age=3600' });
+  },
   'PUT /api/me/rackets': (req, d, p) => act(req, d, p, async (q, b) => {
-    const r = b.rackets; if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string')))) throw bad();
-    const list = r.map(x => UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id } : { brand: x.brand ?? null, series: x.series });   // 选自产品库只转 id；自由文字只转品牌 + 系列
+    const r = b.rackets, ns = x => x == null || typeof x === 'string';   // 新形状（品牌 id + 系列 id | 自填系列）与旧形状都收；字段细节由 api_set_rackets 判（ADR 0013 只加不改）
+    if (!Array.isArray(r) || r.length > 3 || !r.every(x => x && typeof x === 'object' && !Array.isArray(x) && (x.brand_id != null ? typeof x.brand_id === 'string' && ns(x.series_id) && ns(x.other_text) && ns(x.other_brand_text) && ns(x.nickname)
+      : UUID.test(str(x.catalog_id) || '') || ((x.brand == null || typeof x.brand === 'string') && typeof x.series === 'string' && ns(x.nickname))))) throw bad();
+    const list = r.map(x => x.brand_id != null ? { brand_id: x.brand_id, series_id: x.series_id ?? null, other_text: x.other_text ?? null, other_brand_text: x.other_brand_text ?? null, nickname: x.nickname ?? null }
+      : UUID.test(str(x.catalog_id) || '') ? { catalog_id: x.catalog_id, nickname: x.nickname ?? null } : { brand: x.brand ?? null, series: x.series, nickname: x.nickname ?? null });   // 选自产品库只转 id；自由文字只转品牌 + 系列
     return { rackets: (await one(q, 'select api_set_rackets($1::jsonb) as v', [JSON.stringify(list)])).v } }),
   // 我的 UTR（#101）：正式 / 自评；写入只走 api_set_utr（校验、频率、历史都在库里），PATCH /api/me 不再放行 utr
   'GET /api/me/utr': (req, d, p) => act(req, d, p, async q => ({ utr: (await one(q, 'select api_my_utr() as v')).v }), { body: false }),
@@ -442,9 +511,29 @@ const ROUTES = {
     const ids = b.post_ids; if (!Array.isArray(ids) || ids.length > 50 || !ids.every(v => UUID.test(str(v) || ''))) throw Object.assign(new Error('invalid'), { code: 'P0001', detail: 'posts' });
     return { counted: (await one(q, 'select api_sb_view($1::uuid[], $2) as n', [ids, str(b.device)])).n } }, { anon: true }),
   'POST /api/sideline/posts/:id/share': (req, d, p) => act(req, d, p, async (q, b, x) => ({ counted: (await one(q, 'select api_sb_share($1, $2) as n', [x.id, str(b.device)])).n }), { ids: ['id'], anon: true }),
+  // 场边读（PR-A）：动态流 = 本城 24 小时内公开的、倒序、游标分页；没登录也能看（屏蔽 / 不感兴趣只对登录的人生效）
+  'GET /api/sideline/feed': (req, d, p) => act(req, d, p, async q => {
+    const { u, lim, ts, id } = sbPage(req), city = u.get('city') ?? 'melb', topic = u.get('topic');
+    if (!/^[a-z]{2,12}$/.test(city) || (topic !== null && !/^[a-z][a-z0-9_]{1,39}$/.test(topic))) throw bad();
+    const n = lim ?? 20; return sbPosts(q, d, (await q(SB_FEED_SQL, [city, topic, ts, id, n + 1])).rows, n) }, { body: false, anon: true }),
+  // 我发过的（含已过 24 小时、只剩自己能看的；已删除的没有）：删除与回看用
+  'GET /api/sideline/mine': (req, d, p) => act(req, d, p, async q => {
+    const { lim, ts, id } = sbPage(req), n = lim ?? 30; return sbPosts(q, d, (await q(SB_MINE_SQL, [ts, id, n + 1])).rows, n) }, { body: false }),
+  // 帖子详情 + 回复（按时间正序，最多 200 条）；看不到的（过期别人的 / 被屏蔽 / 隐藏 / 已删）和不存在的一样 404
+  'GET /api/sideline/posts/:id': (req, d, p) => act(req, d, p, async (q, b, x) => {
+    const post = (await q(SB_POST_SQL, [x.id])).rows[0]; if (!post) throw Object.assign(new Error('not_found'), { code: 'P0001' });
+    const replies = (await q(SB_REPLIES_SQL, [x.id])).rows, uids = [...new Set([post.user_id, ...replies.flatMap(r => [r.user_id, r.to_user])].filter(Boolean))];
+    const tid = post.topic_id ? (await q(SB_TOPICS_SQL, [[post.topic_id]])).rows : [];
+    return { post: (await sbPhotos(q, d, [post]))[0], replies, topics: Object.fromEntries(tid.map(t => [t.id, t])),
+      profiles: Object.fromEntries((await q(SB_PROFILES_SQL, [uids])).rows.map(r => [r.id, r])) } }, { ids: ['id'], body: false, anon: true }),
   'GET /api/sideline/config': (req, d, p) => act(req, d, p, async q => {
     const v = new URL(req.url).searchParams.get('v'); if (v !== null && !/^\d{1,9}$/.test(v)) throw bad();
     return (await one(q, 'select sb_config($1::int) as c', [v === null ? null : +v])).c }, { body: false, anon: true }),
+  // 场边照片上传（#393 P1，ADR 0015）：路径 <名>-f|t|b（原图 / 缩略 / 极小图），带不带 <用户 id> 段都行，带了必须是本人。存储访问只经 d.photos（photo_store.mjs），没配桶 = 503
+  // 读图（#393 P2）：不用登录、不查库，靠签名地址（photo_sign.mjs）；图在 R2，不暴露公共域名
+  'GET /api/sideline/photo/:uid/:name': photoGet,
+  'PUT /api/sideline/photos/:name': photoPut,
+  'PUT /api/sideline/photos/:uid/:name': photoPut,
   'DELETE /api/me': (req, d, p) => act(req, d, p, async q => (await one(q, 'select api_account_delete() as r')).r, { body: false }),
   'POST /api/me/restore': (req, d, p) => act(req, d, p, async q => { await q('select api_account_restore()'); return { ok: true } }, { body: false }),
   // 推送的公钥（VAPID_PUBLIC，本来就是公开的）：前台订阅推送时要用；没配 = 404，前台安静跳过。不需要登录
@@ -505,6 +594,43 @@ const ROUTES = {
     return send(200, { registered: true, user });
   },
 };
+
+// 上传顺序：登录 → 路径 → 没配桶 / 停传开关 → 先看 Content-Length → 账号状态 + 频率（api_sb_photo_gate，频率只数原图）→ 读体（到上限即断）→ JPEG 校验 → 不覆盖地写入。
+//   同键重复 PUT：内容相同 = 200（重试幂等），不同 = 409 photo_conflict，绝不覆盖。<名> 不能以 -t / -b 结尾（否则和另一张图的缩略图 / 极小图撞键）
+const PH_NAME = /^[A-Za-z0-9_-]{16,24}$/;
+async function bodyCapped(req, max) {
+  const r = req.body && req.body.getReader(), parts = []; let n = 0; if (!r) return new Uint8Array(0);
+  for (;;) { const { done, value } = await r.read(); if (done) break; n += value.length; if (n > max) { r.cancel().catch(() => {}); return null } parts.push(value) }
+  const out = new Uint8Array(n); let o = 0; for (const c of parts) { out.set(c, o); o += c.length } return out;
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+async function photoGet(req, d, p) {
+  const u = new URL(req.url).searchParams, v = u.get('v'), e = u.get('e'), s = u.get('s'), pv = u.get('p'), uid = p.uid.toLowerCase();
+  if (!UUID_RE.test(uid) || !PH_NAME.test(p.name) || /-[tb]$/.test(p.name) || !Object.hasOwn(VIEWS, v) || !/^\d{9,12}$/.test(e || '') || !s || (pv !== null && pv !== '1')) return send(404, { error: 'not_found' });
+  if (!d.photos || !d.photoKey) return send(503, { error: 'photos_unavailable' });
+  const now = Math.floor(Date.now() / 1000), r = await verifyPhoto(d.photoKey, { uid, name: p.name, v, e: +e, p: pv === '1', s }, now);
+  if (r === 'bad') return send(403, { error: 'photo_forbidden' });
+  if (r === 'expired') return send(410, { error: 'photo_expired' });
+  const bytes = await d.photos.get(`sb/${uid}/${p.name}${VIEWS[v]}.jpg`); if (!bytes) return send(404, { error: 'not_found' });
+  return new Response(bytes, { status: 200, headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length), 'X-Content-Type-Options': 'nosniff',
+    'Content-Disposition': 'inline', 'Cache-Control': `${pv === '1' ? 'private' : 'public'}, max-age=${Math.max(0, +e - now)}` } });   // max-age ≤ 剩余有效期：缓存不会比地址活得更久
+}
+async function photoPut(req, d, p) {
+  const w = await whoIs(req, d); if (w.err || !w.uid) return send(401, { error: 'login_required' }, { 'X-Auth-Reason': w.err?.headers.get('X-Auth-Reason') || '' });
+  if (p.uid !== undefined && p.uid.toLowerCase() !== w.uid) return send(403, { error: 'forbidden' });   // 不能往别人的前缀下写
+  const m = /^(.+)-([ftb])$/.exec(p.name), name = m && m[1], V = m && PHOTO_VARIANTS[m[2]];
+  if (!V || !PH_NAME.test(name) || /-[tb]$/.test(name)) return send(404, { error: 'not_found' });
+  if (!d.photos) return send(503, { error: 'photos_unavailable' });
+  if ((await switchesOf(d)).photos_paused) return send(503, { error: 'photos_paused' });
+  if (Number(req.headers.get('Content-Length')) > V.bytes) return send(413, { error: 'photo_too_big' });
+  await d.db.asUser(w.uid, q => q('select api_sb_photo_gate($1)', [m[2] === 'f']));
+  const u = await bodyCapped(req, V.bytes); if (!u) return send(413, { error: 'photo_too_big' });
+  const c = checkJpeg(u, m[2]); if (!c.ok) return send(c.code === 'photo_too_big' ? 413 : 422, { error: c.code });
+  const key = `sb/${w.uid}/${name}${V.suffix}.jpg`, out = { key, size: u.length, w: c.w, h: c.h };
+  if (await d.photos.put(key, u)) return send(200, out);
+  const old = await d.photos.get(key);
+  return old && old.length === u.length && old.every((x, i) => x === u[i]) ? send(200, out) : send(409, { error: 'photo_conflict' });
+}
 
 // 带 :参数 的路径：编译成正则，按声明顺序匹配（没有 :参数 的走上面的精确匹配）
 const PATTERNS = Object.keys(ROUTES).filter(k => k.includes(':')).map(k => { const [m, pth] = k.split(' ');

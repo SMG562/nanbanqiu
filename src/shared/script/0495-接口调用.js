@@ -20,10 +20,12 @@ function nbqNetMake(io){
     if(io.build)h['X-NBQ-Build']=io.build;
     if(opt.idem)h['Idempotency-Key']=opt.idem;   // 重复提交（#276）：只有调用方给了才带
     const init={method,headers:h};
-    if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
+    if(opt.raw!==undefined){h['Content-Type']=opt.ctype||'application/octet-stream';init.body=opt.raw}   // 二进制请求体（场边照片上传 #393 P4）：原样发送，不转 JSON
+    else if(opt.body!==undefined){h['Content-Type']='application/json';init.body=JSON.stringify(opt.body)}
     // 超时（11-13）：弱网下请求可能一直挂着，「处理中」的锁就一直不放、按钮点了没反应。io.timeout 毫秒（默认 20 秒）后放弃，和断网一样处理（发局 / 发消息重试带同一个 key，不会重复）
-    const tmo=io.timeout===undefined?20000:io.timeout,tm=io.timer||(typeof setTimeout==='function'?{set:(f,ms)=>setTimeout(f,ms),clear:t=>clearTimeout(t)}:null);
-    const ac=tmo>0&&tm&&typeof AbortController==='function'?new AbortController():null;if(ac)init.signal=ac.signal;
+    const tmo=opt.timeout!==undefined?opt.timeout:io.timeout===undefined?20000:io.timeout,tm=io.timer||(typeof setTimeout==='function'?{set:(f,ms)=>setTimeout(f,ms),clear:t=>clearTimeout(t)}:null);
+    const ac=(opt.signal||(tmo>0&&tm))&&typeof AbortController==='function'?new AbortController():null;if(ac)init.signal=ac.signal;
+    if(ac&&opt.signal){if(opt.signal.aborted)return{ok:false,status:0,code:'network'};opt.signal.addEventListener('abort',()=>{try{ac.abort()}catch(_){}},{once:true})}   // 调用方可中途取消（照片上传：用户移除这张图）
     let r,t=null;try{const f=io.fetch(base+path+qs(opt.query),init);
       r=await(tmo>0&&tm?Promise.race([f,new Promise((_,no)=>{t=tm.set(()=>{if(ac)try{ac.abort()}catch(_){}no(new Error('timeout'))},tmo)})]):f)}
     catch(_){return{ok:false,status:0,code:'network'}}finally{if(t!==null)tm.clear(t)}
@@ -38,7 +40,7 @@ function nbqNetMake(io){
     if(ra>0)out.retry_after=ra;else if(d&&d.retry_after>0)out.retry_after=d.retry_after;
     return out}
   return{call,get:(p,q,o)=>call('GET',p,{...o,query:q}),post:(p,b,o)=>call('POST',p,{...o,body:b===undefined?{}:b}),
-    put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
+    put:(p,b)=>call('PUT',p,{body:b===undefined?{}:b}),putRaw:(p,blob,o)=>call('PUT',p,{...o,raw:blob,ctype:'image/jpeg'}),patch:(p,b)=>call('PATCH',p,{body:b}),del:(p,b)=>call('DELETE',p,b===undefined?{}:{body:b})}}
 
 // 重复提交（#276）：同一个操作槽（发局 / 某个会话发消息）+ 同样的内容 → 沿用上次的 key，服务器返回第一次的结果，不会建出两局 / 发两条。
 //   沿用：上次没有明确结果（断网 status 0、5xx：不知道写没写进去），而且在 10 分钟内；换新 key：成功了、4xx 被明确拒了、内容改了、隔太久（服务端认 24 小时，前台只在短时间内当「重发」，免得过很久再说同一句话被当成旧的）
@@ -63,6 +65,7 @@ function nbqFromUser(u){if(!u)return null;
   return{id:u.id,no:u.member_no,name:u.nickname,last:u.last_initial||'',ntrp:u.utr,utr_estimated:!!u.utr_estimated,
     avatar_kind:nbqEnum('avatar_kind',u.avatar_kind||'letter',['letter','animal'],'letter'),animal:u.avatar_animal||'tiger',color:nbqColor(u.avatar_color),card_theme:u.card_theme==null?u.card_theme:nbqEnum('card_theme',u.card_theme,['court','hard','clay','grass','night'],'court'),seal_roll:u.seal_roll,wechat:u.wechat_id||undefined,invite_from:u.invite_from||undefined,email:u.mail_set?NBQ_EMAIL_SET:null,emPrefs:u.mail_prefs||undefined,
     played:u.played,hosted:u.hosted,kudos:u.kudos,level:u.level,gone:!!u.gone,installed:u.installed===true,gender:u.gender==null?null:nbqEnum('gender',u.gender,['f','m'],null),pact_at:u.pact_accepted_at?nbqMs(u.pact_accepted_at):null,home_club_ids:Array.isArray(u.club_ids)?u.club_ids:(u.card_venue_id?[u.card_venue_id]:[]),
+    rackets:Array.isArray(u.rackets)&&typeof nbqFromRackets==='function'?nbqFromRackets(u.rackets):undefined,   // 球友卡片带的球拍（#60 PR-C）；/api/me 没有这个字段 = undefined
     blocked:new Set(),base:{}}}
 // 球场 → VEN 条目（接口的 suburb / surfaces 等原样带上）
 function nbqFromVenue(v){const sf=Array.isArray(v.surfaces)&&v.surfaces.length?v.surfaces.map(x=>nbqEnum('surface',x,['hard','clay','synclay','grass','synthetic'],'hard')):['hard'];   // 接口是多选 surfaces；前台显示「红土 / 硬地」用 surfaces，surface 只是第一个（11-03：之前只带了第一个，多场地球场少显示）
@@ -119,6 +122,7 @@ async function nbqLoadAll(net){
   const need=[...new Set(games.map(g=>g.host_id))].filter(id=>!users[id]);
   for(let i=0;i<need.length;i+=50){const pr=await net.get('/api/profiles',{ids:need.slice(i,i+50).join(',')});if(pr.ok)Object.values(pr.data.profiles||{}).forEach(put)}
   nbqCompose(games,parts,users);
+  if(users[m.data.user.id])delete users[m.data.user.id].rackets;   // 我自己的球拍只认 /api/me/rackets（卡片里带的那份不算，免得冲掉读失败时沿用的旧值）
   return{ok:true,registered:true,buddies:bd&&bd.ok&&typeof nbqFromBuddies==='function'?nbqFromBuddies(bd.data):null,me:m.data.user.id,users,venues:(vs.data.venues||[]).map(nbqFromVenue),games,parts,blocked,invites:(inv.data.invites||[]).map(nbqFromInvite),after:aft.ok?aft.data:null,reports:rpt.ok&&Array.isArray(rpt.data.reports)?rpt.data.reports:null,badges:bdg.ok&&Array.isArray(bdg.data.badges)?bdg.data.badges:null,rackets:rk&&rk.ok?nbqFromRackets(rk.data.rackets):null}}   // 球拍读不到（或开关关着）= null，不算失败
 // 徽章：服务器上的获得记录 / 已庆祝（以服务器为准；本机刚庆祝过、还没写到服务器的保持已庆祝）
 function nbqBadgesIn(rows){if(rows===null){BDG_FAIL=true;try{bdgCheck(true)}catch(_){}return}if(!Array.isArray(rows)||!ME)return;BDG_SRV=true;BDG_FAIL=false;
@@ -256,7 +260,7 @@ async function nbqLinkOpen(){if(!NBQ_NET||NBQ_LINK.done||typeof location==='unde
     if(NBQ_LINK.done||(!r.ok&&r.status!==404))return;   // 断网 / 服务器忙：留到下次读完再试
     if(r.ok&&r.data.game){NBQ_LINK.g=nbqFromGame(r.data.game);nbqLinkKeep();g=GAMES.find(x=>x.id===NBQ_LINK.g.id)}}
   if(!g){if(!anon){NBQ_LINK.done=true;toast('这场球局已结束或不公开');return}
-    if(!NBQ_LINK.asked&&typeof openAuth==='function'){NBQ_LINK.asked=true;openAuth(null,'登录后查看这场球局')}return}   // 未登录看不到（女生局 / 私人局 / 已结束）：给出路——登录面板；登录读入后 nbqEnter 会再试一次（11-14 所有者评审）
+    if(!NBQ_LINK.asked&&typeof openAuth==='function'){NBQ_LINK.asked=true;AN.trig='link';try{openAuth(null,'登录后查看这场球局')}finally{AN.trig=null}}return}   // 未登录看不到（女生局 / 私人局 / 已结束）：给出路——登录面板；登录读入后 nbqEnter 会再试一次（11-14 所有者评审）
   NBQ_LINK.done=true;
   if(AN_BUILD==='pwa'){if(!UI.detail)openDetail(g.id,true)}else{UI.landing=code;render()}}
 // 登录后进入：{st:'ok'} 已有资料并读入 · {st:'new'} 新号码还没资料 · {st:'error',code} · {st:'gone'} 读取途中退出了（什么都不做）

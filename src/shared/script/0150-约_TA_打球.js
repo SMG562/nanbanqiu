@@ -60,7 +60,7 @@ function invBtnHTML(uid){if(ME&&(uid===ME.id||ME.blocked.has(uid)||blockedPair(M
 
 /* ---------- 发起 / 改时间：共用一张表单 ---------- */
 let IVF=null;
-function newInvite(to){const why=canInvite(to);if(why){toast(why);return}
+function newInvite(to){if(!ME){openAuth(()=>newInvite(to),'登录后就可以约 TA 打球');return}const why=canInvite(to);if(why){toast(why);return}
   let o=1;while(o<6&&dayAt(o).getDay()!==6)o++;       // 默认最近的周六
   const mine=ME.home_club_ids||[];
   IVF={kind:'new',to,o,t:'09:00',e:'10:30',dur:90,per:0,venue_id:mine[0]||null,extra:null,search:!mine.length,q:'',game_type:'singles',note:'',hint:''};
@@ -152,7 +152,7 @@ function invNext(i,exp,other){const me=ME.id,mine=i.from===me,g=i.game_id&&GAMES
   const dm=`<button class="iv-2" data-cx="dm" data-u="${other.id}">发消息</button>`,close=`<button class="iv-3" data-iv="close">关闭</button>`;
   if(i.status==='accepted'&&g){const done=new Date(g.starts_at)<=NOW;
     return `<button class="iv-go" data-iv="game">查看球局</button><div class="iv-acts">${dm}${done?close:`<button class="iv-2" data-a="ics" data-g="${g.id}">加入日历</button>`}</div>
-      <div class="iv-foot">${done?'打完了？去球局里给 TA 留个印象':'球局只有你们两人可见 · 有变化在球局聊天里说'}</div>`}
+      <div class="iv-foot">${done?'打完了？去球局里给 TA 留个印象':'有变化，在球局聊天里说一声'}</div>`}
   if(exp)return `${mine?`<div class="iv-foot" style="margin:14px 0 4px">${first} 没有在 48 小时内回复，邀约已失效</div>`:''}<div class="iv-acts">${mine?`<button class="iv-2" data-iv="again">再约一次</button>`:dm}${close}</div>`;
   if(i.status==='declined')return `<div class="iv-acts">${mine?`<button class="iv-2" data-iv="again">换个时间再约</button>`:dm}${close}</div>`;
   if(i.status==='withdrawn')return `<div class="iv-acts">${mine?`<button class="iv-2" data-iv="again">重新约 ${first}</button>`:dm}${close}</div>`;
