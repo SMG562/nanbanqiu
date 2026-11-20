@@ -38,6 +38,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     if (p.startsWith('/api/sideline/') && m !== 'GET') { const k = m + ' ' + p.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, x => ({ [P1]: 'P1', [P2]: 'P2', [P3]: 'P3', [P4]: 'P4', [P5]: 'P5' })[x] || x); S.log.push(k); S.bodies[k] = body; (S.idk[k] ||= []).push(r.request().headers()['idempotency-key'] || null) }
     if (m === 'GET') {
       if (p === '/api/venues') return J(r, 200, { venues: VENUES });
+      if (S.phMock && p.startsWith('/api/sideline/photo/')) { const old = u.searchParams.get('x') === 'old'; (S.phGets ||= []).push(p.split('/').pop() + '?x=' + u.searchParams.get('x') + ' ' + (old ? 410 : 200)); return old ? J(r, 410, { error: 'photo_expired' }) : r.fulfill({ status: 200, contentType: 'image/jpeg', body: S.jpg }) }
       if (p === '/api/me') return J(r, 200, { registered: true, user: S.me });
       if (p === '/api/games') return J(r, 200, { games: [] });
       if (p === '/api/games/mine') return J(r, 200, { games: [], participants: [], profiles: { [ME]: S.me } });
@@ -47,7 +48,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       if (p === '/api/sideline/feed') { S.feedGets++; if (S.feedDown) return r.abort(); if (S.pendingNew) { S.posts = [S.pendingNew, ...S.posts]; S.pendingNew = null } return J(r, 200, feedOut()) }
       if (p === '/api/sideline/mine') { S.log.push('GET /api/sideline/mine'); return J(r, 200, { posts: S.mine || [], next: null, topics: feedOut().topics, profiles: prof }) }
       const mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})$/);
-      if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]) || (S.extra || []).find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); return J(r, 200, { post: { ...x, status: 'visible', public: !x.old }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
+      if (mm) { S.detailGets++; const x = S.posts.find(q => q.id === mm[1]) || (S.extra || []).find(q => q.id === mm[1]); if (!x) return J(r, 404, { error: 'not_found' }); const px = S.freshPh ? { ...x, photos: (x.photos || []).map(q => Object.fromEntries(Object.entries(q).map(([k, v]) => [k, typeof v === 'string' ? v.replace('x=old', 'x=new') : v]))) } : x; return J(r, 200, { post: { ...px, status: 'visible', public: !x.old }, replies: S.replies[x.id] || [], topics: feedOut().topics, profiles: prof }) }
       return J(r, 404, { error: 'not_found' }) }
     if (p.startsWith('/api/sideline/photos/') && m === 'PUT') { S.putN = (S.putN || 0) + 1; return J(r, 200, { key: p.split('/').pop(), size: 1 }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
@@ -252,6 +253,28 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
   const fp = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return { n: r.querySelectorAll('[data-s="home"] .ln').length, first: (r.querySelector('[data-s="home"] .ln')||{}).outerHTML && r.querySelector('[data-s="home"] .ln').outerHTML.slice(0, 200), src: i && i.getAttribute('src'), stack: r.querySelectorAll('[data-s="home"] .ln.pc .mst i').length, pt: !!r.querySelector('[data-s="home"] .ln.pc.pt'), ar: !!r.querySelector('[data-s="home"] .ln.pc.lnar') } });
   T('真照片帖（别人发的，2 张）：列表画成带图卡片，用原图档（#483：缩略图拉到大卡片会糊），不叠小图，竖图是 4:5 高卡片（设计稿）', /a-f/.test(fp.src || '') && fp.stack === 0 && fp.pt && !fp.ar, fp);
+  // ---- #488 列表卡片图：srcset 两档 + sizes 不低估渲染宽 + 首屏 2 张之外懒加载 ----
+  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.getBoundingClientRect().width, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
+  T('#488 列表卡片图：srcset = 缩略 t（720w）+ 原图 u（1200w），竖图 1200×1600 按变体真实宽算', !!im && im.srcset === '/api/sideline/photo/u9/a-t?x=1 720w, /api/sideline/photo/u9/a-f?x=1 1200w', im);
+  T('#488 sizes 不低估卡片渲染宽（写窄会选到小一档的图而发糊）：渲染宽 ≤ min(712, 视口 − 28)', !!im && im.sizes === 'min(712px,calc(100vw - 28px))' && im.w <= Math.min(712, im.vw - 28) + 0.5 && im.w > 300, im);
+  T('#488 第一张不懒加载；DPR 1 的 362 宽卡片选缩略档（原图 1.5MB 档留给 3 倍屏）', !!im && im.loading !== 'lazy' && (im.dpr !== 1 || /a-t/.test(im.cur)), im);
+  { const mk = i => ({ id: 'e1e1e1e1-0000-4000-8000-0000000001' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/p${i}-t?x=1`, url: `/api/sideline/photo/u9/p${i}-f?x=1`, b: `/api/sideline/photo/u9/p${i}-b?x=1` }] });
+    S.posts = [0, 1, 2, 3, 4].map(mk);
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+    const lz = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc .bg img')].map(i => i.getAttribute('loading') || '')),
+      tx = await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc .bg img').length);
+    T('#488 多张带图卡片：前 2 张立即加载，第 3 张起 loading=lazy', tx === 5 && lz.slice(0, 2).every(x => x !== 'lazy') && lz.slice(2).every(x => x === 'lazy'), lz); }
+  // ---- #488 图片地址过期（15–30 分钟）：图 410 → 读这一条的新地址 → 换 src 重试；不循环 ----
+  { const ph = i => ({ id: 'e1e1e1e1-0000-4000-8000-0000000002' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/q${i}-t?x=old`, url: `/api/sideline/photo/u9/q${i}-f?x=old`, b: `/api/sideline/photo/u9/q${i}-b?x=old` }] });
+    const open = async () => { await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(2200) };
+    const st = () => pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc .bg img')].map(i => ({ s: i.getAttribute('src'), ss: i.getAttribute('srcset'), ok: i.complete && i.naturalWidth > 0 })));
+    S.jpg = jpg; S.phMock = true; S.freshPh = true; S.phGets = []; S.posts = [ph(0)]; S.detailGets = 0; await open();
+    const a = await st();
+    T('#488 地址过期（410）：读这一条的新地址，src / srcset 换成新的，图真的显示出来', a.length === 1 && /x=new/.test(a[0].s) && /x=new/.test(a[0].ss) && !/x=old/.test(a[0].ss) && a[0].ok && S.detailGets === 1, { a, gets: S.phGets, dg: S.detailGets });
+    T('#488 过期恢复：先 410 再用新地址 200，各一次，不反复请求', S.phGets.filter(x => /410$/.test(x)).length === 1 && S.phGets.filter(x => /200$/.test(x)).length >= 1, S.phGets);
+    S.freshPh = false; S.phGets = []; S.detailGets = 0; await open();
+    T('#488 读回的还是旧地址（服务端没换新）：这条 2 分钟内只读一次，不循环', S.detailGets <= 1 && S.phGets.length <= 4, { dg: S.detailGets, gets: S.phGets });
+    S.phMock = false; S.freshPh = false; }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);

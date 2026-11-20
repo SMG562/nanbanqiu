@@ -52,6 +52,12 @@ const VB={band:{sunset:'0 222 400 157',rain:'0 170 400 157',night:'0 140 400 157
           hero:{sunset:'0 150 400 300',rain:'0 100 400 300',night:'0 60 400 300',clay:'0 100 400 300',cup:'0 110 400 300'}};
 // 真照片（#450）：n 是 {ph:1,t,u,b} 对象时画 <img>（band 列表行用缩略 t；hero 详情和 full 大图用 u（1600 边，缩略放大会糊）；打码的只有 b）；字符串键仍走内置插画
 // 地址只认 blob: / https: / 站内 /api/（接口签名地址、本地缩略图），其余一律不画（xss_static 白名单：phSrc）
-const phSrc=(n,crop)=>{const u=String((n.u||n.t)||n.b||'');return /^(blob:|https:\/\/|\/api\/)/.test(u)?esc(u):''};
-const PIC=(n,crop='full',tone)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}" alt="" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block"></div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
+const phOk=u=>{u=String(u||'');return /^(blob:|https:\/\/|\/api\/)/.test(u)?esc(u):''};
+const phSrc=(n,crop)=>phOk((n.u||n.t)||n.b);
+// 列表卡片图（#488）：o.sz = 卡片实际渲染宽（CSS 宽，别乘 DPR；浏览器自己乘）。有 o.sz 且 t(960 边) / u(1600 边) 两档都是站内签名地址、能算出各自真实宽（w 描述符 = 变体真实宽，不放大）才出 srcset；
+//   缺宽高 / 两档一样宽（原图本来就小）/ 只有一档（打码图只给 b）/ blob 本地预览 → 不出，行为同改前（只用 u）。旧测试库里 480 边的旧 t 图描述符会偏大一档（正式站照片发布仍关，无存量）。o.lazy = 屏外延迟加载（原生 loading，距离由浏览器定）
+const PHE={t:960,u:1600};
+const phW=(n,k)=>{const w=+n.w,h=+n.h;return w>0&&h>0?Math.max(1,Math.round(w*Math.min(1,PHE[k]/Math.max(w,h)))):0};
+const phSet=(n,o)=>{if(!o||!o.sz)return '';const a=phOk(n.t),b=phOk(n.u),wt=phW(n,'t'),wu=phW(n,'u');return a&&b&&a!==b&&!/^blob:/.test(a+b)&&wt&&wu>wt?` srcset="${a} ${wt}w, ${b} ${wu}w" sizes="${esc(o.sz)}"`:''};
+const PIC=(n,crop='full',tone,o)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block"></div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
 

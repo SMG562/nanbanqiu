@@ -27,6 +27,7 @@ function App(el,init){
     S._n=n};
   S.lc={};S.lu={};S.lf=false;
   const LH=(x,o={})=>lineHTML(x,Object.assign({my:S.homes},o));
+  const LHL=()=>{let n=0;return x=>LH(x,{lazy:!!(x.pic&&x.pic.ph)&&n++>=2})};   // 主列表（#488）：前 2 张带图卡片立即加载（首屏，原生 lazy 会让首屏图晚一拍），其余屏外延迟；文字帖不占名额
   const mycHTML=()=>S.homes.length?`<div class="myc"><span class="lb">我的球场</span><button data-myc="" class="${!S.filt?'on':''}">全部</button>${S.homes.map(h=>{const n=S.L.filter(x=>x.w===h&&!x.area&&Date.now()-x.t<3*H).length;return `<button data-myc="${h}" class="${S.filt===h?'on':''}">${esc(COURTS[h].n)}${n?`<b>${n}</b>`:''}</button>`}).join('')}</div>`:'';
   const rank=x=>(S.homes.includes(x.w)&&!x.area?1.6:1)*score(x)*(S.lc[catOf(x)]?.3:1)*(S.lu[U(x).n]?.3:1)*(S.lf&&(x.km||0)>2.5?.35:1);
   // 一条流，最多一个筛选：只看我的球场 / 某个球场 / 某个话题
@@ -48,7 +49,7 @@ function App(el,init){
   const pill2=(sel,q,ok)=>{const n=(q||[]).filter(x=>S.L.includes(x)&&ok(x)).length,m=$(sel);if(!m)return n;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show');return n};
   const cpillSync=()=>pill2('[data-cmore]',S.cpend,x=>x.w===S.court&&!x.area),wpillSync=()=>pill2('[data-wmore]',S.wpend,x=>x.topic===S.wall);
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
-    const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
+    const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(LHL());
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
     if(S.real&&!fil&&!L.length)rows.push(S.loaded?emptyCard():`<div class="empty">${S.loadErr?'没连上网络，稍后会自动重试':'正在读取场边…'}</div>`);
     if(fil&&!rows.length)rows.push(`<div class="empty">${mine?'你的球场今天还很安静':'这里今天还很安静'}</div>`);
@@ -677,6 +678,15 @@ function App(el,init){
     const c=rlCtx(prof),inL=new Set(S.L.map(x=>String(x.id)));
     S.A=all.filter(p=>!inL.has(String(p.id))&&!S.gone.has(String(p.id))).map(p=>{const x=sbFromPost(p,c);x.mine=true;x.album=1;if(p.status==='hidden')x.hid=1;return x});
     if(S.album)drawAlbum()};
+  // 图片地址只有 15–30 分钟有效（#488）：页面久放后再画 / 懒加载才请求的图会 410。图出错 → 读这一条（/posts/:id 带新签名地址）→ 把页面里这条的图地址换成新的，让浏览器重试；同一条 2 分钟内只读一次（失败也不循环）
+  const phFix=async img=>{const n=img.closest('[data-ln],[data-pic]');if(!n)return;const id=n.dataset.ln||n.dataset.pic,x=find(id),net=rlNet();
+    if(!x||x.tmp||!x.pics||!net)return;const F=S.phFix||(S.phFix={}),now=Date.now();if(now-(F[id]||0)<12e4)return;F[id]=now;
+    const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||!rlNet()||!r.data.post)return;
+    const f=sbFromPost(r.data.post,rlCtx(r.data.profiles||{})),m=[];if(!f.pics)return;
+    x.pics.forEach((p,i)=>{const q=f.pics[i];if(q)['t','u','b'].forEach(k=>{if(p[k]&&q[k]&&p[k]!==q[k])m.push([p[k],q[k]]);if(q[k])p[k]=q[k]})});
+    const sw=s=>s&&m.reduce((a,[o,v])=>a.split(o).join(v),s);
+    [...el.querySelectorAll('[data-ln],[data-pic]')].filter(c=>(c.dataset.ln||c.dataset.pic)===id).forEach(c=>c.querySelectorAll('img').forEach(i=>{['src','srcset'].forEach(k=>{const a=i.getAttribute(k),b=sw(a);if(a&&b!==a)i.setAttribute(k,b)})}))};
+  el.addEventListener('error',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.closest('.tn'))phFix(i)},true);
   // 通知点开：那条不在已读的列表里（超过读的页数 / 已过 24 小时）→ 单独读一条放进去再打开；读不到 = 已经不在了
   const ensurePost=async id=>{if(find(id))return true;const net=rlNet();if(!net)return false;const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||find(id))return !!find(id);
     const c=rlCtx(r.data.profiles||{});rlTopics(r.data,[r.data.post]);const x=sbFromPost(r.data.post,c);
