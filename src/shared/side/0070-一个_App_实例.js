@@ -144,8 +144,9 @@ function App(el,init){
   const setRto=(n,row)=>{S.rto=n;el.querySelectorAll('.sheet .rr.tgt').forEach(r=>r.classList.remove('tgt'));row.classList.add('tgt');rtoHint(`回复 ${n}…`);const ri=$('[data-rin]');if(ri)ri.focus({preventScroll:true})};
   const clearRto=()=>{if(!S.rto)return;S.rto=null;el.querySelectorAll('.sheet .rr.tgt').forEach(r=>r.classList.remove('tgt'));rtoHint('回复…')};
   const drawViewer=()=>{const x=find(S.view);if(!x)return;
-    $('.viewer').innerHTML=`<button class="x" data-close>${ic('x')}</button><div class="img"><div>${PIC((x.pics||[])[S.viewI||0]||x.pic,'full',x.tone)}</div></div>
-      <div class="cap"><div class="t"><span class="tx">${esc(x.x)}</span></div><div class="m">${x.w?`<span class="pl">${esc(x.w)}</span><i>·</i>`:''}${String(x.id)[0]==='a'?`<span>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()} · 仅自己可见</span>`:`<span>${ago(x.t)}</span><span class="sp"></span>${ballBtn(x)}`}</div></div>`};
+    $('.viewer').innerHTML=`<button class="x" data-close>${ic('x')}</button><div class="img">${(x.pics&&x.pics.length?x.pics:[x.pic]).map(p=>`<div>${PIC(p,'full',x.tone)}</div>`).join('')}</div>${x.pics&&x.pics.length>1?`<div class="hd2 vd">${x.pics.map((_,i)=>`<i${i===(S.viewI||0)?' class="on"':''}></i>`).join('')}</div>`:''}
+      <div class="cap"><div class="t"><span class="tx">${esc(x.x)}</span></div><div class="m">${x.w?`<span class="pl">${esc(x.w)}</span><i>·</i>`:''}${String(x.id)[0]==='a'?`<span>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()} · 仅自己可见</span>`:`<span>${ago(x.t)}</span><span class="sp"></span>${ballBtn(x)}`}</div></div>`;
+    const im=$('.viewer .img');if(im&&im.children.length>1){im.scrollLeft=(S.viewI||0)*im.clientWidth;im.onscroll=()=>{const k=Math.round(im.scrollLeft/im.clientWidth);S.viewI=k;el.querySelectorAll('.viewer .vd i').forEach((d,i)=>d.classList.toggle('on',i===k))}}};
   const state=()=>{el.classList.toggle('incourt',!!S.court);el.classList.toggle('sheeting',!!S.open);el.classList.toggle('viewing',!!S.view);el.classList.toggle('composing',!!S.cmp);el.classList.toggle('sharing',!!S.share);el.classList.toggle('inwall',!!S.wall);el.classList.toggle('inalbum',!!S.album)};
   // 发图页：预览就是它在场边里的样子
   // 地点：发布时定位一次，从球场库里找附近的球场
