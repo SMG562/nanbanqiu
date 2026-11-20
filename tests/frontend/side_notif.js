@@ -122,6 +122,11 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
   await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="del"]').click(); await W(400);
   const pic = await E(() => String(SBV.L.find(x => x.pics && x.pics.length && !x.mine).id));
   await E(id => SBV.api.open(id), pic); await W(500); await sr('.sheet [data-pic]').first().click(); await W(400); await sh('[data-close]'); await W(200);
+  // #450：多图帖子，点详情页第 N 张，大图必须是第 N 张（hero 分支曾漏设 viewI，点谁都是第一张）
+  await E(() => SBV.api.open('20')); await W(500);
+  const vi = []; for (const i of [0, 1, 2]) { await sr(`.sheet .hero .hp[data-pi="${i}"]`).click(); await W(450); vi.push(await sr('.viewer .img').innerHTML()); await sh('[data-close]'); await W(200) }
+  T('详情点第 2、3 张 = 各自的大图（不是第一张）', vi[0] !== vi[1] && vi[1] !== vi[2] && vi[0] !== vi[2], vi.map(x => x.length));
+  await E(id => SBV.api.open(id), pic); await W(500);
   await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="hide"]').click().catch(() => {}); await W(200);
   const hid = await E(() => AN_LOG.some(e => e.ev === 'sb_hide')); if (!hid) await sr('[data-act="less"]').click().catch(() => {}); await W(300);
   await sr('[data-act="lf"]').click().catch(() => {}); await W(300);
