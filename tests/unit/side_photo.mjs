@@ -48,7 +48,7 @@ const mkE = (o = {}) => ({
   free: s => freed.push(s && s.id) });
 const file = (w, h, type = 'image/jpeg', size = 5e6) => ({ type, size, w, h });
 let r = await X.sbPhRun(file(4000, 3000), mkE());
-T('一张 4000×3000：三个变体 1600 / 480 / 48 长边', r.w === 1600 && r.h === 1200 && Object.keys(r.parts).join() === 'full,t,b' && encs.map(e => Math.max(e[0], e[1])).join() === '1600,480,48', encs);
+T('一张 4000×3000：三个变体 1600 / 960 / 48 长边', r.w === 1600 && r.h === 1200 && Object.keys(r.parts).join() === 'full,t,b' && encs.map(e => Math.max(e[0], e[1])).join() === '1600,960,48', encs);
 T('键名合格、宽高是 full 的宽高', /^[A-Za-z0-9_-]{16,24}$/.test(r.name));
 T('原图位图与三块画布都释放了', freed.filter(x => x === 'bm').length >= 1 && freed.filter(x => x === 'cv').length >= 3, freed);
 encs = []; r = await X.sbPhRun(file(4000, 3000), mkE({ k: .7 }));   // full 1600×1200×.82×.7=1.1MB 过，t 480×360×.82×.7 = 99KB 过

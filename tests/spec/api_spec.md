@@ -752,7 +752,7 @@
 - 「雨停了」暂不做（10-27）：话题和特别安排都在，不上线。
 
 ### 14.16 PUT /api/sideline/photos/[<用户 id>/]<名>-<f|t|b>（#393 P1，ADR 0015；库迁移 20261124_sb_photo_upload）
-- 请求体 = JPEG 原始字节（不信 Content-Type）。`f` 原图（长边 ≤1600、≤1.5 MB）→ 键 `sb/<本人 id>/<名>.jpg`；`t` 缩略（≤480、≤150 KB）→ `<名>-t.jpg`；`b` 极小图（≤48、≤4 KB）→ `<名>-b.jpg`。`<名>` = 16–24 位 `[A-Za-z0-9_-]`，**不能以 `-t` / `-b` 结尾**（会和另一张图的缩略 / 极小图撞键，404）。路径带 `<用户 id>` 段时必须等于登录人，否则 403 forbidden；不带则取登录人。
+- 请求体 = JPEG 原始字节（不信 Content-Type）。`f` 原图（长边 ≤1600、≤1.5 MB）→ 键 `sb/<本人 id>/<名>.jpg`；`t` 缩略（≤960、≤250 KB）→ `<名>-t.jpg`；`b` 极小图（≤48、≤4 KB）→ `<名>-b.jpg`。`<名>` = 16–24 位 `[A-Za-z0-9_-]`，**不能以 `-t` / `-b` 结尾**（会和另一张图的缩略 / 极小图撞键，404）。路径带 `<用户 id>` 段时必须等于登录人，否则 403 forbidden；不带则取登录人。
 - 顺序：没登录 401 → 没配桶 503 photos_unavailable → 开关 photos_paused 503 → Content-Length 超限 413 → `api_sb_photo_gate`（账号状态同 nbq_sb_gate：停用 / 封禁 / 注销 403 account_*；频率规则 sb_photo_hour 30 / sb_photo_day 100，**只数 `f`**，超了 429 photo_hourly_limit / photo_daily_limit + Retry-After）→ 流式读体、到上限即断 413 → 校验。
 - 校验：魔数 FFD8FF 且正好以 FFD9 结尾、中间不能有第二张图（拼接 / polyglot → 422 photo_bad_format）；读 SOF 得宽高，像素 ≤ 4 MP、长边不超变体上限（413 photo_too_big）；含 APP1（EXIF / XMP）或 APP13 Photoshop 资源（IPTC）→ 422 photo_exif。
 - 写入：不覆盖（R2 `onlyIf etagDoesNotMatch *`）。同键已有且字节相同 = 200（重试幂等）；不同 = 409 photo_conflict。返回 `{key, size, w, h}`。
