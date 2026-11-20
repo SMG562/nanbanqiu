@@ -736,7 +736,7 @@ function App(el,init){
     if(c&&c.u===rlMe()&&c.d&&Date.now()-c.at<24*H){try{useFeed(c.d)}catch(e){}}
     loadFeed();cfgLoad();
     setInterval(()=>{const vis=el.getClientRects().length>0&&document.visibilityState==='visible';
-      if(sigNow()!==S.sig){S.sig=sigNow();loadFeed();return}
+      if(sigNow()!==S.sig){S.sig=sigNow();S.L=S.L.filter(x=>!x.tmp);loadFeed();return}   // 换账号：上一个账号还在发送中的临时块（含本地图）不留给新账号
       if(vis&&(!S.wasVis||Date.now()-(S.lastPoll||0)>=SB_POLL_MS))poll();S.wasVis=vis},3000);
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')S.wasVis=false})};
   if(S.live&&!S.real){const tick=()=>{if(!S.open&&!S.view&&el.getClientRects().length&&AE()!==inp&&!el.matches(':hover')){const e=INCOMING[S.qi++%INCOMING.length];

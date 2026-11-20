@@ -53,7 +53,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
       return J(r, 404, { error: 'not_found' }) }
     if (p.startsWith('/api/sideline/photos/') && m === 'PUT') { S.putN = (S.putN || 0) + 1; return J(r, 200, { key: p.split('/').pop(), size: 1 }) }
     if (p === '/api/me/pact') return J(r, 200, { ok: true });
-    if (p === '/api/sideline/posts' && m === 'POST') { if (S.drop === 'POST ' + p) { S.drop = null; return r.abort() } if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
+    if (p === '/api/sideline/posts' && m === 'POST') { if (S.drop === 'POST ' + p) { S.drop = null; return r.abort() } if (S.postDelay) await new Promise(q => setTimeout(q, S.postDelay)); if (S.failPost) return J(r, 429, { error: S.failPost, detail: 600 }); const x = { id: P5, user_id: ME, city: 'melb', body: body.body, topic_id: body.topic_id || null, floor: body.topic_id ? 32 : 0, venue_id: body.venue_id || null, photo_count: 0, photos: [], tone: '', replies_open: true, publish_at: new Date(NOW).toISOString(), balls: 0, replies: 0, mine: true, my_ball: false }; S.posts = [x, ...S.posts]; return J(r, 200, { id: P5, topic_id: x.topic_id, floor: x.floor, new_topic: false, publish_at: x.publish_at }) }
     if ((p === '/api/reports' || p === '/api/blocks') && m === 'POST') { S.log.push(m + ' ' + p); S.bodies[m + ' ' + p] = body; if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     if (/\/hide$/.test(p) && m === 'POST') { if (S.failSafe) return J(r, 429, { error: 'rate_limited' }); return J(r, 200, { ok: true }) }
     let mm = p.match(/^\/api\/sideline\/posts\/([0-9a-f-]{36})\/ball$/);
@@ -257,6 +257,21 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const pb = S.bodies['POST /api/sideline/posts'];
   T('P4b：发布请求带 photos（键 sb/<本人>/<名>.jpg + 宽高），正文可为空', !!pb && Array.isArray(pb.photos) && pb.photos.length === 1 && new RegExp('^sb/' + ME + '/[A-Za-z0-9_-]{16,24}\\.jpg$').test(pb.photos[0].key) && pb.photos[0].w > 0 && pb.photos[0].h > 0 && pb.body === '', pb);
   T('P4b：发布后列表里刚发的那条显示了照片（<img>），不是空白（#450：发出去看不到图）', await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; const i = r.querySelector('.it .bg img, .it img'); return !!i && /^blob:|^https?:/.test(i.getAttribute('src') || '') }));
+  // ---- #372 二期 P4c 乐观图块：失败回滚 / 换账号（成功路径上面已测）----
+  { const OPT = "(() => { const r = document.querySelector('#sbHost').shadowRoot; return { tmp: SBV.L.filter(x => x.tmp).length, imgs: r.querySelectorAll('[data-s=home] .ln img').length } })()";
+    const pubPhoto = async () => { await dc('[data-cx]'); await pg.settle(600); await dc('[data-cam]'); await pg.settle(800); await pg.setInputFiles('#sbHost >> [data-cfile]', [{ name: 'f.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.settle(3000); await sr('[data-cgo]').click() };
+    const base = await pg.evaluate(OPT); S.failPost = 'sb_post_hourly_limit'; S.postDelay = 1500; await pubPhoto(); await pg.settle(700);
+    const mid = await pg.evaluate(OPT); await pg.settle(2800); const aft = await pg.evaluate(OPT); S.failPost = null; S.postDelay = 0;
+    T('乐观图块：请求还在路上时流顶已有带本地图的临时块', mid.tmp === 1 && mid.imgs > base.imgs, [base, mid]);
+    T('乐观图块：发布被拒 → 临时块撤掉（不留空壳 / 假图）', aft.tmp === 0 && aft.imgs === base.imgs, [base, mid, aft]);
+    T('乐观图块：发布被拒 → 撤回条收起', await E(() => !document.querySelector('#sbHost').shadowRoot.querySelector('.undo.show')));
+    const cache = await pg.evaluate(() => (localStorage.getItem('nbq_sb_feed') || '').includes('blob:'));
+    T('乐观图块：本地 blob 图地址不会写进 nbq_sb_feed 缓存', !cache);
+    const me0 = await E(() => ME.id); S.postDelay = 4000; await pubPhoto(); await pg.settle(500);
+    await E(() => { ME = { ...ME, id: '99999999-9999-4999-8999-999999999999' } }); await pg.settle(3600);
+    const sw = await pg.evaluate(OPT); S.postDelay = 0; await pg.settle(3500);
+    T('乐观图块：换账号 → 上个账号还在发送的临时块被清掉，不串到新账号', sw.tmp === 0, sw);
+    await E(id => { ME = { ...ME, id } }, me0).catch(() => { }); }
   // #450：别人发的真照片帖，列表要画成带图的卡片（x.pic 是列表卡片的开关；只设 pics 时列表退成纯文字，点开详情才有图）
   S.feedDown = false; S.posts = [{ id: 'e1e1e1e1-0000-4000-8000-000000000001', user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 2, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: iso(1), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: '/api/sideline/photo/u9/a-t?x=1', url: '/api/sideline/photo/u9/a-f?x=1', b: '/api/sideline/photo/u9/a-b?x=1' }, { idx: 1, state: 'ok', t: '/api/sideline/photo/u9/b-t?x=1', url: '/api/sideline/photo/u9/b-f?x=1', b: '' }] }, ...S.posts];
   await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
