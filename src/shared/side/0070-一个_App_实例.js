@@ -207,15 +207,17 @@ function App(el,init){
     old.forEach(n=>n.remove());
     const want=C.ups.length<3?phAddBtn(C):'',cur=h.querySelector('.phadd');
     if(!want){if(cur)cur.remove()}else{const t=document.createElement('template');t.innerHTML=want;const nb=t.content.firstElementChild;if(!cur)h.appendChild(nb);else if(cur.outerHTML!==nb.outerHTML)cur.replaceWith(nb)}};
-  const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;phPatch(h,C);phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
+  const phPaint=C=>{if(S.cmp!==C)return;phDraftSave(C);const h=$('.compose .phs');if(!h)return;phPatch(h,C);phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
   const phUpMsg=c=>c==='login_required'?'登录过期了，重新登录后点「重试」':c==='photos_unavailable'?'照片服务还没开通，稍后再试':c==='photos_paused'?'照片功能暂时关闭了':c==='photo_net'?'网络不稳，点「重试」再传一次':'没传上去（'+(c||'未知')+'），点「重试」';
   const phQueue=C=>C.q||(C.q=sbPhQueue({put:sbPhPutMake(rlNet()),on:it=>{const u=C.ups.find(x=>x.name===it.name);if(u){const was=u.st;u.st=it.st==='wait'?'up':it.st;u.p=it.p||0;u.code=it.code;if(u.st==='fail'&&was!=='fail')toast(phUpMsg(u.code));phPaint(C)}}}));
   const phMsg=c=>c==='photo_not_image'||c==='photo_decode'||c==='photo_empty'?'这张格式暂时不支持，换一张或截图再发':c==='photo_too_big'?'这张图太大了，换一张试试':'这张图没处理好，换一张试试';
   const phAdd=async files=>{const C=S.cmp;if(!C)return;const k=sbPhPick(files,C.ups.length);if(k.skip)toast('最多三张');
     for(const f of k.take){const u={id:'u'+(++UID),st:'proc',p:0,url:URL.createObjectURL(f)};C.ups.push(u);phPaint(C);
-      try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts)}
+      try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts);sbPhThumb(r.parts.t).then(th=>{if(th&&C.ups.includes(u)){u.th=th;phDraftSave(C)}})}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
-  const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)})};
+  // 草稿（P4c）：每步写本机，微信 / iOS 杀页重进能恢复文字和已传的图；丢弃 / 发出去 / 换账号（sbPhDraftGet 比对 uid）都会清
+  const phDraftSave=C=>{if(!C||!phReal()||C.redo)return;const me=meUser().id;if(!me)return;const d=sbPhDraftOf(C);if(d)sbPhDraftSet(me,d);else sbPhDraftClear()};
+  const phDrop=C=>{sbPhDraftClear();if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)})};
   const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${isPt(q)?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
   // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
   const cqHTML=C=>{const ks=[];locGroups(C.loc).forEach(G=>G.a.forEach(k=>{if(!ks.includes(k))ks.push(k)}));
@@ -241,9 +243,11 @@ function App(el,init){
     $('.cmp-sc').scrollTop=top;
     const cf=$('[data-cfile]');if(cf)cf.onchange=()=>{const fs=[...cf.files];cf.value='';phAdd(fs)};phGo(C);
     const cp=$('.compose');cp.classList.remove('cmp-ty');
-    const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
+    const ct=$('[data-ctext]'),fl=$('.compose .sts'),cn=$('.compose .cnote');ct.onfocus=()=>cp.classList.add('cmp-ty');ct.onblur=()=>cp.classList.remove('cmp-ty');ct.oninput=()=>{C.text=ct.value;phDraftSave(C);if(fl)fl.style.display=C.text?'none':'';if(cn)cn.style.display=C.text?'none':''};
     if(had){ct.focus({preventScroll:true});try{ct.setSelectionRange(ss,se)}catch(e){}}};
   const openCompose=o=>{clearTimeout(S.libT);S.cmp=Object.assign({pics:[],tone:'',text:'',loc:S.loc,ph:'',sc:null,sig:false,later:false,reply:'all',topic:null,keep:false,anon:false,replyOn:true,pick:false,lib:false,libReady:false,sh:null,ups:[]},o);
+    if(phReal()&&!o.redo&&!(o.text||'').trim()&&!(o.ups&&o.ups.length)){const d=sbPhDraftGet(meUser().id);if(d){const C=S.cmp;C.text=d.text||'';C.tone=d.tone||'';if(!C.topic&&d.topic&&S.T[d.topic])C.topic=d.topic;if(d.loc&&COURTS[d.loc])C.loc=d.loc;
+      C.ups=(d.ups||[]).slice(0,3).map(x=>({id:'u'+(++UID),st:'ok',p:1,url:x.th,name:x.name,w:x.w,h:x.h,th:x.th}));if(C.ups.length||C.text.trim())setTimeout(()=>toast('已恢复上次没发完的内容'),600)}}
     // 先把整页排好（在屏幕外），下一帧再滑上来：滑动时只动一整张卡片，没有任何东西在里面陆续出现
     drawCompose();void $('.compose').offsetHeight;requestAnimationFrame(()=>requestAnimationFrame(state));
     // 打开即聚焦（要在点击这一下的调用栈里，iOS 才肯弹键盘）；选照片进来时不聚焦，免得键盘盖住照片格
@@ -501,7 +505,7 @@ function App(el,init){
     if(d.pu){const C=S.cmp,i=C.ups.findIndex(u=>u.id===d.pu);if(i>=0){const u=C.ups.splice(i,1)[0];URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)}phPaint(C);if(!C.ups.length)drawCompose();return}
     if(d.pr){const C=S.cmp,u=C.ups.find(x=>x.id===d.pr);if(u&&C.q)C.q.retry(u.name);return}
     if(d.pk){const C=S.cmp,i=C.pics.indexOf(d.pk);if(i>=0)C.pics.splice(i,1);else if(C.pics.length<3)C.pics.push(d.pk);else{toast('最多三张');return}drawCompose();return}
-    if(d.tone){S.cmp.tone=d.tone==='none'?'':d.tone;el.querySelectorAll('.ph1 .tn').forEach(pv=>pv.className='tn'+(S.cmp.tone?' t-'+S.cmp.tone:''));el.querySelectorAll('[data-tone]').forEach(b=>b.classList.toggle('on',b===t));return}
+    if(d.tone){S.cmp.tone=d.tone==='none'?'':d.tone;phDraftSave(S.cmp);el.querySelectorAll('.ph1 .tn').forEach(pv=>pv.className='tn'+(S.cmp.tone?' t-'+S.cmp.tone:''));el.querySelectorAll('[data-tone]').forEach(b=>b.classList.toggle('on',b===t));return}
     if('cpl' in d){S.cmp.cq=!S.cmp.cq;cqPatch();return}
     if('cpl2' in d){S.cmp.cq=false;cqPatch();S.cmp.pick=true;kbDown(()=>{if(S.cmp&&S.cmp.pick)$('.pick').classList.add('on')});return}
     if(d.ql!==undefined){S.cmp.loc=d.ql==='none'?'':d.ql;setLoc(S.cmp.loc);S.cmp.cq=false;cqPatch();return}
@@ -514,7 +518,7 @@ function App(el,init){
       if(!S.gok){need('post',()=>again(t));return}
       const tk=tkind(C.topic);
       {const nt=C.topic&&S.T[C.topic]&&S.T[C.topic].fresh,c=SB_LINK.test(C.text)?'message_link':(nt&&sbRate(S,'sb_topic',true))||sbRate(S,'sb_post',true);if(c){say(c);return}sbRate(S,'sb_post');if(nt){sbRate(S,'sb_topic');S.T[C.topic].fresh=0}}
-      const lk=C.loc,redo=C.redo,after=()=>{if(redo)redoDel(redo)};if(redo&&!S.real)redoDel(redo);S.cmp=null;state();const pid=S.real?'t'+(++UID):++UID,txt=C.text.trim();subEv(pid,C.pics.length+np,tk,lk,C.later,'compose');
+      const lk=C.loc,redo=C.redo,after=()=>{if(redo)redoDel(redo)};if(redo&&!S.real)redoDel(redo);S.cmp=null;sbPhDraftClear();state();const pid=S.real?'t'+(++UID):++UID,txt=C.text.trim();subEv(pid,C.pics.length+np,tk,lk,C.later,'compose');
       if(C.later){if(S.real)realSend(null,realBody(txt,C.topic,lk,{later:true,closed:!C.replyOn,tone:C.tone,ups:C.ups}),()=>{},after);toast('好的，2 小时后公开');return}
       sc.scrollTop=0;const co={tone:C.tone,closed:!C.replyOn,ups:C.ups};setTimeout(()=>{const nx=norm([{id:pid,t:Date.now(),x:C.text.trim()||'（一张照片）',w:lk,km:lk?(KM[lk]??null):null,b:0,r:[],pics:C.pics.length?C.pics.slice():undefined,tone:C.tone,area:false,anon:C.anon,mine:true,views:0,closed:!C.replyOn,topic:C.topic||undefined,keep:C.keep,...(S.real?{u:meUser(),real:1,tmp:1,pics:co.ups.length?co.ups.map(u=>({ph:1,t:u.url,u:u.fu||u.url,w:u.w,h:u.h})):undefined,pic:undefined}:{})}])[0];insertPost(nx,true);if(S.real)realSend(nx,realBody(txt,C.topic,lk,co),()=>{inp.value=txt;drawComposer()},after)},420);
       inp.value='';drawComposer();setTimeout(()=>showUndo(C.topic?`已发布 · No.${S.T[C.topic].n}`:'已发布'),480);return}
