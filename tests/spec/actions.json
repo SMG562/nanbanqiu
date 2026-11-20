@@ -96,6 +96,7 @@
   "act:share": "baseline",
   "act:mute": "baseline",
   "act:del": "baseline",
+  "act:redo": "write:side_notif",
   "act:less": "baseline",
   "act:block": "baseline",
   "act:r": "baseline",
