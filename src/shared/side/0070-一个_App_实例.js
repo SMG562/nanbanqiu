@@ -27,6 +27,7 @@ function App(el,init){
     S._n=n};
   S.lc={};S.lu={};S.lf=false;
   const LH=(x,o={})=>lineHTML(x,Object.assign({my:S.homes},o));
+  const LHL=()=>{let n=0;return x=>LH(x,{lazy:!!(x.pic&&x.pic.ph)&&n++>=2})};   // 主列表（#488）：前 2 张带图卡片立即加载（首屏，原生 lazy 会让首屏图晚一拍），其余屏外延迟；文字帖不占名额
   const mycHTML=()=>S.homes.length?`<div class="myc"><span class="lb">我的球场</span><button data-myc="" class="${!S.filt?'on':''}">全部</button>${S.homes.map(h=>{const n=S.L.filter(x=>x.w===h&&!x.area&&Date.now()-x.t<3*H).length;return `<button data-myc="${h}" class="${S.filt===h?'on':''}">${esc(COURTS[h].n)}${n?`<b>${n}</b>`:''}</button>`}).join('')}</div>`:'';
   const rank=x=>(S.homes.includes(x.w)&&!x.area?1.6:1)*score(x)*(S.lc[catOf(x)]?.3:1)*(S.lu[U(x).n]?.3:1)*(S.lf&&(x.km||0)>2.5?.35:1);
   // 一条流，最多一个筛选：只看我的球场 / 某个球场 / 某个话题
@@ -48,7 +49,7 @@ function App(el,init){
   const pill2=(sel,q,ok)=>{const n=(q||[]).filter(x=>S.L.includes(x)&&ok(x)).length,m=$(sel);if(!m)return n;if(n){m.textContent=`↑ ${n} 条新动态`;m.classList.add('show')}else m.classList.remove('show');return n};
   const cpillSync=()=>pill2('[data-cmore]',S.cpend,x=>x.w===S.court&&!x.area),wpillSync=()=>pill2('[data-wmore]',S.wpend,x=>x.topic===S.wall);
   const drawHome=()=>{setCnt();const mine=!!(S.mineOnly&&S.homes.length),fil=mine||!!S.f;
-    const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(x=>LH(x));
+    const L=S.L.filter(x=>pass(x)&&fOk(x)&&!held(x)).sort((a,b)=>fil?b.t-a.t:rank(b)-rank(a)),grid=S.f&&S.f.k==='topic'&&S.vw==='grid',rows=grid?[gridHTML(L)]:L.map(LHL());
     if(!fil&&!desk){rows.splice(2,0,`<div class="it itc">${topicCard()}</div>`);if(rows.length>8)rows.splice(7,0,hotHTML());if(rows.length>14)rows.splice(13,0,talkHTML())}
     if(S.real&&!fil&&!L.length)rows.push(S.loaded?emptyCard():`<div class="empty">${S.loadErr?'没连上网络，稍后会自动重试':'正在读取场边…'}</div>`);
     if(fil&&!rows.length)rows.push(`<div class="empty">${mine?'你的球场今天还很安静':'这里今天还很安静'}</div>`);

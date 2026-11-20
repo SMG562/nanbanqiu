@@ -252,6 +252,17 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
   const fp = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return { n: r.querySelectorAll('[data-s="home"] .ln').length, first: (r.querySelector('[data-s="home"] .ln')||{}).outerHTML && r.querySelector('[data-s="home"] .ln').outerHTML.slice(0, 200), src: i && i.getAttribute('src'), stack: r.querySelectorAll('[data-s="home"] .ln.pc .mst i').length, pt: !!r.querySelector('[data-s="home"] .ln.pc.pt'), ar: !!r.querySelector('[data-s="home"] .ln.pc.lnar') } });
   T('真照片帖（别人发的，2 张）：列表画成带图卡片，用原图档（#483：缩略图拉到大卡片会糊），不叠小图，竖图是 4:5 高卡片（设计稿）', /a-f/.test(fp.src || '') && fp.stack === 0 && fp.pt && !fp.ar, fp);
+  // ---- #488 列表卡片图：srcset 两档 + sizes 不低估渲染宽 + 首屏 2 张之外懒加载 ----
+  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.getBoundingClientRect().width, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
+  T('#488 列表卡片图：srcset = 缩略 t（720w）+ 原图 u（1200w），竖图 1200×1600 按变体真实宽算', !!im && im.srcset === '/api/sideline/photo/u9/a-t?x=1 720w, /api/sideline/photo/u9/a-f?x=1 1200w', im);
+  T('#488 sizes 不低估卡片渲染宽（写窄会选到小一档的图而发糊）：渲染宽 ≤ min(712, 视口 − 28)', !!im && im.sizes === 'min(712px,calc(100vw - 28px))' && im.w <= Math.min(712, im.vw - 28) + 0.5 && im.w > 300, im);
+  T('#488 第一张不懒加载；DPR 1 的 362 宽卡片选缩略档（原图 1.5MB 档留给 3 倍屏）', !!im && im.loading !== 'lazy' && (im.dpr !== 1 || /a-t/.test(im.cur)), im);
+  { const mk = i => ({ id: 'e1e1e1e1-0000-4000-8000-0000000001' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: `/api/sideline/photo/u9/p${i}-t?x=1`, url: `/api/sideline/photo/u9/p${i}-f?x=1`, b: `/api/sideline/photo/u9/p${i}-b?x=1` }] });
+    S.posts = [0, 1, 2, 3, 4].map(mk);
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+    const lz = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc .bg img')].map(i => i.getAttribute('loading') || '')),
+      tx = await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc .bg img').length);
+    T('#488 多张带图卡片：前 2 张立即加载，第 3 张起 loading=lazy', tx === 5 && lz.slice(0, 2).every(x => x !== 'lazy') && lz.slice(2).every(x => x === 'lazy'), lz); }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
