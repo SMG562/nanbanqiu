@@ -25,7 +25,7 @@ jobs:
       - name: 探测正式站
         run: |
           fail=0
-          get() { for i in 1 2; do code=$(curl -s -m 15 -o /tmp/b -w '%{http_code}' -H 'Cache-Control: no-cache' "https://nanbanqiu.app$1?_=$RANDOM") && [ "$code" = 200 ] && return 0; sleep 5; done; return 1; }
+          get() { for _ in 1 2; do code=$(curl -s -m 15 -o /tmp/b -w '%{http_code}' -H 'Cache-Control: no-cache' "https://nanbanqiu.app$1?_=$RANDOM") && [ "$code" = 200 ] && return 0; sleep 5; done; return 1; }
           get /version.json && grep -q '"sha"' /tmp/b && echo "✅ /version.json $(grep -o '"sha":"[^"]*"' /tmp/b)" || { echo "❌ /version.json（$code）"; fail=1; }
           if get /api/version; then age=$(grep -oE '"heartbeat_age_s":[0-9]+' /tmp/b | grep -oE '[0-9]+$'); { [ -n "$age" ] && [ "$age" -le 300 ]; } && echo "✅ /api/version 发送程序心跳 ${age}s 前" || { echo "❌ 发送程序心跳 ${age:-无}s（要求 ≤ 300）"; fail=1; }; else echo "❌ /api/version（$code）"; fail=1; fi
           get /api/venues && echo "✅ /api/venues 200" || { echo "❌ /api/venues（$code）"; fail=1; }
