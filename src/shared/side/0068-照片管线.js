@@ -61,6 +61,8 @@ const sbPhQueue=o=>{const items=[],sleep=o.sleep||((ms,sg)=>new Promise(r=>{cons
 const sbPhPutMake=net=>async(name,v,blob,signal)=>{const r=await net.putRaw('/api/sideline/photos/'+name+'-'+(v==='full'?'f':v),blob,{signal,timeout:60000});
   return r.ok?{status:r.status}:{status:r.status,code:r.code,retryAfter:r.retry_after}};
 // ---- 草稿：上传会话（已传成功的键 + 文字 + 色调等）每步写本机；换账号 / 超过 24 小时作废（微信、iOS 会杀后台页）----
+// 拖拽排序：把第 from 张挪到 to 的位置（返回新数组，越界 / 同位原样返回）；第一张 = 封面
+const sbPhMove=(a,from,to)=>{if(from===to||from<0||to<0||from>=a.length||to>=a.length)return a;const r=a.slice(),[x]=r.splice(from,1);r.splice(to,0,x);return r};
 const SB_DRAFT_KEY='nbq_sb_draft';
 const sbPhDraftGet=uid=>{const d=sbLS(SB_DRAFT_KEY);if(!d)return null;if(!uid||d.u!==uid||!(Date.now()-d.at<864e5)){sbLS(SB_DRAFT_KEY,null);return null}return d};
 const sbPhDraftSet=(uid,d)=>{if(uid)sbLS(SB_DRAFT_KEY,{...d,u:uid,at:Date.now()})};

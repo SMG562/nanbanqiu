@@ -193,7 +193,7 @@ function App(el,init){
   const phReal=()=>S.real&&SB_PHOTOS_ON()&&SB_PHOTO_POST();
   const phPend=C=>C.ups.filter(u=>u.st!=='ok').length,phFail=C=>C.ups.some(u=>u.st==='fail');
   const phStIn=u=>u.st==='fail'?`<button data-pr="${u.id}">重试</button>`:u.st==='proc'?'处理中':Math.round((u.p||0)*100)+'%';
-  const phOne=(C,u)=>`<div class="ph1 pt" data-u="${u.id}"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${phStIn(u)}</div>`}</div>`;
+  const phOne=(C,u)=>`<div class="ph1 pt${C.ups[0]===u&&C.ups.length>1?' cov':''}" data-u="${u.id}"><div class="tn${C.tone?' t-'+C.tone:''}"><img src="${u.url}" alt="" draggable="false" style="width:100%;height:100%;object-fit:cover;display:block"></div><button class="phx" data-pu="${u.id}" aria-label="移除">${ic('x')}</button>${u.st==='ok'?'':`<div class="phst">${phStIn(u)}</div>`}</div>`;
   const phsHTML=C=>C.ups.map(u=>phOne(C,u)).join('');
   const phAddBtn=C=>phReal()&&!C.ups.length?'':`<button class="phadd" data-lib aria-label="添加照片">${ic('plus')}</button>`;
   const phGo=C=>{const g=$('.compose [data-cgo]');if(!g||!phReal())return;const n=C.ups.length,p=phPend(C);g.textContent=p?(phFail(C)?'有图没传上去':`上传中 ${n-p}/${n}`):C.later?'稍后公开':'发布';g.classList.toggle('dis',!!p)};
@@ -205,6 +205,9 @@ function App(el,init){
       const tn=n.querySelector('.tn');if(tn)tn.className='tn'+(C.tone?' t-'+C.tone:'');
       let st=n.querySelector('.phst');if(u.st==='ok'){if(st)st.remove()}else{const h2=phStIn(u);if(!st)n.insertAdjacentHTML('beforeend',`<div class="phst">${h2}</div>`);else if(st.innerHTML!==h2)st.innerHTML=h2}});
     old.forEach(n=>n.remove());
+    {const ns=C.ups.map(u=>h.querySelector('.ph1[data-u="'+u.id+'"]')).filter(Boolean),cur=[...h.querySelectorAll('.ph1[data-u]')];
+      if(ns.some((n,i)=>n!==cur[i]))ns.forEach(n=>h.insertBefore(n,h.querySelector('.phadd')));
+      ns.forEach((n,i)=>n.classList.toggle('cov',i===0&&ns.length>1))}
     const want=C.ups.length<3?phAddBtn(C):'',cur=h.querySelector('.phadd');
     if(!want){if(cur)cur.remove()}else{const t=document.createElement('template');t.innerHTML=want;const nb=t.content.firstElementChild;if(!cur)h.appendChild(nb);else if(cur.outerHTML!==nb.outerHTML)cur.replaceWith(nb)}};
   const phPaint=C=>{if(S.cmp!==C)return;const h=$('.compose .phs');if(!h)return;phPatch(h,C);phGo(C);const t=$('.compose .tones2');if(SB_TONES_ON()&&!t&&C.ups.length)drawCompose()};
@@ -215,6 +218,16 @@ function App(el,init){
     for(const f of k.take){const u={id:'u'+(++UID),st:'proc',p:0,url:URL.createObjectURL(f)};C.ups.push(u);phPaint(C);
       try{const r=await sbPhRun(f,sbPhEnv());if(S.cmp!==C||!C.ups.includes(u)){continue}u.name=r.name;u.w=r.w;u.h=r.h;URL.revokeObjectURL(u.url);u.url=URL.createObjectURL(r.parts.t);u.fu=URL.createObjectURL(r.parts.full);phQueue(C).add(r.name,r.parts)}
       catch(e){const i=C.ups.indexOf(u);if(i>=0)C.ups.splice(i,1);URL.revokeObjectURL(u.url);toast(phMsg(e&&e.code));phPaint(C)}}};
+  // 拖拽排序（P4c）：长按某张图 0.35 秒后在图之间拖动换位，第一张 = 封面；没长按就动 = 横向滚动（不抢滚动）
+  let PG=null;const pgEnd=()=>{if(!PG)return;clearTimeout(PG.t);PG.n.classList.remove('drag');PG=null};
+  el.addEventListener('pointerdown',e=>{const n=e.target.closest&&e.target.closest('.compose .ph1[data-u]');if(!n||e.target.closest('button')||!S.cmp||S.cmp.ups.length<2)return;pgEnd();
+    PG={n,id:n.dataset.u,x:e.clientX,y:e.clientY,on:0,pid:e.pointerId,t:setTimeout(()=>{if(!PG||PG.n!==n)return;PG.on=1;n.classList.add('drag');try{n.setPointerCapture(PG.pid)}catch(_){}if(navigator.vibrate)try{navigator.vibrate(8)}catch(_){}},350)}});
+  el.addEventListener('pointermove',e=>{if(!PG)return;if(!PG.on){if(Math.hypot(e.clientX-PG.x,e.clientY-PG.y)>10)pgEnd();return}
+    const C=S.cmp;if(!C)return pgEnd();const from=C.ups.findIndex(u=>u.id===PG.id);let to=from;
+    PG.n.parentNode.querySelectorAll('.ph1[data-u]').forEach(m=>{if(m===PG.n)return;const r=m.getBoundingClientRect();if(e.clientX>r.left&&e.clientX<r.right)to=C.ups.findIndex(u=>u.id===m.dataset.u)});
+    if(to!==from&&to>=0){C.ups=sbPhMove(C.ups,from,to);phPatch(PG.n.parentNode,C)}});
+  el.addEventListener('touchmove',e=>{if(PG&&PG.on)e.preventDefault()},{passive:false});
+  ['pointerup','pointercancel'].forEach(k=>el.addEventListener(k,pgEnd));
   const phDrop=C=>{if(!C)return;C.ups.forEach(u=>{URL.revokeObjectURL(u.url);if(u.fu)URL.revokeObjectURL(u.fu);if(C.q&&u.name)C.q.cancel(u.name)})};
   const phBlk=C=>`<div class="phs">${phReal()?phsHTML(C):''}${phReal()?'':C.pics.map(q=>`<div class="ph1${isPt(q)?' pt':''}">${PIC(q,'hero',C.tone)}<button class="phx" data-pk="${q}">${ic('x')}</button></div>`).join('')}${(phReal()?C.ups.length:C.pics.length)<3?phAddBtn(C):''}</div>`;
   // 球场就地选：键盘上方一行芯片，不收键盘、不弹浮层；搜索更多才进完整选择页
