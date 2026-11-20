@@ -45,6 +45,11 @@ description: 做回滚演练、上线加固（#53 #64）、写 出事处理手�
 - **独立复核留言只认第一行 `独立复核：通过 <7位> `**，提交号后必须是空格 / 行尾，不能紧跟全角括号或套 `**`（`review_state.mjs`）；用 Agent 只读子会话照 `tools/review_prompt.md`，约 40 秒。
 - **会话环境**：`gh pr create` 走 GraphQL 会 403，改 `gh api repos/SMG562/nanbanqiu/pulls -f title=… -f head=… -f base=main -F body=@文件 -F draft=true`；本机跑 `tests/pg/*` 要先 `apt-get update && apt-get install -y postgresql-16-postgis-3` 和 `npm ci`；`ci_wait.sh` 对已合并的 main 提交可能「找不到」，用 `gh api …/actions/runs?head_sha=<完整sha>` 查。
 
+## 11-20 晚新增（#53 L2 短信上限；证据：#53 收尾评论、`docs/演练记录.md` L2 行）
+- **Supabase 限流页**：`/dashboard/project/<ref>/auth/rate-limits`，输入值 `get_page_text` 读不到，要截图；sms/h 在正式库 50→30，同号间隔固定 60 秒不可调；Phone 面板（`/auth/providers`）会**明文显示 Vonage Secret**，看完立刻关、不记录。
+- **Vonage 没有每日消费上限项**：预付费余额即硬上限；防护 = Billing → Low balance alerts（阈值 $2，发所有者 Gmail）；Fraud Defender Advanced $47/月不买。`dashboard.nexmo.com` 会跳到 `dashboard.vonage.com`。
+- **内置浏览器点击**：坐标用截图的完整分辨率坐标系（缩放图坐标要换算）；页面刚加载时 `computer` 会报「page changed」，先 wait 再截图；`type` 前务必确认焦点在输入框，保存后刷新读回才算数。
+
 ## 怎么给所有者出步骤
 1. 一次只给一条命令，让他贴输出，看完再给下一条；别一次给五步（11-20 所有者说「太复杂了我不会」）。
 2. 能自动化的先自动化，被拦（强制更新、没后台权限）就说清被拦在哪、给 A / B 两个选项，不绕过。
