@@ -5,7 +5,7 @@ function App(el,init){
   S.at=(init&&init.at)||null;S.loc=S.at||'';S.homes=(init&&init.home!==undefined)?(init.home?init.home.split(','):[]):['Kooyong','Glen Iris'];S.home=S.homes[0]||null;
   const desk=!!S.desk;el.classList.toggle('desk',desk);el.classList.toggle('embed',!!S.embed);el.classList.toggle('tap',!!S.embed||desk);const AE=()=>{const r=el.getRootNode();return r.activeElement||document.activeElement};
   el.innerHTML=`${desk||S.embed?'':`<div class="island"></div><div class="sbar"><span>${hm(Date.now())}</span><svg width="68" height="12" viewBox="0 0 68 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="1" width="3" height="11" rx="1"/><rect x="42" y="1" width="22" height="11" rx="3.2" fill="none" stroke="currentColor" stroke-opacity=".4"/><rect x="44" y="3" width="16" height="7" rx="1.6"/><rect x="65" y="4.5" width="2" height="4" rx="1" fill-opacity=".4"/></svg></div>`}
-    <div class="view home"><div class="hd"><div><h3>场边<sup class="h24">24h</sup></h3><div class="sub"><span class="dot"></span><span data-cnt></span></div></div><span class="sp"></span><button class="mine-t" data-mine><i></i>只看我的球场</button>${S.bell?`<button class="bell" data-bell aria-label="消息">${ic('i-bell')}<b data-bn hidden></b></button>`:''}</div>
+    <div class="view home"><div class="hd"><div><h3 data-gohome role="button" tabindex="0" aria-label="回到场边主页">场边<sup class="h24">24h</sup></h3><div class="sub"><span class="dot"></span><span data-cnt></span></div></div><span class="sp"></span><button class="mine-t" data-mine><i></i>只看我的球场</button>${S.bell?`<button class="bell" data-bell aria-label="消息">${ic('i-bell')}<b data-bn hidden></b></button>`:''}</div>
       <div class="scroll" data-sc="home"><div data-s="home"></div></div><button class="more" data-more></button>${desk?'<aside class="rail"></aside>':''}<div class="remind"></div><div class="undo"></div>
       <div class="bar"><div class="qtp" data-qtp></div><div class="box"><span data-att></span><span class="hint hh" data-hint></span>${S.embed||desk?'<button class="open" data-open aria-label="写一条场边"></button>':''}<input data-in${S.embed||desk?' class="ghost" tabindex="-1" aria-hidden="true" autocomplete="off"':''} maxlength="${CFG.settings.post_max_len}"><button class="where" data-place></button><button class="cam" data-cam>${ic('cam')}</button><button class="send" data-send disabled>${ic('up')}</button><div class="lp" data-lp></div></div>
       ${desk?'':S.embed?'<div class="tabsp"></div>':`<div class="tabs"><span>${ic('i-compass')}发现</span><span>${ic('i-cal')}球局</span><span class="on">${ic('i-side')}场边</span><span data-me>${ic('i-user')}我的</span></div>`}</div></div>
@@ -115,7 +115,7 @@ function App(el,init){
   const courtRows=()=>S.L.filter(x=>x.w===S.court&&!x.area&&!heldC(x)&&Date.now()-x.t<3*H).sort((a,b)=>b.t-a.t);
   const drawCourt=()=>{const c=COURTS[S.court];if(!c)return;const L=courtRows(),v=$('.court');
     const mine=S.homes&&S.homes.includes(S.court);
-    v.innerHTML=`<div class="cnav"><button class="ib" data-back>${ic('back')}</button></div>${desk?`<div class="dnav"><button class="backto" data-back>${ic('back')}<span>关闭</span></button></div>`:''}
+    v.innerHTML=`<div class="cnav"><button class="ib" data-back>${ic('back')}</button><button class="bkh" data-gohome>场边</button></div>${desk?`<div class="dnav"><button class="backto" data-back>${ic('back')}<span>关闭</span></button></div>`:''}
       <div class="scroll" style="padding-top:0"><div class="ch"><div class="k">${mine?'我的球场 · '+esc(c.area.split(' · ').pop()):esc(c.area)}</div><h3>${esc(c.n)}</h3></div>
       
       <div class="mod"><div class="mh"><span class="dot"></span><b>刚刚发生</b><small data-ccnt>近 3 小时 · ${L.length} 条</small></div>
@@ -126,7 +126,7 @@ function App(el,init){
     const ci=v.querySelector('[data-cin]'),cs=v.querySelector('[data-csend]'),ch=v.querySelector('.hint');
     ci.oninput=()=>{cs.disabled=!ci.value.trim();ch.style.display=ci.value?'none':'block'};ci.onkeydown=e=>{if(e.key==='Enter'&&!nbqImeEnter(e)&&!cs.disabled)cs.click()}};
   const drawSheet=()=>{const x=find(S.open);if(!x)return;const L=life(x.t),a=ago(x.t),ps=x.pics||[];
-    $('.sheet').innerHTML=`<div class="grab"></div>
+    $('.sheet').innerHTML=`<div class="grab"></div><button class="bkh" data-gohome>场边</button>
       <div class="sh-top">${av(U(x),34)}<div class="who">${unb(U(x)).replace('class="un"','')}<small>${x.w?(x.area?`<span class="pl ar">${esc(x.w)} 附近</span>`:`<span class="pl" data-court="${esc(x.w)}">${esc(x.w)}</span>`)+'<i>·</i>':''}${lifeRing(x.t)}<span>${a}</span></small></div><span class="sp"></span>${x.mine&&x.pic?`<button class="ib2" data-share title="分享图片">${ic('share')}</button>`:''}<button class="ib2" data-menu>${ic('dots')}</button><button class="ib2 shx" data-shut>${ic('x')}</button></div>
       <div class="sh-sc">${ps.length?`<div class="hero${PM[ps[0]]?' pt':''}"><div class="hs">${ps.map(p=>`<div class="hp" data-pic="${x.id}">${PIC(p,'hero',x.tone)}</div>`).join('')}</div>${ps.length>1?`<div class="hd2">${ps.map((_,i)=>`<i${i?'':' class="on"'}></i>`).join('')}</div>`:''}</div>`:''}
         <div class="sh-t">${esc(x.x)}</div>${x.topic?`<div class="floorbar"><button class="fb1" data-topic="${x.topic}"><b>#${esc(S.T[x.topic].t)}</b><span>No.${x.floor}</span>${ic('chev','')}</button>${x.real?'':`<button class="fb2" data-jie="${x.topic}">${ic('cam')}我也发一张</button>`}</div>`:''}
@@ -187,7 +187,7 @@ function App(el,init){
   const topicIn=()=>{const h=$('.compose .ctop'),st=$('.compose .sts');if(h)h.animate([{opacity:0,transform:'translateY(-4px)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.8,.3,1)'});
     if(st)[...st.children].forEach((n,i)=>n.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:260,delay:60+i*45,easing:'cubic-bezier(.2,.8,.3,1)',fill:'backwards'}))};
   const drawCompose=()=>{const C=S.cmp,pic=C.pics[0],plab=C.loc&&COURTS[C.loc]?COURTS[C.loc].n:'',ph=C.topic?(S.T[C.topic].ask||`说说 #${S.T[C.topic].t}`):(C.ph&&C.sc?C.ph:C.sc==='lost'?'捡到东西了？':'场边有什么新鲜事？'),old=$('.cmp-sc'),top=old?old.scrollTop:0;
-    $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><span></span><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
+    $('.compose').innerHTML=`<div class="cmp-top"><button data-cx>取消</button><button class="bkh" data-gohome>场边</button><button class="go" data-cgo>${C.later?'稍后公开':'发布'}</button></div>
       <div class="cmp-sc">
         <button class="ctop${C.topic?' on':''}" data-ctp><em>#</em><b>${C.topic?esc(S.T[C.topic].t):'加个话题'}</b>${ic('chev','cv')}</button>
         <textarea data-ctext maxlength="${CFG.settings.post_max_len}" rows="2" placeholder="${esc(ph)}">${esc(C.text)}</textarea>
@@ -228,7 +228,7 @@ function App(el,init){
   // 留给自己
   const keepRow=x=>`<div class="keep" data-keep="${x.id}"><div><b>${x.keep?'会留下来':'到期就消失'}</b><p>${x.keep?'24 小时后收进「我的」，只有你看得到':'想留下来？打开就好，只有你看得到'}</p></div><span class="tg${x.keep?' on':''}"></span></div>`;
   const drawAlbum=()=>{const pend=S.L.filter(x=>x.mine&&Date.now()-x.t<24*H),MO={};S.A.forEach(x=>{const m=new Date(x.t).getMonth()+1;(MO[m]=MO[m]||[]).push(x)});
-    $('.album').innerHTML=`<div class="cnav"><button class="ib" data-aback>${ic('back')}</button></div>
+    $('.album').innerHTML=`<div class="cnav"><button class="ib" data-aback>${ic('back')}</button><button class="bkh" data-gohome>场边</button></div>
       <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我发布的场边</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
       ${pend.length?`<div class="pend">${pend[0].pic?`<span class="th">${PIC(pend[0].pic,'hero',pend[0].tone)}</span>`:''}<div>公开中 <b>${pend.length} 条</b>，${life(pend[0].t).txt.replace('还剩 ','')}后存到这里</div></div>`:''}
       ${Object.keys(MO).sort((a,b)=>b-a).map(m=>`<div class="mon">${['','一','二','三','四','五','六','七','八','九','十','十一','十二'][m]}月</div><div class="ag">${MO[m].map(x=>x.pic?`<div class="at" data-pic="${x.id}">${PIC(x.pic,'hero',x.tone)}<em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`:`<div class="at tx3"><p>${esc(x.x)}</p><em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`).join('')}</div>`).join('')}</div>`};
@@ -255,7 +255,7 @@ function App(el,init){
     if(S.wall===x.topic){if(x.mine){drawWall();const t=$(`.wall [data-ln="${x.id}"]`);if(t)t.classList.add('nw')}else{(S.wpend=S.wpend||[]).push(x);wpillSync()}}};
   // 话题墙：一栋楼
   const drawWall=()=>{const T=S.T[S.wall];if(!T)return;const P=S.L.filter(x=>x.topic===S.wall&&!heldW(x)&&Date.now()-x.t<24*H).sort((a,b)=>b.floor-a.floor),v=$('.wall'),old=v.querySelector('.scroll'),top=old?old.scrollTop:0;
-    v.innerHTML=`<div class="cnav"><button class="ib" data-wback>${ic('back')}</button><button class="ib" data-wshare title="分享这个话题">${ic('share')}</button></div>
+    v.innerHTML=`<div class="cnav"><button class="ib" data-wback>${ic('back')}</button><button class="bkh" data-gohome>场边</button><button class="ib" data-wshare title="分享这个话题">${ic('share')}</button></div>
       <div class="scroll" style="padding-top:0"><div class="wh"><div class="k">${T.k}</div><h3>#${esc(T.t)}</h3><p>${esc(T.q)}</p><div class="ws"><span class="dot"></span><b>${T.n}</b> 张 · 最新在前</div></div>
       <div class="wg">${P.map(x=>`<div class="wt${x.ed?' ed tx2':x.pic?'':' tx2'}"${x.ed?'':` data-ln="${x.id}"`}${x.pic?` style="aspect-ratio:${PM[x.pic]?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.ed?'No.1 · 场边出题':'No.'+x.floor}</span></div>`).join('')}</div></div>
       <button class="wfab" data-wgo>${ic('cam')}我也发一张</button><button class="more" data-wmore></button>`;
@@ -363,6 +363,12 @@ function App(el,init){
   const openSheet=(id,via)=>{S.open=id;drawSheet();requestAnimationFrame(state);const x=find(id);if(x&&S.real)loadPost(x);
     if(x)track('sb_post_view',{post_id:x.id,own:!!x.mine,via:via||(S.album?'album':S.court?'court':S.wall||(S.f&&S.f.k==='topic')?'topic':'feed')})};
   const shut=()=>{S.open=null;el.classList.remove('acting');state()};
+  // 左上「场边」：任何一层一点就回主页（收掉所有盖着的层、清筛选）；发布页有没发出的内容先确认（#460 第 1 步）
+  const goHome=()=>{const C=S.cmp;if(C&&((C.text||'').trim()||C.pics.length)&&!window.confirm('发布页还有没发出的内容，回主页会丢掉。要回去吗？'))return false;
+    const a=el.getRootNode&&el.getRootNode().activeElement;if(a&&a.blur)a.blur();
+    S.cmp=null;S.view=null;S.open=null;S.court=null;S.cpend=null;S.wall=null;S.wpend=null;S.album=false;S.share=null;S.shTopic=null;S.rto=null;el.classList.remove('acting');
+    if(S.f||S.mineOnly){S.mineOnly=false;setF(null)}else{state();if(desk)drawRail()}
+    drawHome();sc.scrollTop=0;return true};
   // 帖子卡片：手机上可以从顶部条往下拖，或内容已经在最上面时往下拉关闭（跟手；松手超过 110px 或甩得够快就收起，否则弹回）
   if(!desk){const sh=$('.sheet'),scrim=$('.scrim');let g=null;
     const drop=()=>{sh.classList.remove('dragging');sh.style.transform='';scrim.style.opacity='';scrim.style.transition=''};
@@ -392,11 +398,12 @@ function App(el,init){
   inp.addEventListener('focus',qOpen);
   inp.addEventListener('blur',()=>setTimeout(()=>{if(AE()!==inp&&!inp.value.trim())qClose()},150));
   el.addEventListener('pointerdown',e=>{const r=e.target.closest('.lr');if(r){r.classList.add('tip');setTimeout(()=>r.classList.remove('tip'),1800)}});
-  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-efill],[data-esay],[data-ball],[data-pic],[data-court],[data-ln],[data-send],[data-csend],[data-rsend],[data-place],[data-lq],[data-clocate],[data-qtx],[data-qx],[data-near],[data-cam],[data-open],[data-back],[data-close],[data-more],[data-cmore],[data-wmore],[data-shut],[data-menu],[data-act],[data-share],[data-tpl],[data-sx],[data-sv],[data-cx],[data-cgo],[data-pk],[data-tone],[data-cpl],[data-tg],[data-rp],[data-topic],[data-wback],[data-wshare],[data-wgo],[data-jie],[data-tp],[data-tnew],[data-tshare],[data-fill],[data-bell],[data-me],[data-aback],[data-user],[data-rto],[data-scok],[data-scno],[data-loc],[data-pkx],[data-rtox],[data-home2],[data-gohome],[data-myc],[data-mine],[data-fx],[data-vw],[data-cmt],[data-ctp],[data-cset],[data-cshx],[data-lib],[data-keep],[data-keep1],[data-letgo],[data-undo]');if(!t)return;const d=t.dataset;
     if(d.ball){e.stopPropagation();const id=d.ball;need('ball',()=>{const c=sbRate(S,'sb_ball');if(c)return say(c);tapBall(id);const x=find(id);track('sb_ball',{post_id:x.id,on:!!x.my,via:'tap'})});return}
     if(d.pic&&t.closest('.hero')){const k='p'+d.pic,now=Date.now();if(S._tap&&S._tap.k===k&&now-S._tap.t<300){clearTimeout(S._tap.h);S._tap=null;const h=t.closest('.hero'),id=d.pic;need('ball',()=>{const x=find(id),c=x&&!x.my&&sbRate(S,'sb_ball');if(c)return say(c);dbl(h,id,e)});return}const id=d.pic;S._tap={k,t:now,h:setTimeout(()=>{S._tap=null;S.view=id;drawViewer();state();track('sb_photo_view',{post_id:id})},280)};return}
     if(d.pic){S.view=d.pic;drawViewer();state();track('sb_photo_view',{post_id:d.pic});return}
     if('close' in d){S.view=null;state();return}
+    if('gohome' in d){goHome();return}
         if(d.court){if(COURTS[d.court])setF(S.f&&S.f.k==='court'&&S.f.v===d.court?null:{k:'court',v:d.court});return}
     if('back' in d){S.court=null;S.cpend=null;state();return}
     if(d.near){S.near=d.near==='1';drawHome();return}
@@ -620,13 +627,14 @@ function App(el,init){
   S.api={hint:id=>{const T=S.T[id];if(!T)return null;showHint(HQ(T.ask||`说说 #${T.t}`,id));return S.hq.t},get:id=>{const x=find(id);if(gone(x))return null;const ps=x.pics||(x.pic?[x.pic]:[]);
       return {id:x.id,mine:!!x.mine,body:x.x==='（一张照片）'?'':x.x,photos:ps.length,balls:(x.bu||[]).slice(),reply:rid=>x.r.find(r=>r.id===rid)||null,
         replies:x.r.map(r=>{const u=RU(r,x);return {id:r.id,t:r.t,me:!!r.me,to:r.to||null,n:u.n,c:u.c}})}},
-    me:ME_U.n,real:()=>!!S.real,ensure:id=>ensurePost(id),
+    home:goHome,me:ME_U.n,real:()=>!!S.real,ensure:id=>ensurePost(id),
     // 从通知打开：盖在上面的先收起，打开那条；回复类滚到那条回复并闪一下
     open:(id,rid)=>{const x=find(id);if(gone(x))return false;S.view=null;S.court=null;S.wall=null;S.album=false;S.share=null;el.classList.remove('acting');openSheet(x.id,'notif');
       const i=rid==null?-1:x.r.findIndex(r=>r.id===rid);setTimeout(()=>{const c=$('.sh-sc'),row=i>=0?$('.sheet .rs').children[i]:null;if(!c)return;
         if(row){c.scrollTo({top:Math.max(0,row.offsetTop-c.clientHeight/3),behavior:'smooth'});row.animate([{background:'rgba(198,234,61,.35)'},{background:'transparent'}],{duration:1600,easing:'ease-out'})}},380);return true},
     others:{ball:(id,n,on)=>otherBall(id,n,on),reply:(id,text,f)=>addReply(id,text,f||{})},
     album:()=>{S.open=null;S.court=null;S.wall=null;S.album=true;drawAlbum();state();if(S.real)loadMine();track('sb_album_open',{})},badge:n=>{const b=$('[data-bn]');if(b){b.hidden=!n;b.textContent=n||''}},setHome:h=>{S.homes=h?h.split(','):[];S.home=S.homes[0]||null;S.filt=null;drawHome();S.open=null;if(S.court)drawCourt();state()}};
+  el.addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;const h=e.target.closest&&e.target.closest('h3[data-gohome]');if(h&&(e.key==='Enter'||e.key===' ')){e.preventDefault();goHome()}});
   sc.addEventListener('scroll',()=>{el.classList.toggle('cond',sc.scrollTop>14);},{passive:true});
   if(S.real)rlBoot();
   setInterval(setCnt,30000);
