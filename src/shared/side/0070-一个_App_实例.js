@@ -226,7 +226,7 @@ function App(el,init){
   el.addEventListener('pointermove',e=>{if(!PG)return;if(!PG.on){if(Math.hypot(e.clientX-PG.x,e.clientY-PG.y)>10)pgEnd();return}
     const C=S.cmp;if(!C)return pgEnd();const from=C.ups.findIndex(u=>u.id===PG.id);let to=from;
     PG.n.parentNode.querySelectorAll('.ph1[data-u]').forEach(m=>{if(m===PG.n)return;const r=m.getBoundingClientRect();if(e.clientX>r.left&&e.clientX<r.right)to=C.ups.findIndex(u=>u.id===m.dataset.u)});
-    if(to!==from&&to>=0){C.ups=sbPhMove(C.ups,from,to);const p=PG.n.parentNode,ms=[...p.querySelectorAll('.ph1[data-u]')],tg=ms[to];p.insertBefore(PG.n,to>from?tg.nextSibling:tg);[...p.querySelectorAll('.ph1[data-u]')].forEach((n,i)=>n.classList.toggle('cov',i===0&&ms.length>1));PG.mv=1}});
+    if(to!==from&&to>=0){C.ups=sbPhMove(C.ups,from,to);const p=PG.n.parentNode,ms=[...p.querySelectorAll('.ph1[data-u]')],tg=ms[to];p.insertBefore(PG.n,to>from?tg.nextSibling:tg);[...p.querySelectorAll('.ph1[data-u]')].forEach((n,i)=>n.classList.toggle('cov',i===0&&ms.length>1));phDraftSave(C);PG.mv=1}});
   el.addEventListener('touchmove',e=>{if(PG&&PG.on)e.preventDefault()},{passive:false});
   ['pointerup','pointercancel'].forEach(k=>el.addEventListener(k,pgEnd));
   // 草稿（P4c）：每步写本机，微信 / iOS 杀页重进能恢复文字和已传的图；丢弃 / 发出去 / 换账号（sbPhDraftGet 比对 uid）都会清
