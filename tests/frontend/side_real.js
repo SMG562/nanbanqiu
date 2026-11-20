@@ -295,6 +295,18 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     S.phDelay = 0; await pg.waitForTimeout(2500);
     T('#492 v2 慢网：主图到了之后淡入完成', await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc img.mi')].every(i => i.classList.contains('ld') && +getComputedStyle(i).opacity > 0.9)));
     S.phMock = false; }
+  // ---- #492 ② 大图弹层里的图过期（410）：读新地址后整格重画，图真的显示 ----
+  { const pv = { id: 'e1e1e1e1-0000-4000-8000-000000000501', user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: '/api/sideline/photo/u9/v1-t?x=new', url: '/api/sideline/photo/u9/v1-f?x=new', b: '/api/sideline/photo/u9/v1-b?x=new' }] };
+    S.jpg = jpg; S.phMock = true; S.freshPh = true; S.phGets = []; S.posts = [pv]; S.detailGets = 0;
+    await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1500);
+    const sr = () => document.querySelector('#sbHost').shadowRoot;
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-s="home"] .ln.pc').click()); await pg.settle(900);
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('.hero .hp').click()); await pg.settle(900);
+    const before = await pg.evaluate(() => { const i = document.querySelector('#sbHost').shadowRoot.querySelector('.viewer .img img'); return !!i });
+    S.detailGets = 0; await pg.evaluate(() => { const i = document.querySelector('#sbHost').shadowRoot.querySelector('.viewer .img img'); i.removeAttribute('srcset'); i.src = i.src.replace('x=new', 'x=old') }); await pg.settle(2000);
+    const v = await pg.evaluate(() => { const i = document.querySelector('#sbHost').shadowRoot.querySelector('.viewer .img img'); return i && { s: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0 } });
+    T('#492 ② 大图弹层图 410：读新地址重画，src 换新且图显示出来', before && v && /x=new/.test(v.s) && v.ok && S.detailGets === 1 && S.phGets.some(x => /v1-f\?x=old 410/.test(x)), { before, v, dg: S.detailGets, gets: S.phGets });
+    S.phMock = false; S.freshPh = false; }
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
