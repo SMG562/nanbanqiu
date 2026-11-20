@@ -18,6 +18,14 @@ description: 做回滚演练、上线加固（#53 #64）、写 出事处理手�
 - **长命令别接 `| tail`**（安装时一片空白，所有者以为卡死）；先说预计耗时，给只读进度检查（`ps`、`ls -lt /opt/homebrew/Cellar`）。
 - **云会话先 `add_repo` 带 push 权限**，否则 `gh api` 一律 403；所有者当次明说授权后才可（自动分类器会拒绝未授权的升级）。
 
+## 11-20 下午新增（证据：#64 评论、#473）
+- **`backup.mjs` 三个坑（#473 修）**：①目录含中文时启动判断恒假，脚本**静默退出无输出**（先怀疑它，别当成「成功」）；绕过：在 `~/Documents/南伴球` 下 `node --input-type=module -e 'import {drill} from "./server/ops/backup.mjs"…' "$SRC"`；②Supabase `postgres` 账号无权 `set local role nbq_service`，演练末段抛错、**已算好的结果丢失**；③备份含 pg_cron / supabase_vault，本机装不了，恢复要跳过。
+- **本机恢复绕法**：`NBQ_PGBIN` 指向临时目录，里面 `pg_dump` 软链真文件、`pg_restore` 是包装脚本（`-L` 过滤平台扩展，日志写文件）；`nbq_drill` 必须每次先 dropdb / createdb 重建（上次恢复一半会让下一次失败）。
+- **日志先看再删**：「数报错条数」和「删日志」别放同一条命令（1077 条报错因此无法分类）。
+- **云会话没有 `device_bash`**，computer use 对终端只开点击不能打字：所有者终端「贴来贴去」省不掉，只能把步骤合成**一条可整段粘贴的多行命令**（heredoc 可行）；所有者问「能不能自动」时先 `ToolSearch device_bash` 查实，再答。
+- **验前端旧版**：内置浏览器里 Cloudflare 可能未登录，登录由所有者做（面板隐藏时让他 Cmd+Shift+B）；Pages 部署列表在 `…/pages/view/nanbanqiu-preview`（`get_page_text`）；**用 Preview（staging 分支）部署自己的网址**读 `/version.json`，Production 的 hash 网址对应正式库；WebFetch 读外网要所有者批准，请求没人应答就停下说明，别重试。
+- **手册 §6 加一行约 250 字节**，18989/19000 已满；每加一行先在 §2 / §4.5 这类低频段落精简，或把 §4.5 的 SQL 挪出手册。
+
 ## 怎么给所有者出步骤
 1. 一次只给一条命令，让他贴输出，看完再给下一条；别一次给五步（11-20 所有者说「太复杂了我不会」）。
 2. 能自动化的先自动化，被拦（强制更新、没后台权限）就说清被拦在哪、给 A / B 两个选项，不绕过。
