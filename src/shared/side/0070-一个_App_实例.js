@@ -34,7 +34,7 @@ function App(el,init){
   const fOk=x=>S.mineOnly&&S.homes.length?(S.homes.includes(x.w)&&!x.area):!S.f?true:S.f.k==='court'?(x.w===S.f.v&&!x.area):x.topic===S.f.v;
   const fbarHTML=n=>{if(!S.f)return '';const tp=S.f.k==='topic',lab=tp?'#'+esc(S.T[S.f.v].t):esc(COURTS[S.f.v].n);
     return `<div class="fbar"><button class="fchip" data-fx>${lab}${ic('x')}</button><span>今天 ${n} 条</span>${tp?`<button class="fsh" data-tshare title="分享这个话题">${ic('share')}</button><span class="vw"><button data-vw="list" class="${S.vw!=='grid'?'on':''}" title="列表">${ic('i-list')}</button><button data-vw="grid" class="${S.vw==='grid'?'on':''}" title="照片墙">${ic('i-grid')}</button></span>`:''}</div>${tp?`<p class="fq">${esc(S.T[S.f.v].q)}</p>`:''}`};
-  const gridHTML=L=>`<div class="it itg"><div class="wg">${L.map(x=>`<div class="wt${x.pic?'':' tx2'}" data-ln="${x.id}"${x.pic?` style="aspect-ratio:${isPt(x.pic)?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone):`<p>${esc(x.x)}</p>`}<span class="fl">${x.floor?'No.'+x.floor:''}</span></div>`).join('')}</div></div>`;
+  const gridHTML=L=>`<div class="it itg"><div class="wg">${L.map((x,i)=>`<div class="wt${x.pic?'':' tx2'}" data-ln="${x.id}"${x.pic?` style="aspect-ratio:${isPt(x.pic)?'4/5':'1/1'}"`:''}>${x.pic?PIC(x.pic,'hero',x.tone,{sz:'min(338px,calc((100vw - 36px)/2))',am:0,lazy:i>=4}):`<p>${esc(x.x)}</p>`}<span class="fl">${x.floor?'No.'+x.floor:''}</span></div>`).join('')}</div></div>`;
   // 手机：信息流里的引导
   const DAYN=()=>{const Cn={},Tn={};S.L.forEach(x=>{if(!pass(x))return;if(x.w&&!x.area&&COURTS[x.w])Cn[x.w]=(Cn[x.w]||0)+1;if(x.topic)Tn[x.topic]=(Tn[x.topic]||0)+1});return {Cn,Tn}};
   const hotHTML=()=>{const top=Object.entries(DAYN().Cn).sort((a,b)=>b[1]-a[1]).slice(0,6);if(top.length<2)return '';
@@ -293,10 +293,10 @@ function App(el,init){
   const drawAlbum=()=>{const pend=S.L.filter(x=>x.mine&&Date.now()-x.t<24*H),MO={};S.A.forEach(x=>{const m=new Date(x.t).getMonth()+1;(MO[m]=MO[m]||[]).push(x)});
     $('.album').innerHTML=`<div class="cnav"><button class="ib" data-aback>${ic('back')}</button><button class="bkh" data-gohome>场边</button></div>
       <div class="scroll" style="padding-top:0"><div class="ah"><div class="k">${ic('lock')}仅自己可见</div><h3>我发布的场边</h3><p>你发的每一条，公开 24 小时后自动存到这里。</p></div>
-      ${pend.length?`<div class="pend">${pend[0].pic?`<span class="th">${PIC(pend[0].pic,'hero',pend[0].tone,{sz:'40px'})}</span>`:''}<div>公开中 <b>${pend.length} 条</b>，${life(pend[0].t).txt.replace('还剩 ','')}后存到这里</div></div>`:''}
+      ${pend.length?`<div class="pend">${pend[0].pic?`<span class="th">${PIC(pend[0].pic,'hero',pend[0].tone,{sz:'48px',am:0})}</span>`:''}<div>公开中 <b>${pend.length} 条</b>，${life(pend[0].t).txt.replace('还剩 ','')}后存到这里</div></div>`:''}
       ${Object.keys(MO).sort((a,b)=>b-a).map(m=>`<div class="mon">${['','一','二','三','四','五','六','七','八','九','十','十一','十二'][m]}月</div><div class="ag">${MO[m].map(x=>x.pic?`<div class="at" data-pic="${x.id}">${PIC(x.pic,'hero',x.tone,{sz:ALSZ,lazy:true})}<em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`:`<div class="at tx3"><p>${esc(x.x)}</p><em>${new Date(x.t).getMonth()+1}.${new Date(x.t).getDate()}</em></div>`).join('')}</div>`).join('')}</div>`};
   const showRemind=id=>{const x=find(id);if(!x)return;const r=$('.remind'),mins=Math.max(1,Math.round((24*H-(Date.now()-x.t))/M));
-    r.innerHTML=`${x.pic?`<span class="th">${PIC(x.pic,'hero',x.tone)}</span>`:''}<div><p>「${esc(x.x.length>12?x.x.slice(0,12)+'…':x.x)}」还剩 <b>${mins} 分钟</b>，刚刚又有 3 个人点了网球。</p><div class="bt"><button class="k1" data-keep1="${x.id}">留下来</button><button data-letgo>让它走</button></div></div>`;
+    r.innerHTML=`${x.pic?`<span class="th">${PIC(x.pic,'hero',x.tone,{sz:'48px',am:0})}</span>`:''}<div><p>「${esc(x.x.length>12?x.x.slice(0,12)+'…':x.x)}」还剩 <b>${mins} 分钟</b>，刚刚又有 3 个人点了网球。</p><div class="bt"><button class="k1" data-keep1="${x.id}">留下来</button><button data-letgo>让它走</button></div></div>`;
     r.classList.add('show')};
   let undoT;
   const showUndo=msg=>{const u=$('.undo'),D=S.undoHold?6e5:8000;u.innerHTML=S.real?`<span>已发布，保质期 24h 😊</span><i></i>`:`<span>${msg}</span><button data-undo>撤回</button><i></i>`;u.classList.add('show');
