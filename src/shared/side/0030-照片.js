@@ -59,5 +59,9 @@ const phSrc=(n,crop)=>phOk((n.u||n.t)||n.b);
 const PHE={t:960,u:1600};
 const phW=(n,k)=>{const w=+n.w,h=+n.h;return w>0&&h>0?Math.max(1,Math.round(w*Math.min(1,PHE[k]/Math.max(w,h)))):0};
 const phSet=(n,o)=>{if(!o||!o.sz)return '';const a=phOk(n.t),b=phOk(n.u),wt=phW(n,'t'),wu=phW(n,'u');return a&&b&&a!==b&&!/^blob:/.test(a+b)&&wt&&wu>wt?` srcset="${a} ${wt}w, ${b} ${wu}w" sizes="${esc(o.sz)}"`:''};
-const PIC=(n,crop='full',tone,o)=>n&&n.ph?`<div class="tn${tone?' t-'+tone:''}"><img src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block">${n.bl?'<span class="blh">已打码</span>':''}</div>`:`<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
+// 列表卡片观感（#492 ③④，v2）：只对带 o.sz 的列表卡片生效。①48px 的 b 图放大虚化当「氛围底」（整张卡带着这张图的主色，也是加载占位）；②主图 onload 后「显影」淡入（见 0070 的 load 监听，3 秒兜底必显示）；③统一调色 + 加强颗粒（CSS，.ln.pc .tn.am）；④原图宽 < 600（变体不放大，说明源图本来就小）且宽高比在 0.6–1.8（极端比例不走相框，居中留白会发飘）→ 不满铺，居中摆成相框，不把小图拉糊
+const phAm=(n,o)=>o&&o.sz&&phOk(n.b)?phOk(n.b):'';
+const PIC=(n,crop='full',tone,o)=>{if(!(n&&n.ph))return `<div class="tn${tone?' t-'+tone:''}"><svg viewBox="${crop==='full'||PM[n]?'0 0 400 500':VB[crop][n]}" preserveAspectRatio="xMidYMid slice">${BODY[n]}</svg></div>`;
+  const am=phAm(n,o),sm=am&&+n.w>0&&+n.w<600&&!n.bl&&+n.h>0&&+n.h/+n.w>=.6&&+n.h/+n.w<=1.8;
+  return `<div class="tn${tone?' t-'+tone:''}${am?' am':''}${sm?' sm':''}"><img class="mi" src="${phSrc(n,crop)}"${phSet(n,o)} alt="" decoding="async"${o&&o.lazy?' loading="lazy"':''} style="width:100%;height:100%;object-fit:cover;display:block">${am?`<i class="amb" style="background-image:url(&quot;${am}&quot;)"></i>`:''}${n.bl?'<span class="blh">已打码</span>':''}</div>`};
 

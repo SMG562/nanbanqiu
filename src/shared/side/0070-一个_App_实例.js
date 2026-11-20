@@ -686,6 +686,7 @@ function App(el,init){
     x.pics.forEach((p,i)=>{const q=f.pics[i];if(q)['t','u','b'].forEach(k=>{if(p[k]&&q[k]&&p[k]!==q[k])m.push([p[k],q[k]]);if(q[k])p[k]=q[k]})});
     const sw=s=>s&&m.reduce((a,[o,v])=>a.split(o).join(v),s);
     [...el.querySelectorAll('[data-ln],[data-pic]')].filter(c=>(c.dataset.ln||c.dataset.pic)===id).forEach(c=>c.querySelectorAll('img').forEach(i=>{['src','srcset'].forEach(k=>{const a=i.getAttribute(k),b=sw(a);if(a&&b!==a)i.setAttribute(k,b)})}))};
+  el.addEventListener('load',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.classList.contains('mi'))i.classList.add('ld')},true);
   el.addEventListener('error',e=>{const i=e.target;if(i&&i.tagName==='IMG'&&i.closest('.tn'))phFix(i)},true);
   // 通知点开：那条不在已读的列表里（超过读的页数 / 已过 24 小时）→ 单独读一条放进去再打开；读不到 = 已经不在了
   const ensurePost=async id=>{if(find(id))return true;const net=rlNet();if(!net)return false;const r=await net.get('/api/sideline/posts/'+id,undefined,{anon:true});if(!r.ok||find(id))return !!find(id);
