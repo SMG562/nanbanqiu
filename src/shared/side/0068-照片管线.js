@@ -61,6 +61,11 @@ const sbPhQueue=o=>{const items=[],sleep=o.sleep||((ms,sg)=>new Promise(r=>{cons
 const sbPhPutMake=net=>async(name,v,blob,signal)=>{const r=await net.putRaw('/api/sideline/photos/'+name+'-'+(v==='full'?'f':v),blob,{signal,timeout:60000});
   return r.ok?{status:r.status}:{status:r.status,code:r.code,retryAfter:r.retry_after}};
 // ---- 草稿：上传会话（已传成功的键 + 文字 + 色调等）每步写本机；换账号 / 超过 24 小时作废（微信、iOS 会杀后台页）----
+// 话题建议（有图时）：拍照话题（穿搭 / 宠物 / 旅行 / 晚霞）排前面，今天的拍照话题最前；再补今天的话题和当前时段话题；去重、只留当前有的，最多 3 个。
+//   不依赖图片识别（photo_tags 只作以后的软推荐）；用户已选话题时调用方不显示建议，所以「用户选的优先」天然成立。
+const SB_PH_TOPICS=['ootd','pet','trip','sunset'];
+const sbPhSug=(today,slot,has)=>{const ph=SB_PH_TOPICS.filter(id=>has(id)),first=ph.includes(today)?[today]:[];
+  return [...new Set([...first,...ph,today,...(slot||[])].filter(id=>id&&has(id)))].slice(0,3)};
 const SB_DRAFT_KEY='nbq_sb_draft';
 const sbPhDraftGet=uid=>{const d=sbLS(SB_DRAFT_KEY);if(!d)return null;if(!uid||d.u!==uid||!(Date.now()-d.at<864e5)){sbLS(SB_DRAFT_KEY,null);return null}return d};
 const sbPhDraftSet=(uid,d)=>{if(uid)sbLS(SB_DRAFT_KEY,{...d,u:uid,at:Date.now()})};

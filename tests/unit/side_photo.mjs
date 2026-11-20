@@ -8,7 +8,7 @@ const store = {}, sbLS = (k, v) => { if (v === undefined) return store[k] ?? nul
 let now = 1e12;
 const { checkJpeg } = await import(path.join(DIR, 'server/api/photo_jpeg.mjs')), { seg, asc, jpeg } = await import(path.join(HERE, '..', 'lib', 'jpeg_sample.mjs'));
 const ctx = vm.createContext({ sbLS, Date: { now: () => now }, Promise, setTimeout, clearTimeout, AbortController, Math, Array, Object, Error, Uint8Array });
-vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear,sbPhStrip}', ctx);
+vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear,sbPhSug,sbPhStrip}', ctx);
 const X = ctx.__x, code = async p => { try { await p; return null } catch (e) { return e.code } };
 T('文件在空沙盒里能载入，两端都拼进去了', !!X.sbPhQueue && ['pwa', 'web'].every(e => rd(`src/${e}.list`).includes('shared/side/0068-照片管线.js')));
 
@@ -93,6 +93,11 @@ T('取消：中止进行中的请求、移出队列、不重试', Q.q.items.leng
 Q = mkQ(async () => ({ status: 200 })); ['a', 'b', 'c'].forEach(n => Q.q.add(n, P)); Q.q.cancel('c'); await settle();
 T('排队中的取消：根本没发请求', !Q.log.some(x => x.startsWith('c:')), Q.log);
 
+// ---- 话题建议 ----
+const all = () => true;
+T('话题建议：今天是拍照话题 → 它排第一，再补其他拍照话题', JSON.stringify(X.sbPhSug('pet', ['gear', 'dopa'], all)) === '["pet","ootd","trip"]');
+T('话题建议：今天不是拍照话题 → 拍照话题在前，今天的话题补在后面', JSON.stringify(X.sbPhSug('gear', ['dopa'], all)) === '["ootd","pet","trip"]');
+T('话题建议：只留当前有的话题、去重、最多 3 个', JSON.stringify(X.sbPhSug('gear', ['gear', 'dopa'], id => ['gear', 'dopa', 'sunset'].includes(id))) === '["sunset","gear","dopa"]' && X.sbPhSug('x', null, () => false).length === 0);
 // ---- 草稿 ----
 X.sbPhDraftSet('u1', { text: '好天气', keys: [{ name: 'k1', w: 1600, h: 1200 }], tone: 'warm' });
 T('草稿：本人读回文字、已传的键、色调', (d => d && d.text === '好天气' && d.keys[0].name === 'k1' && d.tone === 'warm')(X.sbPhDraftGet('u1')));
