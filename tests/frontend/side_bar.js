@@ -19,7 +19,7 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   await pg.click('#tabbar [data-tab="side"]'); await pg.evaluate(() => { SBV.every = 1e9; Object.defineProperty(SBV, 'hintAt', { get: () => Date.now() + 1e9, set() { } }) }); await W(500);
 
   const st = () => q(`r=>{const el=r.querySelector('.compose'),b=r.querySelector('.bar .box').getBoundingClientRect(),i=r.querySelector('[data-in]'),a=r.activeElement;
-    return {composeOn:el.getBoundingClientRect().top<innerHeight-60,focusIn:a===i||(!!a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)),qing:!!r.querySelector('.qing')||r.querySelector('.view.home').parentElement.classList.contains('qing'),
+    return {composeOn:el.getBoundingClientRect().top<innerHeight-60,focusIn:a===i||(!!a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)&&!a.closest('.compose')),qing:!!r.querySelector('.qing')||r.querySelector('.view.home').parentElement.classList.contains('qing'),
       qtpH:r.querySelector('.qtp').getBoundingClientRect().height,boxTop:Math.round(b.top),boxH:Math.round(b.height),topic:(r.querySelector('.compose .ctop b')||{}).textContent||'',ph:(r.querySelector('.compose textarea')||{}).placeholder||''}}`);
   const clickAt = async (sel, dx = 0.5) => { const bb = await E(new Function(`const r=document.querySelector('#sbHost').shadowRoot,e=r.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();return {x:e.left,y:e.top,w:e.width,h:e.height}`)); await pg.touchscreen.tap(bb.x + bb.w * dx, bb.y + bb.h / 2) };
   const close = async () => { await E(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-cx]').click()); await W(600) };
@@ -39,14 +39,34 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
   await clickAt('.bar .box', 0.25); await W(700);
   let s1 = await st();
   T('点输入框中间 → 进写动态页', s1.composeOn, s1);
-  // 11-17 #335：说明文字曾是绝对定位、没底色，键盘升起（页面变矮）后压在输入区上；现在和工具条同属一个有底色的底栏
+  // 11-20：发布页键盘上方什么都不放。照片 / 球场 / 设置是正文下面的一行（跟内容滚动）；「公开 24 小时」只在没写字时淡淡显示；矮屏（键盘升起）时输入框仍完整可见
   { await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
-    const o = await q(`r=>{const n=r.querySelector('.compose .cnote').getBoundingClientRect(),t=r.querySelector('.compose .ctool').getBoundingClientRect(),x=r.querySelector('.compose [data-ctext]').getBoundingClientRect(),bar=r.querySelector('.compose .cbot'),bg=getComputedStyle(bar).backgroundColor;return {nb:Math.round(n.bottom),tt:Math.round(t.top),nt:Math.round(n.top),barTop:Math.round(bar.getBoundingClientRect().top),bg,inBar:!!n.width&&bar.contains(r.querySelector('.compose .cnote'))}}`);
-    T('写动态页：说明文字在工具条上方、不与它重叠；底栏有底色（矮屏 / 键盘弹出时不透出输入区）', o.inBar && o.nb <= o.tt + 1 && o.nt >= o.barTop && !/rgba\(0, 0, 0, 0\)|transparent/.test(o.bg), o);
+    const o = await q(`r=>{const c=r.querySelector('.compose'),n=r.querySelector('.compose .cnote'),t=r.querySelector('.compose .ctool'),x=r.querySelector('.compose [data-ctext]').getBoundingClientRect();return {noBar:!r.querySelector('.compose .cbot'),inScroll:!!r.querySelector('.compose .cmp-sc .ctool'),pos:getComputedStyle(t).position,noteShown:getComputedStyle(n).display!=='none',noteColor:getComputedStyle(n).color,xt:Math.round(x.top),xb:Math.round(x.bottom),vh:innerHeight,ctoolTop:Math.round(t.getBoundingClientRect().top)}}`);
+    T('写动态页：键盘上方没有固定底栏，工具条在正文区里；没写字时有淡淡的说明；输入框在可视区内', o.noBar && o.inScroll && o.pos !== 'fixed' && o.pos !== 'absolute' && o.noteShown && o.xb <= o.vh && o.xt < o.ctoolTop, o);
+    await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.value='a';t.dispatchEvent(new Event('input'))}`);
+    T('写了字：说明文字消失', await q(`r=>getComputedStyle(r.querySelector('.compose .cnote')).display==='none'`));
+    await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.value='';t.dispatchEvent(new Event('input'))}`);
     await pg.setViewportSize({ width: 390, height: 844 }); await W(500) }
   // 11-17 #335：键盘开着点「加个话题 / 发布设置 / 球场」，弹层不许在「键盘上方那一小块」里先滑入再落位（先冲到最高点）。
+  // 11-20：写页打开即聚焦；照片 / 球场收成键盘上方一行工具条，点它们不收键盘、不弹浮层、不丢已输入的字
+  { const foc = () => q(`r=>{const a=r.activeElement,t=r.querySelector('.compose [data-ctext]');return {on:a===t,v:t.value,pickOn:r.querySelector('.pick').classList.contains('on'),shOn:r.querySelector('.csh').classList.contains('on'),cq:r.querySelector('.cqk').classList.contains('on'),lab:r.querySelector('.compose [data-cpl] span').textContent}}`);
+    await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
+    let f = await foc(); T('写页打开即聚焦输入框', f.on, f);
+    const hid = await q(`r=>({vh:innerHeight,sh:Math.round(r.querySelector('.csh-p').getBoundingClientRect().top),pk:Math.round(r.querySelector('.pick').getBoundingClientRect().top)})`); T('矮屏 / 键盘上方：没打开的话题 / 设置面板、选球场页整个藏在屏幕外，不露白边', hid.sh >= hid.vh && hid.pk >= hid.vh, hid);
+    await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.value='今天打得不错';t.dispatchEvent(new Event('input'))}`);
+    await q(`r=>{r.querySelector('.compose [data-cpl]').click()}`); await W(200); f = await foc();
+    T('点球场：键盘上方展开一行球场芯片，输入框仍聚焦、字还在、没有浮层', f.cq && f.on && f.v === '今天打得不错' && !f.pickOn && !f.shOn, f);
+    const k = await q(`r=>{const b=r.querySelector('.compose .cqk [data-ql]:not([data-ql=none])');return b?b.dataset.ql:''}`);
+    await q(`r=>{r.querySelector('.compose .cqk [data-ql]:not([data-ql=none])').click()}`); await W(200); f = await foc();
+    T('点一个球场芯片：球场标签更新、芯片收起、输入框仍聚焦、字还在', !!k && f.lab !== '球场' && !f.cq && f.on && f.v === '今天打得不错' && !f.pickOn, { k, f });
+    await q(`r=>{r.querySelector('.compose [data-lib]').click()}`); await W(300); f = await foc();
+    T('点照片：照片格在页内展开，输入框仍聚焦、字还在、没有浮层', f.on && f.v === '今天打得不错' && !f.pickOn && !f.shOn && await q(`r=>!!r.querySelector('.compose .lib')`), f);
+    await q(`r=>{r.querySelector('.compose [data-cpl]').click()}`); await W(100);
+    await q(`r=>{r.querySelector('.compose .cqk [data-ql=none]').click()}`); await W(200); f = await foc();
+    T('选「不选」：标签回到「球场」', f.lab === '球场' && f.on, f);
+    await pg.setViewportSize({ width: 390, height: 844 }); await W(500) }
   // 沙盒没有真键盘：把视口缩到 470 高 = 键盘升起（.device.kb），再放回 844 = 键盘收起。
-  for (const [name, btn, sel] of [['话题', '.compose [data-ctp]', '.csh'], ['发布设置', '.compose [data-cset]', '.csh'], ['球场', '.compose [data-cpl]', '.pick']]) {
+  for (const [name, btn, sel] of [['话题', '.compose [data-ctp]', '.csh'], ['发布设置', '.compose [data-cset]', '.csh'], ['球场（搜索更多）', '.compose [data-cpl2]', '.pick']]) {
     await pg.setViewportSize({ width: 390, height: 470 }); await W(500);
     await q(`r=>{const t=r.querySelector('.compose [data-ctext]');t.focus()}`); await W(100);
     await pg.evaluate(`window.__s=[];const r=document.querySelector('#sbHost').shadowRoot;window.__t=setInterval(()=>{const e=r.querySelector('${sel}'),p=r.querySelector('${sel === '.csh' ? '.csh-p' : '.pick'}');window.__s.push({on:e.classList.contains('on'),top:Math.round(p.getBoundingClientRect().top),kb:document.querySelector('.device').classList.contains('kb')})},20)`);

@@ -122,6 +122,24 @@ const SPEC = {}; for (const l of fs.readFileSync(path.join(__dirname, '..', 'spe
   await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="del"]').click(); await W(400);
   const pic = await E(() => String(SBV.L.find(x => x.pics && x.pics.length && !x.mine).id));
   await E(id => SBV.api.open(id), pic); await W(500); await sr('.sheet [data-pic]').first().click(); await W(400); await sh('[data-close]'); await W(200);
+  // #450：发布后「重新发布」= 用原文字开发布页；新帖发出去之后才删旧帖（中途取消不丢内容）
+  await E(() => { const x = SBV.L.find(x => x.mine && !x.pic && x.x); window._rd = { id: x.id, x: x.x }; SBV.api.open(x.id) }); await W(500);
+  await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="redo"]').click(); await W(700);
+  const rd0 = await E(() => ({ v: document.querySelector('#sbHost').shadowRoot.querySelector('[data-ctext]').value, still: SBV.L.some(x => x.id === _rd.id) }));
+  T('重新发布：发布页带着原文字，旧帖还在', rd0.v === await E(() => _rd.x) && rd0.still, rd0);
+  await sr('[data-cgo]').click(); await W(1200);
+  const rd1 = await E(() => ({ old: SBV.L.some(x => x.id === _rd.id), dup: SBV.L.filter(x => x.mine && x.x === _rd.x).length }));
+  T('重新发布：发出后旧帖没了、新帖有 1 条', !rd1.old && rd1.dup === 1, rd1);
+  // #450：多图帖子，点详情页第 N 张，大图必须是第 N 张（hero 分支曾漏设 viewI，点谁都是第一张）
+  await E(() => SBV.api.open('20')); await W(500);
+  const vi = []; for (const i of [0, 1, 2]) { await sr(`.sheet .hero .hp[data-pi="${i}"]`).click(); await W(450); vi.push(await E(() => { const im = document.querySelector('#sbHost').shadowRoot.querySelector('.viewer .img'); return Math.round(im.scrollLeft / im.clientWidth) })); await sh('[data-close]'); await W(200) }
+  T('详情点第 2、3 张 = 各自的大图（不是第一张）', vi.join() === '0,1,2', vi);
+  // 大图里可左右滑：从第 2 张进入，滑到第 3 张，圆点跟着走；再点进去仍是该张
+  await sr('.sheet .hero .hp[data-pi="1"]').click(); await W(450);
+  const sw = await E(async () => { const R = document.querySelector('#sbHost').shadowRoot, im = R.querySelector('.viewer .img'), on = () => [...R.querySelectorAll('.viewer .vd i')].findIndex(i => i.classList.contains('on')); const a = { n: im.children.length, k0: Math.round(im.scrollLeft / im.clientWidth), d0: on() }; im.scrollTo({ left: 2 * im.clientWidth }); await new Promise(r => setTimeout(r, 500)); a.d1 = on(); return a });
+  T('大图左右滑：3 张、从第 2 张进入、滑到第 3 张圆点跟着走', sw.n === 3 && sw.k0 === 1 && sw.d0 === 1 && sw.d1 === 2, sw);
+  await sh('[data-close]'); await W(200);
+  await E(id => SBV.api.open(id), pic); await W(500);
   await sr('.sheet [data-menu]').click(); await W(300); await sr('[data-act="hide"]').click().catch(() => {}); await W(200);
   const hid = await E(() => AN_LOG.some(e => e.ev === 'sb_hide')); if (!hid) await sr('[data-act="less"]').click().catch(() => {}); await W(300);
   await sr('[data-act="lf"]').click().catch(() => {}); await W(300);
