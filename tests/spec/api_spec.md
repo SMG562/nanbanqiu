@@ -502,6 +502,7 @@
 - **推送公钥** `GET /api/push/key` → `{key}`（环境变量 VAPID_PUBLIC，Pages / Workers 都要设；没配 404 `push_unavailable`，前台安静跳过）。
 - **运行时开关（#49）** `GET /api/switches`（不需要登录、不缓存）→ `{switches:{register_paused, maintenance, sms_paused, photos_paused}}`，默认全 false。`register_paused` 开 → 新号码 `POST /api/me/register` 返回 403 `register_paused`（已有资料的重复提交照旧）；`maintenance` 开 → 除 `/api/switches`、`/api/version`、`/api/client-errors` 外所有 `/api/*` 返回 503 `maintenance`（带 Retry-After）；后台接口不受影响（要靠它关）；`sms_paused` 只存状态，短信由前台直连 Supabase 发，由前台读到后不发。后台：`GET /admin/api/switches`、`POST /admin/api/switches/set {key, on, reason}`，权限 `switch.set`（仅 owner，必须填理由，留痕 target = 开关名）。
 - **发送程序版本** `GET /api/version`（不需要登录）→ `{sender:{version, at, heartbeat_age_s}}`：`version` = 部署时写进 Worker 的代码指纹（`node tools/worker_version.mjs`），Worker 每分钟写进心跳表 `ops_heartbeats`（名字 `sender@<指纹>`）；`heartbeat_age_s` = 距上次发送心跳的秒数。和仓库指纹对得上 = 线上是最新代码。
+- **健康检查可选参数** `GET /api/health?db=1&sender=1`（#50，只加不改）：`sender=1` 时读发送心跳，超过 300 秒或从没写过 → 503 `why: sender_stale`，返回里带 `sender.heartbeat_age_s`；不带 = 旧行为。供外部探测（UptimeRobot）发现「站点 200 但发送程序停了」。
 
 ---
 
