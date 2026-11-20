@@ -8,10 +8,10 @@ const n0=await pg.evaluate(()=>document.querySelectorAll('#d0 [data-s="home"] .l
 const live=await pg.evaluate(()=>({n:document.querySelectorAll('#d0 [data-s="home"] .ln').length,typing:document.querySelectorAll('#d0 .typing').length,pend:(SBV.pend||[]).length,pill:document.querySelector('#d0 [data-more]').classList.contains('show')}));
 // #344：新动态一律先攒着，不自己冒出来（不论用户在不在顶部），只亮「↑ N 条新动态」
 ok(live.n===n0&&live.pend>0&&live.pill,'第一台：新消息不自己冒出来，只亮胶囊',`${n0}→${live.n}，攒着 ${live.pend}`);
-// 点胶囊才放进来：直接放，没有让高度增长的 slot 动画；回顶、胶囊收起
-const more=await pg.evaluate(async()=>{const d=document.querySelector('#d0'),sc=d.querySelector('[data-sc="home"]');sc.scrollTop=900;await new Promise(r=>setTimeout(r,300));const m=d.querySelector('[data-more]');const shown=m&&m.classList.contains('show'),n1=d.querySelectorAll('[data-s="home"] .ln').length;if(shown)m.click();await new Promise(r=>setTimeout(r,120));return {shown,top:sc.scrollTop,exists:!!m,grew:d.querySelectorAll('[data-s="home"] .ln').length>n1,slots:d.querySelectorAll('.slot').length,hidden:!m.classList.contains('show')}});
-ok(more.exists,'有「新消息」提示元素');ok(more.shown,'滚动后提示还在');ok(more.top<5,'点提示回到顶部',more.top);
-ok(more.grew&&more.slots===0&&more.hidden,'点提示后：攒着的放进来、没有增高的 slot 动画、提示收起',more);
+// 点胶囊才放进来（静光新帖动线）：胶囊收起 → 平缓回顶（≤1s）→ 新帖组腾位置（高度增长一次）→ 依次亮起；结束后包裹层撤掉
+const more=await pg.evaluate(async()=>{const d=document.querySelector('#d0'),sc=d.querySelector('[data-sc="home"]');sc.scrollTop=900;await new Promise(r=>setTimeout(r,300));const m=d.querySelector('[data-more]');const shown=m&&m.classList.contains('show'),n1=d.querySelectorAll('[data-s="home"] .ln').length;if(shown)m.click();await new Promise(r=>setTimeout(r,2600));return {shown,top:sc.scrollTop,exists:!!m,grew:d.querySelectorAll('[data-s="home"] .ln').length>n1,slots:d.querySelectorAll('.slot').length,hidden:!m.classList.contains('show')}});
+ok(more.exists,'有「新消息」提示元素');ok(more.shown,'滚动后提示还在');ok(more.top<5,'点提示后平缓回到顶部',more.top);
+ok(more.grew&&more.slots===0&&more.hidden,'点提示后：攒着的放进来、腾位置的包裹层动画结束后撤掉、提示收起',more);
 // 不停插入后，没有残留的气泡、slot 等
 await pg.evaluate(()=>{SBV.every=1e9});await W(4500);const left=await pg.evaluate(()=>({slots:[...document.querySelectorAll('#d0 .slot')].filter(s=>s.style.overflow==='hidden').length,bub:document.querySelectorAll('#d0 .tx.bub').length}));
 ok(left.slots===0,'新消息动画结束后没有卡住的容器',left.slots);

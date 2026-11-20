@@ -17,7 +17,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1 });
-  const pg = await ctx.newPage(), errs = []; pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));
+  const pg = await ctx.newPage(), errs = []; await pg.addInitScript('window.NBQ_SB_K=.25'); pg.on('pageerror', e => errs.push(e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join('|')));   // 入场编排所有时间乘 0.25，测试跑得快；比例不变
   const iso = m => new Date(NOW - m * 60e3).toISOString();
   const S = { log: [], bodies: {}, idk: {}, cfgV: 2, feedDown: false, cfg: null, pendingNew: null, failPost: null, failBall: false, failReply: false, detailGets: 0, feedGets: 0,
     me: { id: ME, member_no: 1288, nickname: 'Sam', last_initial: 'L', utr: 5, utr_estimated: false, avatar_kind: 'letter', avatar_animal: null, avatar_color: 'paper', card_theme: 'court', created_at: new Date().toISOString(), gender: null, club_ids: [], pact_accepted_at: new Date().toISOString(), seal_roll: 1, home_club_ids: [] } };
@@ -39,7 +39,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     if (m === 'GET') {
       if (p === '/api/venues') return J(r, 200, { venues: VENUES });
       if (p === '/api/switches') return J(r, 200, { switches: { photos_paused: !!S.paused } });
-      if (S.phMock && p.startsWith('/api/sideline/photo/')) { if (S.phDelay) await new Promise(q => setTimeout(q, S.phDelay)); const old = u.searchParams.get('x') === 'old'; (S.phGets ||= []).push(p.split('/').pop() + '?x=' + u.searchParams.get('x') + ' ' + (old ? 410 : 200)); return old ? J(r, 410, { error: 'photo_expired' }) : r.fulfill({ status: 200, contentType: 'image/jpeg', body: S.jpg }) }
+      if (S.phMock && p.startsWith('/api/sideline/photo/')) { const dly = S.phDelayBy ? (S.phDelayBy[p.split('/').pop().replace(/-[tfb]$/, '')] || 0) : S.phDelay; if (dly) await new Promise(q => setTimeout(q, dly)); const old = u.searchParams.get('x') === 'old'; (S.phGets ||= []).push(p.split('/').pop() + '?x=' + u.searchParams.get('x') + ' ' + (old ? 410 : 200)); return old ? J(r, 410, { error: 'photo_expired' }) : r.fulfill({ status: 200, contentType: 'image/jpeg', body: S.jpg }) }
       if (p === '/api/me') return J(r, 200, { registered: true, user: S.me });
       if (p === '/api/games') return J(r, 200, { games: [] });
       if (p === '/api/games/mine') return J(r, 200, { games: [], participants: [], profiles: { [ME]: S.me } });
@@ -263,7 +263,7 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const fp = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return { n: r.querySelectorAll('[data-s="home"] .ln').length, first: (r.querySelector('[data-s="home"] .ln')||{}).outerHTML && r.querySelector('[data-s="home"] .ln').outerHTML.slice(0, 200), src: i && i.getAttribute('src'), stack: r.querySelectorAll('[data-s="home"] .ln.pc .mst i').length, pt: !!r.querySelector('[data-s="home"] .ln.pc.pt'), ar: !!r.querySelector('[data-s="home"] .ln.pc.lnar') } });
   T('真照片帖（别人发的，2 张）：列表画成带图卡片，用原图档（#483：缩略图拉到大卡片会糊），不叠小图，竖图是 4:5 高卡片（设计稿）', /a-f/.test(fp.src || '') && fp.stack === 0 && fp.pt && !fp.ar, fp);
   // ---- #488 列表卡片图：srcset 两档 + sizes 不低估渲染宽 + 首屏 2 张之外懒加载 ----
-  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.getBoundingClientRect().width, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
+  const im = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return i && { srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), loading: i.getAttribute('loading'), w: i.offsetWidth, vw: innerWidth, dpr: devicePixelRatio, cur: i.currentSrc } });
   T('#488 列表卡片图：srcset = 缩略 t（720w）+ 原图 u（1200w），竖图 1200×1600 按变体真实宽算', !!im && im.srcset === '/api/sideline/photo/u9/a-t?x=1 720w, /api/sideline/photo/u9/a-f?x=1 1200w', im);
   T('#488 sizes 不低估卡片渲染宽（写窄会选到小一档的图而发糊）：渲染宽 ≤ min(712, 视口 − 28)', !!im && im.sizes === 'min(712px,calc(100vw - 28px))' && im.w <= Math.min(712, im.vw - 28) + 0.5 && im.w > 300, im);
   T('#488 第一张不懒加载；DPR 1 的 362 宽卡片选缩略档（原图 1.5MB 档留给 3 倍屏）', !!im && im.loading !== 'lazy' && (im.dpr !== 1 || /a-t/.test(im.cur)), im);
@@ -303,7 +303,70 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
     T('#492 v2 慢网中间态：主图没到时透明、氛围底在；不出现空白或破图', mid.length === 2 && mid.every(x => +x.op < 0.5 && !x.ld && x.amb), mid);
     S.phDelay = 0; await pg.waitForTimeout(2500);
     T('#492 v2 慢网：主图到了之后淡入完成', await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc img.mi')].every(i => i.classList.contains('ld') && +getComputedStyle(i).opacity > 0.9)));
+    // 柔和出图：先后到的图不同时「刷」出来——相邻显影起点至少隔 ~60ms、整体 ≤ 420ms；显过的图重画时直接就位
+    const rv = await pg.evaluate(() => { const im = [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .ln.pc img.mi')], d = im.map(i => parseFloat(i.style.transitionDelay) || 0).sort((a, b) => a - b); const sr = im[0].getAttribute('src'); return { d, tr: getComputedStyle(im[0]).transitionDuration, again: SB.pic({ ph: true, u: sr, b: 'https://x.test/b.jpg', w: 1200, h: 800 }, 'full', '', { sz: '100vw' }), fresh: SB.pic({ ph: true, u: 'https://x.test/never-seen.jpg', b: 'https://x.test/b.jpg', w: 1200, h: 800 }, 'full', '', { sz: '100vw' }) } });
+    T('#492 柔和出图：显过的图重画直接就位（class 带 ld），没见过的仍从透明显影', /class="mi ld"/.test(rv.again) && /class="mi"/.test(rv.fresh), rv);
     S.phMock = false; }
+  // ---- #504 列表入场编排（静光）：首屏自上而下依次亮起 · 图晚于自己的卡片、慢网乱序仍按上下 · 每条只入场一次 · 触摸让路 · 减少动态效果 ----
+  { const K = 0.25, GAP = [300, 240, 200, 200, 220, 260];
+    const mk = (i, ph) => ({ id: 'e1e1e1e1-0000-4000-8000-0000000005' + String(i).padStart(2, '0'), user_id: JAY, city: 'melb', body: '入场第' + i + '条', topic_id: null, floor: 0, venue_id: null, photo_count: ph ? 1 : 0, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - (i + 1) * 6e4).toISOString(), photos: ph ? [{ idx: 0, w: 1200, h: 900, state: 'ok', t: `/api/sideline/photo/u9/z${i}-t?x=1`, url: `/api/sideline/photo/u9/z${i}-f?x=1`, b: `/api/sideline/photo/u9/z${i}-b?x=1` }] : [] });
+    const open = async () => { await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { });
+      await pg.click('#tabbar [data-tab="side"]') };
+    // 观察者在 shadow 一创建就挂上：记下每张卡片切到 go 的时刻与 --d、每张图加 ld 的时刻（+ 它的 transition-delay）
+    await pg.addInitScript(() => { const o = Element.prototype.attachShadow; Element.prototype.attachShadow = function (i) { const r = o.call(this, i); if (this.id === 'sbHost') { const E = window.__ent = { go: 0, d: [], ld: [] }; new MutationObserver(ms => ms.forEach(m => { const t = m.target; if (t.classList.contains('it') && t.classList.contains('ent-go') && !t.__w) { t.__w = 1; E.go ||= performance.now(); E.d.push({ id: (t.querySelector('.ln') || {}).dataset?.ln, d: t.style.getPropertyValue('--d') }) } if (t.tagName === 'IMG' && t.classList.contains('ld') && !t.__w) { t.__w = 1; E.ld.push({ src: t.getAttribute('src'), at: performance.now() + (parseFloat(t.style.transitionDelay) || 0) }) } })).observe(r, { attributes: true, attributeFilter: ['class'], subtree: true }) } return r } });
+    S.jpg = jpg; S.phMock = true; S.feedDown = false; S.phDelay = 0; S.posts = [mk(0, 0), mk(1, 1), mk(2, 0), mk(3, 1), mk(4, 0), mk(5, 0), mk(6, 0), mk(7, 0), mk(8, 0)];
+    // 慢网乱序：第一张图（z1）900ms 才回来，第二张（z3）立刻到；显影仍要按上下，且都晚于自己的卡片
+    S.phDelayBy = { z1: 900 }; await open(); await pg.settle(2600);
+    const en = await pg.evaluate(() => window.__ent), d5 = en.d.filter(x => x.id && /^e1e1e1e1-0000-4000-8000-0000000005/.test(x.id) && parseFloat(x.d) !== 0), ds = d5.map(x => Math.round(parseFloat(x.d) - parseFloat(d5[0].d)) + 320),   // 网络读回重画时接着缓存那次的进度（负延迟），所以只比相对值
+      seen = await pg.evaluate(() => [...SB.enter.seen].filter(x => /0000000005/.test(x)).length);
+    T('#504 首屏卡片依次亮起：--d 从 320ms 起、严格递增、相邻差值落在节奏表 [300,240,200,200,220,260]', ds.length >= 3 && ds[0] === 320 && ds.every((d, i) => i === 0 || d - ds[i - 1] === GAP[Math.min(i - 1, GAP.length - 1)]), en.d);
+    const l1 = en.ld.find(x => /z1-/.test(x.src)), l3 = en.ld.find(x => /z3-/.test(x.src));
+    T('#504 慢网乱序（第一张图晚到 900ms）：显影仍按上下，第二张不抢在第一张前面（至少隔 260ms×k）', !!l1 && !!l3 && l3.at - l1.at >= 260 * K - 5, [l1, l3]);
+    T('#504 图片显影晚于自己的卡片：显影起点 ≥ 卡片落稳（d + 1.5s×0.9 + 240ms）×k', !!l1 && !!l3 && l1.at - en.go >= (ds[1] + 1500 * 0.9 + 240) * K - 30 && l3.at - en.go >= (ds[3] + 1500 * 0.9 + 240) * K - 30, [l1, l3, en.go, ds]);
+    const pl = await pg.evaluate(() => { const d = SB.enter.plan(7), r = SB.enter.rev(d, [1, 0, 1, 1, 0, 1, 0]); return { d, r } });
+    T('#504 编排表：起步 320、间隔照节奏表后沿用最后一个值；图片时刻单调且各晚于自己的卡片', pl.d.join() === '320,620,860,1060,1260,1480,1740' && pl.r.filter(x => x != null).every((x, i, a) => (i === 0 || x - a[i - 1] >= 260)) && pl.r[0] >= pl.d[0] + 1350 + 240, pl);
+    T('#504 每条只入场一次：入场后记进「已入场」集合', seen >= 5, seen);
+    // 入场结束后：切筛选再切回来（重画列表）不重演——没有任何卡片带 pre / go
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-topic="brain"]')?.click()); await pg.settle(500);
+    const rd = await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelectorAll('.it.pre,.it.ent-go,.it.lit').length);
+    T('#504 重画列表（切筛选）：已入场的卡片直接就位，不带 pre / go / lit，不重演', rd === 0, rd);
+    // 触摸让路：入场进行中碰一下，剩下的立刻就位（没有残留 pre / go）；6 秒兜底（×k）也保证最终不残留
+    await open(); await pg.waitForFunction(() => !!document.querySelector('#sbHost').shadowRoot.querySelector('[data-s="home"] .it.ent-go,[data-s="home"] .it.pre'), null, { timeout: 15000 });
+    if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await pg.waitForTimeout(180); await pg.screenshot({ path: path.join(SHOTS, '06_首屏入场中.png') }) }
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('.scroll').dispatchEvent(new Event('touchstart', { bubbles: true })));
+    const tc = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .it.pre,[data-s="home"] .it.ent-go')].filter(e => e.getBoundingClientRect().top < innerHeight - 40).length);
+    T('#504 触摸让路：入场进行中一碰，首屏卡片立刻就位（视口内不残留 pre / go）', tc === 0, tc);
+    await pg.settle(2200);
+    await open(); await pg.settle(2300);
+    const fin = await pg.evaluate(() => [...document.querySelector('#sbHost').shadowRoot.querySelectorAll('[data-s="home"] .it.ent-go,[data-s="home"] .it.lit')].length);
+    T('#504 6 秒兜底（×k）后首屏没有任何卡片停在入场中（也没有残留的柔光类）', fin === 0, fin);
+    // 减少动态效果：直接终态，卡片和图片都立刻可见，不排队
+    await pg.emulateMedia({ reducedMotion: 'reduce' }); S.phDelayBy = null; await open(); await pg.settle(1200);
+    const rm = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; return { pre: r.querySelectorAll('.it.pre,.it.ent-go').length, op: [...r.querySelectorAll('[data-s="home"] .it')].slice(0, 4).map(e => getComputedStyle(e).opacity), im: [...r.querySelectorAll('[data-s="home"] img.mi')].map(i => getComputedStyle(i).opacity) } });
+    T('#504 减少动态效果：不排队、卡片与图片直接是终态', rm.pre === 0 && rm.op.every(x => +x === 1) && rm.im.every(x => +x > 0.9), rm);
+    await pg.emulateMedia({ reducedMotion: 'no-preference' });
+    // 新帖动线：往下刷时来了别人的新帖 → 不动位置、只亮胶囊、数字递增；点胶囊 → 平缓回顶 → 新帖在最上带强调 → 约 6.5s×k 后褪去
+    await open(); await pg.settle(2300);
+    const mkN = i => ({ ...mk(20 + i, 0), body: '新来的第' + i + '条', publish_at: new Date(NOW).toISOString() });
+    const poll = async () => { const g = S.feedGets; await E(() => { SBV.lastPoll = 0; SBV.wasVis = true }); await until(() => S.feedGets > g, 30); await pg.settle(300) };
+    const geo = () => pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, sc = r.querySelector('.scroll'), its = [...r.querySelectorAll('[data-s="home"] .it')]; return { st: sc.scrollTop, tops: its.slice(0, 6).map(e => Math.round(e.getBoundingClientRect().top)), pill: (r.querySelector('[data-more]') || {}).textContent, show: r.querySelector('[data-more]').classList.contains('show'), n: its.length, first: (its[0].querySelector('.ln') || {}).dataset?.ln } });
+    await pg.evaluate(() => { document.querySelector('#sbHost').shadowRoot.querySelector('.scroll').scrollTop = 420 }); await pg.settle(300);
+    const g0 = await geo(); S.pendingNew = mkN(1); await poll(); const g1 = await geo(); S.pendingNew = mkN(2); await poll(); const g2 = await geo();
+    T('#504 往下刷时来新帖：scrollTop 与已有卡片位置都不动，只亮胶囊「↑ 1 条」，再来一条数字递增', g0.st > 100 && g1.st === g0.st && g2.st === g0.st && JSON.stringify(g1.tops) === JSON.stringify(g0.tops) && JSON.stringify(g2.tops) === JSON.stringify(g0.tops) && g1.show && /↑ 1 条/.test(g1.pill) && /↑ 2 条/.test(g2.pill) && g2.n === g0.n, [g0, g1, g2]);
+    await sr('[data-more]').click(); await pg.settle(900);
+    if (SHOTS) await pg.screenshot({ path: path.join(SHOTS, '07_新帖强调.png') });
+    await pg.settle(800);
+    const g3 = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, sc = r.querySelector('.scroll'), its = [...r.querySelectorAll('[data-s="home"] .it')]; return { st: sc.scrollTop, fresh: its.filter(e => e.classList.contains('fresh')).length, first: (its[0].querySelector('.ln') || {}).dataset?.ln, dv: (r.querySelector('.nwdiv') || {}).textContent, n: its.length, slot: r.querySelectorAll('[data-s="home"]>.slot').length } });
+    T('#504 点胶囊：平缓回顶、新帖在最上（最新的最上）、带强调类、下方有「刚到 2 条」分隔线；腾位置的包裹层已撤掉', g3.st === 0 && g3.fresh === 2 && /0000000005(21|22)$/.test(g3.first || '') && g3.dv === '刚到 2 条' && g3.n === g0.n + 2 && g3.slot === 0, g3);
+    await pg.settle(7000 * K + 800 + 3300 * K);
+    const g4 = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; return { fresh: r.querySelectorAll('.it.fresh,.it.settle').length, dv: r.querySelectorAll('.nwdiv').length, ld: r.querySelectorAll('.it.ent-go,.it.pre,.it.lit').length } });
+    T('#504 约 6.5s×k 后强调类与分隔线撤掉，卡片不残留入场类', g4.fresh === 0 && g4.dv === 0 && g4.ld === 0, g4);
+    // 换账号 / 重画：列表一重画，强调类、分隔线、腾位置的包裹层都跟着清掉
+    S.pendingNew = mkN(3); await poll(); await sr('[data-more]').click(); await pg.settle(400);
+    await pg.evaluate(() => document.querySelector('#sbHost').shadowRoot.querySelector('[data-topic="brain"]')?.click()); await pg.settle(500);
+    const g5 = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; return r.querySelectorAll('.it.fresh,.nwdiv,[data-s="home"]>.slot').length });
+    T('#504 重画列表（换筛选 / 换账号同路径）：强调类、分隔线、包裹层一并清理', g5 === 0, g5);
+    await pg.emulateMedia({ reducedMotion: 'no-preference' }); S.phDelayBy = null; S.phMock = false }
   // ---- #492 ② 大图弹层里的图过期（410）：读新地址后整格重画，图真的显示 ----
   { const pv = { id: 'e1e1e1e1-0000-4000-8000-000000000501', user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 1, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date(Date.now() - 6e4).toISOString(), photos: [{ idx: 0, w: 1200, h: 1600, state: 'ok', t: '/api/sideline/photo/u9/v1-t?x=new', url: '/api/sideline/photo/u9/v1-f?x=new', b: '/api/sideline/photo/u9/v1-b?x=new' }] };
     S.jpg = jpg; S.phMock = true; S.freshPh = true; S.phGets = []; S.posts = [pv]; S.detailGets = 0;
