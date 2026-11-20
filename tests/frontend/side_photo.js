@@ -63,8 +63,8 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; if (!ok)
     T(`${f} 方向 1：红左蓝右不变`, red(res.px1.left) && blue(res.px1.right), res.px1);
     T(`${f} 样张确实带 APP1 / GPS（测试自身有效）`, res.gps.inApp1 && res.gps.inGps, res.gps);
     T(`${f} 输出三个变体都没有 APP1 / Exif / GPS / XMP，且是完整 JPEG`, ['full', 't', 'b'].every(k => { const m = res.gps[k]; return !m.app1 && !m.exifStr && !m.gps && !m.xmp && m.head && m.tail }), res.gps);
-    T(`${f} 4000×3000：full 1600×1200、t 480×360、b 48×36`, JSON.stringify([res.big.full, res.big.t, res.big.b]) === '[[1600,1200],[480,360],[48,36]]' && res.big.w === 1600 && res.big.h === 1200, res.big);
-    T(`${f} 大小在上限内：full ≤ 1.5MB、t ≤ 150KB、b ≤ 4KB`, res.big.sz[0] <= 1.5e6 && res.big.sz[1] <= 150e3 && res.big.sz[2] <= 4e3, res.big.sz);
+    T(`${f} 4000×3000：full 1600×1200、t 960×720、b 48×36`, JSON.stringify([res.big.full, res.big.t, res.big.b]) === '[[1600,1200],[960,720],[48,36]]' && res.big.w === 1600 && res.big.h === 1200, res.big);
+    T(`${f} 大小在上限内：full ≤ 1.5MB、t ≤ 250KB、b ≤ 4KB`, res.big.sz[0] <= 1.5e6 && res.big.sz[1] <= 250e3 && res.big.sz[2] <= 4e3, res.big.sz);
     T(`${f} 一张 12MP 级照片处理 ≤ 4 秒（沙盒无 GPU，宽松）`, res.big.ms < 4000, res.big.ms);
     T(`${f} 键名合格`, /^[A-Za-z0-9_-]{16,24}$/.test(res.big.name));
     T(`${f} 18MP 超大图：能处理，长边 ≤1600`, res.huge && res.huge.full && Math.max(...res.huge.full) <= 1600 && res.huge.tail, res.huge);

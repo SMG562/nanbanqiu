@@ -13,7 +13,7 @@ let r = ok(jpeg());
 T('干净的 JPEG（480×320）→ ok，宽高读对', r.ok && r.w === 480 && r.h === 320, r);
 T('熵编码数据里的 FF00 转义和重启标记 FFD0 不当成结构', ok(jpeg({ scan: [0x11, 0xFF, 0x00, 0x22, 0xFF, 0xD0, 0x33, 0xFF, 0xFF, 0xFF, 0xD1, 0x44] })).ok);
 T('渐进式 JPEG（多个 SOS，中间夹 DHT）→ ok', ok(jpeg({ scan: [0x11, ...seg(0xC4, [0x10, ...Array(16).fill(0), 0]), ...seg(0xDA, [1, 1, 0, 1, 5, 0]), 0x22] })).ok);
-T('三个变体的长边上限正好放行：1600 / 480 / 48', ok(jpeg({ w: 1600, h: 900 }), 'f').ok && ok(jpeg({ w: 480, h: 360 }), 't').ok && ok(jpeg({ w: 36, h: 48 }), 'b').ok);
+T('三个变体的长边上限正好放行：1600 / 960 / 48', ok(jpeg({ w: 1600, h: 900 }), 'f').ok && ok(jpeg({ w: 960, h: 720 }), 't').ok && ok(jpeg({ w: 36, h: 48 }), 'b').ok);
 T('带 ICC 配置文件（APP2）和注释（COM）的放行（客户端重绘不会有，但它们不含位置）', ok(jpeg({ extra: [...seg(0xE2, [...asc('ICC_PROFILE\0'), 1, 1, 9, 9]), ...seg(0xFE, asc('hello'))] })).ok);
 T('APP13 但不是 Photoshop 资源块 → 放行', ok(jpeg({ extra: seg(0xED, asc('NotPhotoshop')) })).ok);
 
@@ -43,10 +43,10 @@ T('IPTC（APP13 Photoshop 3.0 + 8BIM）→ photo_exif', code(jpeg({ extra: seg(0
 T('EXIF 放在帧头之后也查得到', code(Uint8Array.from([...jpeg({ scan: [0x12] }).slice(0, -2), ...seg(0xE1, gps), 0xFF, 0xD9])) === 'photo_exif');
 
 // ---- 尺寸与大小 ----
-T('长边超限：原图 1601 / 缩略 481 / 极小图 49 → photo_too_big', code(jpeg({ w: 1601, h: 10 }), 'f') === 'photo_too_big' && code(jpeg({ w: 10, h: 481 }), 't') === 'photo_too_big' && code(jpeg({ w: 49, h: 10 }), 'b') === 'photo_too_big');
+T('长边超限：原图 1601 / 缩略 961 / 极小图 49 → photo_too_big', code(jpeg({ w: 1601, h: 10 }), 'f') === 'photo_too_big' && code(jpeg({ w: 10, h: 961 }), 't') === 'photo_too_big' && code(jpeg({ w: 49, h: 10 }), 'b') === 'photo_too_big');
 T('像素炸弹（65535×65535）→ photo_too_big', code(jpeg({ w: 65535, h: 65535 })) === 'photo_too_big');
 T(`像素上限 ${PHOTO_MAX_PIXELS} 不依赖边长上限：2001×2000 在原图变体本来就超边长`, code(jpeg({ w: 2001, h: 2000 })) === 'photo_too_big');
-T('字节超限：原图 > 1.5 MB / 缩略 > 150 KB / 极小图 > 4 KB → photo_too_big（先于解析）', code(jpeg({ scan: new Array(PHOTO_VARIANTS.f.bytes).fill(1) }), 'f') === 'photo_too_big' && code(jpeg({ w: 480, h: 360, scan: new Array(PHOTO_VARIANTS.t.bytes).fill(1) }), 't') === 'photo_too_big' && code(jpeg({ w: 48, h: 36, scan: new Array(PHOTO_VARIANTS.b.bytes).fill(1) }), 'b') === 'photo_too_big');
+T('字节超限：原图 > 1.5 MB / 缩略 > 250 KB / 极小图 > 4 KB → photo_too_big（先于解析）', code(jpeg({ scan: new Array(PHOTO_VARIANTS.f.bytes).fill(1) }), 'f') === 'photo_too_big' && code(jpeg({ w: 960, h: 720, scan: new Array(PHOTO_VARIANTS.t.bytes).fill(1) }), 't') === 'photo_too_big' && code(jpeg({ w: 48, h: 36, scan: new Array(PHOTO_VARIANTS.b.bytes).fill(1) }), 'b') === 'photo_too_big');
 T('恰好在字节上限内的放行', ok(jpeg({ w: 48, h: 36, scan: new Array(PHOTO_VARIANTS.b.bytes - 200).fill(1) }), 'b').ok);
 T('不是 JPEG 的超大文件先报 photo_too_big（不读内容）', code(new Uint8Array(PHOTO_VARIANTS.b.bytes + 1).fill(0x41), 'b') === 'photo_too_big');
 T('耗时：1.5 MB 数据里没有标记，也在毫秒级（线性扫描，不会被卡住）', (() => { const big = jpeg({ scan: new Array(1_400_000).fill(0x55) }), t0 = Date.now(), x = ok(big); return x.ok && Date.now() - t0 < 500 })());

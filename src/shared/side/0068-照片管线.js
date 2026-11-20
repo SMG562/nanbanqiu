@@ -2,8 +2,8 @@
  * 浏览器能力（解码 / 画布）全由 E 注入，纯逻辑在 Node 空沙盒里可测（tests/unit/side_photo.mjs）；真实画布见 tests/frontend/side_photo.js。
  * 一律「画布重绘再导出 JPEG」：原文件的 EXIF / GPS / 内嵌缩略图全部丢弃（服务端对含 EXIF 的文件还会再拒一次）。
  * 键名 = 客户端随机名（16–24 位 [A-Za-z0-9_-]，与 api_sb_post 键正则一致），重试是同一个 PUT，天然幂等。本文件不接界面（P4）。 */
-const SB_PH={full:1600,t:480,b:48,max:3,mp:16e6,pre:4096,conc:2,tries:3,
-  bytes:{full:1.5e6,t:150e3,b:4e3},steps:[.82,.7]};
+const SB_PH={full:1600,t:960,b:48,max:3,mp:16e6,pre:4096,conc:2,tries:3,
+  bytes:{full:1.5e6,t:250e3,b:4e3},steps:[.82,.7]};
 const sbPhErr=(code,x)=>Object.assign(new Error(code),{code},x);
 // 名字不能以 -t / -b 结尾（会和别张图的变体键 <名>-t.jpg / <名>-b.jpg 撞名，服务端同样拒收）→ 以它们结尾就重抽
 const sbPhName=()=>{const A='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';let s;

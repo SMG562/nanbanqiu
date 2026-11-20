@@ -4,7 +4,7 @@
 //   返回 { ok: true, w, h } 或 { ok: false, code }；code：photo_bad_format（不是干净的 JPEG）/ photo_exif（带 EXIF·XMP·IPTC）/ photo_too_big（像素或边长超限）。
 export const PHOTO_MAX_PIXELS = 4_000_000;
 // 三个变体：f 原图（key = <名>.jpg）、t 缩略（<名>-t.jpg）、b 极小图（<名>-b.jpg）。大小为字节上限，edge 为长边上限
-export const PHOTO_VARIANTS = { f: { suffix: '', bytes: 1.5 * 1024 * 1024, edge: 1600 }, t: { suffix: '-t', bytes: 150 * 1024, edge: 480 }, b: { suffix: '-b', bytes: 4 * 1024, edge: 48 } };
+export const PHOTO_VARIANTS = { f: { suffix: '', bytes: 1.5 * 1024 * 1024, edge: 1600 }, t: { suffix: '-t', bytes: 250 * 1024, edge: 960 }, b: { suffix: '-b', bytes: 4 * 1024, edge: 48 } };
 
 const SOF = new Set([0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF]);   // C4 = DHT、C8 = JPG、CC = DAC 不是帧头
 const has = (u, at, s) => { for (let i = 0; i < s.length; i++) if (u[at + i] !== s.charCodeAt(i)) return false; return true };
