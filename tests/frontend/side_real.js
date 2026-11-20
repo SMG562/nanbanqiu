@@ -233,6 +233,11 @@ const NOW = +new Date('2026-10-14T15:10:00+11:00');
   const pb = S.bodies['POST /api/sideline/posts'];
   T('P4b：发布请求带 photos（键 sb/<本人>/<名>.jpg + 宽高），正文可为空', !!pb && Array.isArray(pb.photos) && pb.photos.length === 1 && new RegExp('^sb/' + ME + '/[A-Za-z0-9_-]{16,24}\\.jpg$').test(pb.photos[0].key) && pb.photos[0].w > 0 && pb.photos[0].h > 0 && pb.body === '', pb);
   T('P4b：发布后列表里刚发的那条显示了照片（<img>），不是空白（#450：发出去看不到图）', await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot; const i = r.querySelector('.it .bg img, .it img'); return !!i && /^blob:|^https?:/.test(i.getAttribute('src') || '') }));
+  // #450：别人发的真照片帖，列表要画成带图的卡片（x.pic 是列表卡片的开关；只设 pics 时列表退成纯文字，点开详情才有图）
+  S.feedDown = false; S.posts = [{ id: 'e1e1e1e1-0000-4000-8000-000000000001', user_id: JAY, city: 'melb', body: '', topic_id: null, floor: 0, venue_id: null, photo_count: 2, tone: '', replies_open: true, replies: 0, balls: 0, my_ball: false, mine: false, publish_at: new Date().toISOString(), photos: [{ idx: 0, state: 'ok', t: '/api/sideline/photo/u9/a-t?x=1', url: '/api/sideline/photo/u9/a-f?x=1', b: '/api/sideline/photo/u9/a-b?x=1' }, { idx: 1, state: 'ok', t: '/api/sideline/photo/u9/b-t?x=1', url: '/api/sideline/photo/u9/b-f?x=1', b: '' }] }, ...S.posts];
+  await pg.reload(); await pg.settle(900); await until(() => E(() => !!document.querySelector('#tabbar [data-tab="side"]'))); await E(() => { LOC.asked = true; closeSheet() }).catch(() => { }); await pg.click('#tabbar [data-tab="side"]'); await pg.settle(1200);
+  const fp = await pg.evaluate(() => { const r = document.querySelector('#sbHost').shadowRoot, i = r.querySelector('[data-s="home"] .ln.pc .bg img'); return { n: r.querySelectorAll('[data-s="home"] .ln').length, first: (r.querySelector('[data-s="home"] .ln')||{}).outerHTML && r.querySelector('[data-s="home"] .ln').outerHTML.slice(0, 200), src: i && i.getAttribute('src'), stack: r.querySelectorAll('[data-s="home"] .ln.pc .mst i').length } });
+  T('真照片帖（别人发的，2 张）：列表画成带图卡片，用缩略图，叠 2 张的小图', /a-t/.test(fp.src || '') && fp.stack === 2, fp);
   await E(() => { delete window.NBQ_SB_PHOTO_POST });
   T('全程没有页面报错', errs.length === 0, errs);
   console.log('side_real: ' + pass + ' 通过, ' + fail + ' 失败'); await b.close(); process.exit(fail ? 1 : 0);
