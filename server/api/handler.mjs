@@ -159,7 +159,7 @@ async function sbPhotos(q, d, posts) {
     const rows = (await q('select post_id, idx, storage_key, width, height, review from sb_photos where post_id = any($1::uuid[]) order by post_id, idx', [withPh.map(x => x.id)])).rows;
     const e = expiryAt(Math.floor(Date.now() / 1000)), owner = new Map(withPh.map(x => [x.id, x]));
     for (const r of rows) {
-      const post = owner.get(r.post_id), priv = post.public === false, u = v => photoUrl(d.photoKey, post.user_id, r.storage_key, v, e, priv);
+      const post = owner.get(r.post_id), priv = post.public === false, nm = r.storage_key.replace(/^sb\/[^/]+\//, '').replace(/\.(jpg|webp)$/, ''), u = v => photoUrl(d.photoKey, post.user_id, nm, v, e, priv);   // 库里存的是完整键 sb/<uid>/<名>.jpg，读图地址要 <名>（#450：别人看不到图）
       const o = { idx: r.idx, w: r.width, h: r.height, state: r.review };
       if (d.photoKey && r.review !== 'removed') { o.b = await u('b'); if (r.review === 'ok') { o.url = await u('full'); o.t = await u('t') } }
       (by.get(r.post_id) || by.set(r.post_id, []).get(r.post_id)).push(o);

@@ -6,8 +6,9 @@ let pass = 0, fail = 0; const T = (n, ok, x) => { ok ? pass++ : fail++; console.
 const rd = f => fs.readFileSync(path.join(DIR, f), 'utf8'), F = 'src/shared/side/0068-照片管线.js';
 const store = {}, sbLS = (k, v) => { if (v === undefined) return store[k] ?? null; if (v === null) delete store[k]; else store[k] = v };
 let now = 1e12;
+const { checkJpeg } = await import(path.join(DIR, 'server/api/photo_jpeg.mjs')), { seg, asc, jpeg } = await import(path.join(HERE, '..', 'lib', 'jpeg_sample.mjs'));
 const ctx = vm.createContext({ sbLS, Date: { now: () => now }, Promise, setTimeout, clearTimeout, AbortController, Math, Array, Object, Error, Uint8Array });
-vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear}', ctx);
+vm.runInContext(rd(F) + '\n;globalThis.__x={SB_PH,sbPhName,sbPhFit,sbPhEncode,sbPhDecode,sbPhRun,sbPhPick,sbPhQueue,sbPhPutMake,sbPhDraftGet,sbPhDraftSet,sbPhDraftClear,sbPhStrip}', ctx);
 const X = ctx.__x, code = async p => { try { await p; return null } catch (e) { return e.code } };
 T('文件在空沙盒里能载入，两端都拼进去了', !!X.sbPhQueue && ['pwa', 'web'].every(e => rd(`src/${e}.list`).includes('shared/side/0068-照片管线.js')));
 
@@ -120,5 +121,21 @@ X.sbPhDraftSet('', { text: 'x' }); T('草稿：没有账号 id 不写', Object.k
   let n422 = 0; const q2 = X.sbPhQueue({ put: X.sbPhPutMake(mkNet(p => { if (p.endsWith('-f')) { n422++; return { ok: false, status: 422, code: 'photo_exif' } } return { ok: true, status: 200 } })), sleep: async () => { } });
   const it2 = q2.add('Rrrrrrrrrrrrrrrr', { b: 1, t: 2, full: 3 }); await new Promise(r => setTimeout(r, 20));
   T('队列 + 适配：4xx 业务错不重试，st = fail 带 code', it2.st === 'fail' && it2.code === 'photo_exif' && n422 === 1, [it2.st, it2.code, n422]) }
+
+// ---- 剥元数据（11-19 真机 photo_exif 根因：iOS 画布导出的 JPEG 自带 APP1 / ICC，服务端一律拒 APP1；4KB 极小图还会被 ICC 撑爆）----
+{ const strip = u => X.sbPhStrip(u);
+  const gps = [...asc('Exif\0\0'), 1, 2, 3, 4], icc = [...asc('ICC_PROFILE\0'), 1, 1, ...Array(3000).fill(7)];
+  const dirty = jpeg({ extra: [...seg(0xE1, gps), ...seg(0xE2, icc), ...seg(0xED, [...asc('Photoshop 3.0\0'), ...asc('8BIM')]), ...seg(0xFE, asc('hi'))] });
+  T('夹具：带 EXIF / ICC / IPTC / 注释的 JPEG，服务端确实拒（photo_exif）', checkJpeg(dirty, 'f').code === 'photo_exif');
+  const clean = strip(dirty);
+  T('剥完：服务端放行，宽高不变', checkJpeg(clean, 'f').ok && checkJpeg(clean, 'f').w === 480, checkJpeg(clean, 'f'));
+  T('剥完：体积明显变小（ICC 没了，4KB 变体装得下）', clean.length < dirty.length - 3000, [clean.length, dirty.length]);
+  const body = jpeg({ scan: [0x11, 0xFF, 0x00, 0x22, 0xFF, 0xD0, 0x33] });
+  T('图像数据（含 FF00 转义和重启标记）原样保留', Buffer.from(strip(body)).equals(Buffer.from(body)));
+  T('本来就干净的原样返回内容', Buffer.from(strip(jpeg())).equals(Buffer.from(jpeg())));
+  T('XMP 也剥掉', checkJpeg(strip(jpeg({ extra: seg(0xE1, asc('http://ns.adobe.com/xap/1.0/\0<x/>')) })), 'f').ok);
+  const junk = Uint8Array.from([1, 2, 3, 4, 5]); T('不是 JPEG：原样返回，不抛错', strip(junk) === junk);
+  T('段长度坏掉：原样返回，不抛错', (u => strip(u) === u)(Uint8Array.from([0xFF, 0xD8, 0xFF, 0xE1, 0x7F, 0xFF, 1, 2, 3, 0xFF, 0xD9])));
+}
 
 console.log(`\nside_photo: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
