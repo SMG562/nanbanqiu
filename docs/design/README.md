@@ -11,6 +11,7 @@
 | 空状态 / 报错 / 加载 / 成功提示的文案和图标 | `.claude/skills/nanbanqiu-empty-state-ux/SKILL.md`、`marketing/icons/README.md` |
 | 整体审美总纲（轻、静、暖、可信；对标取舍、视觉原则、文案、反模式、评审清单） | `美学与品味.md` |
 | 引导 / 欢迎 / 成功 / 节日类动效：理念、节奏、技巧、踩坑、进化记录 | `动效与引导设计.md`、`原型_球场灯引导条.html`、`.claude/skills/nanbanqiu-motion-delight/SKILL.md` |
+| 列表 / 信息流入场、新内容到达（静光定稿）：参数、规则、测试清单 | `列表入场编排.md`、`原型_列表入场编排.html` |
 | 前台状态、键盘、弹层、输入框的坑 | `.claude/skills/frontend-state-ui-consistency/SKILL.md` |
 | 前端设计债怎么分步收敛 | GitHub Issue #322 |
 

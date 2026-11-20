@@ -38,6 +38,18 @@ description: 做回滚演练、上线加固（#53 #64）、写 出事处理手�
 - **会话限制**：下载并运行二进制（如本地跑 actionlint）会被自动分类器拒绝，不绕；改读代码推理 + 看 CI。`gh api` 读不到 Actions 日志（404）。shellcheck 对未使用的循环变量报 SC2034，用 `for _ in …`。
 - **改 `.github/workflows` 受「工作流数 ≤ 13」预算**：已满，别新增文件，并进现有 workflow（`concurrency` 组按触发拆开，免得互相取消）。PR 转 Ready 前描述照模板（风险类别要勾选，否则 `pr_state ready` 拒绝）。
 
+## 11-20 晚新增（#50 心跳停告警；证据：#498、`docs/演练记录.md` #50 行）
+- **告警验收要用「同款故障」**：给探测加 `?sender=1` 这类 503 条件后，先在 staging 停发送程序（Cloudflare → `nanbanqiu-notify-staging` → Settings → Cron Triggers 删 `* * * * *` → Save，AI 可在内置浏览器做），约 5 分钟后 503；再建一个**临时** UptimeRobot 监控指向 staging 同款地址，Down 邮件到 Gmail 才算验到，验完删临时监控。
+- **面板加回 cron（Cron expression 页签填 `* * * * *`）约 10 分钟才恢复心跳**，别当失败反复操作；要立刻恢复：所有者终端 `git switch main && git pull && npm ci && node tools/deploy_notify.mjs --env=staging --expect=<node tools/worker_version.mjs 的指纹>`（本机仓库常停在旧分支；缺 `npm ci` 会报找不到 `pg`；不带 `--expect` 会拒绝）。
+- **UptimeRobot 登录态会失效，密码只能所有者在内置浏览器里自己输**（Cmd+Shift+B 开面板）；改监控地址走 `/monitors/<id>/edit`；免费档 5 分钟一次，邮件默认已勾。
+- **独立复核留言只认第一行 `独立复核：通过 <7位> `**，提交号后必须是空格 / 行尾，不能紧跟全角括号或套 `**`（`review_state.mjs`）；用 Agent 只读子会话照 `tools/review_prompt.md`，约 40 秒。
+- **会话环境**：`gh pr create` 走 GraphQL 会 403，改 `gh api repos/SMG562/nanbanqiu/pulls -f title=… -f head=… -f base=main -F body=@文件 -F draft=true`；本机跑 `tests/pg/*` 要先 `apt-get update && apt-get install -y postgresql-16-postgis-3` 和 `npm ci`；`ci_wait.sh` 对已合并的 main 提交可能「找不到」，用 `gh api …/actions/runs?head_sha=<完整sha>` 查。
+
+## 11-20 晚新增（#53 L2 短信上限；证据：#53 收尾评论、`docs/演练记录.md` L2 行）
+- **Supabase 限流页**：`/dashboard/project/<ref>/auth/rate-limits`，输入值 `get_page_text` 读不到，要截图；sms/h 在正式库 50→30，同号间隔固定 60 秒不可调；Phone 面板（`/auth/providers`）会**明文显示 Vonage Secret**，看完立刻关、不记录。
+- **Vonage 没有每日消费上限项**：预付费余额即硬上限；防护 = Billing → Low balance alerts（阈值 $2，发所有者 Gmail）；Fraud Defender Advanced $47/月不买。`dashboard.nexmo.com` 会跳到 `dashboard.vonage.com`。
+- **内置浏览器点击**：坐标用截图的完整分辨率坐标系（缩放图坐标要换算）；页面刚加载时 `computer` 会报「page changed」，先 wait 再截图；`type` 前务必确认焦点在输入框，保存后刷新读回才算数。
+
 ## 怎么给所有者出步骤
 1. 一次只给一条命令，让他贴输出，看完再给下一条；别一次给五步（11-20 所有者说「太复杂了我不会」）。
 2. 能自动化的先自动化，被拦（强制更新、没后台权限）就说清被拦在哪、给 A / B 两个选项，不绕过。
