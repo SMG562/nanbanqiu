@@ -186,4 +186,12 @@ T('depsOf：「依赖 PR：无」/ 没写 / 空 → 没有依赖；多个去重'
   T('已经发过（标记在评论里）→ 不重复发', depNotices([pr({ comments: [{ body: depText(pr(), 357) }] })], new Set([357])).length === 0);
   T('草稿也发（草稿正是在等依赖的那个）；所有者自己的 PR、机器人的 PR 不发', depNotices([pr({ draft: true })], new Set([357])).length === 1 && depNotices([pr({ author: OWNER }), pr({ author: 'dependabot[bot]' })], new Set([357])).length === 0);
   T('依赖写成自己（写错号）→ 不发', depNotices([pr({ deps: [358] })], new Set([358])).length === 0); }
+// #471（11-20）：大合并提交的详情 JSON > 1MB 会让 execFileSync 抛 ENOBUFS，整个看板失败 6 次。gh 辅助函数必须放宽 maxBuffer，且单个提交取不到时不能拖垮整次运行
+{ const src = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '../../tools/collab_board.mjs'), 'utf8');
+  const ghLine = src.split('\n').find(l => l.startsWith('const gh = '));
+  T('gh 辅助函数放宽了 maxBuffer（默认 1MB 会 ENOBUFS，#471）', /maxBuffer:\s*\d+\s*\*\s*1024\s*\*\s*1024/.test(ghLine || '') && Number((/maxBuffer:\s*(\d+)/.exec(ghLine) || [])[1]) >= 64);
+  T('取 main 提交详情的循环里 try/catch：单个提交失败只告警（#471）', /let d = \{\}; try \{ d = JSON\.parse\(gh\(`repos\/\$\{R\}\/commits\/\$\{c\.sha\}`\)\) \} catch/.test(src));
+  const emit = ['-e', "process.stdout.write('x'.repeat(2 * 1024 * 1024))"];
+  let enobufs = false; try { execFileSync(process.execPath, emit, { encoding: 'utf8' }) } catch (e) { enobufs = e.code === 'ENOBUFS' }
+  T('复现前提：默认 maxBuffer 下 2MB 输出确实 ENOBUFS；放宽后可读', enobufs && execFileSync(process.execPath, emit, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).length === 2 * 1024 * 1024); }
 console.log(`collab_board: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

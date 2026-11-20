@@ -183,7 +183,8 @@ export function render(rows, now = Date.now()) {
   return `${GUIDE}\n\n**在制品**（每人 ≤ ${WIP_LIMIT}）：${wipTxt}\n\n${body.join('\n\n') || '（没有开着的 PR）'}`;
 }
 
-const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();
+// #471：maxBuffer 默认 1MB，大合并提交（6a82afd，patch JSON 约 0.9MB+）会 ENOBUFS 让整个看板失败
+const gh = (...a) => execFileSync('gh', ['api', ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 }), list = path => JSON.parse(gh('--paginate', '--slurp', path)).flat();
 // 取开着的每个 PR 的状态（CI、复核、级别、落后 main 几个提交）并分类 → [{ p, c }]；看板和 tools/review_queue.mjs 共用（11-11：自动复核巡检）
 export function gather(R, now = Date.now()) {
   const CO = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.github/CODEOWNERS'), 'utf8');
@@ -225,7 +226,7 @@ function main() {
   }
   // main 有新提交 → 告诉相关的开着的 PR（#189）。每个提交一次 API 取改动文件和新增行
   const since = new Date(now - MAIN_WINDOW_H * 36e5).toISOString();
-  const commits = list(`repos/${R}/commits?sha=main&since=${since}&per_page=100`).map(c => { const d = JSON.parse(gh(`repos/${R}/commits/${c.sha}`));
+  const commits = list(`repos/${R}/commits?sha=main&since=${since}&per_page=100`).map(c => { let d = {}; try { d = JSON.parse(gh(`repos/${R}/commits/${c.sha}`)) } catch (e) { console.log(`::warning::取提交 ${c.sha.slice(0, 7)} 详情失败（${String(e.code || e.message).slice(0, 60)}），按「无改动文件」处理，不拖垮整个看板（#471）`) }
     return { sha: c.sha, parents: (c.parents || []).length, message: d.commit?.message || '', files: (d.files || []).map(f => ({ filename: f.filename, patch: f.patch || '' })) } });
   for (const n of mainNotices(rows.map(r => r.p), commits)) post(n.number, n.body);
   // 依赖链（#363）：只查被依赖的 PR 号（通常 0–2 个）是否已合并；查不到（不是 PR / 无权限）= 当没合并
