@@ -118,7 +118,8 @@ description: 协作者（非所有者）在南伴球仓库开工、提交、开 
 ## 十二、叠加 PR 被 squash 后的残枝（11-20，#443/#451/#453→#456；#358→#357）
 - 叠加链里后一个 PR 被 squash 合并，前面的分支就成了「内容已在 main、历史不在」的残枝：再 sync_main 只会冲突，还可能把已被否掉的取向倒灌回来。**接手旧 PR 先做三步**：`git rev-list --count origin/main..origin/<分支>` 看领先数 → `git merge-tree --write-tree origin/main origin/<分支>` 看合进去净改多少 → 只剩几行就挑出自己的那个提交到新分支重放，或直接关并留说明。
 - 超长单行源码（`src/shared/side/*.js`）冲突：取 main 版本 + 脚本重放分支的小改动，别手解冲突标记；重放后必须 `node tools/lint.mjs`（漏一行会少个 `}`，lint 报 scopeManager 空）。
-- 前台「草稿」判断要覆盖所有存放处（文字 `text`、旧图 `pics`、真上传 `ups`），丢弃路径统一走既有的 `phDrop`（独立复核在 #462 抓到）。沙盒里全量 run_all 会被代理拦住超时：只跑相关套件 + 交 CI。
+- 前台「草稿」判断要覆盖所有存放处（`text` / 旧图 `pics` / 真上传 `ups`），丢弃统一走 `phDrop`（#462）。沙盒全量 run_all 会被代理拦超时：只跑相关套件 + 交 CI；并行跑偶发 e2e_admin_ops / sb_login 失败，单独重跑再判（浏览器测要 `node tests/run_all.mjs <套件名>`，直接 `node tests/frontend/x.js` 会报 `pg.settle is not a function`）。
+- 发布页图片交互（#475/#478，11-20）：`<img>` 默认可拖，会打断 pointer 排序，要 `draggable="false"`；新增 CSS 圆角会撞「场边 radii 预算」，用已有值（12px）；话题建议整块受 `NBQ_SB_FILLS_ON` 管，测试里发布页自带话题，浏览器测要先清话题才看得到建议块；`pr_state ready` 只认分支所属会话，被拦就 `git checkout -B <分支> origin/<分支>` 再重跑。
 
 ## 十一、经验自动提炼（11-17，#346；不靠人记）
 - **收集（脚本）**：每周一定时会话先跑 `node tools/lib/lessons_digest.mjs 7`；素材 = 交接评论里固定的「**踩过的坑**」一行（handoff-protocol §一.4）+ 近期经验文档提交 + 规则体检。
