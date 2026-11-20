@@ -8,6 +8,8 @@
 #       来历：#402 的正式库迁移排在 #399 的 staging 审批后面一直 Pending，没人知道。定时跑见 .github/workflows/queue-watch.yml；退出码 0 没卡住 / 4 有卡住。
 # 输出：每个工作流的结论和用时（按任务起止算，重跑也准）、tests 各分片的项数（总数对不对一眼看出）、偶发失败（重跑才过的，同一条出现两次要开 Issue）、
 #       失败项的报错行、最慢 5 项。退出码：0 全部成功（跳过也算）；1 有失败；3 还没跑完（超时）。
+# 【11-20 所有者授权】机器人重拍截图基准的提交（作者 github-actions（登录名 actions-user）、提交说明以「截图基准：」开头、只改 tests/visual/baseline/）会被 GitHub 标成 action_required（等人工批准），
+#       等 CI 时本脚本自动批准这类运行并继续等；其他任何提交的待批准运行一律不碰，只提示要所有者批准。
 # 只用 REST（会话里 GraphQL 被拦）；注解是读取结果的唯一办法（日志 / 附件下载被拦）。
 set -u
 R="${NBQ_REPO:-${GITHUB_REPOSITORY:-SMG562/nanbanqiu}}"; TMO=540; WAIT=1; ARG=""; STUCK=0; MIN=3; MAX=1440; SAY=0
@@ -59,8 +61,21 @@ case "$ARG" in
      else SHA=$(gh api "repos/$R/pulls/$ARG" --jq .head.sha 2>/dev/null) || { echo "找不到 PR #$ARG"; exit 2; }; fi;;
 esac
 runs() { gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=30" --jq '.workflow_runs[]|"\(.id) \(.status) \(.name)"' 2>/dev/null; }
+# 11-20：自动批准机器人截图基准提交的待批准运行（条件见文件头；每个提交只判断一次）
+ELIG_SHA=""; ELIG=0
+approve_bot() {
+  local pend; pend=$(gh api "repos/$R/actions/runs?head_sha=$SHA&per_page=30" --jq '.workflow_runs[]|select(.conclusion=="action_required" and .head_repository.full_name=="'"$R"'")|.id' 2>/dev/null)
+  [ -n "$pend" ] || return 0
+  if [ "$ELIG_SHA" != "$SHA" ]; then ELIG_SHA="$SHA"
+    [ "$(gh api "repos/$R/commits/$SHA" --jq '(.commit.author.name=="github-actions" and (.author.login=="actions-user" or .author.login=="github-actions[bot]")) and (.commit.message|startswith("截图基准：")) and ((.files|length)>0) and ([.files[].filename|startswith("tests/visual/baseline/")]|all)' 2>/dev/null)" = true ] && ELIG=1 || ELIG=0
+  fi
+  if [ "$ELIG" = 1 ]; then for id in $pend; do gh api -X POST "repos/$R/actions/runs/$id/approve" >/dev/null 2>&1 && echo "✅ 已自动批准机器人截图基准提交 ${SHA:0:7} 的运行 #$id"; done
+  else echo "⏸ ${SHA:0:7} 有运行等人工批准（不是机器人截图基准提交，不自动批准）：$(echo $pend | tr ' ' ',')"; fi
+}
 T0=$(date +%s)
 while :; do
+  case "$ARG" in ""|*[!0-9]*) ;; *) [ "${#ARG}" -ge 8 ] || SHA=$(gh api "repos/$R/pulls/$ARG" --jq .head.sha 2>/dev/null || echo "$SHA");; esac   # PR 号：机器人推了新提交就跟到新提交
+  [ "$WAIT" = 0 ] || approve_bot
   L=$(runs)
   if [ -n "$L" ] && ! echo "$L" | grep -qE ' (in_progress|queued|waiting|pending|requested) '; then break; fi
   [ "$WAIT" = 0 ] && break
